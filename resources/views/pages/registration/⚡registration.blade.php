@@ -18,12 +18,12 @@ new #[Layout('layouts::app')] #[Title('Frans GYM | Pendaftaran Member')] class e
                     <li class="me-2">
                         <button id="about-tab" data-tabs-target="#about" type="button" role="tab"
                             aria-controls="about" aria-selected="true"
-                            class="inline-block p-4 text-fg-brand rounded-ss-base hover:bg-neutral-tertiary">Member</button>
+                            class="cursor-pointer inline-block p-4 text-fg-brand rounded-ss-base hover:bg-neutral-tertiary">Member</button>
                     </li>
                     <li class="me-2">
                         <button id="services-tab" data-tabs-target="#services" type="button" role="tab"
                             aria-controls="services" aria-selected="false"
-                            class="inline-block p-4 hover:text-heading hover:bg-neutral-tertiary">Personal
+                            class="cursor-pointer inline-block p-4 hover:text-heading hover:bg-neutral-tertiary">Personal
                             Trainer</button>
                     </li>
                 </ul>

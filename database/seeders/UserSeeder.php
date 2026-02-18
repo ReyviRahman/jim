@@ -17,14 +17,14 @@ class UserSeeder extends Seeder
     public function run(): void
     {
         $faker = Faker::create('id_ID'); // Pakai data orang Indonesia
-        $password = Hash::make('password'); // Default password semua akun: 'password'
+        $password = Hash::make('12345678'); // Default password semua akun: 'password'
 
         // ==========================================
         // 1. BUAT 1 ADMIN
         // ==========================================
         User::create([
             'name' => 'Super Admin',
-            'email' => 'admin@gym.com', // Email untuk login admin
+            'email' => 'admin@gmail.com', // Email untuk login admin
             'password' => $password,
             'role' => 'admin',
             'occupation' => 'Gym Manager',
@@ -54,7 +54,7 @@ class UserSeeder extends Seeder
             
             User::create([
                 'name' => 'Coach ' . $faker->firstName($gender == 'Laki-laki' ? 'male' : 'female'),
-                'email' => 'pt' . ($index + 1) . '@gym.com', // pt1@gym.com, pt2@gym.com, dst
+                'email' => 'pt' . ($index + 1) . '@gmail.com', // pt1@gmail.com, pt2@gmail.com, dst
                 'password' => $password,
                 'role' => 'pt',
                 'occupation' => $spec, // Pekerjaan sesuai spesialisasi
@@ -77,7 +77,7 @@ class UserSeeder extends Seeder
             
             User::create([
                 'name' => $faker->name($gender == 'Laki-laki' ? 'male' : 'female'),
-                'email' => 'member' . $i . '@gym.com', // member1@gym.com, dst
+                'email' => 'member' . $i . '@gmail.com', // member1@gmail.com, dst
                 'password' => $password,
                 'role' => 'member',
                 'occupation' => $faker->jobTitle, // Pekerjaan acak

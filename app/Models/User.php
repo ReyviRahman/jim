@@ -4,6 +4,7 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -53,5 +54,17 @@ class User extends Authenticatable
             'joined_at' => 'date',
             'password' => 'hashed',
         ];
+    }
+
+    public function memberships(): HasMany
+    {
+        return $this->hasMany(Membership::class, 'user_id');
+    }
+
+    public function activeMembership()
+    {
+        return $this->memberships()
+            ->where('status', 'active')
+            ->first();
     }
 }

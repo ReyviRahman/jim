@@ -72,41 +72,15 @@
             </a>
             <ul class="space-y-2 font-medium">
                 <li>
-                    <a href="/dashboard/member/home" class="{{ request()->is('dashboard/member/home*') ? 'text-fg-brand bg-neutral-tertiary' : 'text-body' }} flex items-center px-2 py-1.5 rounded-md hover:bg-neutral-tertiary hover:text-fg-brand group">
-                    <svg class="w-5 h-5 transition duration-75 group-hover:text-fg-brand" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6.025A7.5 7.5 0 1 0 17.975 14H10V6.025Z"/><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.5 3c-.169 0-.334.014-.5.025V11h7.975c.011-.166.025-.331.025-.5A7.5 7.5 0 0 0 13.5 3Z"/></svg>
-                    <span class="ms-3">Dashboard</span>
+                    <a href="{{ route('member.dashboard') }}" wire:navigate class="{{ request()->routeIs('member.dashboard') ? 'text-fg-brand bg-neutral-tertiary' : 'text-body' }} flex items-center px-2 py-1.5 rounded-md hover:bg-neutral-tertiary hover:text-fg-brand group">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="currentColor" d="M13 21v-2h2v2zm-2-2v-5h2v5zm8-3v-4h2v4zm-2-4v-2h2v2zM5 14v-2h2v2zm-2-2v-2h2v2zm9-7V3h2v2zM4.5 7.5h3v-3h-3zM3 9V3h6v6zm1.5 10.5h3v-3h-3zM3 21v-6h6v6zM16.5 7.5h3v-3h-3zM15 9V3h6v6zm2 12v-3h-2v-2h4v3h2v2zm-4-7v-2h4v2zm-4 0v-2H7v-2h6v2h-2v2zm1-5V5h2v2h2v2zM5.25 6.75v-1.5h1.5v1.5zm0 12v-1.5h1.5v1.5zm12-12v-1.5h1.5v1.5z"/></svg>
+                    <span class="ms-3">Absensi</span>
                     </a>
                 </li>
                 <li>
-                    <a href="#" class="flex items-center px-2 py-1.5 text-body rounded-md hover:bg-neutral-tertiary hover:text-fg-brand group">
-                    <svg class="shrink-0 w-5 h-5 transition duration-75 group-hover:text-fg-brand" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 5v14M9 5v14M4 5h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z"/></svg>
-                    <span class="flex-1 ms-3 whitespace-nowrap">Kanban</span>
-                    <span class="bg-neutral-secondary-medium border border-default-medium text-heading text-xs font-medium px-1.5 py-0.5 rounded-sm">Pro</span>
-                    </a>
-                </li>
-                <li>
-                    <a href="#" class="flex items-center px-2 py-1.5 text-body rounded-md hover:bg-neutral-tertiary hover:text-fg-brand group">
-                    <svg class="shrink-0 w-5 h-5 transition duration-75 group-hover:text-fg-brand" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 13h3.439a.991.991 0 0 1 .908.6 3.978 3.978 0 0 0 7.306 0 .99.99 0 0 1 .908-.6H20M4 13v6a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-6M4 13l2-9h12l2 9M9 7h6m-7 3h8"/></svg>
-                    <span class="flex-1 ms-3 whitespace-nowrap">Inbox</span>
-                    <span class="inline-flex items-center justify-center w-4.5 h-4.5 ms-2 text-xs font-medium text-fg-danger-strong bg-danger-soft border border-danger-subtle rounded-full">2</span>
-                    </a>
-                </li>
-                <li>
-                    <a href="#" class="flex items-center px-2 py-1.5 text-body rounded-md hover:bg-neutral-tertiary hover:text-fg-brand group">
-                    <svg class="shrink-0 w-5 h-5 transition duration-75 group-hover:text-fg-brand" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" stroke-linecap="round" stroke-width="2" d="M16 19h4a1 1 0 0 0 1-1v-1a3 3 0 0 0-3-3h-2m-2.236-4a3 3 0 1 0 0-4M3 18v-1a3 3 0 0 1 3-3h4a3 3 0 0 1 3 3v1a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1Zm8-10a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/></svg>
-                    <span class="flex-1 ms-3 whitespace-nowrap">Users</span>
-                    </a>
-                </li>
-                <li>
-                    <a href="#" class="flex items-center px-2 py-1.5 text-body rounded-md hover:bg-neutral-tertiary hover:text-fg-brand group">
-                    <svg class="shrink-0 w-5 h-5 transition duration-75 group-hover:text-fg-brand" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 10V6a3 3 0 0 1 3-3v0a3 3 0 0 1 3 3v4m3-2 .917 11.923A1 1 0 0 1 17.92 21H6.08a1 1 0 0 1-.997-1.077L6 8h12Z"/></svg>
-                    <span class="flex-1 ms-3 whitespace-nowrap">Products</span>
-                    </a>
-                </li>
-                <li>
-                    <a href="#" class="flex items-center px-2 py-1.5 text-body rounded-md hover:bg-neutral-tertiary hover:text-fg-brand group">
-                    <svg class="shrink-0 w-5 h-5 transition duration-75 group-hover:text-fg-brand" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 12H4m12 0-4 4m4-4-4-4m3-4h2a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3h-2"/></svg>
-                    <span class="flex-1 ms-3 whitespace-nowrap">Sign In</span>
+                    <a href="{{ route('member.paket.index') }}" wire:navigate class="{{ request()->routeIs('member.paket.*') ? 'text-fg-brand bg-neutral-tertiary' : 'text-body' }} flex items-center px-2 py-1.5 rounded-md hover:bg-neutral-tertiary hover:text-fg-brand group">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m7 16.5l-5-3l5-3l5 3V19l-5 3z"/><path d="M2 13.5V19l5 3m0-5.455l5-3.03m5 2.985l-5-3l5-3l5 3V19l-5 3zM12 19l5 3m0-5.5l5-3m-10 0V8L7 5l5-3l5 3v5.5M7 5.03v5.455M12 8l5-3"/></g></svg>
+                    <span class="ms-3">Paket GYM</span>
                     </a>
                 </li>
             </ul>
