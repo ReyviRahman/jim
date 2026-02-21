@@ -30,7 +30,8 @@ new #[Layout('layouts::admin')] class extends Component
         GymPackage::create([
             'name' => $this->name,
             'price' => $this->price,
-            'number_of_sessions' => $this->number_of_sessions,
+            // Jika kosong string '', ubah menjadi null. Jika ada isinya, simpan angkanya.
+            'number_of_sessions' => $this->number_of_sessions === '' ? null : $this->number_of_sessions,
             'description' => $this->description,
         ]);
 
@@ -86,13 +87,17 @@ new #[Layout('layouts::admin')] class extends Component
 
             <div class="col-span-2">
                 <label for="sessions" class="block mb-2.5 text-sm font-medium text-heading">Jumlah Sesi</label>
+                
                 <input 
                     type="number" 
                     id="sessions" 
                     wire:model="number_of_sessions"
                     class="bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs placeholder:text-body" 
-                    placeholder="Jumlah Sesi" 
+                    placeholder="Contoh: 12" 
                 />
+                <p class="mt-1 text-xs text-gray-500">
+                    * Kosongkan jika paket adalah Gym Mandiri (Sesi Unlimited).
+                </p>
                 @error('number_of_sessions') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
             </div>
         </div>

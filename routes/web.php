@@ -28,10 +28,12 @@ Route::middleware('auth')->group(function () {
         Route::livewire('/home', 'pages::dashboard.member.home')
             ->name('member.dashboard');
 
+        Route::livewire('/membership', 'pages::dashboard.member.membership')
+        ->name('member.membership.index');
+
         Route::livewire('/paket', 'pages::dashboard.member.package')
             ->name('member.paket.index');
-        
-        // Tambahkan route checkout paket di sini jika sudah dibuat
+
         Route::livewire('/paket/{package}/checkout', 'pages::dashboard.member.package.checkout')
             ->name('member.paket.checkout');
     });
@@ -44,6 +46,12 @@ Route::middleware('auth')->group(function () {
         // --- Membership Management ---
         Route::livewire('/membership/create', 'pages::dashboard.admin.membership.create')
             ->name('admin.membership.create');
+
+        Route::livewire('/membership', 'pages::dashboard.admin.membership')
+            ->name('admin.membership.index');
+
+        Route::livewire('/absensi', 'pages::dashboard.admin.absensi')
+            ->name('admin.absensi.index');
 
         // --- Package Management ---
         // Saya kelompokkan lagi dengan prefix 'package' biar URL rapi

@@ -67,4 +67,11 @@ class User extends Authenticatable
             ->where('status', 'active')
             ->first();
     }
+
+    public function pendingMembership()
+    {
+        return $this->memberships()
+            ->where('status', 'pending')
+            ->first();
+    }
 }

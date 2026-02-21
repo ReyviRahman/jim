@@ -17,12 +17,12 @@ return new class extends Migration
             $table->foreignId('pt_id')->nullable()->constrained('users')->nullOnDelete();
             $table->foreignId('gym_package_id')->constrained('gym_packages');
             $table->decimal('price_paid', 12, 0);
-            $table->integer('total_sessions');
-            $table->integer('remaining_sessions');
+            $table->integer('total_sessions')->nullable();
+            $table->integer('remaining_sessions')->nullable();
             $table->string('member_goal');
             $table->date('start_date');
             $table->date('end_date');
-            $table->enum('status', ['pending', 'active', 'completed'])->default('pending');
+            $table->enum('status', ['pending', 'active', 'rejected', 'completed'])->default('pending');
             $table->timestamps();
         });
     }

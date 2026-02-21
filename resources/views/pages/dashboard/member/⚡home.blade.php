@@ -11,19 +11,24 @@ new #[Layout('layouts::member')] class extends Component
     {
         // 1. Ambil User yang sedang login
         $user = Auth::user();
+        
+        // 2. Cek apakah user punya membership aktif
+        $activeMembership = $user->activeMembership();
 
-        // 2. Tentukan data apa yang mau disimpan di QR
-        // Bisa ID user, NIK, atau Token khusus.
-        // Contoh: Mengirim string JSON berisi ID dan Email.
-        // $dataAbsen = $user ? json_encode([
-        //     'id' => $user->id,
-        //     'email' => $user->email,
-        //     'type' => 'absensi'
-        // ]) : 'Guest';
+        // 3. Tentukan data absen dan status tampilan berdasarkan kepemilikan paket
+        if ($activeMembership) {
+            // Format: user_id | membership_id | tipe
+            $dataAbsen = $user->id . '|' . $activeMembership->id . '|membership';
+            $statusText = 'Membership Aktif';
+            $statusColor = 'text-green-600 bg-green-100';
+        } else {
+            // Format: user_id | none | tipe
+            $dataAbsen = $user->id . '|none|visit';
+            $statusText = 'Visit (Non-Member)';
+            $statusColor = 'text-yellow-700 bg-yellow-100';
+        }
 
-        $dataAbsen = 'guest|guest|absensi';
-
-        // 3. Generate QR Code (Format SVG lebih tajam)
+        // 4. Generate QR Code (Format SVG lebih tajam)
         $qrCode = QrCode::size(200)
                     ->format('svg')         // Format SVG agar tajam
                     ->errorCorrection('H')  // High Error Correction (Lebih mudah dibaca scanner)
@@ -32,10 +37,13 @@ new #[Layout('layouts::member')] class extends Component
                     ->margin(2)
                     ->generate($dataAbsen);
 
-        // Kirim variable $qrCode ke view
+        // Kirim variable ke view
         return view('pages.dashboard.member.⚡home', [
             'qrCode' => $qrCode,
-            'user' => $user
+            'user' => $user,
+            'statusText' => $statusText,
+            'statusColor' => $statusColor,
+            'activeMembership' => $activeMembership // Kirim data membership untuk info tambahan di view
         ]);
     }
 };
@@ -45,10 +53,22 @@ new #[Layout('layouts::member')] class extends Component
     
     <div class="text-center mb-6">
         <h2 class="text-2xl font-bold text-gray-800">Kartu Absensi Digital</h2>
-        <p class="text-gray-500">Scan QR Code ini pada alat absensi</p>
+        <p class="text-gray-500 text-sm mt-1">Scan QR Code ini pada alat absensi</p>
     </div>
 
-    <div class="p-4 bg-white border-2 border-dashed border-gray-300 rounded-lg shadow-sm">
+    <div class="mb-5 text-center">
+        <span class="px-3 py-1 text-sm font-semibold rounded-full {{ $statusColor }}">
+            {{ $statusText }}
+        </span>
+        
+        @if($activeMembership)
+            <p class="text-xs text-gray-500 font-medium mt-2">
+                Sisa Sesi Bersama Coach: <span class="{{ $activeMembership->remaining_sessions <= 2 ? 'text-red-500' : 'text-green-600' }}">{{ $activeMembership->remaining_sessions }}</span> / {{ $activeMembership->total_sessions }}
+            </p>
+        @endif
+    </div>
+
+    <div class="p-4 bg-white border-2 border-dashed border-gray-300 rounded-lg shadow-sm transition-transform hover:scale-105 duration-300">
         @if(isset($qrCode))
             {!! $qrCode !!} 
         @else
@@ -58,8 +78,8 @@ new #[Layout('layouts::member')] class extends Component
 
     @if(isset($user))
         <div class="mt-6 text-center">
-            <p class="font-semibold text-lg text-gray-800">{{ $user->name }}</p>
-            <p class="text-sm text-gray-500">{{ $user->occupation ?? 'Member' }}</p>
+            <p class="font-semibold text-xl text-gray-800">{{ $user->name }}</p>
+            <p class="text-sm text-gray-500 mt-1">{{ $user->phone ?? 'Member Gym' }}</p>
         </div>
     @endif
 
