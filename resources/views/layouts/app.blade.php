@@ -13,7 +13,7 @@
     </head>
     <body>
         <livewire:navbar/>
-        <div class="mt-18">
+        <div class="mt-15">
             {{ $slot }}
         </div>
         <script src="https://cdn.jsdelivr.net/npm/flowbite@4.0.1/dist/flowbite.min.js"></script>

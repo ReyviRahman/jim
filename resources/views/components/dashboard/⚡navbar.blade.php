@@ -15,7 +15,7 @@ new class extends Component {
 };
 ?>
 
-<nav class="fixed top-0 z-50 w-full bg-neutral-primary-soft border-b border-default">
+<nav class="fixed top-0 z-50 w-full bg-[#34342F] border-b border-default">
     <div class="px-3 py-3 lg:px-5 lg:pl-3">
         <div class="flex items-center justify-between">
             <div class="flex items-center justify-start rtl:justify-end">
@@ -27,14 +27,14 @@ new class extends Component {
                 </button>
                 <a href="/" class="flex ms-2 md:me-24" wire:navigate>
                     <img src="{{ asset('icon.png') }}" class="h-6 me-3" alt="Frans GYM Logo" />
-                    <span class="self-center text-lg font-semibold whitespace-nowrap dark:text-white">Frans GYM</span>
+                    <span class="self-center text-lg font-semibold whitespace-nowrap text-brand">Frans GYM</span>
                 </a>
             </div>
             <div class="flex items-center">
                 @auth
                     <div class="sm:ms-4 ms-auto flex items-center md:order-2 space-x-3 md:space-x-0 rtl:space-x-reverse">
                         <button type="button"
-                            class="flex text-sm bg-neutral-primary rounded-full md:me-0 focus:ring-4 focus:ring-neutral-tertiary"
+                            class="flex text-sm bg-[#34342F] rounded-full md:me-0 focus:ring-4 focus:ring-brand"
                             id="user-menu-button" aria-expanded="false" data-dropdown-toggle="user-dropdown"
                             data-dropdown-placement="bottom">
                             <span class="sr-only">Open user menu</span>
@@ -44,13 +44,13 @@ new class extends Component {
                                 <img class="w-8 h-8 rounded-full object-cover" src="https://ui-avatars.com/api/?name={{ urlencode(Auth::user()->name) }}&background=random" alt="{{ Auth::user()->name }}">
                             @endif
                         </button>
-                        <div class="z-50 hidden bg-neutral-primary-medium border border-default-medium rounded-base shadow-lg w-44"
+                        <div class="z-50 hidden bg-[#34342F] border border-default-medium rounded-base shadow-lg w-44"
                             id="user-dropdown">
                             <div class="px-4 py-3 text-sm border-b border-default">
-                                <span class="block text-heading font-medium">{{ Auth::user()->name }}</span>
-                                <span class="block text-body truncate">{{ Auth::user()->email }}</span>
+                                <span class="block text-brand font-medium">{{ Auth::user()->name }}</span>
+                                <span class="block text-white truncate">{{ Auth::user()->email }}</span>
                             </div>
-                            <ul class="p-2 text-sm text-body font-medium" aria-labelledby="user-menu-button">
+                            <ul class="p-2 text-sm text-white font-medium" aria-labelledby="user-menu-button">
                                 <li>
                                     <a href="#"
                                         class="inline-flex items-center w-full p-2 hover:bg-neutral-tertiary-medium hover:text-heading rounded">Settings</a>
