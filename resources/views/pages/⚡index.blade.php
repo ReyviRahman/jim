@@ -128,7 +128,7 @@ new #[Layout('layouts::empty')] #[Title('Frans GYM | Pusat Kebugaran Terbaik di 
                     @guest
                         <li>
                             <a href="/pendaftaran/member" wire:navigate
-                                class="block py-2 px-3 rounded md:p-0 md:border-0 text-white md:hover:text-brand hover:bg-neutral-tertiary md:hover:bg-transparent transition-colors">
+                                class="block py-2 px-3 rounded md:p-0 md:border-0 text-[#34342F] md:text-white md:hover:text-brand hover:bg-neutral-tertiary md:hover:bg-transparent transition-colors">
                                 Daftar
                             </a>
                         </li>
