@@ -5,6 +5,7 @@ use Livewire\Attributes\Layout;
 use Livewire\Attributes\Computed;
 use App\Models\GymPackage;
 use App\Models\Membership;
+use Illuminate\Support\Facades\Auth; 
 
 new #[Layout('layouts::member')] class extends Component
 {
@@ -39,12 +40,12 @@ new #[Layout('layouts::member')] class extends Component
                     <th scope="col" class="px-6 py-3 font-medium">Personal Trainer</th>
                     <th scope="col" class="px-6 py-3 font-medium">Sesi (Sisa/Total)</th>
                     <th scope="col" class="px-6 py-3 font-medium">Masa Aktif</th>
-                    <th scope="col" class="px-6 py-3 font-medium">Status</th>
+                    <th scope="col" class="px-6 py-3 font-medium text-center">Status</th>
                 </tr>
             </thead>
             <tbody>
                 @forelse ($this->memberships as $membership)
-                    <tr class="bg-neutral-primary-soft border-b border-default hover:bg-neutral-secondary-medium">
+                    <tr wire:key="{{ $membership->id }}" class="bg-neutral-primary-soft border-b border-default hover:bg-neutral-secondary-medium">
                         <td class="px-7 py-4 font-medium text-heading whitespace-nowrap">
                             {{ $loop->iteration }}
                         </td>
@@ -52,29 +53,43 @@ new #[Layout('layouts::member')] class extends Component
                             {{ $membership->gymPackage->name ?? 'Paket Tidak Tersedia' }}
                         </td>
                         <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
-                            {{ $membership->personalTrainer->name ?? 'Tanpa PT' }}
+                            {{ $membership->personalTrainer->name ?? '-' }}
                         </td>
+                        
+                        {{-- PERBAIKAN LOGIKA SESI (COACH VS MANDIRI) --}}
                         <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
-                            <span class="font-bold text-brand">{{ $membership->remaining_sessions }}</span> / {{ $membership->total_sessions }} Sesi
-                        </td>
-                        <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
-                            {{ $membership->start_date ? $membership->start_date->format('d M Y') : '-' }} s/d <br>
-                            {{ $membership->end_date ? $membership->end_date->format('d M Y') : '-' }}
-                        </td>
-                        <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
-                            @if($membership->status === 'active')
-                                <span class="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded border border-green-400">Aktif</span>
-                            @elseif($membership->status === 'expired')
-                                <span class="bg-red-100 text-red-800 text-xs font-medium px-2.5 py-0.5 rounded border border-red-400">Expired</span>
+                            @if($membership->total_sessions !== null)
+                                <span class="font-bold text-brand">{{ $membership->remaining_sessions }}</span> / {{ $membership->total_sessions }} Sesi
                             @else
-                                <span class="bg-gray-100 text-gray-800 text-xs font-medium px-2.5 py-0.5 rounded border border-gray-400">{{ ucfirst($membership->status) }}</span>
+                                <span class="text-gray-500 italic">Unlimited</span>
+                            @endif
+                        </td>
+                        
+                        <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
+                            <div>{{ $membership->start_date ? $membership->start_date->format('d M Y') : '-' }}</div>
+                            <div class="text-xs text-gray-400">s/d</div>
+                            <div>{{ $membership->end_date ? $membership->end_date->format('d M Y') : '-' }}</div>
+                        </td>
+                        
+                        {{-- PERBAIKAN WARNA STATUS --}}
+                        <td class="px-6 py-4 font-medium text-heading whitespace-nowrap text-center">
+                            @if($membership->status === 'active')
+                                <span class="bg-green-100 text-green-800 text-xs font-semibold px-2.5 py-1 rounded-full">Aktif</span>
+                            @elseif($membership->status === 'pending')
+                                <span class="bg-yellow-100 text-yellow-800 text-xs font-semibold px-2.5 py-1 rounded-full">Pending</span>
+                            @elseif($membership->status === 'expired')
+                                <span class="bg-gray-100 text-gray-800 text-xs font-semibold px-2.5 py-1 rounded-full">Expired</span>
+                            @elseif($membership->status === 'completed')
+                                <span class="bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-1 rounded-full">Selesai</span>
+                            @elseif($membership->status === 'rejected')
+                                <span class="bg-red-100 text-red-800 text-xs font-semibold px-2.5 py-1 rounded-full">Ditolak</span>
                             @endif
                         </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="6" class="px-6 py-4 text-center text-gray-500">
-                            Anda belum memiliki paket membership saat ini.
+                        <td colspan="6" class="px-6 py-8 text-center text-gray-500">
+                            Anda belum memiliki riwayat paket membership saat ini.
                         </td>
                     </tr>
                 @endforelse

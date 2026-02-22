@@ -27,6 +27,9 @@ Route::middleware('auth')->group(function () {
         
         Route::livewire('/home', 'pages::dashboard.member.home')
             ->name('member.dashboard');
+            
+        Route::livewire('/riwayat-kehadiran', 'pages::dashboard.member.kehadiran')
+            ->name('member.kehadiran.index');
 
         Route::livewire('/membership', 'pages::dashboard.member.membership')
         ->name('member.membership.index');
@@ -36,6 +39,14 @@ Route::middleware('auth')->group(function () {
 
         Route::livewire('/paket/{package}/checkout', 'pages::dashboard.member.package.checkout')
             ->name('member.paket.checkout');
+    });
+
+    Route::middleware('role:pt')->prefix('dashboard/pt')->group(function () {
+        Route::livewire('/absensi', 'pages::dashboard.pt.absensi')
+            ->name('pt.absensi');
+
+        Route::livewire('/riwayat-kehadiran', 'pages::dashboard.pt.kehadiran')
+            ->name('pt.kehadiran.index');
     });
 
 
@@ -52,6 +63,12 @@ Route::middleware('auth')->group(function () {
 
         Route::livewire('/absensi', 'pages::dashboard.admin.absensi')
             ->name('admin.absensi.index');
+        
+        Route::livewire('/akun', 'pages::dashboard.admin.akun')
+            ->name('admin.akun.index');
+
+        Route::livewire('/akun/{user}', 'pages::dashboard.admin.akun.detail')
+            ->name('admin.akun.detail');
 
         // --- Package Management ---
         // Saya kelompokkan lagi dengan prefix 'package' biar URL rapi

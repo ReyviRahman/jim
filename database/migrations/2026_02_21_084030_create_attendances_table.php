@@ -19,7 +19,7 @@ return new class extends Migration
             $table->foreignId('membership_id')->nullable()->constrained()->nullOnDelete();
             
             // Kolom untuk mempertegas jenis absensi
-            $table->enum('type', ['membership', 'visit'])->default('visit');
+            $table->enum('type', ['membership', 'visit', 'trainer'])->default('visit');
             
             // Waktu kedatangan saja
             $table->timestamp('check_in_time')->useCurrent();

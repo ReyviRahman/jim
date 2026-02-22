@@ -30,6 +30,8 @@ class User extends Authenticatable
         'joined_at',
         'address',
         'is_active',
+        'photo',
+        'role',
     ];
 
     /**

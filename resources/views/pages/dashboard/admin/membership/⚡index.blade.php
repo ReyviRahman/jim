@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Livewire\Admin; // Sesuaikan dengan namespace Anda
+
 use Livewire\Component;
 use Livewire\Attributes\Layout;
 use App\Models\Membership;
@@ -9,16 +11,37 @@ new #[Layout('layouts::admin')] class extends Component
 {
     use WithPagination;
 
-    // Method untuk mengupdate status langsung dari tabel
-    public function updateStatus($membershipId, $newStatus)
+    // Method KHUSUS untuk menyetujui member yang baru daftar (Pending -> Active)
+    public function approve($membershipId)
     {
         $membership = Membership::findOrFail($membershipId);
         
-        // Validasi ekstra untuk memastikan hanya value ENUM yang valid yang bisa masuk
-        if (in_array($newStatus, ['pending', 'active', 'rejected', 'completed'])) {
+        // Proteksi Lapis Ganda: Hanya status "pending" yang boleh di-"Approve"
+        if ($membership->status === 'pending') {
             $membership->update([
-                'status' => $newStatus
+                'status' => 'active'
             ]);
+            
+            session()->flash('success', "Membership {$membership->user->name} berhasil diaktifkan!");
+        } else {
+            session()->flash('error', "Gagal: Membership ini tidak dalam status pending.");
+        }
+    }
+
+    // Method KHUSUS untuk menolak member (Pending -> Rejected)
+    public function reject($membershipId)
+    {
+        $membership = Membership::findOrFail($membershipId);
+        
+        // Proteksi Lapis Ganda: Hanya status "pending" yang boleh di-"Reject"
+        if ($membership->status === 'pending') {
+            $membership->update([
+                'status' => 'rejected'
+            ]);
+
+            session()->flash('success', "Pengajuan membership {$membership->user->name} berhasil ditolak.");
+        } else {
+            session()->flash('error', "Gagal: Membership ini tidak dalam status pending.");
         }
     }
 
@@ -38,7 +61,7 @@ new #[Layout('layouts::admin')] class extends Component
     <div class="flex justify-between items-center mb-6">
         <h5 class="text-xl font-semibold text-heading">Membership</h5>
         
-        <a href="{{ route('admin.packages.create') }}" wire:navigate class="text-white bg-brand box-border border border-transparent hover:bg-brand-strong focus:ring-4 focus:ring-brand-medium shadow-xs font-medium leading-5 rounded-md text-sm px-4 py-2.5 focus:outline-none">+ Tambah Paket</a>
+        {{-- <a href="{{ route('admin.packages.create') }}" wire:navigate class="text-white bg-brand box-border border border-transparent hover:bg-brand-strong focus:ring-4 focus:ring-brand-medium shadow-xs font-medium leading-5 rounded-md text-sm px-4 py-2.5 focus:outline-none">+ Tambah Paket</a> --}}
     </div>
 
     <div class="relative overflow-x-auto bg-neutral-primary-soft shadow-xs rounded-md border border-default">
@@ -86,22 +109,56 @@ new #[Layout('layouts::admin')] class extends Component
                             <div>{{ $membership->end_date ? $membership->end_date->format('d M Y') : '-' }}</div>
                         </td>
 
-                        <td scope="row" class="px-6 py-4 font-medium text-heading whitespace-nowrap">
-                            <select 
-                                wire:change="updateStatus({{ $membership->id }}, $event.target.value)"
-                                wire:loading.attr="disabled"
-                                wire:target="updateStatus({{ $membership->id }})"
-                                class="bg-white border border-gray-300 text-gray-900 text-sm rounded-md focus:ring-brand focus:border-brand block w-31 cursor-pointer shadow-sm disabled:opacity-50"
-                            >
-                                <option value="pending" {{ $membership->status === 'pending' ? 'selected' : '' }}>Pending</option>
-                                <option value="active" {{ $membership->status === 'active' ? 'selected' : '' }}>Active</option>
-                                <option value="rejected" {{ $membership->status === 'rejected' ? 'selected' : '' }}>Rejected</option>
-                                <option value="completed" {{ $membership->status === 'completed' ? 'selected' : '' }}>Completed</option>
-                            </select>
+                        <td scope="row" class="px-6 py-4 font-medium text-heading whitespace-nowrap text-center">
+    
+                            {{-- TAMPILAN LABEL STATUS --}}
+                            @if ($membership->status === 'pending')
+                                <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800 mb-2">
+                                    Pending Payment
+                                </span>
+                                
+                                {{-- TOMBOL AKSI HANYA MUNCUL JIKA STATUS PENDING --}}
+                                <div class="flex justify-center space-x-2 mt-1">
+                                    <button 
+                                        wire:click="approve({{ $membership->id }})"
+                                        wire:confirm="Yakin ingin MENGAKTIFKAN membership ini? (Pastikan member sudah membayar)"
+                                        class="bg-green-500 hover:bg-green-600 text-white p-1.5 rounded shadow-sm transition-colors"
+                                        title="Aktifkan (Sudah Bayar)"
+                                    >
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                    </button>
+                                    
+                                    <button 
+                                        wire:click="reject({{ $membership->id }})"
+                                        wire:confirm="Yakin ingin MENOLAK/MEMBATALKAN pengajuan membership ini?"
+                                        class="bg-red-500 hover:bg-red-600 text-white p-1.5 rounded shadow-sm transition-colors"
+                                        title="Tolak / Batal"
+                                    >
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                    </button>
+                                </div>
 
-                            <div wire:loading wire:target="updateStatus({{ $membership->id }})" class="absolute -bottom-2 left-0 w-full text-center">
-                                <span class="text-xs text-brand-strong animate-pulse">Menyimpan...</span>
-                            </div>
+                            @elseif ($membership->status === 'active')
+                                <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                    Active
+                                </span>
+                                
+                            @elseif ($membership->status === 'expired')
+                                <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+                                    Expired
+                                </span>
+
+                            @elseif ($membership->status === 'completed')
+                                <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                                    Completed (Sesi Habis)
+                                </span>
+                                
+                            @elseif ($membership->status === 'rejected')
+                                <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                                    Rejected
+                                </span>
+                            @endif
+                            
                         </td>
                     </tr>
                 @empty

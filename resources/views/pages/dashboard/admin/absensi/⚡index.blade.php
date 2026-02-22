@@ -48,16 +48,26 @@ new #[Layout('layouts::admin')] class extends Component
         }
 
         // 4. Proses berdasarkan Tipe (Membership atau Visit)
-        if ($type === 'membership' && $membershipId !== 'none') {
+        if ($type === 'trainer') {
+            Attendance::create([
+                'user_id' => $user->id,
+                'membership_id' => null, // Coach tidak butuh ID membership
+                'type' => 'trainer',
+                'check_in_time' => now(),
+            ]);
+
+            session()->flash('success', "Absensi Coach Berhasil: {$user->name}");
+        }
+
+        elseif ($type === 'membership' && $membershipId !== 'none') {
             $membership = Membership::find($membershipId);
             
             // --- BAGIAN INI YANG DIPERBARUI ---
-            
             // Validasi Kedaluwarsa berdasarkan end_date
             if (!$membership || now()->startOfDay() > \Carbon\Carbon::parse($membership->end_date)->startOfDay()) {
-                // Otomatis update ke expired jika lewat tanggal
+                // Otomatis update ke completed jika lewat tanggal
                 if ($membership && $membership->status === 'active') {
-                    $membership->update(['status' => 'expired']); 
+                    $membership->update(['status' => 'completed']); 
                 }
                 session()->flash('error', 'Gagal! Masa aktif membership sudah berakhir.');
                 $this->scannedCode = '';
@@ -179,13 +189,27 @@ new #[Layout('layouts::admin')] class extends Component
                         <td scope="row" class="px-7 py-4 font-medium text-heading whitespace-nowrap">
                             {{ $loop->iteration + ($attendances->currentPage() - 1) * $attendances->perPage() }}
                         </td>
-                        <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
-                            {{ $attendance->user->name ?? 'N/A' }}
+                        <td class="flex items-center px-6 py-4 font-medium text-heading whitespace-nowrap">
+                            @if($attendance->user)
+                                @if($attendance->user->photo)
+                                    <img class="w-10 h-10 rounded-full object-cover mr-3" src="{{ asset('storage/' . $attendance->user->photo) }}" alt="{{ $attendance->user->name }}">
+                                @else
+                                    <img class="w-10 h-10 rounded-full object-cover mr-3" src="https://ui-avatars.com/api/?name={{ urlencode($attendance->user->name) }}&background=random" alt="{{ $attendance->user->name }}">
+                                @endif
+                                
+                                <span>{{ $attendance->user->name }}</span>
+                            @else
+                                <span>N/A</span>
+                            @endif
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
                             @if($attendance->type === 'membership')
                                 <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
                                     Membership
+                                </span>
+                            @elseif($attendance->type === 'trainer')
+                                <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800 border border-blue-200">
+                                    Coach / PT
                                 </span>
                             @else
                                 <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">

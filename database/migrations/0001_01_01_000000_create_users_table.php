@@ -24,7 +24,8 @@ return new class extends Migration
             $table->string('password');
             $table->date('joined_at')->nullable();
             $table->text('address')->nullable();
-            $table->boolean('is_active')->default(false);
+            $table->boolean('is_active')->default(true);
+            $table->string('photo')->nullable();
             $table->timestamp('email_verified_at')->nullable();
             $table->rememberToken();
             $table->timestamps();

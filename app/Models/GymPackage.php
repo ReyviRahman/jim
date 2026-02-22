@@ -17,6 +17,6 @@ class GymPackage extends Model
 
     public function memberships(): HasMany
     {
-        return $this->hasMany(Membership::class, 'user_id');
+        return $this->hasMany(Membership::class); 
     }
 }

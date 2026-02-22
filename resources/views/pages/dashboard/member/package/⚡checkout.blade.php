@@ -170,8 +170,8 @@ new #[Layout('layouts::member')] class extends Component
                                 {{ $selectedPtId === $trainer->id ? 'border-brand bg-brand-light/10 ring-2 ring-brand' : 'border-gray-200 bg-white hover:border-brand' }}"
                             >
                                 <div class="aspect-[4/3] w-full bg-brand-medium overflow-hidden">
-                                    @if($trainer->profile_photo_url)
-                                        <img src="{{ $trainer->profile_photo_url }}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110">
+                                    @if($trainer->photo)
+                                        <img src="{{ asset('storage/' . $trainer->photo) }}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110">
                                     @else
                                         <div class="w-full h-full flex items-center justify-center text-white text-5xl font-bold">
                                             {{ substr($trainer->name, 0, 1) }}

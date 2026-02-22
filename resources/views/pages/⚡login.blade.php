@@ -8,35 +8,50 @@ new class extends Component {
     public $email = '';
     public $password = '';
     
-    // 1. Tambahkan properti untuk melacak status visibilitas password
     public bool $showPassword = false;
 
     public function login()
     {
-        // Validasi Input
+        // 1. Validasi Input
         $this->validate([
             'email' => 'required|email',
             'password' => 'required',
         ]);
 
-        // Coba Login
+        // 2. Coba Login
         if (Auth::attempt(['email' => $this->email, 'password' => $this->password])) {
             
-            // Regenerate session untuk keamanan
-            session()->regenerate();
-
             $user = Auth::user();
 
-            // Cek Role & Redirect
+            // 3. CEK STATUS AKTIF AKUN DI SINI
+            if (!$user->is_active) {
+                // Jika tidak aktif, keluarkan user secara paksa (logout)
+                Auth::logout();
+                session()->invalidate();
+                session()->regenerateToken();
+                
+                // Berikan pesan error
+                $this->addError('email', 'Akun Anda tidak aktif. Silakan hubungi admin Frans Gym.');
+                return;
+            }
+
+            // 4. Jika akun aktif, regenerasi session untuk keamanan
+            session()->regenerate();
+
+            // 5. Cek Role & Redirect
             if ($user->role === 'admin') {
                 return $this->redirectRoute('admin.absensi.index', navigate: true);
+            } 
+
+            if ($user->role === 'pt') {
+                return $this->redirectRoute('pt.absensi', navigate: true);
             } 
             
             // Default ke member dashboard
             return $this->redirectRoute('member.dashboard', navigate: true);
         }
 
-        // Jika Gagal Login
+        // Jika Gagal Login (Email atau Password salah sama sekali)
         $this->addError('email', 'Email atau password salah.');
     }
 };
@@ -47,7 +62,14 @@ new class extends Component {
         
         <form wire:submit="login">
             <h5 class="text-xl font-semibold text-heading mb-6">Login</h5>
-            
+            @if (session()->has('success'))
+                <div class="mb-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded text-sm flex items-center">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    {{ session('success') }}
+                </div>
+            @endif
             @error('email')
                 <div class="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded text-sm">
                     {{ $message }}
