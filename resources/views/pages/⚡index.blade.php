@@ -111,6 +111,13 @@ new #[Layout('layouts::empty')] #[Title('Frans GYM | Pusat Kebugaran Terbaik di 
                         </a>
                     </li>
                     <li>
+                        <a href="#fasilitas"
+                            :class="activeSection === 'fasilitas' ? 'text-brand md:text-brand font-bold' : 'text-[#34342F] md:text-white'"
+                            class="block py-2 px-3 rounded md:p-0 hover:bg-neutral-tertiary md:hover:bg-transparent md:hover:text-brand transition-colors">
+                            Fasilitas
+                        </a>
+                    </li>
+                    <li>
                         <a href="#pelatih"
                             :class="activeSection === 'pelatih' ? 'text-brand md:text-brand font-bold' : 'text-[#34342F] md:text-white'"
                             class="block py-2 px-3 rounded md:p-0 hover:bg-neutral-tertiary md:hover:bg-transparent md:hover:text-brand transition-colors">
@@ -175,8 +182,8 @@ new #[Layout('layouts::empty')] #[Title('Frans GYM | Pusat Kebugaran Terbaik di 
                 <div class="mb-10 lg:mb-0 relative">
                     <div class="relative rounded-2xl overflow-hidden shadow-xl aspect-w-4 aspect-h-3 sm:aspect-w-16 sm:aspect-h-9 lg:aspect-none lg:h-full">
                         <img class="w-full h-full object-cover rounded-2xl lg:h-[500px]" 
-                             src="{{ asset('ruangan.png') }}" 
-                             alt="Fasilitas dan Komunitas Frans Gym">
+                            src="{{ asset('ruangan.png') }}" 
+                            alt="Fasilitas dan Komunitas Frans Gym">
                     </div>
                     <div class="hidden lg:block absolute -bottom-6 -right-6 w-32 h-32 bg-brand rounded-full opacity-20 -z-10"></div>
                     <div class="hidden lg:block absolute -top-6 -left-6 w-24 h-24 bg-brand-strong rounded-xl opacity-20 -z-10"></div>
@@ -195,19 +202,124 @@ new #[Layout('layouts::empty')] #[Title('Frans GYM | Pusat Kebugaran Terbaik di 
                             Tim pelatih profesional kami siap membimbing kamu dengan metode latihan yang efektif dan aman, sesuai dengan kebutuhan dan tujuan kamu. Di Frans Gym, kami tidak hanya menyediakan ruang untuk berolahraga, tetapi juga membangun komunitas yang mendukung gaya hidup sehat dan aktif.
                         </p>
                     </div>
-                    
-                    <div class="mt-10 grid grid-cols-2 gap-x-6 gap-y-4 border-t border-gray-100 pt-8">
-                        <div>
-                            <span class="block text-2xl font-bold text-brand">Fasilitas Lengkap</span>
-                            <span class="block text-sm text-gray-500 mt-1">Alat modern & terawat</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="fasilitas" class="pb-16 sm:pb-24 bg-white scroll-mt-16">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center max-w-3xl mx-auto mb-12">
+                <h2 class="text-base font-semibold text-brand tracking-wide uppercase">Fasilitas Kami</h2>
+                <p class="mt-2 text-3xl leading-8 font-extrabold tracking-tight text-gray-900 sm:text-4xl">
+                    Fasilitas FransGYM Fitness
+                </p>
+                <p class="mt-4 text-lg text-gray-600">
+                    Kami menyediakan lingkungan latihan terbaik dengan peralatan modern dan fasilitas yang menjamin kenyamanan Anda.
+                </p>
+            </div>
+
+            <div class="flex flex-wrap justify-center gap-8 [&>div]:w-full md:[&>div]:w-[calc(50%_-_1rem)] lg:[&>div]:w-[calc(33.333%_-_1.34rem)]">
+                
+                <div class="bg-secondary p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+                    <div class="flex items-center mb-6">
+                        <div class="w-12 h-12 bg-neutral-secondary-soft text-brand rounded-xl flex items-center justify-center mr-4 flex-shrink-0">
+                            <svg class="w-6 h-6" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M18 3v5M6 3v5m14.5-4v1.5m0 0V7m0-1.5H22M3.5 4v1.5m0 0V7m0-1.5H2m16 0H6M7.277 19h9.447c1.237 0 1.856 0 2.112-.303c.58-.686-.532-1.594-.938-2.051c-.457-.516-.792-.646-1.468-.646H7.57c-.676 0-1.01.13-1.468.646c-.406.457-1.518 1.365-.938 2.051C5.42 19 6.04 19 7.277 19M9 8v8m6-8v8m1 3v2m-8-2v2"/></svg>
                         </div>
-                        <div>
-                            <span class="block text-2xl font-bold text-brand">Coach Profesional</span>
-                            <span class="block text-sm text-gray-500 mt-1">Siap membimbing targetmu</span>
-                        </div>
+                        <h3 class="text-xl font-bold text-brand">Peralatan Lengkap & Modern</h3>
                     </div>
+                    <ul class="space-y-3">
+                        <li class="flex items-start">
+                            <svg class="w-5 h-5 text-brand mr-3 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            <span class="text-sm text-white">Cardio & Strength Equipment</span>
+                        </li>
+                        <li class="flex items-start">
+                            <svg class="w-5 h-5 text-brand mr-3 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            <span class="text-sm text-white">50+ Alat Fitness Import Modern</span>
+                        </li>
+                    </ul>
                 </div>
 
+                <div class="bg-secondary p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+                    <div class="flex items-center mb-6">
+                        <div class="w-12 h-12 bg-neutral-secondary-soft text-brand rounded-xl flex items-center justify-center mr-4 flex-shrink-0">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
+                        </div>
+                        <h3 class="text-xl font-bold text-brand">Area Latihan Luas & Nyaman</h3>
+                    </div>
+                    <ul class="space-y-3">
+                        <li class="flex items-start">
+                            <svg class="w-5 h-5 text-brand mr-3 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            <span class="text-sm text-white">4 Ruko (Ruang Lega & Tidak Sesak)</span>
+                        </li>
+                        <li class="flex items-start">
+                            <svg class="w-5 h-5 text-brand mr-3 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            <span class="text-sm text-white">Akses Area LH1 & ER2</span>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="bg-secondary p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+                    <div class="flex items-center mb-6">
+                        <div class="w-12 h-12 bg-neutral-secondary-soft text-brand rounded-xl flex items-center justify-center mr-4 flex-shrink-0">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                        </div>
+                        <h3 class="text-xl font-bold text-brand">Fasilitas Penunjang</h3>
+                    </div>
+                    <ul class="space-y-3">
+                        <li class="flex items-start">
+                            <svg class="w-5 h-5 text-brand mr-3 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            <span class="text-sm text-white">Shower Pria & Wanita</span>
+                        </li>
+                        <li class="flex items-start">
+                            <svg class="w-5 h-5 text-brand mr-3 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            <span class="text-sm text-white">Loker Penyimpanan Barang</span>
+                        </li>
+                        <li class="flex items-start">
+                            <svg class="w-5 h-5 text-brand mr-3 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            <span class="text-sm text-white">Handuk Khusus Member PT</span>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="bg-secondary p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+                    <div class="flex items-center mb-6">
+                        <div class="w-12 h-12 bg-neutral-secondary-soft text-brand rounded-xl flex items-center justify-center mr-4 flex-shrink-0">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        </div>
+                        <h3 class="text-xl font-bold text-brand">Kenyamanan Member</h3>
+                    </div>
+                    <ul class="space-y-3">
+                        <li class="flex items-start">
+                            <svg class="w-5 h-5 text-brand mr-3 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            <span class="text-sm text-white">Free Parkir Mobil & Motor</span>
+                        </li>
+                        <li class="flex items-start">
+                            <svg class="w-5 h-5 text-brand mr-3 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            <span class="text-sm text-white">Musik & Suasana GYM Nyaman</span>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="bg-secondary p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+                    <div class="flex items-center mb-6">
+                        <div class="w-12 h-12 bg-neutral-secondary-soft text-brand rounded-xl flex items-center justify-center mr-4 flex-shrink-0">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+                        </div>
+                        <h3 class="text-xl font-bold text-brand">Sistem Modern</h3>
+                    </div>
+                    <ul class="space-y-3">
+                        <li class="flex items-start">
+                            <svg class="w-5 h-5 text-brand mr-3 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            <span class="text-sm text-white">Absensi Scan Barcode</span>
+                        </li>
+                        <li class="flex items-start">
+                            <svg class="w-5 h-5 text-brand mr-3 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            <span class="text-sm text-white">Wajib Membawa Handphone</span>
+                        </li>
+                    </ul>
+                </div>
+                
             </div>
         </div>
     </div>
