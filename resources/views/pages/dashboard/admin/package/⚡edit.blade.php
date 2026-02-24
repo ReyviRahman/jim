@@ -5,7 +5,7 @@ namespace App\Livewire\GymPackage;
 use Livewire\Component;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Validate;
-use Livewire\Attributes\Computed; // Tambahkan ini
+use Livewire\Attributes\Computed; 
 use App\Models\GymPackage;
 
 new #[Layout('layouts::admin')] class extends Component
@@ -18,9 +18,9 @@ new #[Layout('layouts::admin')] class extends Component
     #[Validate('required|numeric|min:0')]
     public $price = '';
 
-    // Validasi untuk persentase diskon
-    #[Validate('nullable|numeric|min:0|max:100')]
-    public $discount_percentage = '';
+    // PERUBAHAN: Validasi diskon nominal (Rp)
+    #[Validate('nullable|numeric|min:0')]
+    public $discount = '';
 
     #[Validate('nullable|string')]
     public $description = '';
@@ -33,8 +33,8 @@ new #[Layout('layouts::admin')] class extends Component
         // Isi form dengan data yang sudah ada di database
         $this->name = $package->name;
         $this->price = $package->price;
-        // Load data persentase diskon (jika 0, bisa ditampilkan sebagai string kosong atau '0')
-        $this->discount_percentage = $package->discount_percentage;
+        // PERUBAHAN: Load data nominal diskon 
+        $this->discount = $package->discount;
         $this->description = $package->description;
     }
 
@@ -43,18 +43,27 @@ new #[Layout('layouts::admin')] class extends Component
     public function finalPrice()
     {
         $basePrice = (float) ($this->price ?: 0);
-        $discount = (float) ($this->discount_percentage ?: 0);
+        $discountAmount = (float) ($this->discount ?: 0);
         
-        // Pastikan diskon tidak lebih dari 100% dan tidak kurang dari 0
-        if ($discount > 100) $discount = 100;
-        if ($discount < 0) $discount = 0;
+        // Pastikan diskon tidak melebihi harga
+        if ($discountAmount > $basePrice) {
+            $discountAmount = $basePrice;
+        }
+        if ($discountAmount < 0) {
+            $discountAmount = 0;
+        }
 
-        $discountAmount = $basePrice * ($discount / 100);
         return $basePrice - $discountAmount;
     }
 
     public function update()
     {
+        // Validasi kustom: Diskon tidak boleh lebih besar dari harga
+        if ((float) $this->discount > (float) $this->price) {
+            $this->addError('discount', 'Diskon tidak boleh lebih besar dari harga paket.');
+            return;
+        }
+
         // 1. Validasi Input
         $this->validate();
 
@@ -62,8 +71,8 @@ new #[Layout('layouts::admin')] class extends Component
         $this->package->update([
             'name' => $this->name,
             'price' => $this->price,
-            // Jika kosong, set ke 0
-            'discount_percentage' => $this->discount_percentage === '' ? 0 : $this->discount_percentage,
+            // PERUBAHAN: Simpan ke kolom diskon nominal
+            'discount' => $this->discount === '' ? 0 : $this->discount,
             'description' => $this->description,
         ]);
 
@@ -111,34 +120,43 @@ new #[Layout('layouts::admin')] class extends Component
                     class="bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs" 
                     required 
                 />
-                <p class="mt-1 text-xs text-gray-500">Harga dasar per sesi.</p>
+                <p class="mt-1 text-xs text-gray-500">Harga dasar paket.</p>
                 @error('price') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
             </div>
 
-            {{-- 3. Diskon Persentase (Gunakan wire:model.live) --}}
+            {{-- 3. Diskon Nominal (Gunakan wire:model.live) --}}
             <div class="col-span-2 md:col-span-1">
-                <label for="discount" class="block mb-2.5 text-sm font-medium text-heading">Diskon Paket (%)</label>
+                <label for="discount" class="block mb-2.5 text-sm font-medium text-heading">Diskon Paket (Rp)</label>
                 <div class="relative">
+                    <div class="absolute inset-y-0 start-0 flex items-center pl-3 pointer-events-none">
+                        <span class="text-gray-500 text-sm">Rp</span>
+                    </div>
                     <input 
                         type="number" 
-                        step="0.01" {{-- Mengizinkan input desimal --}}
                         id="discount" 
-                        wire:model.live="discount_percentage"
-                        class="bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 pr-10 shadow-xs placeholder:text-body" 
+                        wire:model.live="discount"
+                        class="bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full pl-9 pr-3 py-2.5 shadow-xs placeholder:text-body" 
+                        placeholder="Contoh: 25000"
                     />
-                    <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                        <span class="text-gray-500 text-sm">%</span>
-                    </div>
                 </div>
-                <p class="mt-1 text-xs text-gray-500">Kosongkan jika tidak ada diskon. Maksimal 100.</p>
-                @error('discount_percentage') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                <p class="mt-1 text-xs text-gray-500">Kosongkan jika tidak ada diskon.</p>
+                @error('discount') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
             </div>
             
             {{-- 4. Preview Harga Akhir --}}
             <div class="col-span-2 md:col-span-1 flex items-end">
-                @if($price && $discount_percentage > 0)
+                @if($price > 0 && $discount > 0)
+                    @php
+                        // Hitung persentase diskon
+                        $percentage = ($discount / $price) * 100;
+                    @endphp
                     <div class="w-full p-4 bg-green-50 border border-green-200 rounded-md">
-                        <p class="text-xs text-green-700 font-medium mb-1">Preview Harga Akhir per Sesi:</p>
+                        <div class="flex justify-between items-center mb-1">
+                            <p class="text-xs text-green-700 font-medium">Harga Setelah Diskon:</p>
+                            <span class="bg-green-200 text-green-800 text-[10px] font-bold px-1.5 py-0.5 rounded">
+                                -{{ is_float($percentage) ? round($percentage, 1) : $percentage }}%
+                            </span>
+                        </div>
                         <p class="text-sm text-green-600 line-through">Rp {{ number_format((float)$price, 0, ',', '.') }}</p>
                         <p class="text-xl font-bold text-green-800">Rp {{ number_format($this->finalPrice, 0, ',', '.') }}</p>
                     </div>

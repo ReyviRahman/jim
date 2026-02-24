@@ -12,7 +12,6 @@ class Membership extends Model
     'pt_id',
     'gym_package_id',
     'base_price',
-    'discount_percentage', 
     'discount_applied', 
     'price_paid',
     'total_sessions',

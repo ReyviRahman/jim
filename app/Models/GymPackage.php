@@ -10,7 +10,7 @@ class GymPackage extends Model
     protected $fillable = [
         'name',
         'price',
-        'discount_percentage',
+        'discount',
         'description',
         'is_active',
     ];

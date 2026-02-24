@@ -125,22 +125,29 @@ new #[Layout('layouts::admin')] class extends Component
 
                         {{-- Total Bayar --}}
                         {{-- Total Bayar & Rincian --}}
+                        {{-- Total Bayar & Rincian --}}
                         <td class="px-6 py-4 text-right whitespace-nowrap">
-                            {{-- Jika ada diskon, tampilkan harga coret dan badge diskon --}}
-                            @if($membership->discount_percentage > 0)
+                            {{-- Gunakan discount_applied karena discount_percentage sudah dihapus --}}
+                            @if($membership->discount_applied > 0)
                                 @php
-                                    // Hitung harga asli (Harga Paket + Harga PT)
-                                    // Karena di tabel tidak menyimpan harga PT secara eksplisit, 
-                                    // kita bisa ambil dari: Total Bayar + Diskon Nominal
+                                    // Hitung harga asli (Total Bayar + Diskon Nominal)
                                     $originalPrice = $membership->price_paid + $membership->discount_applied;
+                                    
+                                    // Hitung persentase diskon secara dinamis untuk badge
+                                    $percentage = ($originalPrice > 0) ? ($membership->discount_applied / $originalPrice) * 100 : 0;
                                 @endphp
                                 
                                 <div class="flex flex-col items-end mb-1">
                                     <div class="flex items-center gap-2">
                                         <span class="text-xs text-gray-400 line-through">Rp {{ number_format($originalPrice, 0, ',', '.') }}</span>
+                                        {{-- Badge Persentase --}}
                                         <span class="bg-green-100 text-green-800 text-[10px] font-bold px-1.5 py-0.5 rounded">
-                                            -{{ (float) $membership->discount_percentage }}%
+                                            -{{ is_float($percentage) ? round($percentage, 1) : $percentage }}%
                                         </span>
+                                    </div>
+                                    {{-- Opsional: Tampilkan nominal hematnya --}}
+                                    <div class="text-[10px] text-green-600 font-medium mt-0.5">
+                                        Diskon Rp {{ number_format($membership->discount_applied, 0, ',', '.') }}
                                     </div>
                                 </div>
                             @endif

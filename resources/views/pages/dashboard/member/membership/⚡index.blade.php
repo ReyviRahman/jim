@@ -76,20 +76,32 @@ new #[Layout('layouts::member')] class extends Component
                         </td>
 
                         {{-- Total Bayar & Rincian Diskon --}}
+                        {{-- Total Bayar & Rincian Diskon --}}
                         <td class="px-6 py-4 text-right whitespace-nowrap">
-                            @if($membership->discount_percentage > 0)
+                            {{-- Gunakan discount_applied --}}
+                            @if($membership->discount_applied > 0)
                                 @php
+                                    // Hitung harga asli (Total Bayar + Diskon Nominal)
                                     $originalPrice = $membership->price_paid + $membership->discount_applied;
+                                    
+                                    // Hitung persentase diskon untuk badge
+                                    $percentage = ($originalPrice > 0) ? ($membership->discount_applied / $originalPrice) * 100 : 0;
                                 @endphp
+                                
                                 <div class="flex flex-col items-end mb-1">
                                     <div class="flex items-center gap-2">
                                         <span class="text-xs text-gray-400 line-through">Rp {{ number_format($originalPrice, 0, ',', '.') }}</span>
                                         <span class="bg-green-100 text-green-800 text-[10px] font-bold px-1.5 py-0.5 rounded">
-                                            -{{ (float) $membership->discount_percentage }}%
+                                            -{{ is_float($percentage) ? round($percentage, 1) : $percentage }}%
                                         </span>
+                                    </div>
+                                    {{-- Info tambahan biar member makin seneng dapet diskon --}}
+                                    <div class="text-[10px] text-green-600 font-medium mt-0.5">
+                                        Diskon Rp {{ number_format($membership->discount_applied, 0, ',', '.') }}
                                     </div>
                                 </div>
                             @endif
+                            
                             <div class="font-bold text-heading text-base">
                                 Rp {{ number_format($membership->price_paid, 0, ',', '.') }}
                             </div>

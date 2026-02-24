@@ -41,25 +41,22 @@ new #[Layout('layouts::admin')] class extends Component
 
     // Properti Kalkulasi
     public $base_price = 0;
-    public $discount_percentage = 0;
-    public $discount_applied = 0;
+    public $discount_applied = 0; // Sekarang ini langsung menampung nominal diskon
     public $price_paid = 0;
 
     public function mount(User $user)
     {
         $this->user = $user;
         
-        // --- 1. CEK SAAT HALAMAN DIBUKA ---
         if ($this->hasActiveOrPendingMembership()) {
             session()->flash('error', "User {$user->name} masih memiliki membership yang aktif atau pending.");
-            return redirect()->route('admin.membership.index'); // Tolak masuk dan kembalikan ke daftar
+            return redirect()->route('admin.membership.index');
         }
 
         $this->start_date = now()->format('Y-m-d');
         $this->end_date = now()->addDays(30)->format('Y-m-d');
     }
 
-    // Helper function untuk mengecek status membership
     private function hasActiveOrPendingMembership()
     {
         return Membership::where('user_id', $this->user->id)
@@ -102,20 +99,24 @@ new #[Layout('layouts::admin')] class extends Component
             $package = GymPackage::find($this->gym_package_id);
             
             if ($package) {
+                // 1. Ambil Harga Paket Asli
                 $this->base_price = $package->price;
-                $this->discount_percentage = $package->discount_percentage;
                 
-                $this->discount_applied = $this->base_price * ($this->discount_percentage / 100);
+                // 2. Ambil Nominal Diskon langsung dari kolom 'discount' di tabel gym_packages
+                $this->discount_applied = $package->discount ?? 0;
+                
+                // 3. Kurangi Harga Dasar dengan Diskon
                 $paketSetelahDiskon = $this->base_price - $this->discount_applied;
 
+                // 4. Tambahkan dengan Harga PT
                 $hargaPt = $this->with_pt ? (float) ($this->pt_price ?: 0) : 0;
                 $this->price_paid = $paketSetelahDiskon + $hargaPt;
 
+                // Pastikan total tidak minus
                 if ($this->price_paid < 0) $this->price_paid = 0;
             }
         } else {
             $this->base_price = 0;
-            $this->discount_percentage = 0;
             $this->discount_applied = 0;
             $this->price_paid = 0;
         }
@@ -130,7 +131,6 @@ new #[Layout('layouts::admin')] class extends Component
 
     public function save()
     {
-        // --- 2. CEK LAGI SAAT TOMBOL SAVE DITEKAN (Proteksi Ganda) ---
         if ($this->hasActiveOrPendingMembership()) {
             session()->flash('error', "Pendaftaran dibatalkan: {$this->user->name} sudah memiliki membership aktif/pending di tab lain.");
             return redirect()->route('admin.membership.index');
@@ -156,7 +156,7 @@ new #[Layout('layouts::admin')] class extends Component
             'remaining_sessions' => $this->with_pt ? $this->total_sessions : null,
             
             'base_price' => $this->base_price,
-            'discount_percentage' => $this->discount_percentage,
+            // Hapus discount_percentage, sisa discount_applied saja
             'discount_applied' => $this->discount_applied,
             'price_paid' => $this->price_paid,
             
@@ -208,7 +208,8 @@ new #[Layout('layouts::admin')] class extends Component
                             @foreach($this->packages as $package)
                                 <option value="{{ $package->id }}">
                                     {{ $package->name }} (Rp {{ number_format($package->price, 0, ',', '.') }}) 
-                                    @if($package->discount_percentage > 0) - Diskon {{ (float) $package->discount_percentage }}% @endif
+                                    {{-- Ubah tulisan diskon menjadi format Rupiah --}}
+                                    @if($package->discount > 0) - Diskon Rp {{ number_format($package->discount, 0, ',', '.') }} @endif
                                 </option>
                             @endforeach
                         </select>
@@ -294,9 +295,10 @@ new #[Layout('layouts::admin')] class extends Component
                         <span class="font-medium text-heading">Rp {{ number_format($base_price, 0, ',', '.') }}</span>
                     </div>
                     
-                    @if($discount_percentage > 0)
+                    {{-- Ubah tampilan diskon menjadi format nominal --}}
+                    @if($discount_applied > 0)
                     <div class="flex justify-between text-green-600">
-                        <span>Diskon ({{ (float) $discount_percentage }}%)</span>
+                        <span>Diskon Paket</span>
                         <span class="font-medium">- Rp {{ number_format($discount_applied, 0, ',', '.') }}</span>
                     </div>
                     @endif

@@ -18,7 +18,6 @@ return new class extends Migration
             $table->foreignId('gym_package_id')->constrained('gym_packages');
             // --- SNAPSHOT HARGA & TRANSAKSI ---
             $table->decimal('base_price', 12, 0); 
-            $table->decimal('discount_percentage', 5, 2)->default(0); // Persen diskon saat transaksi
             $table->decimal('discount_applied', 12, 0)->default(0); // Hasil hitungan nominal (Rp) dari persen tersebut
             $table->decimal('price_paid', 12, 0); // Total akhir
             $table->integer('total_sessions')->nullable();

@@ -74,11 +74,11 @@ new #[Layout('layouts::admin')] class extends Component
                 <tr>
                     <th scope="col" class="px-6 py-3 font-medium">No</th>
                     <th scope="col" class="px-6 py-3 font-medium">Nama Paket</th>
-                    <th scope="col" class="px-6 py-3 font-medium">Harga Dasar</th>
+                    <th scope="col" class="px-6 py-3 font-medium text-right">Harga Dasar</th>
                     <th scope="col" class="px-6 py-3 font-medium text-center">Diskon</th>
-                    <th scope="col" class="px-6 py-3 font-medium">Harga Akhir</th>
+                    <th scope="col" class="px-6 py-3 font-medium text-right">Harga Akhir</th>
                     <th scope="col" class="px-6 py-3 font-medium text-center">Status</th>
-                    <th scope="col" class="px-6 py-3 font-medium">Aksi</th>
+                    <th scope="col" class="px-6 py-3 font-medium text-center">Aksi</th>
                 </tr>
             </thead>
             <tbody>
@@ -92,27 +92,34 @@ new #[Layout('layouts::admin')] class extends Component
                         </td>
                         
                         {{-- Harga Dasar --}}
-                        <td class="px-6 py-4 font-medium text-gray-500 whitespace-nowrap {{ $package->discount_percentage > 0 ? 'line-through' : 'text-heading' }}">
+                        <td class="px-6 py-4 text-right font-medium text-gray-500 whitespace-nowrap {{ $package->discount > 0 ? 'line-through' : 'text-heading' }}">
                             Rp {{ number_format($package->price, 0, ',', '.') }}
                         </td>
                         
                         {{-- Diskon --}}
                         <td class="px-6 py-4 font-medium text-center whitespace-nowrap">
-                            @if($package->discount_percentage > 0)
-                                <span class="bg-green-100 text-green-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">
-                                    {{ (float) $package->discount_percentage }}%
-                                </span>
+                            @if($package->discount > 0)
+                                @php
+                                    // Hitung persentase untuk visual
+                                    $percentage = ($package->discount / $package->price) * 100;
+                                @endphp
+                                <div class="flex flex-col items-center justify-center">
+                                    <span class="text-green-600 mb-1">Rp {{ number_format($package->discount, 0, ',', '.') }}</span>
+                                    <span class="bg-green-100 text-green-800 text-[10px] font-bold px-1.5 py-0.5 rounded">
+                                        -{{ is_float($percentage) ? round($percentage, 1) : $percentage }}%
+                                    </span>
+                                </div>
                             @else
                                 <span class="text-gray-400">-</span>
                             @endif
                         </td>
                         
-                        {{-- Harga Akhir (Dihitung langsung di blade) --}}
+                        {{-- Harga Akhir --}}
                         @php
-                            $discountAmount = $package->price * ($package->discount_percentage / 100);
-                            $finalPrice = $package->price - $discountAmount;
+                            // Kalkulasi lebih sederhana: Harga dikurang Diskon Nominal
+                            $finalPrice = $package->price - $package->discount;
                         @endphp
-                        <td class="px-6 py-4 font-bold text-green-700 whitespace-nowrap">
+                        <td class="px-6 py-4 text-right font-bold text-green-700 whitespace-nowrap">
                             Rp {{ number_format($finalPrice, 0, ',', '.') }}
                         </td>
                         
@@ -130,7 +137,7 @@ new #[Layout('layouts::admin')] class extends Component
                             </div>
                         </td>
 
-                        <td class="px-6 py-4 whitespace-nowrap">
+                        <td class="px-6 py-4 text-center whitespace-nowrap">
                             <a href="{{ route('admin.packages.edit', $package->id) }}" wire:navigate class="font-medium text-fg-brand hover:underline">Edit</a>
                             <button 
                                 wire:click="delete({{ $package->id }})"
