@@ -82,7 +82,7 @@ new #[Layout('layouts::admin')] class extends Component
                     <th scope="col" class="px-6 py-3 font-medium">No</th>
                     <th scope="col" class="px-6 py-3 font-medium">Member</th>
                     <th scope="col" class="px-6 py-3 font-medium">Paket & Trainer</th>
-                    <th scope="col" class="px-6 py-3 font-medium text-center">Sesi</th>
+                    <th scope="col" class="px-6 py-3 font-medium text-center">Sesi Bersama Coach</th>
                     <th scope="col" class="px-6 py-3 font-medium text-right">Total Bayar</th>
                     <th scope="col" class="px-6 py-3 font-medium text-center">Masa Aktif</th>
                     <th scope="col" class="px-6 py-3 font-medium text-center">Status</th>
@@ -119,7 +119,7 @@ new #[Layout('layouts::admin')] class extends Component
                                 </span> 
                                 / {{ $membership->total_sessions }}
                             @else
-                                <span class="px-2.5 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded-md">Unlimited</span>
+                                <span class="px-2.5 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded-md">-</span>
                             @endif
                         </td>
 
