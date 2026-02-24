@@ -4,6 +4,7 @@ namespace App\Livewire\Admin; // Sesuaikan dengan namespace Anda
 
 use Livewire\Component;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Computed; // Tambahkan ini
 use App\Models\Membership;
 use Livewire\WithPagination;
 
@@ -45,24 +46,34 @@ new #[Layout('layouts::admin')] class extends Component
         }
     }
 
-    public function with(): array
+    // Menggunakan Computed Property agar lebih modern dan efisien
+    #[Computed]
+    public function memberships()
     {
-        return [
-            // Mengambil data membership beserta relasinya, diurutkan dari yang terbaru
-            'memberships' => Membership::with(['user', 'personalTrainer', 'gymPackage'])
-                ->latest()
-                ->paginate(10),
-        ];
+        return Membership::with(['user', 'personalTrainer', 'gymPackage'])
+            ->latest()
+            ->paginate(10);
     }
 };
 ?>
 
 <div>
-    <div class="flex justify-between items-center mb-6">
+    <div class="flex sm:flex-row flex-col justify-between items-center mb-6">
         <h5 class="text-xl font-semibold text-heading">Membership</h5>
-        
-        {{-- <a href="{{ route('admin.packages.create') }}" wire:navigate class="text-white bg-brand box-border border border-transparent hover:bg-brand-strong focus:ring-4 focus:ring-brand-medium shadow-xs font-medium leading-5 rounded-md text-sm px-4 py-2.5 focus:outline-none">+ Tambah Paket</a> --}}
+        <a href="{{ route('admin.membership.gabung') }}" wire:navigate class="text-white bg-brand box-border border border-transparent hover:bg-brand-strong focus:ring-4 focus:ring-brand-medium shadow-xs font-medium leading-5 rounded-md text-sm px-4 py-2.5 focus:outline-none">+ Gabung Membership</a>
     </div>
+
+    {{-- Notifikasi --}}
+    @if (session()->has('success'))
+        <div class="p-4 mb-4 text-sm text-green-800 rounded-lg bg-green-50" role="alert">
+            <span class="font-medium">Sukses!</span> {{ session('success') }}
+        </div>
+    @endif
+    @if (session()->has('error'))
+        <div class="p-4 mb-4 text-sm text-red-800 rounded-lg bg-red-50" role="alert">
+            <span class="font-medium">Gagal!</span> {{ session('error') }}
+        </div>
+    @endif
 
     <div class="relative overflow-x-auto bg-neutral-primary-soft shadow-xs rounded-md border border-default">
         <table class="w-full text-sm text-left rtl:text-right text-body">
@@ -70,55 +81,90 @@ new #[Layout('layouts::admin')] class extends Component
                 <tr>
                     <th scope="col" class="px-6 py-3 font-medium">No</th>
                     <th scope="col" class="px-6 py-3 font-medium">Member</th>
-                    <th scope="col" class="px-6 py-3 font-medium">Personal Trainer</th>
-                    <th scope="col" class="px-6 py-3 font-medium">Paket Gym</th>
-                    <th scope="col" class="px-6 py-3 font-medium">Sesi</th>
-                    <th scope="col" class="px-6 py-3 font-medium">Harga</th>
-                    <th scope="col" class="px-6 py-3 font-medium">Durasi</th>
+                    <th scope="col" class="px-6 py-3 font-medium">Paket & Trainer</th>
+                    <th scope="col" class="px-6 py-3 font-medium text-center">Sesi</th>
+                    <th scope="col" class="px-6 py-3 font-medium text-right">Total Bayar</th>
+                    <th scope="col" class="px-6 py-3 font-medium text-center">Masa Aktif</th>
                     <th scope="col" class="px-6 py-3 font-medium text-center">Status</th>
                 </tr>
             </thead>
             <tbody>
-                @forelse ($memberships as $membership)
+                @forelse ($this->memberships as $membership)
                     <tr wire:key="{{ $membership->id }}" class="bg-neutral-primary-soft border-b border-default hover:bg-neutral-secondary-medium">
-                        <td scope="row" class="px-7 py-4 font-medium text-heading whitespace-nowrap">
-                            {{ $loop->iteration + ($memberships->currentPage() - 1) * $memberships->perPage() }}
+                        
+                        {{-- Nomor Urut --}}
+                        <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
+                            {{ $loop->iteration + ($this->memberships->currentPage() - 1) * $this->memberships->perPage() }}
                         </td>
-                        <td scope="row" class="px-6 py-4 font-medium text-heading whitespace-nowrap">
-                            <div>{{ $membership->user->name ?? 'N/A' }}</div>
-                            <div class="text-xs text-gray-500">Goal: {{ $membership->member_goal ?? '-' }}</div>
-                        </td>
-                        <td scope="row" class="px-6 py-4 font-medium text-heading whitespace-nowrap">
-                            {{ $membership->personalTrainer->name ?? '-' }}
-                        </td>
-                        <td scope="row" class="px-6 py-4 font-medium text-heading whitespace-nowrap">
-                            {{ $membership->gymPackage->name ?? '-' }}
-                        </td>
-                        <td scope="row" class="px-6 py-4 font-medium text-heading whitespace-nowrap">
-                            <span class="font-semibold {{ $membership->remaining_sessions <= 2 ? 'text-red-600' : 'text-green-600' }}">
-                                {{ $membership->remaining_sessions }}
-                            </span> 
-                            / {{ $membership->total_sessions }}
-                        </td>
-                        <td scope="row" class="px-6 py-4 font-medium text-heading whitespace-nowrap">
-                            Rp {{ number_format($membership->price_paid, 0, ',', '.') }}
-                        </td>
-                        <td scope="row" class="px-6 py-4 font-medium text-heading whitespace-nowrap">
-                            <div>{{ $membership->start_date ? $membership->start_date->format('d M Y') : '-' }}</div>
-                            <div>s/d</div>
-                            <div>{{ $membership->end_date ? $membership->end_date->format('d M Y') : '-' }}</div>
+                        
+                        {{-- Info Member --}}
+                        <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
+                            <div class="font-semibold">{{ $membership->user->name ?? 'N/A' }}</div>
+                            <div class="text-xs text-gray-500 mt-1">Goal: {{ $membership->member_goal ?? '-' }}</div>
                         </td>
 
-                        <td scope="row" class="px-6 py-4 font-medium text-heading whitespace-nowrap text-center">
-    
-                            {{-- TAMPILAN LABEL STATUS --}}
+                        {{-- Info Paket & PT --}}
+                        <td class="px-6 py-4 text-heading whitespace-nowrap">
+                            <div class="font-medium text-brand-strong">{{ $membership->gymPackage->name ?? '-' }}</div>
+                            <div class="text-xs text-gray-500 mt-1">
+                                PT: <span class="font-medium">{{ $membership->personalTrainer->name ?? 'Mandiri (Tanpa PT)' }}</span>
+                            </div>
+                        </td>
+
+                        {{-- Info Sesi (Menyesuaikan Jika Mandiri/Unlimited) --}}
+                        <td class="px-6 py-4 text-center whitespace-nowrap">
+                            @if ($membership->total_sessions)
+                                <span class="font-bold {{ $membership->remaining_sessions <= 2 ? 'text-red-600' : 'text-green-600' }}">
+                                    {{ $membership->remaining_sessions }}
+                                </span> 
+                                / {{ $membership->total_sessions }}
+                            @else
+                                <span class="px-2.5 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded-md">Unlimited</span>
+                            @endif
+                        </td>
+
+                        {{-- Total Bayar --}}
+                        {{-- Total Bayar & Rincian --}}
+                        <td class="px-6 py-4 text-right whitespace-nowrap">
+                            {{-- Jika ada diskon, tampilkan harga coret dan badge diskon --}}
+                            @if($membership->discount_percentage > 0)
+                                @php
+                                    // Hitung harga asli (Harga Paket + Harga PT)
+                                    // Karena di tabel tidak menyimpan harga PT secara eksplisit, 
+                                    // kita bisa ambil dari: Total Bayar + Diskon Nominal
+                                    $originalPrice = $membership->price_paid + $membership->discount_applied;
+                                @endphp
+                                
+                                <div class="flex flex-col items-end mb-1">
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-xs text-gray-400 line-through">Rp {{ number_format($originalPrice, 0, ',', '.') }}</span>
+                                        <span class="bg-green-100 text-green-800 text-[10px] font-bold px-1.5 py-0.5 rounded">
+                                            -{{ (float) $membership->discount_percentage }}%
+                                        </span>
+                                    </div>
+                                </div>
+                            @endif
+                            
+                            {{-- Harga Final (Total Bayar) --}}
+                            <div class="font-bold text-heading text-base">
+                                Rp {{ number_format($membership->price_paid, 0, ',', '.') }}
+                            </div>
+                        </td>
+
+                        {{-- Masa Aktif --}}
+                        <td class="px-6 py-4 text-center whitespace-nowrap text-xs">
+                            <div class="text-heading font-medium">{{ $membership->start_date ? $membership->start_date->format('d M Y') : '-' }}</div>
+                            <div class="text-gray-400 my-0.5">s/d</div>
+                            <div class="text-heading font-medium">{{ $membership->end_date ? $membership->end_date->format('d M Y') : '-' }}</div>
+                        </td>
+
+                        {{-- Status & Aksi --}}
+                        <td class="px-6 py-4 text-center whitespace-nowrap">
                             @if ($membership->status === 'pending')
-                                <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800 mb-2">
+                                <span class="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800 mb-2 block w-max mx-auto">
                                     Pending Payment
                                 </span>
-                                
-                                {{-- TOMBOL AKSI HANYA MUNCUL JIKA STATUS PENDING --}}
-                                <div class="flex justify-center space-x-2 mt-1">
+                                <div class="flex justify-center space-x-2 mt-2">
                                     <button 
                                         wire:click="approve({{ $membership->id }})"
                                         wire:confirm="Yakin ingin MENGAKTIFKAN membership ini? (Pastikan member sudah membayar)"
@@ -127,7 +173,6 @@ new #[Layout('layouts::admin')] class extends Component
                                     >
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
                                     </button>
-                                    
                                     <button 
                                         wire:click="reject({{ $membership->id }})"
                                         wire:confirm="Yakin ingin MENOLAK/MEMBATALKAN pengajuan membership ini?"
@@ -137,34 +182,21 @@ new #[Layout('layouts::admin')] class extends Component
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                                     </button>
                                 </div>
-
                             @elseif ($membership->status === 'active')
-                                <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                    Active
-                                </span>
-                                
+                                <span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">Active</span>
                             @elseif ($membership->status === 'expired')
-                                <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
-                                    Expired
-                                </span>
-
+                                <span class="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">Expired</span>
                             @elseif ($membership->status === 'completed')
-                                <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                                    Completed (Sesi Habis)
-                                </span>
-                                
+                                <span class="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">Sesi Habis</span>
                             @elseif ($membership->status === 'rejected')
-                                <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
-                                    Rejected
-                                </span>
+                                <span class="px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">Rejected</span>
                             @endif
-                            
                         </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="8" class="px-6 py-4 text-center text-gray-500">
-                            Belum ada data paket membership.
+                        <td colspan="7" class="px-6 py-8 text-center text-gray-500">
+                            Belum ada riwayat transaksi membership.
                         </td>
                     </tr>
                 @endforelse
@@ -173,6 +205,6 @@ new #[Layout('layouts::admin')] class extends Component
     </div>
     
     <div class="mt-4">
-        {{ $memberships->links() }}
+        {{ $this->memberships->links() }}
     </div>
 </div>

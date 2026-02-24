@@ -34,8 +34,8 @@ Route::middleware('auth')->group(function () {
         Route::livewire('/membership', 'pages::dashboard.member.membership')
         ->name('member.membership.index');
 
-        Route::livewire('/paket', 'pages::dashboard.member.package')
-            ->name('member.paket.index');
+        // Route::livewire('/paket', 'pages::dashboard.member.package')
+        //     ->name('member.paket.index');
 
         Route::livewire('/paket/{package}/checkout', 'pages::dashboard.member.package.checkout')
             ->name('member.paket.checkout');
@@ -55,11 +55,14 @@ Route::middleware('auth')->group(function () {
     Route::middleware('role:admin')->prefix('dashboard/admin')->group(function () {
         
         // --- Membership Management ---
-        Route::livewire('/membership/create', 'pages::dashboard.admin.membership.create')
-            ->name('admin.membership.create');
-
         Route::livewire('/membership', 'pages::dashboard.admin.membership')
             ->name('admin.membership.index');
+
+        Route::livewire('/membership/gabung', 'pages::dashboard.admin.membership.gabung')
+            ->name('admin.membership.gabung');
+
+        Route::livewire('/membership/paket/{user}', 'pages::dashboard.admin.membership.paket')
+            ->name('admin.membership.paket');
 
         Route::livewire('/absensi', 'pages::dashboard.admin.absensi')
             ->name('admin.absensi.index');

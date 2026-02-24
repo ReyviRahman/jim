@@ -16,7 +16,11 @@ return new class extends Migration
             $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
             $table->foreignId('pt_id')->nullable()->constrained('users')->nullOnDelete();
             $table->foreignId('gym_package_id')->constrained('gym_packages');
-            $table->decimal('price_paid', 12, 0);
+            // --- SNAPSHOT HARGA & TRANSAKSI ---
+            $table->decimal('base_price', 12, 0); 
+            $table->decimal('discount_percentage', 5, 2)->default(0); // Persen diskon saat transaksi
+            $table->decimal('discount_applied', 12, 0)->default(0); // Hasil hitungan nominal (Rp) dari persen tersebut
+            $table->decimal('price_paid', 12, 0); // Total akhir
             $table->integer('total_sessions')->nullable();
             $table->integer('remaining_sessions')->nullable();
             $table->string('member_goal');

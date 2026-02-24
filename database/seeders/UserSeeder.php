@@ -38,36 +38,84 @@ class UserSeeder extends Seeder
             'email_verified_at' => now(),
         ]);
 
+        User::create([
+            'name' => 'Coach Frans',
+            'email' => 'frans@gmail.com', 
+            'password' => $password,
+            'role' => 'pt',
+            'occupation' => 'Personal Trainer',
+            'age' => 30,
+            'gender' => 'Laki-laki',
+            'phone' => '081372645212',
+            'medical_history' => null,
+            'address' => 'Jambi',
+            'joined_at' => Carbon::now()->subYears(2),
+            'is_active' => true,
+            'email_verified_at' => now(),
+        ]);
+
+        User::create([
+            'name' => 'Coach Efdi',
+            'email' => 'efdi@gmail.com', 
+            'password' => $password,
+            'role' => 'pt',
+            'occupation' => 'Personal Trainer',
+            'age' => 30,
+            'gender' => 'Laki-laki',
+            'phone' => '081371115212',
+            'medical_history' => null,
+            'address' => 'Jambi',
+            'joined_at' => Carbon::now()->subYears(2),
+            'is_active' => true,
+            'email_verified_at' => now(),
+        ]);
+
+        User::create([
+            'name' => 'Coach Yoyok',
+            'email' => 'yoyok@gmail.com', 
+            'password' => $password,
+            'role' => 'pt',
+            'occupation' => 'Personal Trainer',
+            'age' => 30,
+            'gender' => 'Laki-laki',
+            'phone' => '081372225212',
+            'medical_history' => null,
+            'address' => 'Jambi',
+            'joined_at' => Carbon::now()->subYears(2),
+            'is_active' => true,
+            'email_verified_at' => now(),
+        ]);
+
         // ==========================================
         // 2. BUAT 5 PERSONAL TRAINER (PT)
         // ==========================================
-        $ptSpecialties = [
-            'Strength Coach', 
-            'Yoga Instructor', 
-            'Cardio Specialist', 
-            'Bodybuilding Coach', 
-            'Crossfit Trainer'
-        ];
+        // $ptSpecialties = [
+        //     'Strength Coach', 
+        //     'Yoga Instructor', 
+        //     'Cardio Specialist', 
+        //     'Bodybuilding Coach', 
+        //     'Crossfit Trainer'
+        // ];
 
-        foreach ($ptSpecialties as $index => $spec) {
-            $gender = $faker->randomElement(['Laki-laki', 'Perempuan']);
+        // foreach ($ptSpecialties as $index => $spec) {
+        //     $gender = $faker->randomElement(['Laki-laki', 'Perempuan']);
             
-            User::create([
-                'name' => 'Coach ' . $faker->firstName($gender == 'Laki-laki' ? 'male' : 'female'),
-                'email' => 'pt' . ($index + 1) . '@gmail.com', // pt1@gmail.com, pt2@gmail.com, dst
-                'password' => $password,
-                'role' => 'pt',
-                'occupation' => $spec, // Pekerjaan sesuai spesialisasi
-                'age' => $faker->numberBetween(23, 40),
-                'gender' => $gender,
-                'phone' => $faker->phoneNumber,
-                'medical_history' => null, // PT biasanya sehat
-                'address' => $faker->address,
-                'joined_at' => Carbon::now()->subMonths($faker->numberBetween(5, 24)),
-                'is_active' => true,
-                'email_verified_at' => now(),
-            ]);
-        }
+        //     User::create([
+        //         'name' => 'Coach ' . $faker->firstName($gender == 'Laki-laki' ? 'male' : 'female'),
+        //         'email' => 'pt' . ($index + 1) . '@gmail.com', // pt1@gmail.com, pt2@gmail.com, dst
+        //         'password' => $password,
+        //         'role' => 'pt',
+        //         'occupation' => $spec, // Pekerjaan sesuai spesialisasi
+        //         'age' => $faker->numberBetween(23, 40),
+        //         'gender' => $gender,
+        //         'phone' => $faker->phoneNumber,
+        //         'medical_history' => null, // PT biasanya sehat
+        //         'address' => $faker->address,
+        //         'joined_at' => Carbon::now()->subMonths($faker->numberBetween(5, 24)),
+        //         'is_active' => true,
+        //         'email_verified_at' => now(),
+        //     ]);
+        // }
 
         // ==========================================
         // 3. BUAT 5 MEMBER

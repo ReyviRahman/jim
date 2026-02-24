@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Livewire\GymPackage;
+
 use Livewire\Component;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Computed;
@@ -72,8 +74,9 @@ new #[Layout('layouts::admin')] class extends Component
                 <tr>
                     <th scope="col" class="px-6 py-3 font-medium">No</th>
                     <th scope="col" class="px-6 py-3 font-medium">Nama Paket</th>
-                    <th scope="col" class="px-6 py-3 font-medium">Harga</th>
-                    <th scope="col" class="px-6 py-3 font-medium">Sesi</th>
+                    <th scope="col" class="px-6 py-3 font-medium">Harga Dasar</th>
+                    <th scope="col" class="px-6 py-3 font-medium text-center">Diskon</th>
+                    <th scope="col" class="px-6 py-3 font-medium">Harga Akhir</th>
                     <th scope="col" class="px-6 py-3 font-medium text-center">Status</th>
                     <th scope="col" class="px-6 py-3 font-medium">Aksi</th>
                 </tr>
@@ -87,11 +90,30 @@ new #[Layout('layouts::admin')] class extends Component
                         <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
                             {{ $package->name }}
                         </td>
-                        <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
+                        
+                        {{-- Harga Dasar --}}
+                        <td class="px-6 py-4 font-medium text-gray-500 whitespace-nowrap {{ $package->discount_percentage > 0 ? 'line-through' : 'text-heading' }}">
                             Rp {{ number_format($package->price, 0, ',', '.') }}
                         </td>
-                        <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
-                            {{ $package->number_of_sessions ? $package->number_of_sessions  : 'Unlimited'}}
+                        
+                        {{-- Diskon --}}
+                        <td class="px-6 py-4 font-medium text-center whitespace-nowrap">
+                            @if($package->discount_percentage > 0)
+                                <span class="bg-green-100 text-green-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">
+                                    {{ (float) $package->discount_percentage }}%
+                                </span>
+                            @else
+                                <span class="text-gray-400">-</span>
+                            @endif
+                        </td>
+                        
+                        {{-- Harga Akhir (Dihitung langsung di blade) --}}
+                        @php
+                            $discountAmount = $package->price * ($package->discount_percentage / 100);
+                            $finalPrice = $package->price - $discountAmount;
+                        @endphp
+                        <td class="px-6 py-4 font-bold text-green-700 whitespace-nowrap">
+                            Rp {{ number_format($finalPrice, 0, ',', '.') }}
                         </td>
                         
                         {{-- Kolom Status dengan Toggle Switch UI --}}
@@ -108,7 +130,7 @@ new #[Layout('layouts::admin')] class extends Component
                             </div>
                         </td>
 
-                        <td class="flex items-center px-6 py-4">
+                        <td class="px-6 py-4 whitespace-nowrap">
                             <a href="{{ route('admin.packages.edit', $package->id) }}" wire:navigate class="font-medium text-fg-brand hover:underline">Edit</a>
                             <button 
                                 wire:click="delete({{ $package->id }})"
@@ -121,7 +143,7 @@ new #[Layout('layouts::admin')] class extends Component
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="6" class="px-6 py-8 text-center text-gray-500">
+                        <td colspan="7" class="px-6 py-8 text-center text-gray-500">
                             Belum ada data paket membership.
                         </td>
                     </tr>

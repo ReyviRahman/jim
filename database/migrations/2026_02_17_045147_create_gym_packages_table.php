@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->string('name');
             $table->decimal('price', 12, 0);
-            $table->integer('number_of_sessions')->nullable();
+            $table->decimal('discount_percentage', 5, 2)->default(0);
             $table->text('description')->nullable();
             $table->boolean('is_active')->default(true);
             $table->timestamps();

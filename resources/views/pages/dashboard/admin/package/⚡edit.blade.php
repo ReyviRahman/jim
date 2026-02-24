@@ -5,6 +5,7 @@ namespace App\Livewire\GymPackage;
 use Livewire\Component;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Validate;
+use Livewire\Attributes\Computed; // Tambahkan ini
 use App\Models\GymPackage;
 
 new #[Layout('layouts::admin')] class extends Component
@@ -17,8 +18,9 @@ new #[Layout('layouts::admin')] class extends Component
     #[Validate('required|numeric|min:0')]
     public $price = '';
 
-    #[Validate('nullable|integer|min:1')]
-    public $number_of_sessions = '';
+    // Validasi untuk persentase diskon
+    #[Validate('nullable|numeric|min:0|max:100')]
+    public $discount_percentage = '';
 
     #[Validate('nullable|string')]
     public $description = '';
@@ -31,8 +33,24 @@ new #[Layout('layouts::admin')] class extends Component
         // Isi form dengan data yang sudah ada di database
         $this->name = $package->name;
         $this->price = $package->price;
-        $this->number_of_sessions = $package->number_of_sessions;
+        // Load data persentase diskon (jika 0, bisa ditampilkan sebagai string kosong atau '0')
+        $this->discount_percentage = $package->discount_percentage;
         $this->description = $package->description;
+    }
+
+    // Menghitung harga akhir secara real-time
+    #[Computed]
+    public function finalPrice()
+    {
+        $basePrice = (float) ($this->price ?: 0);
+        $discount = (float) ($this->discount_percentage ?: 0);
+        
+        // Pastikan diskon tidak lebih dari 100% dan tidak kurang dari 0
+        if ($discount > 100) $discount = 100;
+        if ($discount < 0) $discount = 0;
+
+        $discountAmount = $basePrice * ($discount / 100);
+        return $basePrice - $discountAmount;
     }
 
     public function update()
@@ -44,7 +62,8 @@ new #[Layout('layouts::admin')] class extends Component
         $this->package->update([
             'name' => $this->name,
             'price' => $this->price,
-            'number_of_sessions' => $this->number_of_sessions,
+            // Jika kosong, set ke 0
+            'discount_percentage' => $this->discount_percentage === '' ? 0 : $this->discount_percentage,
             'description' => $this->description,
         ]);
 
@@ -79,33 +98,53 @@ new #[Layout('layouts::admin')] class extends Component
                     class="bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs placeholder:text-body" 
                     required 
                 />
-                @error('name') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                @error('name') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
             </div>
 
-            {{-- 2. Harga --}}
+            {{-- 2. Harga (Gunakan wire:model.live) --}}
             <div>
                 <label for="price" class="block mb-2.5 text-sm font-medium text-heading">Harga (Rp)</label>
                 <input 
                     type="number" 
                     id="price" 
-                    wire:model="price"
+                    wire:model.live="price"
                     class="bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs" 
                     required 
                 />
-                @error('price') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                <p class="mt-1 text-xs text-gray-500">Harga dasar per sesi.</p>
+                @error('price') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
             </div>
 
-            <div class="col-span-2">
-                <label for="sessions" class="block mb-2.5 text-sm font-medium text-heading">Jumlah Sesi</label>
-                <input 
-                    type="number" 
-                    id="sessions" 
-                    wire:model="number_of_sessions"
-                    class="bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs" 
-                    placeholder="Kosongkan jika unlimited"
-                />
-                @error('number_of_sessions') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+            {{-- 3. Diskon Persentase (Gunakan wire:model.live) --}}
+            <div class="col-span-2 md:col-span-1">
+                <label for="discount" class="block mb-2.5 text-sm font-medium text-heading">Diskon Paket (%)</label>
+                <div class="relative">
+                    <input 
+                        type="number" 
+                        step="0.01" {{-- Mengizinkan input desimal --}}
+                        id="discount" 
+                        wire:model.live="discount_percentage"
+                        class="bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 pr-10 shadow-xs placeholder:text-body" 
+                    />
+                    <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                        <span class="text-gray-500 text-sm">%</span>
+                    </div>
+                </div>
+                <p class="mt-1 text-xs text-gray-500">Kosongkan jika tidak ada diskon. Maksimal 100.</p>
+                @error('discount_percentage') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
             </div>
+            
+            {{-- 4. Preview Harga Akhir --}}
+            <div class="col-span-2 md:col-span-1 flex items-end">
+                @if($price && $discount_percentage > 0)
+                    <div class="w-full p-4 bg-green-50 border border-green-200 rounded-md">
+                        <p class="text-xs text-green-700 font-medium mb-1">Preview Harga Akhir per Sesi:</p>
+                        <p class="text-sm text-green-600 line-through">Rp {{ number_format((float)$price, 0, ',', '.') }}</p>
+                        <p class="text-xl font-bold text-green-800">Rp {{ number_format($this->finalPrice, 0, ',', '.') }}</p>
+                    </div>
+                @endif
+            </div>
+
         </div>
 
         <div class="mb-6">
@@ -116,10 +155,10 @@ new #[Layout('layouts::admin')] class extends Component
                 rows="3"
                 class="bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs" 
             ></textarea>
-            @error('description') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+            @error('description') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
         </div> 
 
-        {{-- Tombol Submit --}}
+        {{-- Tombol Submit & Batal --}}
         <div class="flex items-center gap-3">
             <button 
                 type="submit" 
