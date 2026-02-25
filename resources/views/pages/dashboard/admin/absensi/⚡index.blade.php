@@ -1,32 +1,34 @@
 <?php
 
+namespace App\Livewire\Admin; // Sesuaikan dengan namespace Anda
+
 use Livewire\Component;
 use Livewire\WithPagination;
 use Livewire\Attributes\Layout;
 use App\Models\Attendance;
 use App\Models\Membership;
 use App\Models\User;
+use Carbon\Carbon;
 
 new #[Layout('layouts::admin')] class extends Component
 {
     use WithPagination;
 
-    // Properti untuk menampung hasil ketikan dari scanner QR
     public $scannedCode = '';
 
     public function processScan()
     {
-        // 1. Pecah data QR Code (Format: user_id|membership_id|type)
-        $data = explode('|', $this->scannedCode);
+        // 1. Decode JSON dari QR Code (Format: {"user_id": 1})
+        $data = json_decode($this->scannedCode, true);
 
-        // Validasi format QR
-        if (count($data) !== 3) {
+        // Validasi format QR Code
+        if (!$data || !isset($data['user_id'])) {
             session()->flash('error', 'Format QR Code tidak valid!');
             $this->scannedCode = ''; 
             return;
         }
 
-        [$userId, $membershipId, $type] = $data;
+        $userId = $data['user_id'];
 
         // 2. Cari Data User
         $user = User::find($userId);
@@ -36,98 +38,113 @@ new #[Layout('layouts::admin')] class extends Component
             return;
         }
 
-        // (Opsional) 3. Cegah double scan dalam waktu 1 menit terakhir
+        // 3. Cegah double scan dalam waktu 1 menit terakhir
         $recentScan = Attendance::where('user_id', $userId)
             ->where('check_in_time', '>=', now()->subMinutes(1))
             ->first();
 
         if ($recentScan) {
-            session()->flash('error', "Member {$user->name} baru saja melakukan scan beberapa saat yang lalu!");
+            session()->flash('error', "Member {$user->name} Telah Melakukan absen");
             $this->scannedCode = '';
             return;
         }
 
-        // 4. Proses berdasarkan Tipe (Membership atau Visit)
-        if ($type === 'trainer') {
-            Attendance::create([
-                'user_id' => $user->id,
-                'membership_id' => null, // Coach tidak butuh ID membership
-                'type' => 'trainer',
-                'check_in_time' => now(),
-            ]);
+        // 4. Cari Data Membership Aktif milik User tersebut
+        // Menggunakan logika yang sama seperti di halaman user (cek owner atau member group)
+        $membership = Membership::where('status', 'active')
+            ->where(function ($query) use ($userId) {
+                $query->where('user_id', $userId)
+                      ->orWhereHas('users', function ($q) use ($userId) {
+                          $q->where('users.id', $userId);
+                      });
+            })
+            ->first();
 
-            session()->flash('success', "Absensi Coach Berhasil: {$user->name}");
+        if (!$membership) {
+            session()->flash('error', "Akses Ditolak! Member {$user->name} tidak memiliki paket aktif.");
+            $this->scannedCode = '';
+            return;
         }
 
-        elseif ($type === 'membership' && $membershipId !== 'none') {
-            $membership = Membership::find($membershipId);
+        // 5. Validasi Kedaluwarsa Tanggal
+        $latestEndDate = null;
+        if (in_array($membership->type, ['membership', 'bundle_pt_membership', 'visit'])) {
+            $latestEndDate = Carbon::parse($membership->membership_end_date);
+        } elseif ($membership->type === 'pt') {
+            $latestEndDate = Carbon::parse($membership->pt_end_date);
+        }
+
+        if ($latestEndDate && now() > $latestEndDate->endOfDay()) {
+            $membership->update(['status' => 'completed']); 
+            session()->flash('error', 'Gagal! Masa aktif paket sudah berakhir.');
+            $this->scannedCode = '';
+            return;
+        }
+
+        // 6. Tentukan Tipe Absensi dan Logika Pemotongan Sesi
+        // Tipe absensi di tabel: 'gym', 'pt', 'visit'
+        $attendanceType = 'gym'; 
+        $infoSesi = "";
+
+        if ($membership->type === 'pt') {
             
-            // --- BAGIAN INI YANG DIPERBARUI ---
-            // Validasi Kedaluwarsa berdasarkan end_date
-            if (!$membership || now()->startOfDay() > \Carbon\Carbon::parse($membership->end_date)->startOfDay()) {
-                // Otomatis update ke completed jika lewat tanggal
-                if ($membership && $membership->status === 'active') {
-                    $membership->update(['status' => 'completed']); 
+            $attendanceType = 'pt';
+            if ($membership->remaining_sessions > 0) {
+                $membership->decrement('remaining_sessions');
+                
+                // Jika ini sesi terakhir, ubah jadi completed
+                if ($membership->remaining_sessions == 0) {
+                    $membership->update(['status' => 'completed']);
                 }
-                session()->flash('error', 'Gagal! Masa aktif membership sudah berakhir.');
-                $this->scannedCode = '';
-                return;
-            }
-
-            // Validasi Status Aktif
-            if ($membership->status !== 'active') {
-                session()->flash('error', 'Membership tidak valid atau belum diaktifkan!');
-                $this->scannedCode = '';
-                return;
-            }
-
-            // Logika Sesi Coach vs Gym Mandiri
-            $infoSesi = "";
-            if ($membership->total_sessions !== null) {
-                // Jika Paket Coach
-                if ($membership->remaining_sessions > 0) {
-                    $membership->decrement('remaining_sessions');
-                    $membership->refresh(); 
-                    $infoSesi = "Sesi Coach Dipakai. Sisa Sesi PT: {$membership->remaining_sessions}";
-                } else {
-                    $infoSesi = "Sesi PT Habis. Masuk sebagai Gym Mandiri.";
-                }
+                $infoSesi = "[Sesi PT Digunakan] Sisa: {$membership->remaining_sessions} sesi.";
             } else {
-                // Jika Paket Gym Mandiri (Unlimited Sesi)
-                $infoSesi = "Paket Gym Mandiri (Berlaku s/d " . \Carbon\Carbon::parse($membership->end_date)->format('d M Y') . ")";
+                session()->flash('error', 'Gagal! Sesi Personal Trainer Anda sudah habis.');
+                $this->scannedCode = '';
+                return;
             }
 
-            // Catat Absensi Membership
-            Attendance::create([
-                'user_id' => $user->id,
-                'membership_id' => $membership->id,
-                'type' => 'membership',
-                'check_in_time' => now(),
-            ]);
+        } elseif ($membership->type === 'visit') {
+            
+            // --- PERBAIKAN LOGIKA VISIT DI SINI ---
+            $attendanceType = 'visit';
+            
+            // Karena visit hanya sekali pakai, kita langsung ubah statusnya jadi completed
+            // setelah dia berhasil check-in hari ini.
+            $membership->update(['status' => 'completed']);
+            
+            $infoSesi = "Akses Visit Harian (Tiket telah digunakan).";
 
-            session()->flash('success', "Berhasil Check-In: {$user->name}. {$infoSesi}");
+        } elseif ($membership->type === 'bundle_pt_membership') {
+            
+            // Catatan: Karena scan otomatis tidak bisa menebak user datang untuk Gym atau PT,
+            // kita set default check-in sebagai 'gym'. Jika dia ingin PT, kuota tidak terpotong otomatis di sini.
+            $attendanceType = 'gym';
+            $infoSesi = "Akses Gym (Bundle). Sisa PT: {$membership->remaining_sessions} (Sesi PT tidak dipotong otomatis via scanner).";
 
         } else {
-            // Catat Absensi Visit (Harian/Non-Paket)
-            Attendance::create([
-                'user_id' => $user->id,
-                'membership_id' => null,
-                'type' => 'visit',
-                'check_in_time' => now(),
-            ]);
-
-            session()->flash('success', "Berhasil Check-In Visit: {$user->name}");
+            
+            // Paket Gym Mandiri Biasa ('membership')
+            $attendanceType = 'gym';
+            $infoSesi = "Akses Gym Mandiri (Berlaku s/d " . $latestEndDate->format('d M Y') . ")";
+            
         }
 
-        // Bersihkan inputan untuk scan berikutnya
-        $this->scannedCode = '';
+        // 7. Catat Absensi ke Database
+        Attendance::create([
+            'user_id' => $user->id,
+            'membership_id' => $membership->id,
+            'type' => $attendanceType,
+            'check_in_time' => now(),
+        ]);
+
+        session()->flash('success', "Berhasil Check-In: {$user->name}. {$infoSesi}");
+        $this->scannedCode = ''; // Bersihkan input
     }
 
     public function with(): array
     {
         return [
-            // Ambil data absensi beserta relasi user dan paket gym-nya
-            'attendances' => Attendance::with(['user', 'membership.gymPackage'])
+            'attendances' => Attendance::with(['user', 'membership.gymPackage', 'membership.ptPackage'])
                 ->latest('check_in_time')
                 ->paginate(10),
         ];
@@ -151,7 +168,7 @@ new #[Layout('layouts::admin')] class extends Component
                 wire:model="scannedCode" 
                 wire:keydown.enter="processScan"
                 class="bg-gray-50 border border-brand text-gray-900 text-sm rounded-lg focus:ring-brand focus:border-brand block w-full pl-10 p-3 shadow-sm" 
-                placeholder="Hasil scan akan muncul di sini..." 
+                placeholder="Hasil QR muncul disini" 
                 autofocus
                 autocomplete="off"
             >
@@ -170,8 +187,6 @@ new #[Layout('layouts::admin')] class extends Component
         </div>
     @endif
 
-    
-
     <div class="relative overflow-x-auto bg-neutral-primary-soft shadow-xs rounded-md border border-default">
         <table class="w-full text-sm text-left rtl:text-right text-body">
             <thead class="text-sm text-body bg-neutral-secondary-medium border-b border-default-medium">
@@ -179,58 +194,85 @@ new #[Layout('layouts::admin')] class extends Component
                     <th scope="col" class="px-6 py-3 font-medium">No</th>
                     <th scope="col" class="px-6 py-3 font-medium">Nama Member</th>
                     <th scope="col" class="px-6 py-3 font-medium">Tipe Kedatangan</th>
-                    <th scope="col" class="px-6 py-3 font-medium">Paket Gym</th>
+                    <th scope="col" class="px-6 py-3 font-medium">Detail Paket</th>
                     <th scope="col" class="px-6 py-3 font-medium">Waktu Check-In</th>
                 </tr>
             </thead>
             <tbody>
                 @forelse ($attendances as $attendance)
                     <tr wire:key="{{ $attendance->id }}" class="bg-neutral-primary-soft border-b border-default hover:bg-neutral-secondary-medium">
-                        <td scope="row" class="px-7 py-4 font-medium text-heading whitespace-nowrap">
+                        <td class="px-7 py-4 font-medium text-heading whitespace-nowrap">
                             {{ $loop->iteration + ($attendances->currentPage() - 1) * $attendances->perPage() }}
                         </td>
+                        
                         <td class="flex items-center px-6 py-4 font-medium text-heading whitespace-nowrap">
                             @if($attendance->user)
                                 @if($attendance->user->photo)
-                                    <img class="w-10 h-10 rounded-full object-cover mr-3" src="{{ asset('storage/' . $attendance->user->photo) }}" alt="{{ $attendance->user->name }}">
+                                    <img class="w-10 h-10 rounded-full object-cover mr-3 border border-gray-200" src="{{ asset('storage/' . $attendance->user->photo) }}" alt="{{ $attendance->user->name }}">
                                 @else
-                                    <img class="w-10 h-10 rounded-full object-cover mr-3" src="https://ui-avatars.com/api/?name={{ urlencode($attendance->user->name) }}&background=random" alt="{{ $attendance->user->name }}">
+                                    <img class="w-10 h-10 rounded-full object-cover mr-3 border border-gray-200" src="https://ui-avatars.com/api/?name={{ urlencode($attendance->user->name) }}&background=random" alt="{{ $attendance->user->name }}">
                                 @endif
-                                
-                                <span>{{ $attendance->user->name }}</span>
+                                <div>
+                                    <div class="font-semibold">{{ $attendance->user->name }}</div>
+                                    <div class="text-xs text-gray-500 font-normal">{{ $attendance->user->email }}</div>
+                                </div>
                             @else
-                                <span>N/A</span>
+                                <span class="text-red-500 italic">User Terhapus</span>
                             @endif
                         </td>
+
                         <td class="px-6 py-4 whitespace-nowrap">
-                            @if($attendance->type === 'membership')
-                                <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                    Membership
+                            {{-- Disesuaikan dengan enum ['gym', 'pt', 'visit'] --}}
+                            @if($attendance->type === 'gym')
+                                <span class="px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-md bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                    🏋️ Gym Mandiri
                                 </span>
-                            @elseif($attendance->type === 'trainer')
-                                <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800 border border-blue-200">
-                                    Coach / PT
+                            @elseif($attendance->type === 'pt')
+                                <span class="px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-md bg-indigo-100 text-indigo-800 border border-indigo-200">
+                                    👨‍🏫 Sesi PT
                                 </span>
-                            @else
-                                <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                                    Visit Harian
+                            @elseif($attendance->type === 'visit')
+                                <span class="px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-md bg-orange-100 text-orange-800 border border-orange-200">
+                                    🎟️ Visit Harian
                                 </span>
                             @endif
                         </td>
+                        
                         <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
-                            @if($attendance->type === 'membership' && $attendance->membership)
-                                {{ $attendance->membership->gymPackage->name ?? 'Paket Tidak Ditemukan' }}
+                            @if($attendance->membership)
+                                <div class="flex flex-col gap-1">
+                                    @if(in_array($attendance->type, ['gym', 'visit']) && $attendance->membership->gymPackage)
+                                        <div class="text-sm font-semibold text-emerald-700">
+                                            {{ $attendance->membership->gymPackage->name }}
+                                        </div>
+                                    @endif
+
+                                    @if($attendance->type === 'pt' && $attendance->membership->ptPackage)
+                                        <div class="text-sm font-semibold text-indigo-700">
+                                            {{ $attendance->membership->ptPackage->name }}
+                                        </div>
+                                        <div class="text-xs text-gray-600 mt-0.5">
+                                            Coach: <span class="font-bold">{{ $attendance->membership->personalTrainer->name ?? '-' }}</span>
+                                        </div>
+                                    @endif
+                                </div>
                             @else
-                                -
+                                <span class="text-red-500 italic">-</span>
                             @endif
                         </td>
+                        
                         <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
-                            {{ $attendance->check_in_time->format('d M Y, H:i') }} WIB
+                            <div class="flex items-center text-gray-600">
+                                {{ \Carbon\Carbon::parse($attendance->check_in_time)->format('d M Y') }}
+                                <span class="ml-2 font-bold text-gray-800">
+                                    {{ \Carbon\Carbon::parse($attendance->check_in_time)->format('H:i') }}
+                                </span>
+                            </div>
                         </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="5" class="px-6 py-4 text-center text-gray-500">
+                        <td colspan="5" class="px-6 py-8 text-center text-gray-500">
                             Belum ada data absensi hari ini.
                         </td>
                     </tr>

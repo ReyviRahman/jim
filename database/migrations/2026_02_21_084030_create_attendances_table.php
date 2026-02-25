@@ -6,30 +6,27 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::create('attendances', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             
-            // membership_id dibuat nullable. Jika null, berarti dia "visit" biasa.
-            $table->foreignId('membership_id')->nullable()->constrained()->nullOnDelete();
+            // Relasi ke membership
+            $table->foreignId('membership_id')->constrained('memberships')->cascadeOnDelete();
             
-            // Kolom untuk mempertegas jenis absensi
-            $table->enum('type', ['membership', 'visit', 'trainer'])->default('visit');
+            // Relasi ke user yang datang (penting untuk paket couple/group)
+            $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
             
-            // Waktu kedatangan saja
+            // Tipe absensi untuk membedakan kedatangan nge-gym biasa atau sesi PT/Visit
+            $table->enum('type', ['gym', 'pt', 'visit'])->default('gym');
+            
+            // Waktu check-in
             $table->timestamp('check_in_time')->useCurrent();
+            
             $table->timestamps();
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('attendances');

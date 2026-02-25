@@ -66,4 +66,8 @@ class Membership extends Model
     public function ptPackage() {
         return $this->belongsTo(GymPackage::class, 'pt_package_id'); 
     }
+
+    public function users() {
+        return $this->belongsToMany(User::class, 'membership_users');
+    }
 }

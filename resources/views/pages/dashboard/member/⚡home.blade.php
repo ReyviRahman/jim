@@ -1,134 +1,216 @@
 <?php
 
-namespace App\Livewire\Member; // Sesuaikan jika berbeda
+namespace App\Livewire\Member;
 
 use Livewire\Component;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
+use App\Models\Membership; // Pastikan model di-import
 use Carbon\Carbon;
 
 new #[Layout('layouts::member')] class extends Component
 {
-    public function render()
+    public function with(): array
     {
-        // 1. Ambil User yang sedang login
         $user = Auth::user();
         
-        // 2. Cek apakah user punya membership aktif
-        // (Pastikan fungsi activeMembership() di model User sudah mengambil data yang statusnya 'active')
-        $activeMembership = $user->activeMembership();
+        // 1. Ambil semua paket yang (seharusnya) masih 'active'
+        $rawActiveMemberships = Membership::with(['gymPackage', 'ptPackage'])
+            ->where('status', 'active')
+            ->where(function ($query) use ($user) {
+                $query->where('user_id', $user->id)
+                      ->orWhereHas('users', function ($q) use ($user) {
+                          $q->where('users.id', $user->id);
+                      });
+            })
+            ->get();
 
-        // 3. Logika Pengecekan Kedaluwarsa yang Baru
-        if ($activeMembership) {
-            $latestEndDate = null;
+        // 2. Siapkan collection baru untuk menyimpan paket yang BENAR-BENAR masih aktif
+        $activeMemberships = collect();
 
-            // Tentukan tanggal mana yang dipakai sebagai patokan expired (gate access)
-            if (in_array($activeMembership->type, ['membership', 'bundle_pt_membership', 'visit'])) {
-                $latestEndDate = Carbon::parse($activeMembership->membership_end_date);
-            } elseif ($activeMembership->type === 'pt') {
-                $latestEndDate = Carbon::parse($activeMembership->pt_end_date);
-            }
+        // 3. Lakukan pengecekan tanggal & sesi untuk setiap paket
+        foreach ($rawActiveMemberships as $membership) {
+            $isExpired = false;
 
-            // Jika tanggal hari ini sudah melewati tanggal kedaluwarsa
-            if ($latestEndDate && now()->startOfDay() > $latestEndDate->startOfDay()) {
-                // Otomatis ubah status di database menjadi expired
-                $activeMembership->update(['status' => 'expired']);
-                
-                // Kosongkan variabel agar sistem menganggap dia tidak punya paket aktif
-                $activeMembership = null; 
-            }
-        }
-
-        // 4. Tentukan data absen dan status tampilan berdasarkan kepemilikan paket
-        if ($activeMembership) {
-            // Format: user_id | membership_id | tipe_paket
-            $dataAbsen = $user->id . '|' . $activeMembership->id . '|' . $activeMembership->type;
-            
-            // Atur teks status berdasarkan tipe
-            if ($activeMembership->type === 'visit') {
-                $statusText = 'Visit Harian (Berlaku Hari Ini)';
-            } elseif ($activeMembership->type === 'pt') {
-                $statusText = 'Paket PT Aktif (s/d ' . Carbon::parse($activeMembership->pt_end_date)->format('d M Y') . ')';
+            if ($membership->type === 'pt') {
+                // Cek kadaluarsa PT (End of Day memastikan berlaku sampai jam 23:59 di hari H)
+                if ($membership->pt_end_date && Carbon::parse($membership->pt_end_date)->endOfDay()->isPast()) {
+                    $isExpired = true;
+                }
+                // Cek sisa sesi PT
+                if (!is_null($membership->remaining_sessions) && $membership->remaining_sessions <= 0) {
+                    $isExpired = true;
+                }
             } else {
-                $statusText = 'Membership Aktif (s/d ' . Carbon::parse($activeMembership->membership_end_date)->format('d M Y') . ')';
+                // Cek kadaluarsa Gym/Lainnya
+                if ($membership->membership_end_date && Carbon::parse($membership->membership_end_date)->endOfDay()->isPast()) {
+                    $isExpired = true;
+                }
             }
-            
-            $statusColor = 'text-green-700 bg-green-100 border border-green-200';
-        } else {
-            // Format: user_id | none | none (Artinya ditolak di pintu masuk)
-            $dataAbsen = $user->id . '|none|none';
-            $statusText = 'Belum Ada Paket Aktif';
-            $statusColor = 'text-red-700 bg-red-100 border border-red-200';
+
+            // 4. Jika terdeteksi expired, update DB. Jika tidak, masukkan ke daftar tayang.
+            if ($isExpired) {
+                $membership->update(['status' => 'completed']);
+            } else {
+                $activeMemberships->push($membership);
+            }
         }
 
-        // 5. Generate QR Code (Format SVG lebih tajam)
-        $qrCode = QrCode::size(200)
-                    ->format('svg')         
-                    ->errorCorrection('H')  
-                    ->color(0, 0, 0)
-                    ->backgroundColor(255, 255, 255)
-                    ->margin(2)
-                    ->generate($dataAbsen);
+        $hasActivePackage = $activeMemberships->isNotEmpty();
+        $qrCode = null;
 
-        // Kirim variable ke view
-        return view('pages.dashboard.member.⚡home', [
-            'qrCode' => $qrCode,
+        // Hanya generate QR Code jika punya minimal 1 paket aktif
+        if ($hasActivePackage) {
+            $qrData = json_encode(['user_id' => $user->id]);
+            $qrCode = QrCode::size(220)->margin(1)->generate($qrData);
+        }
+
+        return [
             'user' => $user,
-            'statusText' => $statusText,
-            'statusColor' => $statusColor,
-            'activeMembership' => $activeMembership 
-        ]);
+            'activeMemberships' => $activeMemberships, // Menggunakan data yang sudah disortir
+            'hasActivePackage' => $hasActivePackage,
+            'qrCode' => $qrCode,
+        ];
     }
 };
 ?>
 
-<div class="flex flex-col items-center justify-center min-h-[400px] p-6 bg-white rounded-xl shadow-lg border border-gray-100">
-    
-    <div class="text-center mb-6">
-        <h2 class="text-2xl font-bold text-gray-800">Kartu Absensi Digital</h2>
-        <p class="text-gray-500 text-sm mt-1">Scan QR Code ini pada alat absensi</p>
-    </div>
-
-    <div class="mb-5 text-center flex flex-col items-center">
-        <span class="px-3 py-1.5 text-sm font-semibold rounded-full shadow-sm {{ $statusColor }}">
-            {{ $statusText }}
-        </span>
+<div>
+    <div class="max-w-lg mx-auto py-8 px-4 sm:px-6">
         
-        {{-- Tampilkan sisa sesi JIKA paketnya punya sesi PT dan belum habis --}}
-        @if($activeMembership?->total_sessions)
-            <div class="mt-3 px-3 py-2 bg-neutral-50 rounded-lg border border-neutral-200">
-                <p class="text-xs text-gray-600 font-medium">
-                    Sisa Sesi Bersama Coach: 
-                    <span class="font-bold text-base {{ $activeMembership->remaining_sessions <= 2 ? 'text-red-600' : 'text-indigo-600' }}">
-                        {{ $activeMembership->remaining_sessions }}
-                    </span> 
-                    <span class="text-gray-400">/ {{ $activeMembership->total_sessions }}</span>
-                </p>
+        @if(!$hasActivePackage)
+            <div class="bg-white border border-red-100 rounded-3xl p-8 shadow-lg text-center relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-full h-2 bg-red-500"></div>
+                <div class="bg-red-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                </div>
+                <h2 class="text-2xl font-bold text-gray-800 mb-3">Tidak Ada Paket Aktif</h2>
+                <p class="text-gray-500 text-sm leading-relaxed mb-6">Anda belum memiliki paket membership atau masa aktif paket Anda telah habis. Silakan perpanjang atau beli paket baru untuk mendapatkan akses Check-in.</p>
+                <button class="bg-red-500 hover:bg-red-600 text-white font-semibold py-3 px-6 rounded-xl transition duration-200 w-full">
+                    Beli Paket Membership
+                </button>
             </div>
-        @endif
-    </div>
-
-    <div class="p-4 bg-white border-2 border-dashed {{ $activeMembership ? 'border-brand-medium' : 'border-red-300' }} rounded-lg shadow-sm transition-transform hover:scale-105 duration-300 relative">
-        @if(!$activeMembership)
-            {{-- Beri overlay semi-transparan jika tidak aktif agar QR terkesan 'terkunci' --}}
-            <div class="absolute inset-0 bg-white/60 z-10 flex items-center justify-center rounded-lg backdrop-blur-[1px]">
-                <span class="bg-red-600 text-white text-xs font-bold px-2 py-1 rounded shadow-md transform -rotate-12">INACTIVE</span>
-            </div>
-        @endif
-        
-        @if(isset($qrCode))
-            {!! $qrCode !!} 
         @else
-            <p class="text-red-500">Silakan login untuk melihat QR.</p>
+            <div class="bg-white rounded-3xl shadow-xl overflow-hidden border border-gray-100">
+                
+                <div class="bg-gradient-to-r from-blue-600 to-indigo-700 p-6 text-center relative">
+                    <div class="absolute top-0 left-0 w-full h-full overflow-hidden opacity-10 pointer-events-none">
+                        <svg class="absolute -top-10 -right-10 w-40 h-40 text-white" fill="currentColor" viewBox="0 0 100 100"><circle cx="50" cy="50" r="50"/></svg>
+                        <svg class="absolute -bottom-10 -left-10 w-32 h-32 text-white" fill="currentColor" viewBox="0 0 100 100"><circle cx="50" cy="50" r="50"/></svg>
+                    </div>
+
+                    <h2 class="text-white text-lg font-medium opacity-90 mb-1">MEMBER CARD</h2>
+                    <h3 class="text-white text-2xl font-bold tracking-tight">{{ $user->name }}</h3>
+                    <div class="mt-3 inline-flex items-center px-3 py-1 rounded-full bg-white/20 text-white text-xs font-semibold backdrop-blur-sm">
+                        <span class="w-2 h-2 rounded-full bg-green-400 mr-2 animate-pulse"></span>
+                        Status: Active
+                    </div>
+                </div>
+
+                <div class="p-8 text-center bg-gray-50">
+                    <p class="text-gray-500 text-sm mb-6 font-medium">Scan QR Code ini pada scanner admin untuk Check-in</p>
+                    
+                    <div class="inline-block p-4 bg-white rounded-2xl shadow-sm border border-gray-200 transition-transform hover:scale-105 duration-300">
+                        {!! $qrCode !!}
+                    </div>
+                </div>
+
+                <div class="p-6 bg-white border-t border-gray-100">
+                    <h4 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">Paket Aktif Anda</h4>
+                    
+                    <div class="space-y-4">
+                        @foreach($activeMemberships as $membership)
+                            <div class="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-2xl bg-gray-50 border border-gray-100 hover:border-blue-200 hover:bg-blue-50/50 transition duration-200">
+                                
+                                <div class="mb-4 sm:mb-0">
+                                    <div class="flex items-center gap-2 mb-1">
+                                        @if($membership->type === 'pt')
+                                            <div class="bg-purple-100 text-purple-600 p-1.5 rounded-lg">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                            </div>
+                                        @else
+                                            <div class="bg-blue-100 text-blue-600 p-1.5 rounded-lg">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                                            </div>
+                                        @endif
+
+                                        <h5 class="font-bold text-gray-800">
+                                            @if($membership->type === 'pt' && $membership->ptPackage)
+                                                {{ $membership->ptPackage->name }}
+                                            @elseif($membership->gymPackage)
+                                                {{ $membership->gymPackage->name }}
+                                            @else
+                                                Paket Kustom
+                                            @endif
+                                        </h5>
+                                    </div>
+                                    <span class="text-xs font-semibold px-2 py-0.5 rounded-md bg-gray-200 text-gray-600 uppercase tracking-wide">
+                                        {{ str_replace('_', ' ', $membership->type) }}
+                                    </span>
+                                </div>
+
+                                <div class="text-left sm:text-right space-y-2">
+                                    
+                                    {{-- JIKA PAKET BERUPA PT --}}
+                                    @if($membership->type === 'pt')
+                                        @if($membership->pt_end_date)
+                                            <div class="text-xs text-gray-500 flex flex-col sm:items-end gap-1">
+                                                <div class="flex items-center gap-1">
+                                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                                    <span>Masa Aktif PT:</span>
+                                                </div>
+                                                <span class="font-medium text-gray-800 bg-white px-2 py-1 rounded border border-gray-100 shadow-sm">
+                                                    {{ \Carbon\Carbon::parse($membership->start_date ?? $membership->created_at)->translatedFormat('d M Y') }} 
+                                                    <span class="text-gray-400 mx-1">s/d</span> 
+                                                    {{ \Carbon\Carbon::parse($membership->pt_end_date)->translatedFormat('d M Y') }}
+                                                </span>
+                                            </div>
+                                        @endif
+
+                                        @if(!is_null($membership->remaining_sessions))
+                                            <div class="mt-2">
+                                                <span class="inline-flex items-center gap-1.5 bg-purple-100 text-purple-700 text-xs font-bold py-1.5 px-3 rounded-full border border-purple-200">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                                                    Sisa {{ $membership->remaining_sessions }} dari {{ $membership->total_sessions }} Sesi
+                                                </span>
+                                            </div>
+                                        @endif
+                                    
+                                    {{-- JIKA PAKET BERUPA GYM BIASA --}}
+                                    @else
+                                        @if($membership->membership_end_date)
+                                            <div class="text-xs text-gray-500 flex flex-col sm:items-end gap-1">
+                                                <div class="flex items-center gap-1">
+                                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                                    <span>Masa Aktif Gym:</span>
+                                                </div>
+                                                <span class="font-medium text-gray-800 bg-white px-2 py-1 rounded border border-gray-100 shadow-sm">
+                                                    {{ \Carbon\Carbon::parse($membership->start_date ?? $membership->created_at)->translatedFormat('d M Y') }} 
+                                                    <span class="text-gray-400 mx-1">s/d</span> 
+                                                    {{ \Carbon\Carbon::parse($membership->membership_end_date)->translatedFormat('d M Y') }}
+                                                </span>
+                                            </div>
+                                        @endif
+                                    @endif
+
+                                </div>
+
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-6 text-center">
+                <p class="text-xs text-gray-400 mb-2">Manual Input Data (Untuk Admin)</p>
+                <div class="inline-block bg-gray-100 border border-gray-200 rounded-lg py-2 px-4 text-xs text-gray-600 font-mono select-all cursor-text">
+                    {"user_id": {{ $user->id }}}
+                </div>
+            </div>
         @endif
+        
     </div>
-
-    @if(isset($user))
-        <div class="mt-6 text-center">
-            <p class="font-semibold text-xl text-gray-800">{{ $user->name }}</p>
-            <p class="text-sm text-gray-500">{{ $user->email }}</p>
-        </div>
-    @endif
-
 </div>

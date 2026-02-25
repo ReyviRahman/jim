@@ -304,7 +304,7 @@ new #[Layout('layouts::admin')] class extends Component
                             <option value="visit">🎟️ Visit / Harian</option> {{-- OPSI BARU --}}
                             <option value="membership">🏋️ Membership Gym Only</option>
                             <option value="pt">👨‍🏫 Personal Trainer Only</option>
-                            <option value="bundle_pt_membership">⭐ Bundle Gym + Personal Training</option>
+                            {{-- <option value="bundle_pt_membership">⭐ Bundle Gym + Personal Training</option> --}}
                         </select>
                         @error('registration_type') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                     </div>
@@ -377,7 +377,7 @@ new #[Layout('layouts::admin')] class extends Component
                                 </div>
 
                                 <div>
-                                    <label for="pt_id" class="block mb-2.5 text-sm font-medium text-heading">Pilih Personal Trainer (Orangnya)</label>
+                                    <label for="pt_id" class="block mb-2.5 text-sm font-medium text-heading">Pilih Personal Trainer</label>
                                     <select id="pt_id" wire:model.live="pt_id" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs">
                                         <option value="">-- Pilih Trainer --</option>
                                         @foreach($this->trainers as $trainer)
