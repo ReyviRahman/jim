@@ -13,25 +13,68 @@ new #[Layout('layouts::admin')] class extends Component
     #[Validate('required|string|max:255')]
     public $name = '';
 
+    // --- PERUBAHAN: 'visit' masuk ke type ---
+    #[Validate('required|in:gym,pt,visit')]
+    public $type = 'gym';
+
+    #[Validate('nullable|integer|min:1')]
+    public $pt_sessions = '';
+
+    // --- PERUBAHAN: 'visit' dihapus dari category ---
+    #[Validate('required|in:single,couple,group')]
+    public $category = 'single';
+
+    #[Validate('required|integer|min:1')]
+    public $max_members = 1;
+
     #[Validate('required|numeric|min:0')]
     public $price = '';
 
-    // PERUBAHAN: Validasi untuk nominal diskon (bukan persentase)
-    // Minimal 0, dan maksimal tidak boleh melebihi harga paket.
     #[Validate('nullable|numeric|min:0')]
     public $discount = ''; 
 
-    #[Validate('nullable|string')]
-    public $description = '';
+    // Reset dan atur UI jika Tipe diubah
+    public function updatedType($value)
+    {
+        // Jika bukan PT, kosongkan sesi PT
+        if (in_array($value, ['gym', 'visit'])) {
+            $this->pt_sessions = '';
+        }
 
-    // Menghitung harga akhir secara real-time
+        // Jika Visit, paksa kategori ke single dan max member 1
+        if ($value === 'visit') {
+            $this->category = 'single';
+            $this->max_members = 1;
+        }
+    }
+
+    // Otomatis mengubah max_members saat kategori diubah
+    public function updatedCategory($value)
+    {
+        // Cegah perubahan kategori jika tipenya visit
+        if ($this->type === 'visit') {
+            $this->category = 'single';
+            $this->max_members = 1;
+            return;
+        }
+
+        if ($value === 'single') {
+            $this->max_members = 1;
+        } elseif ($value === 'couple') {
+            $this->max_members = 2;
+        } elseif ($value === 'group') {
+            if ($this->max_members < 3) {
+                $this->max_members = 3; 
+            }
+        }
+    }
+
     #[Computed]
     public function finalPrice()
     {
         $basePrice = (float) ($this->price ?: 0);
         $discountAmount = (float) ($this->discount ?: 0);
         
-        // Pastikan diskon tidak lebih besar dari harga
         if ($discountAmount > $basePrice) {
             $discountAmount = $basePrice;
         }
@@ -44,25 +87,30 @@ new #[Layout('layouts::admin')] class extends Component
 
     public function save()
     {
-        // Validasi kustom: Diskon tidak boleh lebih besar dari harga
+        // Validasi kustom untuk PT
+        if ($this->type === 'pt' && empty($this->pt_sessions)) {
+            $this->addError('pt_sessions', 'Jumlah sesi wajib diisi untuk paket Personal Trainer.');
+            return;
+        }
+
         if ((float) $this->discount > (float) $this->price) {
             $this->addError('discount', 'Diskon tidak boleh lebih besar dari harga paket.');
             return;
         }
 
-        // 1. Validasi Input
         $this->validate();
 
-        // 2. Simpan ke Database
         GymPackage::create([
             'name' => $this->name,
+            'type' => $this->type,                         
+            'pt_sessions' => $this->type === 'pt' ? $this->pt_sessions : null, 
+            'category' => $this->category, 
+            'max_members' => $this->max_members, 
             'price' => $this->price,
-            // PERUBAHAN: Simpan ke kolom 'discount' (nominal)
             'discount' => $this->discount === '' ? 0 : $this->discount,
-            'description' => $this->description,
+            // 'description' => $this->description, // Tambahkan ini jika Anda punya properti $description di class ini
         ]);
 
-        // 3. Reset Form & Kasih Notifikasi
         $this->reset(); 
         session()->flash('success', 'Paket berhasil dibuat!');
         
@@ -72,7 +120,6 @@ new #[Layout('layouts::admin')] class extends Component
 ?>
 
 <div>
-    {{-- Tampilkan Pesan Sukses --}}
     @if (session()->has('success'))
         <div class="p-4 mb-4 text-sm text-green-800 rounded-lg bg-green-50" role="alert">
             <span class="font-medium">Sukses!</span> {{ session('success') }}
@@ -80,25 +127,92 @@ new #[Layout('layouts::admin')] class extends Component
     @endif
 
     <form wire:submit="save">
-        <h5 class="text-xl font-semibold text-heading mb-6">Buat Paket Membership</h5>
+        <h5 class="text-xl font-semibold text-heading mb-6">Buat Paket Membership / PT</h5>
         
         <div class="grid gap-6 mb-6 md:grid-cols-2">
             
             {{-- 1. Nama Paket --}}
-            <div>
+            <div class="md:col-span-2">
                 <label for="name" class="block mb-2.5 text-sm font-medium text-heading">Nama Paket</label>
                 <input 
                     type="text" 
                     id="name" 
                     wire:model="name"
                     class="bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs placeholder:text-body" 
-                    placeholder="Contoh: Paket Bulking, Paket Harian" 
+                    placeholder="Contoh: Daily Pass" 
                     required 
                 />
                 @error('name') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
             </div>
 
-            {{-- 2. Harga (Gunakan wire:model.live) --}}
+            {{-- 2. TIPE PAKET (BARU) --}}
+            <div>
+                <label for="type" class="block mb-2.5 text-sm font-medium text-heading">Tipe Layanan</label>
+                <select 
+                    id="type" 
+                    wire:model.live="type"
+                    class="bg-white border border-brand-medium text-brand-strong font-semibold text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs"
+                >
+                    <option value="gym">🏋️ Gym Membership</option>
+                    <option value="pt">👨‍🏫 Personal Trainer (PT)</option>
+                    <option value="visit">🎟️ Visit / Harian</option> {{-- TAMBAHAN VISIT --}}
+                </select>
+                @error('type') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+            </div>
+
+            {{-- 3. JUMLAH SESI PT --}}
+            @if($type === 'pt')
+                <div class="animate-pulse-once"> 
+                    <label for="pt_sessions" class="block mb-2.5 text-sm font-medium text-heading">Jumlah Sesi</label>
+                    <input type="number" id="pt_sessions" wire:model="pt_sessions" min="1" class="bg-white border border-blue-400 text-blue-800 text-sm rounded-md focus:ring-blue-500 focus:border-blue-500 block w-full px-3 py-2.5 shadow-xs placeholder:text-blue-300" placeholder="Contoh: 12" required />
+                    @error('pt_sessions') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                </div>
+            @else
+                <div class="hidden md:block"></div> 
+            @endif
+
+            <div class="md:col-span-2 border-t border-default-medium mt-2 pt-4"></div>
+
+            {{-- 4. Kategori Paket --}}
+            <div>
+                <label for="category" class="block mb-2.5 text-sm font-medium text-heading">Kategori / Kapasitas Orang</label>
+                <select 
+                    id="category" 
+                    wire:model.live="category"
+                    class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs disabled:opacity-50 disabled:bg-gray-100"
+                    @if($type === 'visit') disabled @endif {{-- Disable jika visit --}}
+                >
+                    <option value="single">Single (1 Orang)</option>
+                    <option value="couple">Couple (2 Orang)</option>
+                    <option value="group">Group (3+ Orang)</option>
+                </select>
+                @if($type === 'visit')
+                    <p class="mt-1 text-xs text-gray-500">Terkunci ke Single karena ini adalah paket Visit.</p>
+                @endif
+                @error('category') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+            </div>
+
+            {{-- 5. Maksimal Member --}}
+            <div>
+                <label for="max_members" class="block mb-2.5 text-sm font-medium text-heading">Maksimal Member</label>
+                <input 
+                    type="number" 
+                    id="max_members" 
+                    wire:model="max_members"
+                    min="1"
+                    class="bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs disabled:opacity-50 disabled:bg-gray-100" 
+                    @if(in_array($category, ['single', 'couple']) || $type === 'visit') disabled @endif
+                    required 
+                />
+                @if(in_array($category, ['single', 'couple']) || $type === 'visit')
+                    <p class="mt-1 text-xs text-gray-500">Angka terkunci otomatis berdasarkan kategori/tipe.</p>
+                @else
+                    <p class="mt-1 text-xs text-brand-strong">Silakan tentukan kapasitas maksimal grup.</p>
+                @endif
+                @error('max_members') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+            </div>
+
+            {{-- 6. Harga --}}
             <div>
                 <label for="price" class="block mb-2.5 text-sm font-medium text-heading">Harga (Rp)</label>
                 <input 
@@ -112,8 +226,8 @@ new #[Layout('layouts::admin')] class extends Component
                 @error('price') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
             </div>
 
-            {{-- 3. Diskon Nominal (Gunakan wire:model.live) --}}
-            <div class="col-span-2 md:col-span-1">
+            {{-- 7. Diskon Nominal --}}
+            <div>
                 <label for="discount" class="block mb-2.5 text-sm font-medium text-heading">Diskon Paket (Rp)</label>
                 <div class="relative">
                     <div class="absolute inset-y-0 start-0 flex items-center pl-3 pointer-events-none">
@@ -131,19 +245,15 @@ new #[Layout('layouts::admin')] class extends Component
                 @error('discount') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
             </div>
             
-            {{-- 4. Preview Harga Akhir --}}
-            {{-- 4. Preview Harga Akhir --}}
-            <div class="col-span-2 md:col-span-1 flex items-end">
-                {{-- Pastikan price lebih dari 0 untuk menghindari error pembagian dengan nol --}}
+            {{-- 8. Preview Harga Akhir --}}
+            <div class="md:col-span-2 flex items-end">
                 @if($price > 0 && $discount > 0)
                     @php
-                        // Hitung persentase diskon
                         $percentage = ($discount / $price) * 100;
                     @endphp
-                    <div class="w-full p-4 bg-green-50 border border-green-200 rounded-md">
+                    <div class="w-full md:w-1/2 p-4 bg-green-50 border border-green-200 rounded-md">
                         <div class="flex justify-between items-center mb-1">
                             <p class="text-xs text-green-700 font-medium">Harga Setelah Diskon:</p>
-                            {{-- Tampilkan badge persentase diskon --}}
                             <span class="bg-green-200 text-green-800 text-[10px] font-bold px-1.5 py-0.5 rounded">
                                 -{{ is_float($percentage) ? round($percentage, 1) : $percentage }}%
                             </span>
@@ -155,18 +265,6 @@ new #[Layout('layouts::admin')] class extends Component
             </div>
 
         </div>
-
-        <div class="mb-6">
-            <label for="description" class="block mb-2.5 text-sm font-medium text-heading">Deskripsi / Fasilitas</label>
-            <textarea 
-                id="description" 
-                wire:model="description"
-                rows="3"
-                class="bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs placeholder:text-body" 
-                placeholder="Jelaskan detail fasilitas paket ini..." 
-            ></textarea>
-            @error('description') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
-        </div> 
 
         {{-- Tombol Submit & Batal --}}
         <div class="flex items-center gap-3">

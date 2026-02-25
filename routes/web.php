@@ -61,7 +61,7 @@ Route::middleware('auth')->group(function () {
         Route::livewire('/membership/gabung', 'pages::dashboard.admin.membership.gabung')
             ->name('admin.membership.gabung');
 
-        Route::livewire('/membership/paket/{user}', 'pages::dashboard.admin.membership.paket')
+        Route::livewire('/membership/paket', 'pages::dashboard.admin.membership.paket')
             ->name('admin.membership.paket');
 
         Route::livewire('/absensi', 'pages::dashboard.admin.absensi')

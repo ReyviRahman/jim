@@ -120,7 +120,7 @@ class UserSeeder extends Seeder
         // ==========================================
         // 3. BUAT 5 MEMBER
         // ==========================================
-        for ($i = 1; $i <= 5; $i++) {
+        for ($i = 1; $i <= 50; $i++) {
             $gender = $faker->randomElement(['Laki-laki', 'Perempuan']);
             
             User::create([

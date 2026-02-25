@@ -8,10 +8,13 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class GymPackage extends Model
 {
     protected $fillable = [
+        'type',
         'name',
+        'category',
+        'max_members',
+        'pt_sessions',
         'price',
         'discount',
-        'description',
         'is_active',
     ];
 
