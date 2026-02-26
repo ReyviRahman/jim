@@ -13,6 +13,23 @@ use Carbon\Carbon;
 
 new #[Layout('layouts::member')] class extends Component
 {
+    // --- TAMBAHAN UNTUK POLLING ---
+    public $hasCheckedIn = false;
+
+    public function checkAttendance()
+    {
+        if (!$this->hasCheckedIn) {
+            $recentScan = Attendance::where('user_id', Auth::id())
+                ->where('check_in_time', '>=', now()->subSeconds(30))
+                ->exists();
+
+            if ($recentScan) {
+                $this->hasCheckedIn = true;
+            }
+        }
+    }
+    // ------------------------------
+
     public function with(): array
     {
         $user = Auth::user();
@@ -101,9 +118,24 @@ new #[Layout('layouts::member')] class extends Component
 };
 ?>
 
-<div>
+<div wire:poll.2s="checkAttendance">
     <div class="max-w-lg mx-auto py-8  sm:px-6">
         
+        @if($hasCheckedIn)
+            <div class="bg-green-500 border border-green-600 rounded-3xl p-8 shadow-xl text-center relative overflow-hidden transition-all duration-500">
+                <div class="bg-white/20 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
+                    <svg class="w-14 h-14 text-white animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                </div>
+                <h2 class="text-3xl font-bold text-white mb-3">Berhasil!</h2>
+                <p class="text-green-100 text-base leading-relaxed mb-8">Check-in kamu berhasil tercatat. Selamat berlatih di Frans Gym!</p>
+                <button wire:click="$set('hasCheckedIn', false)" class="bg-white text-green-600 hover:bg-green-50 font-bold py-3 px-6 rounded-xl transition duration-200 w-full shadow-md">
+                    Kembali ke Kartu Member
+                </button>
+            </div>
+        @else
+
         @if(!$hasActivePackage)
             <div class="bg-white border border-red-100 rounded-3xl p-8 shadow-lg text-center relative overflow-hidden">
                 <div class="absolute top-0 left-0 w-full h-2 bg-red-500"></div>
@@ -228,5 +260,6 @@ new #[Layout('layouts::member')] class extends Component
             </div>
         @endif
         
+        @endif
     </div>
 </div>
