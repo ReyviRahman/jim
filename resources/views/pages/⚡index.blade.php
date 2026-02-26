@@ -4,9 +4,12 @@ use Livewire\Attributes\Layout;
 use Livewire\Component;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
+use Livewire\WithPagination;
 
 new #[Layout('layouts::empty')] #[Title('Frans GYM | Pusat Kebugaran Terbaik di Jambi')] class extends Component 
 {
+    use WithPagination;
+
     public function logout()
     {
         Auth::logout();
@@ -18,12 +21,12 @@ new #[Layout('layouts::empty')] #[Title('Frans GYM | Pusat Kebugaran Terbaik di 
     
     public function with(): array
     {
-        // Ambil semua PT aktif
-        $trainers = User::where('role', 'pt')->where('is_active', true)->get();
-        
         return [
-            // Membagi pelatih menjadi kelompok berisi maksimal 3 orang per "Halaman Slide"
-            'trainerPages' => $trainers->chunk(3) 
+            // 3. Ubah nama dari 'trainerPages' menjadi 'trainers'
+            // 4. Ganti ->get() menjadi ->paginate(6) (misal: tampilkan 6 PT per halaman)
+            'trainers' => User::where('role', 'pt')
+                              ->where('is_active', true)
+                              ->paginate(3) 
         ];
     }
 };
@@ -337,63 +340,31 @@ new #[Layout('layouts::empty')] #[Title('Frans GYM | Pusat Kebugaran Terbaik di 
                 </p>
             </div>
 
-            @if($trainerPages->count() > 0)
-                <div x-data="{
-                        activePage: 0,
-                        totalPages: {{ $trainerPages->count() }},
-                        next() { this.activePage = (this.activePage + 1) % this.totalPages },
-                        prev() { this.activePage = (this.activePage === 0) ? this.totalPages - 1 : this.activePage - 1 }
-                    }" 
-                    class="relative w-full"
-                >
-                    <button @click="prev()" class="absolute left-0 top-1/2 -translate-y-1/2 z-10 -ml-4 md:-ml-6 bg-[#34342F] border border-default text-brand w-12 h-12 rounded-full flex items-center justify-center shadow-md hover:bg-brand hover:text-white transition-colors focus:outline-none">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
-                    </button>
-
-                    <div class="overflow-hidden px-2 py-4">
-                        <div class="flex transition-transform duration-700 ease-in-out" :style="`transform: translateX(-${activePage * 100}%)`">
+            @if($trainers->count() > 0)
+                <div class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                    @foreach($trainers as $pt)
+                        <div class="bg-white rounded-2xl shadow-sm border border-default overflow-hidden hover:shadow-lg transition-shadow duration-300 flex flex-col">
+                            <div class="h-64 bg-gray-200 relative overflow-hidden group">
+                                @if($pt->photo)
+                                    <img src="{{ asset('storage/' . $pt->photo) }}" alt="{{ $pt->name }}" class="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500">
+                                @else
+                                    <img src="https://ui-avatars.com/api/?name={{ urlencode($pt->name) }}&background=random&size=400" alt="{{ $pt->name }}" class="w-full h-full object-cover">
+                                @endif
+                            </div>
                             
-                            @foreach($trainerPages as $pageIndex => $chunk)
-                                <div class="w-full flex-shrink-0 px-2 md:px-4">
-                                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-                                        @foreach($chunk as $pt)
-                                            <div class="bg-white rounded-2xl shadow-sm border border-default overflow-hidden hover:shadow-lg transition-shadow duration-300 flex flex-col">
-                                                <div class="h-64 bg-gray-200 relative overflow-hidden group">
-                                                    @if($pt->photo)
-                                                        <img src="{{ asset('storage/' . $pt->photo) }}" alt="{{ $pt->name }}" class="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500">
-                                                    @else
-                                                        <img src="https://ui-avatars.com/api/?name={{ urlencode($pt->name) }}&background=random&size=400" alt="{{ $pt->name }}" class="w-full h-full object-cover">
-                                                    @endif
-                                                </div>
-                                                <div class="p-6 text-center flex-1 flex flex-col justify-center">
-                                                    <h3 class="text-xl font-bold text-heading">{{ $pt->name }}</h3>
-                                                    
-                                                    <div class="w-12 h-1 bg-brand mx-auto my-4 rounded-full opacity-50"></div>
-                                                    <p class="text-sm text-body line-clamp-3">Siap membantu merancang program latihan yang disesuaikan dengan tujuan kebugaran kamu.</p>
-                                                </div>
-                                            </div>
-                                        @endforeach
-                                    </div>
-                                </div>
-                            @endforeach
-
+                            <div class="p-6 text-center flex-1 flex flex-col justify-center">
+                                <h3 class="text-xl font-bold text-heading">{{ $pt->name }}</h3>
+                                <div class="w-12 h-1 bg-brand mx-auto my-4 rounded-full opacity-50"></div>
+                                <p class="text-sm text-body line-clamp-3">Siap membantu merancang program latihan yang disesuaikan dengan tujuan kebugaran kamu.</p>
+                            </div>
                         </div>
-                    </div>
-
-                    <button @click="next()" class="absolute right-0 top-1/2 -translate-y-1/2 z-10 -mr-4 md:-mr-6 bg-[#34342F] border border-default text-brand w-12 h-12 rounded-full flex items-center justify-center shadow-md hover:bg-brand hover:text-white transition-colors focus:outline-none">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
-                    </button>
-
-                    <div class="flex justify-center items-center space-x-3 mt-10">
-                        <template x-for="i in totalPages" :key="i">
-                            <button @click="activePage = i - 1" 
-                                    class="h-2 rounded-full transition-all duration-300 focus:outline-none"
-                                    :class="activePage === i - 1 ? 'w-8 bg-brand' : 'w-2 bg-gray-300 hover:bg-gray-400'">
-                            </button>
-                        </template>
-                    </div>
-
+                    @endforeach
                 </div>
+
+                <div class="mt-10">
+                    {{ $trainers->links(data: ['scrollTo' => false]) }}
+                </div>
+
             @else
                 <div class="text-center py-10 bg-white rounded-xl border border-default">
                     <p class="text-body font-medium">Data Personal Trainer sedang diperbarui.</p>
