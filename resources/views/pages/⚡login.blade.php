@@ -57,7 +57,7 @@ new class extends Component {
 };
 ?>
 
-<div class="flex items-center justify-center min-h-screen bg-cover bg-center bg-no-repeat bg-black/80 bg-blend-overlay mt-10"
+<div class="flex items-center justify-center min-h-screen bg-cover bg-center bg-no-repeat bg-black/70 bg-blend-overlay mt-10"
     style="background-image: url('{{ asset('ruangan.png') }}');">
     <div class="w-full max-w-md p-4 border-3 border-brand rounded-md shadow-xs h-full mx-4 ">
         <form wire:submit="login">
