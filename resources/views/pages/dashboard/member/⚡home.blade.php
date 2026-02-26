@@ -114,9 +114,6 @@ new #[Layout('layouts::member')] class extends Component
                 </div>
                 <h2 class="text-2xl font-bold text-gray-800 mb-3">Tidak Ada Paket Aktif</h2>
                 <p class="text-gray-500 text-sm leading-relaxed mb-6">Anda belum memiliki paket membership atau masa aktif paket Anda telah habis. Silakan perpanjang atau beli paket baru untuk mendapatkan akses Check-in.</p>
-                <button class="bg-red-500 hover:bg-red-600 text-white font-semibold py-3 px-6 rounded-xl transition duration-200 w-full">
-                    Beli Paket Membership
-                </button>
             </div>
         @else
             <div class="bg-white rounded-3xl shadow-xl overflow-hidden border border-gray-100">
