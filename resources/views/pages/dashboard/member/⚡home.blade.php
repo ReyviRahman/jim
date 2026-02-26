@@ -102,7 +102,7 @@ new #[Layout('layouts::member')] class extends Component
 ?>
 
 <div>
-    <div class="max-w-lg mx-auto py-8 px-4 sm:px-6">
+    <div class="max-w-lg mx-auto py-8  sm:px-6">
         
         @if(!$hasActivePackage)
             <div class="bg-white border border-red-100 rounded-3xl p-8 shadow-lg text-center relative overflow-hidden">
@@ -118,7 +118,7 @@ new #[Layout('layouts::member')] class extends Component
         @else
             <div class="bg-white rounded-3xl shadow-xl overflow-hidden border border-gray-100">
                 
-                <div class="p-8 text-center bg-white border-b border-gray-100">
+                <div class="py-4 text-center bg-white border-b border-gray-100">
                     <p class="text-gray-500 text-sm mb-6 font-medium">Scan QR Code ini pada scanner admin untuk Check-in</p>
                     
                     <div class="inline-block p-4 bg-white rounded-2xl shadow-sm border border-gray-200 transition-transform hover:scale-105 duration-300 mb-6">
