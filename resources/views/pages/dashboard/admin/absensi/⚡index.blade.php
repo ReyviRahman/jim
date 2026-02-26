@@ -1,7 +1,7 @@
 <?php
-
 namespace App\Livewire\Admin; // Sesuaikan dengan namespace Anda
 
+use Illuminate\Support\Facades\DB;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Livewire\Attributes\Layout;
@@ -38,7 +38,7 @@ new #[Layout('layouts::admin')] class extends Component
             return;
         }
 
-        // 3. Cegah double scan dalam waktu 1 menit terakhir
+        // 3. Cegah double scan dalam waktu 1 menit terakhir untuk user yang sama
         $recentScan = Attendance::where('user_id', $userId)
             ->where('check_in_time', '>=', now()->subMinutes(1))
             ->first();
@@ -49,15 +49,29 @@ new #[Layout('layouts::admin')] class extends Component
             return;
         }
 
-        // 4. Cari Data Membership Aktif milik User tersebut
-        // Menggunakan logika yang sama seperti di halaman user (cek owner atau member group)
-        $membership = Membership::where('status', 'active')
-            ->where(function ($query) use ($userId) {
-                $query->where('user_id', $userId)
-                      ->orWhereHas('users', function ($q) use ($userId) {
-                          $q->where('users.id', $userId);
-                      });
+        // 4. Cari Data Membership (Perbaikan untuk menampung sesi terakhir Couple PT)
+        $membership = Membership::where(function ($query) use ($userId) {
+                $query->where('user_id', $userId) // Cek sebagai pemilik utama
+                    ->orWhereExists(function ($subQuery) use ($userId) {
+                        // Cek langsung ke tabel pivot tanpa join ke tabel users (SANGAT CEPAT)
+                        $subQuery->select(DB::raw(1))
+                                ->from('membership_users')
+                                ->whereColumn('membership_users.membership_id', 'memberships.id')
+                                ->where('membership_users.user_id', $userId);
+                    });
             })
+            ->where(function ($query) {
+                // Cari paket yang statusnya 'active'
+                $query->where('status', 'active')
+                    // ATAU paket 'completed' khusus bertipe 'pt'.
+                    ->orWhere(function ($q) {
+                        $q->where('status', 'completed')
+                            ->where('type', 'pt');
+                    });
+            })
+            // Prioritaskan mengambil yang active jika member punya banyak paket
+            ->orderByRaw("CASE WHEN status = 'active' THEN 1 WHEN status = 'completed' THEN 2 ELSE 3 END") 
+            ->latest('id')
             ->first();
 
         if (!$membership) {
@@ -75,55 +89,68 @@ new #[Layout('layouts::admin')] class extends Component
         }
 
         if ($latestEndDate && now() > $latestEndDate->endOfDay()) {
-            $membership->update(['status' => 'completed']); 
+            if ($membership->status !== 'completed') {
+                $membership->update(['status' => 'completed']); 
+            }
             session()->flash('error', 'Gagal! Masa aktif paket sudah berakhir.');
             $this->scannedCode = '';
             return;
         }
 
         // 6. Tentukan Tipe Absensi dan Logika Pemotongan Sesi
-        // Tipe absensi di tabel: 'gym', 'pt', 'visit'
         $attendanceType = 'gym'; 
         $infoSesi = "";
 
         if ($membership->type === 'pt') {
             
             $attendanceType = 'pt';
-            if ($membership->remaining_sessions > 0) {
+
+            // Cek apakah paket PT ini sudah dipakai/dipotong sesinya pada HARI INI
+            $isSessionUsedToday = Attendance::where('membership_id', $membership->id)
+                ->where('type', 'pt')
+                ->where('check_in_time', '>=', today()->startOfDay())
+                ->where('check_in_time', '<=', today()->endOfDay())
+                ->exists();
+
+            if (!$isSessionUsedToday) {
+                // ORANG PERTAMA (Belum ada yang absen hari ini)
+                
+                // Pastikan untuk orang pertama, paket belum completed dan sesi masih ada
+                if ($membership->status === 'completed' || $membership->remaining_sessions <= 0) {
+                    session()->flash('error', 'Gagal! Sesi Personal Trainer Anda sudah habis.');
+                    $this->scannedCode = '';
+                    return;
+                }
+
+                // Potong Sesi
                 $membership->decrement('remaining_sessions');
                 
-                // Jika ini sesi terakhir, ubah jadi completed
+                // Jika ini sesi terakhir, jadikan paket expired (completed)
                 if ($membership->remaining_sessions == 0) {
                     $membership->update(['status' => 'completed']);
                 }
-                $infoSesi = "[Sesi PT Digunakan] Sisa: {$membership->remaining_sessions} sesi.";
+                $infoSesi = "[Sesi PT Dipotong] Sisa: {$membership->remaining_sessions} sesi.";
+
             } else {
-                session()->flash('error', 'Gagal! Sesi Personal Trainer Anda sudah habis.');
-                $this->scannedCode = '';
-                return;
+                // ORANG KEDUA / PARTNER (Sudah ada partner yang potong sesi hari ini)
+                // Walaupun status paket ini baru saja jadi "completed" dan sesinya "0" karena orang pertama, 
+                // orang kedua tetap diperbolehkan masuk tanpa memotong sesi lagi.
+                $infoSesi = "[Join Sesi Gabungan] Sesi hari ini sudah dipotong partner Anda. Sisa: {$membership->remaining_sessions} sesi.";
             }
 
         } elseif ($membership->type === 'visit') {
             
-            // --- PERBAIKAN LOGIKA VISIT DI SINI ---
             $attendanceType = 'visit';
-            
-            // Karena visit hanya sekali pakai, kita langsung ubah statusnya jadi completed
-            // setelah dia berhasil check-in hari ini.
             $membership->update(['status' => 'completed']);
-            
             $infoSesi = "Akses Visit Harian (Tiket telah digunakan).";
 
         } elseif ($membership->type === 'bundle_pt_membership') {
             
-            // Catatan: Karena scan otomatis tidak bisa menebak user datang untuk Gym atau PT,
-            // kita set default check-in sebagai 'gym'. Jika dia ingin PT, kuota tidak terpotong otomatis di sini.
             $attendanceType = 'gym';
             $infoSesi = "Akses Gym (Bundle). Sisa PT: {$membership->remaining_sessions} (Sesi PT tidak dipotong otomatis via scanner).";
 
         } else {
             
-            // Paket Gym Mandiri Biasa ('membership')
             $attendanceType = 'gym';
             $infoSesi = "Akses Gym Mandiri (Berlaku s/d " . $latestEndDate->format('d M Y') . ")";
             
@@ -222,7 +249,6 @@ new #[Layout('layouts::admin')] class extends Component
                         </td>
 
                         <td class="px-6 py-4 whitespace-nowrap">
-                            {{-- Disesuaikan dengan enum ['gym', 'pt', 'visit'] --}}
                             @if($attendance->type === 'gym')
                                 <span class="px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-md bg-emerald-100 text-emerald-800 border border-emerald-200">
                                     🏋️ Gym Mandiri

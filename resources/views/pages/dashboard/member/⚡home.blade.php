@@ -5,8 +5,10 @@ namespace App\Livewire\Member;
 use Livewire\Component;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB; // WAJIB DI-IMPORT UNTUK QUERY OPTIMASI
 use Livewire\Attributes\Layout;
-use App\Models\Membership; // Pastikan model di-import
+use App\Models\Membership; 
+use App\Models\Attendance; 
 use Carbon\Carbon;
 
 new #[Layout('layouts::member')] class extends Component
@@ -15,18 +17,28 @@ new #[Layout('layouts::member')] class extends Component
     {
         $user = Auth::user();
         
-        // 1. Ambil semua paket yang (seharusnya) masih 'active'
+        // 1. Ambil paket 'active', ATAU paket 'completed' khusus PT
+        // OPTIMASI: Menggunakan orWhereExists agar super cepat tanpa JOIN ke tabel users
         $rawActiveMemberships = Membership::with(['gymPackage', 'ptPackage'])
-            ->where('status', 'active')
             ->where(function ($query) use ($user) {
                 $query->where('user_id', $user->id)
-                      ->orWhereHas('users', function ($q) use ($user) {
-                          $q->where('users.id', $user->id);
+                      ->orWhereExists(function ($subQuery) use ($user) {
+                          $subQuery->select(DB::raw(1))
+                                   ->from('membership_users')
+                                   ->whereColumn('membership_users.membership_id', 'memberships.id')
+                                   ->where('membership_users.user_id', $user->id);
                       });
+            })
+            ->where(function($query) {
+                 $query->where('status', 'active')
+                       ->orWhere(function($q) {
+                           $q->where('status', 'completed')
+                             ->where('type', 'pt');
+                       });
             })
             ->get();
 
-        // 2. Siapkan collection baru untuk menyimpan paket yang BENAR-BENAR masih aktif
+        // 2. Siapkan collection baru untuk menyimpan paket yang valid tayang
         $activeMemberships = collect();
 
         // 3. Lakukan pengecekan tanggal & sesi untuk setiap paket
@@ -34,13 +46,24 @@ new #[Layout('layouts::member')] class extends Component
             $isExpired = false;
 
             if ($membership->type === 'pt') {
-                // Cek kadaluarsa PT (End of Day memastikan berlaku sampai jam 23:59 di hari H)
+                // Cek kadaluarsa PT 
                 if ($membership->pt_end_date && Carbon::parse($membership->pt_end_date)->endOfDay()->isPast()) {
                     $isExpired = true;
                 }
+                
                 // Cek sisa sesi PT
                 if (!is_null($membership->remaining_sessions) && $membership->remaining_sessions <= 0) {
-                    $isExpired = true;
+                    
+                    // OPTIMASI: Menghindari whereDate() agar Index Database tetap bekerja
+                    $isUsedToday = Attendance::where('membership_id', $membership->id)
+                        ->where('type', 'pt')
+                        ->where('check_in_time', '>=', today()->startOfDay())
+                        ->where('check_in_time', '<=', today()->endOfDay())
+                        ->exists();
+
+                    if (!$isUsedToday) {
+                        $isExpired = true;
+                    }
                 }
             } else {
                 // Cek kadaluarsa Gym/Lainnya
@@ -49,9 +72,11 @@ new #[Layout('layouts::member')] class extends Component
                 }
             }
 
-            // 4. Jika terdeteksi expired, update DB. Jika tidak, masukkan ke daftar tayang.
+            // 4. Update ke completed jika expired
             if ($isExpired) {
-                $membership->update(['status' => 'completed']);
+                if ($membership->status !== 'completed') {
+                    $membership->update(['status' => 'completed']);
+                }
             } else {
                 $activeMemberships->push($membership);
             }
@@ -60,7 +85,7 @@ new #[Layout('layouts::member')] class extends Component
         $hasActivePackage = $activeMemberships->isNotEmpty();
         $qrCode = null;
 
-        // Hanya generate QR Code jika punya minimal 1 paket aktif
+        // Hanya generate QR Code jika punya minimal 1 paket yang valid
         if ($hasActivePackage) {
             $qrData = json_encode(['user_id' => $user->id]);
             $qrCode = QrCode::size(220)->margin(1)->generate($qrData);
@@ -68,7 +93,7 @@ new #[Layout('layouts::member')] class extends Component
 
         return [
             'user' => $user,
-            'activeMemberships' => $activeMemberships, // Menggunakan data yang sudah disortir
+            'activeMemberships' => $activeMemberships, 
             'hasActivePackage' => $hasActivePackage,
             'qrCode' => $qrCode,
         ];
@@ -96,34 +121,28 @@ new #[Layout('layouts::member')] class extends Component
         @else
             <div class="bg-white rounded-3xl shadow-xl overflow-hidden border border-gray-100">
                 
-                <div class="bg-gradient-to-r from-blue-600 to-indigo-700 p-6 text-center relative">
-                    <div class="absolute top-0 left-0 w-full h-full overflow-hidden opacity-10 pointer-events-none">
-                        <svg class="absolute -top-10 -right-10 w-40 h-40 text-white" fill="currentColor" viewBox="0 0 100 100"><circle cx="50" cy="50" r="50"/></svg>
-                        <svg class="absolute -bottom-10 -left-10 w-32 h-32 text-white" fill="currentColor" viewBox="0 0 100 100"><circle cx="50" cy="50" r="50"/></svg>
-                    </div>
-
-                    <h2 class="text-white text-lg font-medium opacity-90 mb-1">MEMBER CARD</h2>
-                    <h3 class="text-white text-2xl font-bold tracking-tight">{{ $user->name }}</h3>
-                    <div class="mt-3 inline-flex items-center px-3 py-1 rounded-full bg-white/20 text-white text-xs font-semibold backdrop-blur-sm">
-                        <span class="w-2 h-2 rounded-full bg-green-400 mr-2 animate-pulse"></span>
-                        Status: Active
-                    </div>
-                </div>
-
-                <div class="p-8 text-center bg-gray-50">
+                <div class="p-8 text-center bg-white border-b border-gray-100">
                     <p class="text-gray-500 text-sm mb-6 font-medium">Scan QR Code ini pada scanner admin untuk Check-in</p>
                     
-                    <div class="inline-block p-4 bg-white rounded-2xl shadow-sm border border-gray-200 transition-transform hover:scale-105 duration-300">
+                    <div class="inline-block p-4 bg-white rounded-2xl shadow-sm border border-gray-200 transition-transform hover:scale-105 duration-300 mb-6">
                         {!! $qrCode !!}
+                    </div>
+
+                    <div>
+                        <h3 class="text-gray-800 text-2xl font-bold tracking-tight">{{ $user->name }}</h3>
+                        <div class="mt-2 inline-flex items-center px-3 py-1 rounded-full bg-green-50 border border-green-200 text-green-700 text-xs font-bold">
+                            <span class="w-2 h-2 rounded-full bg-green-500 mr-2 animate-pulse"></span>
+                            Status: Active
+                        </div>
                     </div>
                 </div>
 
-                <div class="p-6 bg-white border-t border-gray-100">
+                <div class="p-6 bg-gray-50">
                     <h4 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">Paket Aktif Anda</h4>
                     
                     <div class="space-y-4">
                         @foreach($activeMemberships as $membership)
-                            <div class="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-2xl bg-gray-50 border border-gray-100 hover:border-blue-200 hover:bg-blue-50/50 transition duration-200">
+                            <div class="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-2xl bg-white border border-gray-100 shadow-sm hover:border-blue-200 hover:shadow transition duration-200">
                                 
                                 <div class="mb-4 sm:mb-0">
                                     <div class="flex items-center gap-2 mb-1">
@@ -147,7 +166,7 @@ new #[Layout('layouts::member')] class extends Component
                                             @endif
                                         </h5>
                                     </div>
-                                    <span class="text-xs font-semibold px-2 py-0.5 rounded-md bg-gray-200 text-gray-600 uppercase tracking-wide">
+                                    <span class="text-xs font-semibold px-2 py-0.5 rounded-md bg-gray-100 text-gray-600 uppercase tracking-wide">
                                         {{ str_replace('_', ' ', $membership->type) }}
                                     </span>
                                 </div>
@@ -159,10 +178,10 @@ new #[Layout('layouts::member')] class extends Component
                                         @if($membership->pt_end_date)
                                             <div class="text-xs text-gray-500 flex flex-col sm:items-end gap-1">
                                                 <div class="flex items-center gap-1">
-                                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                                    <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                                                     <span>Masa Aktif PT:</span>
                                                 </div>
-                                                <span class="font-medium text-gray-800 bg-white px-2 py-1 rounded border border-gray-100 shadow-sm">
+                                                <span class="font-medium text-gray-800 bg-gray-50 px-2 py-1 rounded border border-gray-100">
                                                     {{ \Carbon\Carbon::parse($membership->start_date ?? $membership->created_at)->translatedFormat('d M Y') }} 
                                                     <span class="text-gray-400 mx-1">s/d</span> 
                                                     {{ \Carbon\Carbon::parse($membership->pt_end_date)->translatedFormat('d M Y') }}
@@ -172,7 +191,7 @@ new #[Layout('layouts::member')] class extends Component
 
                                         @if(!is_null($membership->remaining_sessions))
                                             <div class="mt-2">
-                                                <span class="inline-flex items-center gap-1.5 bg-purple-100 text-purple-700 text-xs font-bold py-1.5 px-3 rounded-full border border-purple-200">
+                                                <span class="inline-flex items-center gap-1.5 {{ $membership->remaining_sessions == 0 ? 'bg-red-50 text-red-700 border-red-200' : 'bg-purple-50 text-purple-700 border-purple-200' }} text-xs font-bold py-1.5 px-3 rounded-full border">
                                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
                                                     Sisa {{ $membership->remaining_sessions }} dari {{ $membership->total_sessions }} Sesi
                                                 </span>
@@ -184,10 +203,10 @@ new #[Layout('layouts::member')] class extends Component
                                         @if($membership->membership_end_date)
                                             <div class="text-xs text-gray-500 flex flex-col sm:items-end gap-1">
                                                 <div class="flex items-center gap-1">
-                                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                                    <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                                                     <span>Masa Aktif Gym:</span>
                                                 </div>
-                                                <span class="font-medium text-gray-800 bg-white px-2 py-1 rounded border border-gray-100 shadow-sm">
+                                                <span class="font-medium text-gray-800 bg-gray-50 px-2 py-1 rounded border border-gray-100">
                                                     {{ \Carbon\Carbon::parse($membership->start_date ?? $membership->created_at)->translatedFormat('d M Y') }} 
                                                     <span class="text-gray-400 mx-1">s/d</span> 
                                                     {{ \Carbon\Carbon::parse($membership->membership_end_date)->translatedFormat('d M Y') }}

@@ -12,16 +12,16 @@ return new class extends Migration
             $table->id();
             
             // Relasi ke membership
-            $table->foreignId('membership_id')->constrained('memberships')->cascadeOnDelete();
+            $table->foreignId('membership_id')->index()->constrained('memberships')->cascadeOnDelete();
             
             // Relasi ke user yang datang (penting untuk paket couple/group)
-            $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
+            $table->foreignId('user_id')->index()->constrained('users')->cascadeOnDelete();
             
             // Tipe absensi untuk membedakan kedatangan nge-gym biasa atau sesi PT/Visit
             $table->enum('type', ['gym', 'pt', 'visit'])->default('gym');
             
             // Waktu check-in
-            $table->timestamp('check_in_time')->useCurrent();
+            $table->timestamp('check_in_time')->index()->useCurrent();
             
             $table->timestamps();
         });

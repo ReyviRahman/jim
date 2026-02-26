@@ -11,7 +11,7 @@ return new class extends Migration
         Schema::create('memberships', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained('users')->cascadeOnDelete(); 
-            $table->enum('type', ['membership', 'pt', 'bundle_pt_membership', 'visit'])->default('membership'); 
+            $table->enum('type', ['membership', 'pt', 'bundle_pt_membership', 'visit'])->index()->default('membership'); 
             $table->foreignId('gym_package_id')->nullable()->constrained('gym_packages'); 
             $table->foreignId('pt_package_id')->nullable()->constrained('gym_packages'); 
             $table->foreignId('pt_id')->nullable()->constrained('users')->nullOnDelete(); 
@@ -24,7 +24,7 @@ return new class extends Migration
             $table->date('membership_end_date')->nullable(); 
             $table->string('member_goal')->nullable();
             $table->date('start_date'); 
-            $table->enum('status', ['pending', 'active', 'rejected', 'completed'])->default('pending');
+            $table->enum('status', ['pending', 'active', 'rejected', 'completed'])->index()->default('pending');
             $table->timestamps();
         });
     }
