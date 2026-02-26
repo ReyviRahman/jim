@@ -8,7 +8,7 @@ new #[Layout('layouts::app')] #[Title('Frans GYM | Pendaftaran Member')] class e
 {};
 ?>
 
-<div class="flex items-center justify-center p-4">
+<div class="flex items-center justify-center p-4 mt-20">
     <div class="w-full max-w-5xl bg-neutral-primary-soft p-6 border border-default rounded-base shadow-xs">
         <div>
             <h5 class="text-xl font-semibold text-heading mb-6">Pendaftaran Akun</h5>

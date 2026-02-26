@@ -57,11 +57,12 @@ new class extends Component {
 };
 ?>
 
-<div class="flex items-center justify-center mt-30 bg-neutral-primary-soft">
-    <div class="w-full max-w-md bg-white p-6 border border-default rounded-md shadow-xs">
-        
+<div class="flex items-center justify-center min-h-screen bg-cover bg-center bg-no-repeat bg-black/80 bg-blend-overlay mt-10"
+    style="background-image: url('{{ asset('ruangan.png') }}');">
+    <div class="w-full max-w-md p-4 border-3 border-brand rounded-md shadow-xs h-full mx-4 ">
         <form wire:submit="login">
-            <h5 class="text-xl font-semibold text-heading mb-6">Login</h5>
+            <img src="{{ asset('icon.png') }}" alt="Logo Frans GYM" class="mx-auto w-20 h-20" >
+            <h1 class="text-brand text-2xl font-bold text-center mb-4">Frans GYM</h1>
             @if (session()->has('success'))
                 <div class="mb-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded text-sm flex items-center">
                     <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -77,19 +78,16 @@ new class extends Component {
             @enderror
 
             <div class="mb-4">
-                <label for="email" class="block mb-2.5 text-sm font-medium text-heading">Email</label>
                 <input 
                     wire:model="email" 
                     type="email" 
                     id="email"
                     class="bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs placeholder:text-body"
-                    placeholder="Masukkan Email Anda" 
+                    placeholder="Email" 
                 />
             </div>
 
             <div class="mb-4">
-                <label for="password" class="block mb-2.5 text-sm font-medium text-heading">Password</label>
-                
                 {{-- 2. Bungkus input password dengan div relative --}}
                 <div class="relative">
                     <input 
@@ -99,7 +97,7 @@ new class extends Component {
                         id="password"
                         {{-- Tambahkan pr-10 (padding-right) agar teks tidak tertutup ikon --}}
                         class="bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 pr-10 shadow-xs placeholder:text-body"
-                        placeholder="Masukkan Password" 
+                        placeholder="Password" 
                     />
                     
                     {{-- 4. Tombol Ikon Mata --}}
@@ -125,23 +123,23 @@ new class extends Component {
                 @error('password') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
             </div>
 
-            <div class="flex items-start my-6">
-                <a href="#" class="ms-auto text-sm font-medium text-fg-brand hover:underline">Lupa Password?</a>
-            </div>
-
             <button 
                 type="submit"
                 wire:loading.attr="disabled"
-                class="text-black bg-brand box-border border border-transparent hover:bg-brand-strong focus:ring-4 focus:ring-brand-medium shadow-xs font-medium leading-5 rounded-md text-sm px-4 py-2.5 focus:outline-none w-full mb-3 flex justify-center cursor-pointer disabled:opacity-50"
+                class="text-brand bg-secondary box-border hover:bg-brand-strong focus:ring-4 focus:ring-brand-medium shadow-xs font-medium leading-5 rounded-md text-sm px-4 py-2.5 focus:outline-none w-full mb-3 flex justify-center cursor-pointer disabled:opacity-50 mt-8"
             >
                 <span wire:loading.remove>Login</span>
                 <span wire:loading>Memproses...</span>
             </button>
 
-            <div class="text-sm font-medium text-body text-center">
-                Belum Daftar? 
+            <div class="text-sm text-body text-center my-8">
+                <a href="#" wire:navigate class="text-fg-brand hover:underline">
+                    Lupa Password?
+                </a>
+            </div>
+            <div class="text-sm text-body text-center my-8">
                 <a href="{{ route('member.register') }}" wire:navigate class="text-fg-brand hover:underline">
-                    Buat akun
+                    Daftar >
                 </a>
             </div>
         </form>
