@@ -108,7 +108,7 @@ new #[Layout('layouts::admin')] class extends Component
                                     </svg>
                                 </button>
 
-                                <div x-show="open" style="display: none;" class="absolute right-0 z-10 w-44 mt-2 bg-neutral-primary-medium border border-default-medium rounded-base shadow-lg">
+                                <div x-show="open" style="display: none;" class="absolute right-full bottom-0 mr-2 z-50 w-44 mt-2 bg-neutral-primary-medium border border-default-medium rounded-base shadow-lg">
                                     <ul class="p-2 text-sm text-body font-medium">
                                         <li>
                                             <a href="{{ route('admin.akun.detail', $user->id) }}" wire:navigate class="inline-flex items-center w-full p-2 hover:bg-neutral-tertiary-medium hover:text-heading rounded">

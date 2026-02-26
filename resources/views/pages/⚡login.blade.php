@@ -126,7 +126,7 @@ new class extends Component {
             <button 
                 type="submit"
                 wire:loading.attr="disabled"
-                class="text-brand bg-secondary box-border hover:bg-brand-strong focus:ring-4 focus:ring-brand-medium shadow-xs font-medium leading-5 rounded-md text-sm px-4 py-2.5 focus:outline-none w-full mb-3 flex justify-center cursor-pointer disabled:opacity-50 mt-8"
+                class="text-brand bg-secondary box-border focus:ring-4 focus:ring-brand-medium shadow-xs font-medium leading-5 rounded-md text-sm px-4 py-2.5 focus:outline-none w-full mb-3 flex justify-center cursor-pointer disabled:opacity-50 mt-8"
             >
                 <span wire:loading.remove>Login</span>
                 <span wire:loading>Memproses...</span>
