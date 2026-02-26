@@ -13,9 +13,9 @@ new #[Layout('layouts::pt')] class extends Component
     public function with(): array
     {
         return [
-            // Ambil data absensi khusus user login DAN hanya tipe 'trainer'
+            // PERBAIKAN: Ubah 'trainer' menjadi 'coach_attendance'
             'attendances' => Attendance::where('user_id', Auth::id())
-                ->where('type', 'trainer') 
+                ->where('type', 'coach_attendance') 
                 ->latest('check_in_time')
                 ->paginate(10),
         ];
@@ -32,7 +32,7 @@ new #[Layout('layouts::pt')] class extends Component
         
         <div class="bg-blue-50 border border-blue-100 px-4 py-2 rounded-lg text-center">
             <span class="block text-xs text-blue-600 font-semibold uppercase tracking-wider">Total Kehadiran</span>
-            <span class="block text-2xl font-bold text-blue-800">{{ $attendances->total() }} <span class="text-sm font-medium">Hari</span></span>
+            <span class="block text-2xl font-bold text-blue-800">{{ $attendances->total() }} </span>
         </div>
     </div>
 
@@ -56,13 +56,13 @@ new #[Layout('layouts::pt')] class extends Component
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <div class="font-medium text-gray-800 flex items-center gap-2">
                                     <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                                    {{ $absen->check_in_time->format('l, d F Y') }}
+                                    {{ \Carbon\Carbon::parse($absen->check_in_time)->locale('id')->translatedFormat('l, d F Y') }}
                                 </div>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <div class="font-bold text-gray-700 flex items-center gap-2">
                                     <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                                    {{ $absen->check_in_time->format('H:i') }} WIB
+                                    {{ \Carbon\Carbon::parse($absen->check_in_time)->format('H:i') }} WIB
                                 </div>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">

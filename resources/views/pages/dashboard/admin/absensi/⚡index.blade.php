@@ -49,6 +49,19 @@ new #[Layout('layouts::admin')] class extends Component
             return;
         }
 
+        if ($user->role === 'pt') {
+            Attendance::create([
+                'user_id' => $user->id,
+                'membership_id' => null, // Coach tidak butuh membership
+                'type' => 'coach_attendance', // Tipe absensi khusus coach
+                'check_in_time' => now(),
+            ]);
+
+            session()->flash('success', "Berhasil Check-In Coach: {$user->name}. Selamat bertugas!");
+            $this->scannedCode = '';
+            return; // Hentikan proses disini agar tidak mengecek membership
+        }
+
         // 4. Cari Data Membership (Perbaikan untuk menampung sesi terakhir Couple PT)
         $membership = Membership::where(function ($query) use ($userId) {
                 $query->where('user_id', $userId) // Cek sebagai pemilik utama
@@ -260,6 +273,10 @@ new #[Layout('layouts::admin')] class extends Component
                             @elseif($attendance->type === 'visit')
                                 <span class="px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-md bg-orange-100 text-orange-800 border border-orange-200">
                                     🎟️ Visit Harian
+                                </span>
+                            @elseif($attendance->type === 'coach_attendance')
+                                <span class="px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-md bg-blue-100 text-blue-800 border border-blue-200">
+                                    📋 Kehadiran Coach
                                 </span>
                             @endif
                         </td>

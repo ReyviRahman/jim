@@ -1,3 +1,4 @@
+@import "flatpickr/dist/flatpickr.min.css";
 @import 'tailwindcss';
 @import "flowbite/src/themes/default";
 @plugin "flowbite/plugin";
