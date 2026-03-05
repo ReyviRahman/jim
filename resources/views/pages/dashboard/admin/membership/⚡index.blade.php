@@ -7,6 +7,8 @@ use Livewire\Attributes\Layout;
 use Livewire\Attributes\Computed; 
 use App\Models\Membership;
 use Livewire\WithPagination;
+use Maatwebsite\Excel\Facades\Excel; 
+use App\Exports\MembershipExport;
 
 new #[Layout('layouts::admin')] class extends Component
 {
@@ -117,13 +119,35 @@ new #[Layout('layouts::admin')] class extends Component
 
         return $query->latest()->paginate(10);
     }
+
+    public function exportExcel()
+    {
+        $fileName = 'Data-Membership-' . date('Y-m-d') . '.xlsx';
+        
+        return Excel::download(
+            new MembershipExport(
+                $this->search, 
+                $this->filterTime, 
+                $this->dateStart, 
+                $this->dateEnd
+            ), 
+            $fileName
+        );
+    }
 };
 ?>
 
 <div>
     <div class="flex sm:flex-row flex-col justify-between items-center mb-6">
-        <h5 class="text-xl font-semibold text-heading">Data Membership & Program</h5>
-        <a href="{{ route('admin.membership.gabung') }}" wire:navigate class="text-white bg-brand box-border border border-transparent hover:bg-brand-strong focus:ring-4 focus:ring-brand-medium shadow-xs font-medium leading-5 rounded-md text-sm px-4 py-2.5 focus:outline-none">+ Pendaftaran Baru</a>
+    <h5 class="text-xl font-semibold text-heading">Data Membership & Program</h5>
+    <div class="flex gap-2">
+            <button wire:click="exportExcel" type="button" class="text-green-700 bg-green-50 box-border border border-green-200 hover:bg-green-100 focus:ring-4 focus:ring-green-200 shadow-xs font-medium leading-5 rounded-md text-sm px-4 py-2.5 focus:outline-none flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                Export Excel
+            </button>
+            
+            <a href="{{ route('admin.membership.gabung') }}" wire:navigate class="text-white bg-brand box-border border border-transparent hover:bg-brand-strong focus:ring-4 focus:ring-brand-medium shadow-xs font-medium leading-5 rounded-md text-sm px-4 py-2.5 focus:outline-none">+ Pendaftaran Baru</a>
+        </div>
     </div>
 
     {{-- Notifikasi --}}
