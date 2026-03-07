@@ -67,8 +67,23 @@ Route::middleware('auth')->group(function () {
         Route::livewire('/absensi', 'pages::dashboard.admin.absensi')
             ->name('admin.absensi.index');
         
-        Route::livewire('/akun', 'pages::dashboard.admin.akun')
-            ->name('admin.akun.index');
+        Route::livewire('/akun/member', 'pages::dashboard.admin.akun.member.index')
+            ->name('admin.akun.member.index');
+
+        Route::livewire('/akun/member/create', 'pages::dashboard.admin.akun.member.create')
+            ->name('admin.akun.member.create');
+
+        Route::livewire('/akun/member/{user}/edit', 'pages::dashboard.admin.akun.member.edit')
+            ->name('admin.akun.member.edit');
+
+        Route::livewire('/akun/trainer', 'pages::dashboard.admin.akun.trainer.index')
+            ->name('admin.akun.trainer.index');
+
+        Route::livewire('/akun/trainer/create', 'pages::dashboard.admin.akun.trainer.create')
+            ->name('admin.akun.trainer.create');
+
+        Route::livewire('/akun/trainer/{user}/edit', 'pages::dashboard.admin.akun.trainer.edit')
+            ->name('admin.akun.trainer.edit');
 
         Route::livewire('/akun/{user}', 'pages::dashboard.admin.akun.detail')
             ->name('admin.akun.detail');

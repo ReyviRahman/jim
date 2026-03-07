@@ -20,22 +20,13 @@ new #[Layout('layouts::app')] #[Title('Frans GYM | Pendaftaran Member')] class e
                             aria-controls="about" aria-selected="true"
                             class="cursor-pointer inline-block p-4 text-fg-brand rounded-ss-base hover:bg-neutral-tertiary">Member</button>
                     </li>
-                    <li class="me-2">
-                        <button id="services-tab" data-tabs-target="#services" type="button" role="tab"
-                            aria-controls="services" aria-selected="false"
-                            class="cursor-pointer inline-block p-4 hover:text-heading hover:bg-neutral-tertiary">Personal
-                            Trainer</button>
-                    </li>
                 </ul>
                 <div id="defaultTabContent">
                     <div class="hidden p-4 rounded-b-base md:p-8" id="about" role="tabpanel"
                         aria-labelledby="about-tab">
                         <livewire:registration.member />
                     </div>
-                    <div class="hidden p-4 rounded-b-base md:p-8" id="services" role="tabpanel"
-                        aria-labelledby="services-tab">
-                        <livewire:registration.pt />
-                    </div>
+                    
                 </div>
             </div>
         </div>

@@ -44,7 +44,7 @@ new #[Layout('layouts::admin')] class extends Component
 
 <div>
     <div class="flex justify-between items-center mb-6">
-        <h5 class="text-xl font-semibold text-heading">Daftar Paket Membership</h5>
+        <h5 class="text-xl font-semibold text-heading">Master Data Paket</h5>
         
         <a href="{{ route('admin.packages.create') }}" wire:navigate class="text-white bg-brand box-border border border-transparent hover:bg-brand-strong focus:ring-4 focus:ring-brand-medium shadow-xs font-medium leading-5 rounded-md text-sm px-4 py-2.5 focus:outline-none">+ Tambah Paket</a>
     </div>
