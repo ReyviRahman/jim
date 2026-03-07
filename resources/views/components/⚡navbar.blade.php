@@ -39,7 +39,7 @@ new class extends Component {
                     </div>
                     <ul class="p-2 text-sm text-white font-medium" aria-labelledby="user-menu-button">
                         <li>
-                            <a href="{{ match(Auth::user()->role) { 'admin' => route('admin.packages.index'), 'pt' => route('pt.absensi'), default => route('member.dashboard') } }}"
+                            <a href="{{ match(Auth::user()->role) { 'admin' => route('admin.absensi.index'), 'pt' => route('pt.absensi'), default => route('member.dashboard') } }}"
     class="inline-flex items-center w-full p-2 hover:bg-neutral-tertiary-medium hover:text-heading rounded">Dashboard</a>
                         </li>
                         <li>

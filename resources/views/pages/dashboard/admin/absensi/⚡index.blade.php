@@ -184,9 +184,14 @@ new #[Layout('layouts::admin')] class extends Component
     public function with(): array
     {
         return [
-            'attendances' => Attendance::with(['user', 'membership.gymPackage', 'membership.ptPackage'])
-                ->latest('check_in_time')
-                ->paginate(10),
+            'attendances' => Attendance::with([
+                'user', 
+                'membership.gymPackage', 
+                'membership.ptPackage',
+                'membership.personalTrainer' // <--- Tambahkan baris ini
+            ])
+            ->latest('check_in_time')
+            ->paginate(10),
         ];
     }
 };

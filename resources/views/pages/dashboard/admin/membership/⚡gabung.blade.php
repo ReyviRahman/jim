@@ -76,7 +76,6 @@ new #[Layout('layouts::admin')] class extends Component
                 <p class="text-sm text-body mt-1">Pilih 1 orang (Single), 2 orang (Couple), atau 3 orang lebih (Group).</p>
             </div>
             
-            <label for="table-search" class="sr-only">Search</label>
             <div class="relative">
                 <div class="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
                     <svg class="w-4 h-4 text-body" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">

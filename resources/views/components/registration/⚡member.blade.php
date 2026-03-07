@@ -36,7 +36,6 @@ new class extends Component {
     #[Validate('required|image|max:10048')]
     public $photo = null;
 
-    #[Validate('required|date')]
     public $joined_at;
 
     public function mount()
@@ -139,13 +138,6 @@ new class extends Component {
                 placeholder="Kosongkan Jika Tidak Ada" />
             @error('medical_history') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
         </div>
-        <div class="mb-4">
-                <label for="joined_at" class="block mb-2.5 text-sm font-medium text-heading">Tanggal Join Frans Gym</label>
-                <input type="date" id="joined_at" wire:model="joined_at" 
-                    class="bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:accent focus:border-brand block w-full px-3 py-2.5 shadow-xs placeholder:text-body"
-                    required />
-                @error('joined_at') <span class="text-red-500 text-sm block mt-1">{{ $message }}</span> @enderror
-            </div>
         <div class="mb-4">
             <label for="email" class="block mb-2.5 text-sm font-medium text-heading">Email</label>
             <input type="email" id="email" wire:model='email'

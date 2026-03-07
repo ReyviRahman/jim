@@ -32,8 +32,12 @@ new #[Layout('layouts::admin')] class extends Component
     public function with(): array
     {
         return [
-            'users' => User::where('name', 'like', '%' . $this->search . '%')
-                ->orWhere('email', 'like', '%' . $this->search . '%')
+            'users' => User::where('role', 'pt') // Filter khusus untuk role pt
+                ->where(function ($query) {
+                    // Kelompokkan pencarian name atau email di dalam sini
+                    $query->where('name', 'like', '%' . $this->search . '%')
+                        ->orWhere('email', 'like', '%' . $this->search . '%');
+                })
                 ->latest()
                 ->paginate(10) // Tampilkan 10 data per halaman
         ];
@@ -50,19 +54,22 @@ new #[Layout('layouts::admin')] class extends Component
 
     <div class="relative overflow-x-auto bg-neutral-primary-soft shadow-xs rounded-base border border-default">
         <div class="flex items-center justify-between flex-column flex-wrap md:flex-row space-y-4 md:space-y-0 p-4">
-            <div>
-                </div>
+            <h5 class="text-xl font-semibold text-heading">Master Data Trainer</h5>
             
-            <label for="table-search" class="sr-only">Search</label>
-            <div class="relative">
-                <div class="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
-                    <svg class="w-4 h-4 text-body" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
-                        <path stroke="currentColor" stroke-linecap="round" stroke-width="2" d="m21 21-3.5-3.5M17 10a7 7 0 1 1-14 0 7 7 0 0 1 14 0Z"/>
-                    </svg>
+            <div class="flex sm:flex-row flex-col gap-2 items-center">
+                <div>
+                    <a href="{{ route('admin.akun.trainer.create') }}" wire:navigate class="text-white bg-brand box-border border border-transparent hover:bg-brand-strong focus:ring-4 focus:ring-brand-medium shadow-xs font-medium leading-5 rounded-md text-sm px-4 py-2.5 focus:outline-none">+ Buat Akun</a>
                 </div>
-                <input type="text" id="table-search" wire:model.live="search" 
-                    class="block w-full max-w-96 ps-9 pe-3 py-2 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs placeholder:text-body" 
-                    placeholder="Cari nama atau email...">
+                <div class="relative">
+                    <div class="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
+                        <svg class="w-4 h-4 text-body" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
+                            <path stroke="currentColor" stroke-linecap="round" stroke-width="2" d="m21 21-3.5-3.5M17 10a7 7 0 1 1-14 0 7 7 0 0 1 14 0Z"/>
+                        </svg>
+                    </div>
+                    <input type="text" id="table-search" wire:model.live="search" 
+                        class="block w-full max-w-96 ps-9 pe-3 py-2 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs placeholder:text-body" 
+                        placeholder="Cari nama atau email...">
+                </div>
             </div>
         </div>
 
@@ -102,7 +109,7 @@ new #[Layout('layouts::admin')] class extends Component
                         <td class="px-6 py-4 text-center">
                             
                             <div x-data="{ open: false }" class="relative inline-block text-left">
-                                <button @click="open = !open" @click.outside="open = false" type="button" class="inline-flex items-center p-2 text-sm font-medium text-center text-body bg-neutral-secondary-medium rounded-lg hover:bg-neutral-tertiary-medium focus:ring-4 focus:outline-none focus:ring-neutral-primary-medium">
+                                <button @click="open = !open" @click.outside="open = false" type="button" class="inline-flex items-center p-2 text-sm font-medium text-center text-body bg-neutral-secondary-medium rounded-lg hover:bg-neutral-tertiary-medium focus:ring-4 focus:outline-none focus:ring-neutral-primary-medium border cursor-pointer">
                                     <svg class="w-5 h-5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 16 3">
                                         <path d="M2 0a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3Zm6.041 0a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM14 0a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3Z"/>
                                     </svg>
@@ -111,8 +118,8 @@ new #[Layout('layouts::admin')] class extends Component
                                 <div x-show="open" style="display: none;" class="absolute right-full bottom-0 mr-2 z-50 w-44 mt-2 bg-neutral-primary-medium border border-default-medium rounded-base shadow-lg">
                                     <ul class="p-2 text-sm text-body font-medium">
                                         <li>
-                                            <a href="{{ route('admin.akun.detail', $user->id) }}" wire:navigate class="inline-flex items-center w-full p-2 hover:bg-neutral-tertiary-medium hover:text-heading rounded">
-                                                Lihat Detail
+                                            <a href="{{ route('admin.akun.trainer.edit', $user->id) }}" wire:navigate class="inline-flex items-center w-full p-2 hover:bg-neutral-tertiary-medium hover:text-heading rounded">
+                                                Edit Akun
                                             </a>
                                         </li>
                                         <li>
