@@ -18,6 +18,7 @@ return new class extends Migration
             $table->decimal('base_price', 12, 0); 
             $table->decimal('discount_applied', 12, 0)->default(0); 
             $table->decimal('price_paid', 12, 0); 
+            $table->enum('payment_status', ['unpaid', 'partial', 'paid'])->default('unpaid');
             $table->integer('total_sessions')->nullable(); 
             $table->integer('remaining_sessions')->nullable(); 
             $table->date('pt_end_date')->nullable(); 
