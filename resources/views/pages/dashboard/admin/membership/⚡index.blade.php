@@ -88,7 +88,8 @@ new #[Layout('layouts::admin')] class extends Component
     #[Computed]
     public function memberships()
     {
-        $query = Membership::with(['user', 'members', 'personalTrainer', 'gymPackage', 'ptPackage']);
+        $query = Membership::with(['user', 'members', 'personalTrainer', 'gymPackage', 'ptPackage'])
+            ->where('status', 'active');
 
         // 1. Logika Pencarian (Mencari di tabel Users atau Members)
         if (!empty($this->search)) {
@@ -146,7 +147,7 @@ new #[Layout('layouts::admin')] class extends Component
                 Export Excel
             </button>
             
-            <a href="{{ route('admin.membership.gabung') }}" wire:navigate class="text-white bg-brand box-border border border-transparent hover:bg-brand-strong focus:ring-4 focus:ring-brand-medium shadow-xs font-medium leading-5 rounded-md text-sm px-4 py-2.5 focus:outline-none">+ Pendaftaran Baru</a>
+            {{-- <a href="{{ route('admin.membership.gabung') }}" wire:navigate class="text-white bg-brand box-border border border-transparent hover:bg-brand-strong focus:ring-4 focus:ring-brand-medium shadow-xs font-medium leading-5 rounded-md text-sm px-4 py-2.5 focus:outline-none">+ Pendaftaran Baru</a> --}}
         </div>
     </div>
 
@@ -230,7 +231,6 @@ new #[Layout('layouts::admin')] class extends Component
                     <th scope="col" class="px-6 py-3 font-medium">Tipe</th>
                     <th scope="col" class="px-6 py-3 font-medium">Member</th>
                     <th scope="col" class="px-6 py-3 font-medium">Program / Paket</th>
-                    <th scope="col" class="px-6 py-3 font-medium text-center">Sesi Coach</th>
                     <th scope="col" class="px-6 py-3 font-medium text-right">Total Bayar</th>
                     <th scope="col" class="px-6 py-3 font-medium">Masa Aktif</th>
                     <th scope="col" class="px-6 py-3 font-medium text-center">Status</th>
@@ -245,7 +245,7 @@ new #[Layout('layouts::admin')] class extends Component
                             {{ $loop->iteration + ($this->memberships->currentPage() - 1) * $this->memberships->perPage() }}
                         </td>
 
-                        {{-- TIPE PENDAFTARAN (DIPERBARUI) --}}
+                        {{-- TIPE PENDAFTARAN --}}
                         <td class="px-6 py-4 whitespace-nowrap">
                             @if ($membership->type === 'membership')
                                 <span class="bg-emerald-50 text-emerald-700 text-xs font-semibold px-2.5 py-1 rounded-md border border-emerald-200">Membership Only</span>
@@ -254,7 +254,6 @@ new #[Layout('layouts::admin')] class extends Component
                             @elseif ($membership->type === 'bundle_pt_membership')
                                 <span class="bg-purple-50 text-purple-700 text-xs font-semibold px-2.5 py-1 rounded-md border border-purple-200">Bundle (Gym + PT)</span>
                             @elseif ($membership->type === 'visit')
-                                {{-- BADGE BARU UNTUK VISIT --}}
                                 <span class="bg-orange-50 text-orange-700 text-xs font-semibold px-2.5 py-1 rounded-md border border-orange-200">Visit / Harian</span>
                             @else
                                 <span class="bg-gray-100 text-gray-800 text-xs font-medium px-2.5 py-1 rounded-md">-</span>
@@ -272,10 +271,9 @@ new #[Layout('layouts::admin')] class extends Component
                                     <div class="font-semibold">{{ $membership->user->name ?? 'N/A' }}</div>
                                 @endforelse
                             </div>
-                            <div class="text-xs text-gray-500 mt-2">Goal: {{ $membership->member_goal ?? '-' }}</div>
                         </td>
 
-                        {{-- INFO PROGRAM / PAKET (DIPERBARUI) --}}
+                        {{-- INFO PROGRAM / PAKET & SESI COACH (DIGABUNG) --}}
                         <td class="px-6 py-4 text-heading whitespace-nowrap">
                             <div class="flex flex-col gap-2">
                                 
@@ -296,24 +294,26 @@ new #[Layout('layouts::admin')] class extends Component
                                     <div class="{{ in_array($membership->type, ['bundle_pt_membership']) ? 'border-t border-gray-200 pt-2' : '' }}">
                                         <div class="text-[10px] text-gray-400 uppercase tracking-wider font-bold mb-0.5">Paket Trainer</div>
                                         <div class="font-medium text-indigo-600">{{ $membership->ptPackage->name ?? 'Paket Terhapus' }}</div>
-                                        <div class="text-xs text-gray-500 mt-0.5">
-                                            Coach: <span class="font-medium text-gray-700">{{ $membership->personalTrainer->name ?? '-' }}</span>
+                                        
+                                        <div class="flex items-center gap-3 mt-1">
+                                            <div class="text-xs text-gray-500">
+                                                Coach: <span class="font-medium text-gray-700">{{ $membership->personalTrainer->name ?? '-' }}</span>
+                                            </div>
+                                            
+                                            {{-- Informasi Sesi Coach Pindahan --}}
+                                            @if ($membership->total_sessions)
+                                                <div class="text-xs text-gray-500 border-l border-gray-300 pl-3">
+                                                    Sisa Sesi: 
+                                                    <span class="font-bold {{ $membership->remaining_sessions <= 2 ? 'text-red-600' : 'text-green-600' }}">
+                                                        {{ $membership->remaining_sessions }}
+                                                    </span> 
+                                                    <span class="text-gray-400">/ {{ $membership->total_sessions }}</span>
+                                                </div>
+                                            @endif
                                         </div>
                                     </div>
                                 @endif
                             </div>
-                        </td>
-
-                        {{-- Info Sesi --}}
-                        <td class="px-6 py-4 text-center whitespace-nowrap">
-                            @if ($membership->total_sessions)
-                                <span class="font-bold {{ $membership->remaining_sessions <= 2 ? 'text-red-600' : 'text-green-600' }}">
-                                    {{ $membership->remaining_sessions }}
-                                </span> 
-                                <span class="text-gray-400">/ {{ $membership->total_sessions }}</span>
-                            @else
-                                <span class="px-2.5 py-1 bg-gray-100 text-gray-500 text-xs font-medium rounded-md">-</span>
-                            @endif
                         </td>
 
                         {{-- Total Bayar --}}
@@ -342,7 +342,7 @@ new #[Layout('layouts::admin')] class extends Component
                             </div>
                         </td>
 
-                        {{-- Masa Aktif (DIPERBARUI) --}}
+                        {{-- Masa Aktif --}}
                         <td class="px-6 py-4 whitespace-nowrap text-xs">
                             <div class="flex flex-col gap-1.5">
                                 <div class="flex items-center text-gray-600">
@@ -378,34 +378,14 @@ new #[Layout('layouts::admin')] class extends Component
 
                         {{-- Status & Aksi --}}
                         <td class="px-6 py-4 text-center whitespace-nowrap">
-                            @if ($membership->status === 'pending')
-                                <span class="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800 mb-2 block w-max mx-auto">
-                                    Pending Payment
-                                </span>
-                                <div class="flex justify-center space-x-2 mt-2">
-                                    <button 
-                                        wire:click="approve({{ $membership->id }})"
-                                        wire:confirm="Yakin ingin MENGAKTIFKAN membership ini? (Pastikan member sudah membayar)"
-                                        class="bg-green-500 hover:bg-green-600 text-white p-1.5 rounded shadow-sm transition-colors"
-                                        title="Aktifkan (Sudah Bayar)"
-                                    >
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                                    </button>
-                                    <button 
-                                        wire:click="reject({{ $membership->id }})"
-                                        wire:confirm="Yakin ingin MENOLAK/MEMBATALKAN pengajuan membership ini?"
-                                        class="bg-red-500 hover:bg-red-600 text-white p-1.5 rounded shadow-sm transition-colors"
-                                        title="Tolak / Batal"
-                                    >
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                                    </button>
-                                </div>
-                            @elseif ($membership->status === 'active')
+                            @if ($membership->status === 'active')
                                 <span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">Active</span>
                             @elseif ($membership->status === 'expired')
                                 <span class="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">Expired</span>
                             @elseif ($membership->status === 'completed')
                                 <span class="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">Selesai / Sesi Habis</span>
+                            @elseif ($membership->status === 'pending')
+                                <span class="px-2 py-1 text-xs font-semibold rounded-full bg-orange-100 text-orange-800">Pending</span>
                             @elseif ($membership->status === 'rejected')
                                 <span class="px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">Rejected</span>
                             @endif
@@ -413,7 +393,7 @@ new #[Layout('layouts::admin')] class extends Component
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="8" class="px-6 py-8 text-center text-gray-500">
+                        <td colspan="7" class="px-6 py-8 text-center text-gray-500">
                             Belum ada riwayat transaksi membership.
                         </td>
                     </tr>

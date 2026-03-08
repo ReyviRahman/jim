@@ -88,6 +88,9 @@ Route::middleware('auth')->group(function () {
         Route::livewire('/akun/{user}', 'pages::dashboard.admin.akun.detail')
             ->name('admin.akun.detail');
 
+        Route::livewire('/membership/cicilan', 'pages::dashboard.admin.cicilan.index')->name('admin.cicilan.index');
+        Route::livewire('/membership/cicilan/{membership}/pay', 'pages::dashboard.admin.cicilan.pay')->name('admin.cicilan.pay');
+
         // --- Package Management ---
         // Saya kelompokkan lagi dengan prefix 'package' biar URL rapi
         Route::prefix('package')->group(function () {
