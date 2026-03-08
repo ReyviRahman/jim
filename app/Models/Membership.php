@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Membership extends Model
 {
@@ -17,6 +18,8 @@ class Membership extends Model
         'base_price',
         'discount_applied', 
         'price_paid',
+        'total_paid',
+        'payment_status',
         'total_sessions',
         'remaining_sessions',
         'member_goal',
@@ -69,5 +72,10 @@ class Membership extends Model
 
     public function users() {
         return $this->belongsToMany(User::class, 'membership_users');
+    }
+
+    public function transactions(): HasMany // 👈 2. TAMBAHKAN METHOD INI
+    {
+        return $this->hasMany(MembershipTransaction::class);
     }
 }
