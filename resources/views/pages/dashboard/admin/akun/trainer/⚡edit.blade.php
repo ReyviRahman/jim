@@ -32,7 +32,11 @@ new #[Layout('layouts::admin')] class extends Component
             'name'      => 'required|string|min:3',
             'gender'    => 'required|in:Laki-laki,Perempuan',
             'age'       => 'required|integer|min:10',
-            'phone'     => 'required|numeric',
+            'phone'     => [
+                'required', 
+                'numeric', 
+                Rule::unique('users', 'phone')->ignore($this->user->id)
+            ],
             'joined_at' => 'required|date',
             'address'    => 'required|string',
             'email'     => [
