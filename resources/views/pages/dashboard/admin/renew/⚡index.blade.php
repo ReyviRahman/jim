@@ -89,9 +89,31 @@ new #[Layout('layouts::admin')] class extends Component
     public function memberships()
     {
         $query = Membership::with(['user', 'members', 'personalTrainer', 'gymPackage', 'ptPackage'])
-            ->where('status', 'active');
+            ->where('status', 'completed');
 
-        // 1. Logika Pencarian (Mencari di tabel Users atau Members)
+        // ==========================================
+        // 1. FILTER: HANYA AMBIL YANG TERBARU (1 USER 1 DATA)
+        // ==========================================
+        $query->whereIn('id', function ($subQuery) {
+            $subQuery->selectRaw('MAX(id)')
+                    ->from('memberships')
+                    ->where('status', 'completed')
+                    ->groupBy('user_id');
+        });
+
+        // ==========================================
+        // 2. FILTER: SEMBUNYIKAN JIKA SUDAH PUNYA PAKET AKTIF
+        // ==========================================
+        $query->whereDoesntHave('user.paidMemberships', function ($q) {
+            $q->whereIn('status', ['active', 'pending']);
+        })
+        ->whereDoesntHave('user.memberships', function ($q) { // Cek juga di tabel pivot
+            $q->whereIn('status', ['active', 'pending']);
+        });
+
+        // ==========================================
+        // 3. Logika Pencarian (Mencari di tabel Users atau Members)
+        // ==========================================
         if (!empty($this->search)) {
             $query->where(function ($q) {
                 $q->whereHas('user', function ($subQ) {
@@ -102,14 +124,14 @@ new #[Layout('layouts::admin')] class extends Component
             });
         }
 
-        // 2. Logika Filter Waktu
+        // 4. Logika Filter Waktu
         if ($this->filterTime === 'today') {
             $query->whereDate('created_at', today());
         } elseif ($this->filterTime === 'week') {
             $query->whereBetween('created_at', [now()->startOfWeek(), now()->endOfWeek()]);
         } elseif ($this->filterTime === 'month') {
             $query->whereMonth('created_at', now()->month)
-                  ->whereYear('created_at', now()->year);
+                ->whereYear('created_at', now()->year);
         } elseif ($this->filterTime === 'custom' && $this->dateStart && $this->dateEnd) {
             // Logika Flatpickr
             $query->whereBetween('created_at', [
@@ -146,8 +168,6 @@ new #[Layout('layouts::admin')] class extends Component
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                 Export Excel
             </button> --}}
-            
-            {{-- <a href="{{ route('admin.membership.gabung') }}" wire:navigate class="text-white bg-brand box-border border border-transparent hover:bg-brand-strong focus:ring-4 focus:ring-brand-medium shadow-xs font-medium leading-5 rounded-md text-sm px-4 py-2.5 focus:outline-none">+ Pendaftaran Baru</a> --}}
         </div>
     </div>
 
@@ -232,7 +252,7 @@ new #[Layout('layouts::admin')] class extends Component
                     <th scope="col" class="px-6 py-3 font-medium">Program / Paket</th>
                     <th scope="col" class="px-6 py-3 font-medium text-right">Total Bayar</th>
                     <th scope="col" class="px-6 py-3 font-medium">Masa Aktif</th>
-                    <th scope="col" class="px-6 py-3 font-medium text-center">Status</th>
+                    <th scope="col" class="px-6 py-3 font-medium text-center">Status & Aksi</th>
                 </tr>
             </thead>
             <tbody>
@@ -362,17 +382,27 @@ new #[Layout('layouts::admin')] class extends Component
 
                         {{-- Status & Aksi --}}
                         <td class="px-6 py-4 text-center whitespace-nowrap">
-                            @if ($membership->status === 'active')
-                                <span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">Active</span>
-                            @elseif ($membership->status === 'expired')
-                                <span class="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">Expired</span>
-                            @elseif ($membership->status === 'completed')
-                                <span class="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">Selesai / Sesi Habis</span>
-                            @elseif ($membership->status === 'pending')
-                                <span class="px-2 py-1 text-xs font-semibold rounded-full bg-orange-100 text-orange-800">Pending</span>
-                            @elseif ($membership->status === 'rejected')
-                                <span class="px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">Rejected</span>
-                            @endif
+                            <div class="flex flex-col items-center gap-2">
+                                @if ($membership->status === 'active')
+                                    <span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">Active</span>
+                                @elseif ($membership->status === 'expired')
+                                    <span class="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">Expired</span>
+                                @elseif ($membership->status === 'completed')
+                                    <span class="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">Selesai / Sesi Habis</span>
+                                @elseif ($membership->status === 'pending')
+                                    <span class="px-2 py-1 text-xs font-semibold rounded-full bg-orange-100 text-orange-800">Pending</span>
+                                @elseif ($membership->status === 'rejected')
+                                    <span class="px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">Rejected</span>
+                                @endif
+
+                                {{-- Tombol Perpanjang (Muncul hanya untuk paket yang sudah habis/selesai) --}}
+                                @if(in_array($membership->status, ['completed', 'expired']))
+                                    <a href="{{ route('admin.renew.create', $membership->id) }}" wire:navigate class="inline-flex items-center justify-center px-3 py-1.5 text-xs font-medium text-white bg-brand rounded-md hover:bg-brand-strong transition-colors focus:ring-2 focus:ring-brand-medium">
+                                        <svg class="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                                        Perpanjang
+                                    </a>
+                                @endif
+                            </div>
                         </td>
                     </tr>
                 @empty

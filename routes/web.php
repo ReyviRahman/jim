@@ -90,6 +90,12 @@ Route::middleware('auth')->group(function () {
 
         Route::livewire('/membership/cicilan', 'pages::dashboard.admin.cicilan.index')->name('admin.cicilan.index');
         Route::livewire('/membership/cicilan/{membership}/pay', 'pages::dashboard.admin.cicilan.pay')->name('admin.cicilan.pay');
+        
+        Route::livewire('/renew', 'pages::dashboard.admin.renew.index')->name('admin.renew.index');
+        Route::livewire('/renew/{id}/create', 'pages::dashboard.admin.renew.create')->name('admin.renew.create');
+
+        Route::livewire('/penjualan', 'pages::dashboard.admin.penjualan.index')->name('admin.penjualan.index');
+
 
         // --- Package Management ---
         // Saya kelompokkan lagi dengan prefix 'package' biar URL rapi
