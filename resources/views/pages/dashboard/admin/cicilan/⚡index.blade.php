@@ -20,12 +20,19 @@ new #[Layout('layouts::admin')] class extends Component
     #[Computed]
     public function memberships()
     {
-        // Ambil membership yang status pembayarannya 'partial' atau 'unpaid'
-        return $memberships = Membership::with(['user', 'gymPackage', 'ptPackage'])
+        // Tambahkan 'members' di dalam array with()
+        return Membership::with(['user', 'members', 'gymPackage', 'ptPackage'])
             ->whereIn('payment_status', ['partial', 'unpaid'])
             ->when($this->search, function ($query) {
-                $query->whereHas('user', function ($q) {
-                    $q->where('name', 'like', '%' . $this->search . '%');
+                $query->where(function ($q) {
+                    // Cari di nama pendaftar utama
+                    $q->whereHas('user', function ($subQ) {
+                        $subQ->where('name', 'like', '%' . $this->search . '%');
+                    })
+                    // ATAU cari di nama anggota pivot (pasangannya)
+                    ->orWhereHas('members', function ($subQ) {
+                        $subQ->where('name', 'like', '%' . $this->search . '%');
+                    });
                 });
             })
             ->latest()
@@ -62,8 +69,23 @@ new #[Layout('layouts::admin')] class extends Component
                 @forelse($this->memberships as $m)
                     <tr class="border-b border-default hover:bg-gray-50">
                         <td class="px-4 py-3 font-medium text-heading">
-                            {{ $m->user->name ?? 'User Dihapus' }}
-                            <div class="text-xs text-gray-500 font-normal">Tgl: {{ \Carbon\Carbon::parse($m->start_date)->format('d M Y') }}</div>
+                            <div class="flex flex-col gap-1 mb-1.5">
+                                @if($m->members && $m->members->count() > 0)
+                                    @foreach($m->members as $member)
+                                        <div>
+                                            {{ $member->name }}
+                                        </div>
+                                    @endforeach
+                                @else
+                                    <div>
+                                        {{ $m->user->name ?? 'User Dihapus' }}
+                                        <span class="text-[10px] font-normal text-emerald-600 ml-1 border border-emerald-200 bg-emerald-50 px-1 py-0.5 rounded">Pendaftar</span>
+                                    </div>
+                                @endif
+                            </div>
+                            <div class="text-xs text-gray-500 font-normal">
+                                Tgl: {{ $m->start_date ? \Carbon\Carbon::parse($m->start_date)->format('d M Y') : '-' }}
+                            </div>
                         </td>
                         <td class="px-4 py-3">
                             @if($m->type === 'visit') Visit Harian
@@ -74,14 +96,14 @@ new #[Layout('layouts::admin')] class extends Component
                         <td class="px-4 py-3 text-right font-medium text-heading">Rp {{ number_format($m->price_paid, 0, ',', '.') }}</td>
                         <td class="px-4 py-3 text-right text-green-600">Rp {{ number_format($m->total_paid, 0, ',', '.') }}</td>
                         <td class="px-4 py-3 text-right text-red-600 font-bold">Rp {{ number_format($m->price_paid - $m->total_paid, 0, ',', '.') }}</td>
-                        <td class="px-4 py-3 text-center">
+                        <td class="px-4 py-3 text-center whitespace-nowrap">
                             @if($m->status === 'active')
                                 <span class="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded">Aktif</span>
                             @else
-                                <span class="bg-orange-100 text-orange-800 text-xs font-medium px-2.5 py-0.5 rounded">Pending (Ditahan)</span>
+                                <span class="bg-orange-100 text-orange-800 text-xs font-medium px-2.5 py-0.5 rounded">Belum Lunas</span>
                             @endif
                         </td>
-                        <td class="px-4 py-3 text-center">
+                        <td class="px-4 py-3 text-center whitespace-nowrap">
                             {{-- Ganti rute ini sesuai dengan rute halaman pembayaran kamu --}}
                             <a href="{{ route('admin.cicilan.pay', $m->id) }}" wire:navigate class="text-white bg-brand hover:bg-brand-strong focus:ring-4 focus:ring-brand-medium font-medium rounded-md text-xs px-3 py-1.5 transition-colors">
                                 Bayar Cicilan

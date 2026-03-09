@@ -15,10 +15,11 @@ return new class extends Migration
             $table->id();
             $table->string('name');
             $table->enum('role', ['admin', 'pt', 'member', 'kasir_gym', 'kasir_minum'])->default('member');
+            $table->enum('shift', ['Pagi', 'Siang'])->nullable();
             $table->string('occupation')->nullable();
             $table->integer('age');
             $table->enum('gender', ['Laki-laki', 'Perempuan']);
-            $table->string('phone', 20);
+            $table->string('phone', 20)->unique();
             $table->text('medical_history')->nullable();
             $table->string('email')->unique();
             $table->string('password');

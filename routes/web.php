@@ -76,6 +76,15 @@ Route::middleware('auth')->group(function () {
         Route::livewire('/akun/member/{user}/edit', 'pages::dashboard.admin.akun.member.edit')
             ->name('admin.akun.member.edit');
 
+        Route::livewire('/akun/admin', 'pages::dashboard.admin.akun.admin.index')
+            ->name('admin.akun.admin.index');
+
+        Route::livewire('/akun/admin/create', 'pages::dashboard.admin.akun.admin.create')
+            ->name('admin.akun.admin.create');
+
+        Route::livewire('/akun/admin/{user}/edit', 'pages::dashboard.admin.akun.admin.edit')
+            ->name('admin.akun.admin.edit');
+
         Route::livewire('/akun/trainer', 'pages::dashboard.admin.akun.trainer.index')
             ->name('admin.akun.trainer.index');
 

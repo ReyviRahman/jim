@@ -48,10 +48,45 @@ class UserSeeder extends Seeder
             'email' => 'admin@gmail.com', // Email untuk login admin
             'password' => $password,
             'role' => 'admin',
+            'shift' => 'Siang',
             'occupation' => 'Gym Manager',
             'age' => 30,
             'gender' => 'Laki-laki',
             'phone' => '081200001111',
+            'medical_history' => null,
+            'address' => 'Jl. Admin Pusat No. 1, Jakarta',
+            'joined_at' => Carbon::now()->subYears(2),
+            'is_active' => true,
+            'email_verified_at' => now(),
+        ]);
+        
+        User::create([
+            'name' => 'Ratna',
+            'email' => 'ratna@gmail.com', // Email untuk login admin
+            'password' => $password,
+            'role' => 'kasir_gym',
+            'shift' => 'Pagi',
+            'occupation' => 'Kasir GYM',
+            'age' => 30,
+            'gender' => 'Perempuan',
+            'phone' => '081234567890',
+            'medical_history' => null,
+            'address' => 'Jl. Admin Pusat No. 1, Jakarta',
+            'joined_at' => Carbon::now()->subYears(2),
+            'is_active' => true,
+            'email_verified_at' => now(),
+        ]);
+
+        User::create([
+            'name' => 'C.Wira',
+            'email' => 'wira@gmail.com', // Email untuk login admin
+            'password' => $password,
+            'role' => 'kasir_gym',
+            'shift' => 'Siang',
+            'occupation' => 'Kasir GYM',
+            'age' => 30,
+            'gender' => 'Laki-laki',
+            'phone' => '081234567891',
             'medical_history' => null,
             'address' => 'Jl. Admin Pusat No. 1, Jakarta',
             'joined_at' => Carbon::now()->subYears(2),

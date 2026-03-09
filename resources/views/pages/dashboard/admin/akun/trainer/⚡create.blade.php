@@ -24,7 +24,7 @@ new #[Layout('layouts::admin')] class extends Component
     #[Validate('required|integer|min:10')]
     public $age = '';
 
-    #[Validate('required|numeric')]
+    #[Validate('required|numeric|unique:users,phone')]
     public $phone = '';
 
     #[Validate('required|date')]

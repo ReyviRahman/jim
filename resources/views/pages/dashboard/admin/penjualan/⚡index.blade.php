@@ -19,7 +19,7 @@ new #[Layout('layouts::admin')] class extends Component
     public $dateEnd;
     
     // Filter Baru
-    public $perPage = 10;
+    public $perPage = 'all';
     public $shift = 'pagi';
 
     public function setFilterTime($val)
@@ -78,11 +78,15 @@ new #[Layout('layouts::admin')] class extends Component
         // 3. Logika Filter Shift (Jam)
         // Pagi = 06:00 - 14:59 | Siang = 15:00 - 23:59
         if ($this->shift === 'pagi') {
-            $query->whereTime('payment_date', '>=', '06:00:00')
-                  ->whereTime('payment_date', '<', '15:00:00');
+            // Cari transaksi yang dikerjakan oleh admin dengan shift 'Pagi'
+            $query->whereHas('admin', function ($q) {
+                $q->where('shift', 'Pagi');
+            });
         } elseif ($this->shift === 'siang') {
-            $query->whereTime('payment_date', '>=', '15:00:00')
-                  ->whereTime('payment_date', '<=', '23:59:59');
+            // Cari transaksi yang dikerjakan oleh admin dengan shift 'Siang'
+            $query->whereHas('admin', function ($q) {
+                $q->where('shift', 'Siang');
+            });
         }
 
         return $query;
@@ -274,23 +278,16 @@ new #[Layout('layouts::admin')] class extends Component
         
         {{-- Judul Besar --}}
         {{-- Judul Besar --}}
-        <div class="bg-green-600 text-white font-bold px-4 py-3 text-lg flex justify-between items-center">
+        <div class="bg-green-600 text-white font-bold px-4 py-3 text-lg flex justify-center items-center">
             <span>
                 GRAND TOTAL (SHIFT {{ strtoupper($shift === 'all' ? 'PAGI & SIANG' : $shift) }})
             </span>
-            <span class="text-xs font-normal opacity-80 uppercase tracking-wider">Keseluruhan Filter</span>
+            
         </div>
         
         <div class="p-0 overflow-x-auto">
             <table class="w-full text-sm text-left text-gray-700">
-                <thead class="bg-gray-50 border-b border-gray-200 text-xs uppercase text-gray-500">
-                    <tr>
-                        <th class="px-4 py-3 w-1/4">Metode Pembayaran (Arus Kas)</th>
-                        <th class="px-4 py-3 w-1/4 text-right">Nominal</th>
-                        <th class="px-4 py-3 w-1/4 border-l border-gray-200">Kategori Pendapatan</th>
-                        <th class="px-4 py-3 w-1/4 text-right">Nominal</th>
-                    </tr>
-                </thead>
+                
                 <tbody>
                     <tr class="border-b border-gray-100">
                         <td class="px-4 py-3 font-medium">Total Transfer</td>

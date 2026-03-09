@@ -33,7 +33,11 @@ new #[Layout('layouts::admin')] class extends Component
             'occupation' => 'nullable|string',
             'age' => 'required|integer|min:10',
             'gender' => 'required|in:Laki-laki,Perempuan',
-            'phone' => 'required|numeric',
+            'phone' => [
+                'required', 
+                'numeric', 
+                Rule::unique('users', 'phone')->ignore($this->user->id) // Abaikan email milik user ini
+            ],
             'medical_history' => 'nullable|string',
             'email' => [
                 'required', 
