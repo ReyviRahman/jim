@@ -7,6 +7,7 @@ use Livewire\WithPagination;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use App\Models\MembershipTransaction;
+use App\Models\Expense;
 use Carbon\Carbon;
 
 new #[Layout('layouts::admin')] class extends Component
@@ -30,13 +31,26 @@ new #[Layout('layouts::admin')] class extends Component
 
     public function setDateRange($dateStr)
     {
+        // Hindari memproses string kosong jika user menekan clear
+        if (empty($dateStr)) {
+            return; 
+        }
+
         $dates = explode(' to ', $dateStr);
+
         if (count($dates) === 2) {
+            // Jika user memilih rentang 2 tanggal (contoh: 2023-10-01 to 2023-10-05)
             $this->dateStart = $dates[0];
             $this->dateEnd = $dates[1];
-            $this->filterTime = 'custom';
-            $this->resetPage();
+        } elseif (count($dates) === 1) {
+            // Jika user hanya memilih 1 tanggal (contoh: 2023-10-01)
+            $this->dateStart = $dates[0];
+            $this->dateEnd = $dates[0]; // Jadikan start dan end sama
         }
+
+        // Terapkan filter dan reset halaman
+        $this->filterTime = 'custom';
+        $this->resetPage();
     }
 
     public function updatedPerPage() { $this->resetPage(); }
@@ -103,7 +117,10 @@ new #[Layout('layouts::admin')] class extends Component
     #[Computed]
     public function summary()
     {
-        // Ambil semua data sesuai filter yang aktif (tanpa batasan per halaman)
+        // ==========================================
+        // 1. DATA PEMASUKAN (MembershipTransactions)
+        // ==========================================
+        // Ambil semua data pemasukan sesuai filter yang aktif
         $data = $this->getBaseQuery()->get();
 
         // Keuangan (Kiri)
@@ -114,32 +131,66 @@ new #[Layout('layouts::admin')] class extends Component
         
         $totalSystemBalance = $transfer + $debit + $qris + $cash;
         
-        $pengeluaran = 0; // Saat ini masih 0 karena belum ada modul pengeluaran
-        $realCash = $cash - $pengeluaran; 
-
         // Statistik Uang Berdasarkan Kategori Paket (Kanan)
         $visitData = $data->filter(fn($item) => stripos($item->package_name, 'visit') !== false);
         $ptData = $data->filter(fn($item) => stripos($item->package_name, 'pt') !== false || stripos($item->package_name, 'trainer') !== false);
         
         $totalUangVisit = $visitData->sum('amount');
         $totalUangPT = $ptData->sum('amount');
-        $totalUangMember = $totalSystemBalance - $totalUangVisit - $totalUangPT; // Sisa uang dipastikan masuk ke Gym Member
+        $totalUangMember = $totalSystemBalance - $totalUangVisit - $totalUangPT; 
+
+        // ==========================================
+        // 2. DATA PENGELUARAN (Expenses)
+        // ==========================================
+        // Buat query baru khusus untuk tabel pengeluaran
+        $expenseQuery = Expense::query();
+
+        // Terapkan Filter Waktu ke Pengeluaran
+        if ($this->filterTime === 'today') {
+            $expenseQuery->whereDate('expense_date', today());
+        } elseif ($this->filterTime === 'week') {
+            $expenseQuery->whereBetween('expense_date', [now()->startOfWeek(), now()->endOfWeek()]);
+        } elseif ($this->filterTime === 'month') {
+            $expenseQuery->whereMonth('expense_date', now()->month)
+                         ->whereYear('expense_date', now()->year);
+        } elseif ($this->filterTime === 'custom' && $this->dateStart && $this->dateEnd) {
+            $expenseQuery->whereBetween('expense_date', [
+                $this->dateStart . ' 00:00:00', 
+                $this->dateEnd . ' 23:59:59'
+            ]);
+        }
+
+        // Terapkan Filter Shift ke Pengeluaran (Jika ada)
+        if ($this->shift === 'pagi') {
+            $expenseQuery->whereHas('admin', function ($q) {
+                $q->where('shift', 'Pagi');
+            });
+        } elseif ($this->shift === 'siang') {
+            $expenseQuery->whereHas('admin', function ($q) {
+                $q->where('shift', 'Siang');
+            });
+        }
+
+        $rincianPengeluaran = $expenseQuery->with('admin')->get();
+        // Hitung Total Pengeluaran dari data rincian tersebut
+        $pengeluaran = $rincianPengeluaran->sum('amount');
+        $realCash = $cash - $pengeluaran;
 
         return [
             'transfer' => $transfer,
             'debit' => $debit,
             'qris' => $qris,
             'cash' => $cash,
-            'balance_merah' => $totalSystemBalance,
-            'pengeluaran' => $pengeluaran,
-            'real_cash' => $realCash,
-            'balance_hijau' => $totalSystemBalance - $pengeluaran,
+            'balance_merah' => $totalSystemBalance, // Total Masuk
+            'pengeluaran' => $pengeluaran,          // Total Keluar
+            'real_cash' => $realCash,               // Sisa Uang Fisik (Cash - Pengeluaran)
+            'balance_hijau' => $totalSystemBalance - $pengeluaran, // Laba Bersih Keseluruhan
             
-            // Perubahan di sini 👇
             'uang_member' => $totalUangMember,
             'uang_visit' => $totalUangVisit,
             'uang_pt' => $totalUangPT,
             'uang_total' => $totalSystemBalance, 
+            'rincian_pengeluaran' => $rincianPengeluaran,
         ];
     }
 };
@@ -147,7 +198,9 @@ new #[Layout('layouts::admin')] class extends Component
 
 <div>
     <div class="flex sm:flex-row flex-col justify-between items-center mb-6">
-        <h5 class="text-xl font-semibold text-heading">Riwayat Penjualan</h5>
+        <h5 class="text-xl font-semibold text-heading">
+            Riwayat Penjualan Shift {{ $this->shift === 'all' ? 'Pagi & Siang' : ucfirst($this->shift) }}
+        </h5>
         <div class="flex gap-2">
             {{-- Tombol Export dll --}}
         </div>
@@ -324,9 +377,33 @@ new #[Layout('layouts::admin')] class extends Component
                         <td class="px-4 py-3 font-bold uppercase tracking-wide">Balance (Total Masuk)</td>
                         <td class="px-4 py-3 text-right font-bold text-base">Rp {{ number_format($this->summary['balance_merah'], 0, ',', '.') }}</td>
                         
-                        {{-- Ruang kosong di sisi kanan karena datanya sudah habis --}}
-                        <td colspan="2" rowspan="4" class="bg-gray-50 border-l border-gray-200 align-top p-4 text-center text-gray-400">
-                            <span class="block mt-4 italic text-xs">* Total nominal di Kategori Pendapatan otomatis sama dengan Total Uang Masuk.</span>
+                        {{-- RINCIAN PENGELUARAN (Sisi Kanan) --}}
+                        <td colspan="2" rowspan="4" class="bg-gray-50 border-l border-gray-200 align-top p-4">
+                            <div class="font-bold text-gray-700 mb-3 border-b border-gray-200 pb-2 text-sm uppercase tracking-wide">
+                                CATATAN
+                            </div>
+                            
+                            @if(count($this->summary['rincian_pengeluaran']) > 0)
+                                <ul class="space-y-2.5 text-xs text-gray-600 max-h-32 overflow-y-auto pr-2">
+                                    @foreach($this->summary['rincian_pengeluaran'] as $exp)
+                                        <li class="flex justify-between items-start gap-3 border-b border-gray-100 pb-2 last:border-0 last:pb-0">
+                                            <div class="flex-1">
+                                                <span class="block font-semibold text-gray-800">{{ $exp->description }}</span>
+                                                <span class="text-gray-500 text-[10px] mt-0.5 block">Admin: {{ $exp->admin->name ?? '-' }}</span>
+                                            </div>
+                                            <span class="font-bold text-red-600 whitespace-nowrap">- Rp {{ number_format($exp->amount, 0, ',', '.') }}</span>
+                                        </li>
+                                    @endforeach
+                                </ul>
+                            @else
+                                <div class="text-center text-gray-400 text-xs italic mt-6">
+                                    Tidak ada catatan pengeluaran.
+                                </div>
+                            @endif
+                            
+                            <span class="block mt-6 italic text-[10px] text-gray-400 text-center">
+                                * Total nominal di Kategori Pendapatan otomatis sama dengan Total Uang Masuk.
+                            </span>
                         </td>
                     </tr>
                     
