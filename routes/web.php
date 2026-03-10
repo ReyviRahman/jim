@@ -59,11 +59,7 @@ Route::middleware('auth')->group(function () {
         Route::livewire('/penjualan', 'pages::dashboard.admin.penjualan.index')->name('admin.penjualan.index');
         Route::livewire('/pengeluaran', 'pages::dashboard.admin.pengeluaran.index')->name('admin.pengeluaran.index');
         Route::livewire('/pengeluaran/create', 'pages::dashboard.admin.pengeluaran.create')->name('admin.pengeluaran.create');
-        
-    });
 
-    Route::middleware('role:admin')->prefix('dashboard/admin')->group(function () {
-        
         // --- Membership Management ---
         Route::livewire('/membership', 'pages::dashboard.admin.membership')
             ->name('admin.membership.index');
@@ -74,7 +70,6 @@ Route::middleware('auth')->group(function () {
         Route::livewire('/membership/paket', 'pages::dashboard.admin.membership.paket')
             ->name('admin.membership.paket');
 
-        
         Route::livewire('/akun/member', 'pages::dashboard.admin.akun.member.index')
             ->name('admin.akun.member.index');
 
@@ -83,6 +78,19 @@ Route::middleware('auth')->group(function () {
 
         Route::livewire('/akun/member/{user}/edit', 'pages::dashboard.admin.akun.member.edit')
             ->name('admin.akun.member.edit');
+
+        // Route::livewire('/akun/{user}', 'pages::dashboard.admin.akun.detail')
+        //     ->name('admin.akun.detail');
+
+        Route::livewire('/membership/cicilan', 'pages::dashboard.admin.cicilan.index')->name('admin.cicilan.index');
+        Route::livewire('/membership/cicilan/{membership}/pay', 'pages::dashboard.admin.cicilan.pay')->name('admin.cicilan.pay');
+        
+        Route::livewire('/renew', 'pages::dashboard.admin.renew.index')->name('admin.renew.index');
+        Route::livewire('/renew/{id}/create', 'pages::dashboard.admin.renew.create')->name('admin.renew.create');
+    });
+
+    Route::middleware('role:admin')->prefix('dashboard/admin')->group(function () {
+        Route::livewire('/pengeluaran/{expense}/edit', 'pages::dashboard.admin.pengeluaran.edit')->name('admin.pengeluaran.edit');
 
         Route::livewire('/akun/admin', 'pages::dashboard.admin.akun.admin.index')
             ->name('admin.akun.admin.index');
@@ -101,20 +109,6 @@ Route::middleware('auth')->group(function () {
 
         Route::livewire('/akun/trainer/{user}/edit', 'pages::dashboard.admin.akun.trainer.edit')
             ->name('admin.akun.trainer.edit');
-
-        Route::livewire('/akun/{user}', 'pages::dashboard.admin.akun.detail')
-            ->name('admin.akun.detail');
-
-        Route::livewire('/membership/cicilan', 'pages::dashboard.admin.cicilan.index')->name('admin.cicilan.index');
-        Route::livewire('/membership/cicilan/{membership}/pay', 'pages::dashboard.admin.cicilan.pay')->name('admin.cicilan.pay');
-        
-        Route::livewire('/renew', 'pages::dashboard.admin.renew.index')->name('admin.renew.index');
-        Route::livewire('/renew/{id}/create', 'pages::dashboard.admin.renew.create')->name('admin.renew.create');
-
-
-        
-        Route::livewire('/pengeluaran/{expense}/edit', 'pages::dashboard.admin.pengeluaran.edit')->name('admin.pengeluaran.edit');
-
 
         // --- Package Management ---
         // Saya kelompokkan lagi dengan prefix 'package' biar URL rapi

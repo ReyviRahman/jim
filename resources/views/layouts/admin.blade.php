@@ -80,6 +80,22 @@
                     </li>
                 </ul>
             @endif
+
+            @if (auth()->check() && auth()->user()->role === 'kasir_gym')
+                <div class="bg-white px-4 py-1 my-2">
+                    <h1 class="font-bold">MASTER</h1>
+                </div>
+                <ul class="space-y-2 font-medium px-3">
+                    <li>
+                        <a href="{{ route('admin.akun.member.index') }}" wire:navigate 
+                            class="{{ request()->routeIs('admin.akun.member.*') ? 'text-[#34342F] bg-brand' : 'text-white' }} flex items-center px-2 py-1.5 rounded-md hover:bg-brand hover:text-[#34342F] group transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="16.271186440677965" viewBox="0 0 472 384"><path fill="currentColor" d="M427 43h42v298h-42zm-86 298V43h43v298zM277 43q9 0 15.5 6t6.5 15v256q0 9-6.5 15t-15.5 6H21q-8 0-14.5-6T0 320V64q0-9 6.5-15T21 43zm-128 58q-20 0-34 14t-14 34t14 34t34 14t34-14t14-34t-14-34t-34-14m96 198v-16q0-22-33-35t-63-13t-63 13t-33 35v16z"/></svg>
+                            <span class="ms-3">Member</span>
+                        </a>
+                    </li>
+                </ul>
+            @endif
+
             <div class="bg-white px-4 py-1 my-2">
                 <h1 class="font-bold">TRANSAKSI GYM</h1>
             </div>

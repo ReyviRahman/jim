@@ -252,7 +252,7 @@ new #[Layout('layouts::admin')] class extends Component
                             <option value="cash">💵 Cash / Tunai</option>
                             <option value="transfer">🏦 Transfer Bank</option>
                             <option value="qris">📱 QRIS</option>
-                            {{-- <option value="edc">💳 Kartu Debit/Kredit (EDC)</option> --}}
+                            <option value="edc">💳 Debit</option>
                         </select>
                         @error('payment_method') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                     </div>
