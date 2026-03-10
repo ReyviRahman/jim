@@ -43,6 +43,10 @@ new class extends Component {
                 return $this->redirectRoute('admin.absensi.index', navigate: true);
             } 
 
+            if ($user->role === 'kasir_gym') {
+                return $this->redirectRoute('admin.absensi.index', navigate: true);
+            } 
+
             if ($user->role === 'pt') {
                 return $this->redirectRoute('pt.absensi', navigate: true);
             } 
