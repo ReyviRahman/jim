@@ -9,6 +9,8 @@ use Livewire\Attributes\Layout;
 use App\Models\MembershipTransaction;
 use App\Models\Expense;
 use Carbon\Carbon;
+use Maatwebsite\Excel\Facades\Excel;
+use App\Exports\PenjualanExport;
 
 new #[Layout('layouts::admin')] class extends Component
 {
@@ -193,6 +195,69 @@ new #[Layout('layouts::admin')] class extends Component
             'rincian_pengeluaran' => $rincianPengeluaran,
         ];
     }
+
+    public function exportExcel()
+    {
+        // 1. Ambil data pemasukan
+        $transactions = $this->getBaseQuery()->get();
+
+        // 2. Hitung komponen uang pemasukan
+        $transfer = $transactions->where('payment_method', 'transfer')->sum('amount');
+        $debit = $transactions->where('payment_method', 'edc')->sum('amount');
+        $qris = $transactions->where('payment_method', 'qris')->sum('amount');
+        $cash = $transactions->where('payment_method', 'cash')->sum('amount');
+        $totalSystemBalance = $transfer + $debit + $qris + $cash;
+
+        $visitData = $transactions->filter(fn($item) => stripos($item->package_name, 'visit') !== false);
+        $ptData = $transactions->filter(fn($item) => stripos($item->package_name, 'pt') !== false || stripos($item->package_name, 'trainer') !== false);
+        
+        $uangVisit = $visitData->sum('amount');
+        $uangPT = $ptData->sum('amount');
+        $uangMember = $totalSystemBalance - $uangVisit - $uangPT;
+
+        // 3. Ambil data pengeluaran dengan filter yang sama persis
+        $expenseQuery = \App\Models\Expense::query();
+        if ($this->filterTime === 'today') {
+            $expenseQuery->whereDate('expense_date', today());
+        } elseif ($this->filterTime === 'week') {
+            $expenseQuery->whereBetween('expense_date', [now()->startOfWeek(), now()->endOfWeek()]);
+        } elseif ($this->filterTime === 'month') {
+            $expenseQuery->whereMonth('expense_date', now()->month)->whereYear('expense_date', now()->year);
+        } elseif ($this->filterTime === 'custom' && $this->dateStart && $this->dateEnd) {
+            $expenseQuery->whereBetween('expense_date', [$this->dateStart . ' 00:00:00', $this->dateEnd . ' 23:59:59']);
+        }
+        if ($this->shift === 'pagi') {
+            $expenseQuery->whereHas('admin', fn($q) => $q->where('shift', 'Pagi'));
+        } elseif ($this->shift === 'siang') {
+            $expenseQuery->whereHas('admin', fn($q) => $q->where('shift', 'Siang'));
+        }
+        
+        $rincianPengeluaran = $expenseQuery->with('admin')->get();
+        $pengeluaran = $rincianPengeluaran->sum('amount');
+
+        // 4. Jadikan satu array summaryTotal
+        $summaryTotal = [
+            'transfer' => $transfer, 'debit' => $debit, 'qris' => $qris, 'cash' => $cash,
+            'balance_merah' => $totalSystemBalance,
+            'pengeluaran' => $pengeluaran,
+            'real_cash' => $cash - $pengeluaran,
+            'balance_hijau' => $totalSystemBalance - $pengeluaran,
+            'uang_member' => $uangMember, 'uang_visit' => $uangVisit, 'uang_pt' => $uangPT,
+            'uang_total' => $totalSystemBalance,
+            'rincian_pengeluaran' => $rincianPengeluaran // Rincian teks pengeluaran dilempar ke Excel
+        ];
+
+        // 5. Download Excel-nya
+        $tanggalExport = $this->filterTime === 'today' ? today()->format('Y-m-d') : ($this->dateStart ?? today()->format('Y-m-d'));
+        $fileName = 'Laporan_Penjualan_' . $tanggalExport . '.xlsx';
+
+        return \Maatwebsite\Excel\Facades\Excel::download(new PenjualanExport(
+            $transactions, 
+            $summaryTotal, 
+            $tanggalExport,
+            $this->shift 
+        ), $fileName);
+    }
 };
 ?>
 
@@ -202,7 +267,11 @@ new #[Layout('layouts::admin')] class extends Component
             Riwayat Penjualan Shift {{ $this->shift === 'all' ? 'Pagi & Siang' : ucfirst($this->shift) }}
         </h5>
         <div class="flex gap-2">
-            {{-- Tombol Export dll --}}
+            <button wire:click="exportExcel" wire:loading.attr="disabled" class="inline-flex items-center justify-center text-white bg-emerald-600 border border-transparent hover:bg-emerald-700 focus:ring-4 focus:ring-emerald-300 shadow-xs font-medium rounded-md text-sm px-4 py-2.5 focus:outline-none disabled:opacity-50">
+                <svg class="w-4 h-4 me-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"></path></svg>
+                <span wire:loading.remove wire:target="exportExcel">Export Excel</span>
+                <span wire:loading wire:target="exportExcel">Memproses...</span>
+            </button>
         </div>
     </div>
 
@@ -343,38 +412,38 @@ new #[Layout('layouts::admin')] class extends Component
                 
                 <tbody>
                     <tr class="border-b border-gray-100">
-                        <td class="px-4 py-3 font-medium">Total Transfer</td>
+                        <td class="px-4 py-3 font-medium">TRANSFER BCA</td>
                         <td class="px-4 py-3 text-right font-bold">Rp {{ number_format($this->summary['transfer'], 0, ',', '.') }}</td>
                         
-                        <td class="px-4 py-3 font-medium border-l border-gray-200">🏋️ Total Member Gym</td>
+                        <td class="px-4 py-3 font-medium border-l border-gray-200">MEMBER</td>
                         <td class="px-4 py-3 text-right font-bold">Rp {{ number_format($this->summary['uang_member'], 0, ',', '.') }}</td>
                     </tr>
                     <tr class="border-b border-gray-100">
-                        <td class="px-4 py-3 font-medium">Total Debit (EDC)</td>
+                        <td class="px-4 py-3 font-medium">DEBIT BCA</td>
                         <td class="px-4 py-3 text-right font-bold">Rp {{ number_format($this->summary['debit'], 0, ',', '.') }}</td>
                         
-                        <td class="px-4 py-3 font-medium border-l border-gray-200">🎟️ Total Visit Harian</td>
+                        <td class="px-4 py-3 font-medium border-l border-gray-200">VISIT</td>
                         <td class="px-4 py-3 text-right font-bold">Rp {{ number_format($this->summary['uang_visit'], 0, ',', '.') }}</td>
                     </tr>
                     <tr class="border-b border-gray-100">
-                        <td class="px-4 py-3 font-medium">Total QRIS</td>
+                        <td class="px-4 py-3 font-medium">QRIS BCA</td>
                         <td class="px-4 py-3 text-right font-bold">Rp {{ number_format($this->summary['qris'], 0, ',', '.') }}</td>
                         
-                        <td class="px-4 py-3 font-medium border-l border-gray-200">👨‍🏫 Total Personal Trainer</td>
+                        <td class="px-4 py-3 font-medium border-l border-gray-200">PERSONAL TRAINER</td>
                         <td class="px-4 py-3 text-right font-bold">Rp {{ number_format($this->summary['uang_pt'], 0, ',', '.') }}</td>
                     </tr>
                     <tr class="border-b border-gray-100">
-                        <td class="px-4 py-3 font-medium">Cash On Hand</td>
+                        <td class="px-4 py-3 font-medium">CASH ON HAND</td>
                         <td class="px-4 py-3 text-right font-bold">Rp {{ number_format($this->summary['cash'], 0, ',', '.') }}</td>
                         
                         {{-- Balance Kategori Pendapatan (Sisi Kanan) --}}
-                        <td class="px-4 py-3 bg-emerald-50 text-emerald-800 font-bold uppercase tracking-wide border-l border-gray-200">Balance (Pendapatan)</td>
+                        <td class="px-4 py-3 bg-emerald-50 text-emerald-800 font-bold uppercase tracking-wide border-l border-gray-200">BALANCE</td>
                         <td class="px-4 py-3 bg-emerald-50 text-emerald-800 text-right font-black text-lg">Rp {{ number_format($this->summary['uang_total'], 0, ',', '.') }}</td>
                     </tr>
                     
                     {{-- Balance Masuk Kas (Sisi Kiri) --}}
                     <tr class="border-b border-gray-100 bg-red-50 text-red-700">
-                        <td class="px-4 py-3 font-bold uppercase tracking-wide">Balance (Total Masuk)</td>
+                        <td class="px-4 py-3 font-bold uppercase tracking-wide">BALANCE</td>
                         <td class="px-4 py-3 text-right font-bold text-base">Rp {{ number_format($this->summary['balance_merah'], 0, ',', '.') }}</td>
                         
                         {{-- RINCIAN PENGELUARAN (Sisi Kanan) --}}
@@ -401,25 +470,22 @@ new #[Layout('layouts::admin')] class extends Component
                                 </div>
                             @endif
                             
-                            <span class="block mt-6 italic text-[10px] text-gray-400 text-center">
-                                * Total nominal di Kategori Pendapatan otomatis sama dengan Total Uang Masuk.
-                            </span>
                         </td>
                     </tr>
                     
                     {{-- Pengeluaran & Real Cash (Sisi Kiri) --}}
                     <tr class="border-b border-gray-100 bg-white">
-                        <td class="px-4 py-3 font-medium">Pengeluaran</td>
+                        <td class="px-4 py-3 font-medium">PENGELUARAN</td>
                         <td class="px-4 py-3 text-right font-bold text-red-600">- Rp {{ number_format($this->summary['pengeluaran'], 0, ',', '.') }}</td>
                     </tr>
                     <tr class="border-b border-gray-100 bg-white">
-                        <td class="px-4 py-3 font-medium">Real Cash</td>
+                        <td class="px-4 py-3 font-medium">REAL CASH</td>
                         <td class="px-4 py-3 text-right font-bold">Rp {{ number_format($this->summary['real_cash'], 0, ',', '.') }}</td>
                     </tr>
                     
                     {{-- Balance Final (Sisi Kiri) --}}
                     <tr class="bg-emerald-100 text-emerald-800">
-                        <td class="px-4 py-4 font-bold uppercase tracking-wide text-lg">Balance Akhir</td>
+                        <td class="px-4 py-4 font-bold uppercase tracking-wide text-lg">BALANCE</td>
                         <td class="px-4 py-4 text-right font-black text-xl">Rp {{ number_format($this->summary['balance_hijau'], 0, ',', '.') }}</td>
                     </tr>
                 </tbody>

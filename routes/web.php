@@ -52,6 +52,16 @@ Route::middleware('auth')->group(function () {
 
     // GROUP 2: KHUSUS ADMIN
     // Middleware: harus login DAN role = admin
+    Route::middleware('role:admin,kasir_gym')->prefix('dashboard/admin')->group(function () {
+        Route::livewire('/absensi', 'pages::dashboard.admin.absensi')
+            ->name('admin.absensi.index');
+
+        Route::livewire('/penjualan', 'pages::dashboard.admin.penjualan.index')->name('admin.penjualan.index');
+        Route::livewire('/pengeluaran', 'pages::dashboard.admin.pengeluaran.index')->name('admin.pengeluaran.index');
+        Route::livewire('/pengeluaran/create', 'pages::dashboard.admin.pengeluaran.create')->name('admin.pengeluaran.create');
+        
+    });
+
     Route::middleware('role:admin')->prefix('dashboard/admin')->group(function () {
         
         // --- Membership Management ---
@@ -64,8 +74,6 @@ Route::middleware('auth')->group(function () {
         Route::livewire('/membership/paket', 'pages::dashboard.admin.membership.paket')
             ->name('admin.membership.paket');
 
-        Route::livewire('/absensi', 'pages::dashboard.admin.absensi')
-            ->name('admin.absensi.index');
         
         Route::livewire('/akun/member', 'pages::dashboard.admin.akun.member.index')
             ->name('admin.akun.member.index');
@@ -103,10 +111,8 @@ Route::middleware('auth')->group(function () {
         Route::livewire('/renew', 'pages::dashboard.admin.renew.index')->name('admin.renew.index');
         Route::livewire('/renew/{id}/create', 'pages::dashboard.admin.renew.create')->name('admin.renew.create');
 
-        Route::livewire('/penjualan', 'pages::dashboard.admin.penjualan.index')->name('admin.penjualan.index');
 
-        Route::livewire('/pengeluaran', 'pages::dashboard.admin.pengeluaran.index')->name('admin.pengeluaran.index');
-        Route::livewire('/pengeluaran/create', 'pages::dashboard.admin.pengeluaran.create')->name('admin.pengeluaran.create');
+        
         Route::livewire('/pengeluaran/{expense}/edit', 'pages::dashboard.admin.pengeluaran.edit')->name('admin.pengeluaran.edit');
 
 
