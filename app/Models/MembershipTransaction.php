@@ -34,6 +34,11 @@ class MembershipTransaction extends Model
         return $this->belongsTo(User::class, 'admin_id');
     }
 
+    public function followUp()
+    {
+        return $this->belongsTo(User::class, 'follow_up_id');
+    }
+
     public function membership()
     {
         return $this->belongsTo(Membership::class, 'membership_id');

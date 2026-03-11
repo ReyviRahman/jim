@@ -348,6 +348,7 @@ new #[Layout('layouts::admin')] class extends Component
                     <th class="px-6 py-3 font-medium text-right">Nominal</th>
                     <th class="px-6 py-3 font-medium">Metode Bayar</th>
                     <th class="px-6 py-3 font-medium">Admin</th>
+                    <th class="px-6 py-3 font-medium">Follow Up</th>
                 </tr>
             </thead>
             <tbody>
@@ -382,6 +383,7 @@ new #[Layout('layouts::admin')] class extends Component
                         <td class="px-6 py-4 text-right font-bold text-emerald-600 whitespace-nowrap">Rp {{ number_format($transaction->amount, 0, ',', '.') }}</td>
                         <td class="px-6 py-4 whitespace-nowrap"><span class="text-xs font-medium border bg-white px-2 py-0.5 rounded shadow-xs">{{ strtoupper($transaction->payment_method) }}</span></td>
                         <td class="px-6 py-4 whitespace-nowrap">{{ $transaction->admin->name ?? '-' }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">{{ $transaction->followUp->name ?? '-' }}</td>
                     </tr>
                 @empty
                     <tr><td colspan="10" class="px-6 py-8 text-center text-gray-500">Belum ada riwayat penjualan.</td></tr>
