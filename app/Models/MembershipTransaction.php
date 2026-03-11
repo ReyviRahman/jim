@@ -11,6 +11,7 @@ class MembershipTransaction extends Model
         'membership_id', 
         'user_id',
         'admin_id',
+        'follow_up_id',
         'transaction_type',
         'package_name',
         'amount', 

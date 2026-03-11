@@ -14,7 +14,9 @@ return new class extends Migration
             $table->enum('type', ['membership', 'pt', 'bundle_pt_membership', 'visit'])->index()->default('membership'); 
             $table->foreignId('gym_package_id')->nullable()->constrained('gym_packages'); 
             $table->foreignId('pt_package_id')->nullable()->constrained('gym_packages'); 
-            $table->foreignId('pt_id')->nullable()->constrained('users')->nullOnDelete(); 
+            $table->foreignId('pt_id')->nullable()->constrained('users'); 
+            $table->foreignId('admin_id')->nullable()->constrained('users');
+            $table->foreignId('follow_up_id')->nullable()->constrained('users');
             $table->decimal('base_price', 12, 0); 
             $table->decimal('discount_applied', 12, 0)->default(0); 
             $table->decimal('price_paid', 12, 0); 

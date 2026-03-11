@@ -13,6 +13,8 @@ class Membership extends Model
         'user_id',
         'type', 
         'pt_id',
+        'admin_id',      
+        'follow_up_id',
         'gym_package_id',
         'pt_package_id',
         'base_price',
@@ -46,6 +48,16 @@ class Membership extends Model
         return $this->belongsTo(User::class, 'user_id');
     }
 
+    public function admin(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'admin_id');
+    }
+
+    public function followUp(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'follow_up_id');
+    }
+
     /**
      * Relasi ke SEMUA Anggota yang berhak masuk dengan membership ini
      * (Untuk mengambil data istri/teman di paket Couple/Group)
@@ -74,7 +86,7 @@ class Membership extends Model
         return $this->belongsToMany(User::class, 'membership_users');
     }
 
-    public function transactions(): HasMany // 👈 2. TAMBAHKAN METHOD INI
+    public function transactions(): HasMany 
     {
         return $this->hasMany(MembershipTransaction::class);
     }

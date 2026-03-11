@@ -61,8 +61,8 @@ class UserSeeder extends Seeder
         ]);
         
         User::create([
-            'name' => 'Ratna',
-            'email' => 'ratna@gmail.com', // Email untuk login admin
+            'name' => 'Dewi',
+            'email' => 'dewi@gmail.com', // Email untuk login admin
             'password' => $password,
             'role' => 'kasir_gym',
             'shift' => 'Pagi',
@@ -78,8 +78,8 @@ class UserSeeder extends Seeder
         ]);
 
         User::create([
-            'name' => 'C.Wira',
-            'email' => 'wira@gmail.com', // Email untuk login admin
+            'name' => 'Laurent',
+            'email' => 'laurent@gmail.com', // Email untuk login admin
             'password' => $password,
             'role' => 'kasir_gym',
             'shift' => 'Siang',
@@ -135,6 +135,22 @@ class UserSeeder extends Seeder
             'age' => 30,
             'gender' => 'Laki-laki',
             'phone' => '081372225212',
+            'medical_history' => null,
+            'address' => 'Jambi',
+            'joined_at' => Carbon::now()->subYears(2),
+            'is_active' => true,
+            'email_verified_at' => now(),
+        ]);
+
+        User::create([
+            'name' => 'Coach Tiwi',
+            'email' => 'tiwi@gmail.com', 
+            'password' => $password,
+            'role' => 'pt',
+            'occupation' => 'Personal Trainer',
+            'age' => 30,
+            'gender' => 'Perempuan',
+            'phone' => '081372225122',
             'medical_history' => null,
             'address' => 'Jambi',
             'joined_at' => Carbon::now()->subYears(2),

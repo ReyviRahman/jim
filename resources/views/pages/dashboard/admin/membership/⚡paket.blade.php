@@ -393,9 +393,14 @@ new #[Layout('layouts::admin')] class extends Component
             {{ session('error') }}
         </div>
     @endif
-    <div class="mb-6">
-        <h5 class="text-xl font-semibold text-heading mb-2">Pendaftaran & Transaksi Kasir</h5>
-        <p class="text-body text-sm">Pilih jenis program, tentukan durasi, dan catat pembayaran.</p>
+    <div class="mb-6 flex items-end gap-2">
+        <a href="{{ route('admin.membership.gabung') }}" wire:navigate class="p-2 bg-white border border-default rounded-md hover:bg-gray-50 text-gray-600 transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+        </a>
+        <div>
+            <h5 class="text-xl font-semibold text-heading mb-2">Pendaftaran & Transaksi Kasir</h5>
+            <p class="text-body text-sm">Pilih jenis program, tentukan durasi, dan catat pembayaran.</p>
+        </div>
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">

@@ -20,7 +20,7 @@
                 <span class="self-center text-lg text-heading font-semibold whitespace-nowrap">Flowbite</span>
             </a>
             <ul class="space-y-2 font-medium px-3">
-                <li>
+                {{-- <li>
                     <a href="{{ route('admin.absensi.index') }}" wire:navigate 
                         class="{{ request()->routeIs('admin.absensi.*') ? 'text-[#34342F] bg-brand' : 'text-white' }} flex items-center px-2 py-1.5 rounded-md hover:bg-brand hover:text-[#34342F] group transition-colors">
                             
@@ -28,7 +28,7 @@
                         
                         <span class="ms-3">Dashboard</span>
                     </a>
-                </li>
+                </li> --}}
                 <li>
                     <a href="{{ route('admin.absensi.index') }}" wire:navigate 
                         class="{{ request()->routeIs('admin.absensi.*') ? 'text-[#34342F] bg-brand' : 'text-white' }} flex items-center px-2 py-1.5 rounded-md hover:bg-brand hover:text-[#34342F] group transition-colors">
@@ -145,7 +145,7 @@
                         <span class="ms-3">Cicilan</span>
                     </a>
                 </li>
-                <li>
+                {{-- <li>
                     <a href="{{ route('admin.renew.index') }}" wire:navigate 
                         class="{{ request()->routeIs('admin.renew.*') ? 'text-[#34342F] bg-brand' : 'text-white' }} flex items-center px-2 py-1.5 rounded-md hover:bg-brand hover:text-[#34342F] group transition-colors">
                         
@@ -153,7 +153,7 @@
                         
                         <span class="ms-3">Renew</span>
                     </a>
-                </li>
+                </li> --}}
             </ul>
         </div>
         </aside>
