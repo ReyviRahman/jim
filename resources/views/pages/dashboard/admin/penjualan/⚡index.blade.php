@@ -11,6 +11,7 @@ use App\Models\Expense;
 use Carbon\Carbon;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\PenjualanExport;
+use Illuminate\Support\Facades\Auth;
 
 new #[Layout('layouts::admin')] class extends Component
 {
@@ -23,7 +24,26 @@ new #[Layout('layouts::admin')] class extends Component
     
     // Filter Baru
     public $perPage = 'all';
-    public $shift = 'pagi';
+    public $shift;
+
+    public function mount()
+    {
+        $user = Auth::user();
+        // Cek apakah user sudah login untuk menghindari error
+        if ($user) {
+            // Jika role admin, set ke 'all'
+            if ($user->role === 'admin') {
+                $this->shift = 'all';
+            } else {
+                // Jika bukan admin, ambil dari kolom shift milik user tersebut di database
+                // Asumsi di database kamu ada kolom bernama 'shift' (berisi 'pagi' atau 'siang')
+                $this->shift = $user->shift; 
+            }
+        } else {
+            // Fallback default jika user belum login (opsional, sesuaikan kebutuhan)
+            $this->shift = 'pagi';
+        }
+    }
 
     public function setFilterTime($val)
     {
@@ -78,10 +98,16 @@ new #[Layout('layouts::admin')] class extends Component
 
         // 2. Logika Filter Waktu
         if ($this->filterTime === 'today') {
+            $this->dateStart = now()->format('Y-m-d');
+            $this->dateEnd = now()->format('Y-m-d');
             $query->whereDate('payment_date', today());
         } elseif ($this->filterTime === 'week') {
+            $this->dateStart = now()->startOfWeek()->format('Y-m-d');
+            $this->dateEnd = now()->endOfWeek()->format('Y-m-d');
             $query->whereBetween('payment_date', [now()->startOfWeek(), now()->endOfWeek()]);
         } elseif ($this->filterTime === 'month') {
+            $this->dateStart = now()->startOfMonth()->format('Y-m-d');
+            $this->dateEnd = now()->endOfMonth()->format('Y-m-d');
             $query->whereMonth('payment_date', now()->month)
                   ->whereYear('payment_date', now()->year);
         } elseif ($this->filterTime === 'custom' && $this->dateStart && $this->dateEnd) {
@@ -111,7 +137,7 @@ new #[Layout('layouts::admin')] class extends Component
     #[Computed]
     public function transactions()
     {
-        $query = $this->getBaseQuery();
+        $query = $this->getBaseQuery()->with(['admin', 'followUp']);
         $limit = $this->perPage === 'all' ? 10000 : $this->perPage;
         return $query->latest('payment_date')->paginate($limit);
     }
@@ -127,7 +153,7 @@ new #[Layout('layouts::admin')] class extends Component
 
         // Keuangan (Kiri)
         $transfer = $data->where('payment_method', 'transfer')->sum('amount');
-        $debit = $data->where('payment_method', 'edc')->sum('amount'); 
+        $debit = $data->where('payment_method', 'debit')->sum('amount'); 
         $qris = $data->where('payment_method', 'qris')->sum('amount');
         $cash = $data->where('payment_method', 'cash')->sum('amount');
         
@@ -199,11 +225,14 @@ new #[Layout('layouts::admin')] class extends Component
     public function exportExcel()
     {
         // 1. Ambil data pemasukan
-        $transactions = $this->getBaseQuery()->get();
+        $transactions = $this->getBaseQuery()->with(['admin', 'followUp'])->get();
+
+        $startDate = $this->dateStart;
+        $endDate = $this->dateEnd;
 
         // 2. Hitung komponen uang pemasukan
         $transfer = $transactions->where('payment_method', 'transfer')->sum('amount');
-        $debit = $transactions->where('payment_method', 'edc')->sum('amount');
+        $debit = $transactions->where('payment_method', 'debit')->sum('amount');
         $qris = $transactions->where('payment_method', 'qris')->sum('amount');
         $cash = $transactions->where('payment_method', 'cash')->sum('amount');
         $totalSystemBalance = $transfer + $debit + $qris + $cash;
@@ -248,13 +277,23 @@ new #[Layout('layouts::admin')] class extends Component
         ];
 
         // 5. Download Excel-nya
-        $tanggalExport = $this->filterTime === 'today' ? today()->format('Y-m-d') : ($this->dateStart ?? today()->format('Y-m-d'));
-        $fileName = 'Laporan_Penjualan_' . $tanggalExport . '.xlsx';
+        // Jika 1 hari saja
+        // Ubah format tanggal menjadi d-m-Y (Tanggal-Bulan-Tahun)
+        $formatStart = \Carbon\Carbon::parse($startDate)->format('d-m-Y');
+        $formatEnd = \Carbon\Carbon::parse($endDate)->format('d-m-Y');
+
+        if ($startDate === $endDate) {
+            $fileName = 'Laporan_Penjualan_' . $formatStart . '.xlsx';
+        } 
+        else {
+            $fileName = 'Laporan_Penjualan_' . $formatStart . '_sd_' . $formatEnd . '.xlsx';
+        }
 
         return \Maatwebsite\Excel\Facades\Excel::download(new PenjualanExport(
             $transactions, 
             $summaryTotal, 
-            $tanggalExport,
+            $startDate,
+            $endDate,
             $this->shift 
         ), $fileName);
     }
@@ -262,6 +301,9 @@ new #[Layout('layouts::admin')] class extends Component
 ?>
 
 <div>
+    
+
+
     <div class="flex sm:flex-row flex-col justify-between items-center mb-6">
         <h5 class="text-xl font-semibold text-heading">
             Riwayat Penjualan Shift {{ $this->shift === 'all' ? 'Pagi & Siang' : ucfirst($this->shift) }}
@@ -274,6 +316,16 @@ new #[Layout('layouts::admin')] class extends Component
             </button>
         </div>
     </div>
+    @if (session()->has('success'))
+        <div class="p-4 mb-4 text-sm text-green-800 rounded-lg bg-green-50" role="alert">
+            <span class="font-medium">Sukses!</span> {{ session('success') }}
+        </div>
+    @endif
+    @if (session()->has('error'))
+        <div class="p-4 mb-4 text-sm text-red-800 rounded-lg bg-red-50" role="alert">
+            <span class="font-medium">Gagal!</span> {{ session('error') }}
+        </div>
+    @endif
 
     {{-- Filter Bar --}}
     <div class="relative overflow-x-auto bg-neutral-primary-soft shadow-xs rounded-md border border-default mb-6">
@@ -319,14 +371,12 @@ new #[Layout('layouts::admin')] class extends Component
                         @if($filterTime === 'today') Hari Ini
                         @elseif($filterTime === 'week') Minggu Ini
                         @elseif($filterTime === 'month') Bulan Ini
-                        @elseif($filterTime === 'custom') Kustom
-                        @else Semua Waktu @endif
+                        @elseif($filterTime === 'custom') Kustom @endif
                         <svg class="w-4 h-4 ms-1.5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m19 9-7 7-7-7"/></svg>
                     </button>
                     
                     <div x-show="open" style="display: none;" class="absolute right-0 z-50 mt-2 bg-white border border-gray-200 rounded-md shadow-lg w-40">
                         <ul class="p-2 text-sm text-gray-700 font-medium">
-                            <li><button type="button" wire:click="setFilterTime('all')" @click="open = false" class="w-full text-left p-2 hover:bg-gray-100 rounded">Semua Waktu</button></li>
                             <li><button type="button" wire:click="setFilterTime('today')" @click="open = false" class="w-full text-left p-2 hover:bg-gray-100 rounded">Hari ini</button></li>
                             <li><button type="button" wire:click="setFilterTime('week')" @click="open = false" class="w-full text-left p-2 hover:bg-gray-100 rounded">Minggu ini</button></li>
                             <li><button type="button" wire:click="setFilterTime('month')" @click="open = false" class="w-full text-left p-2 hover:bg-gray-100 rounded">Bulan ini</button></li>
@@ -345,9 +395,11 @@ new #[Layout('layouts::admin')] class extends Component
                     <th class="px-6 py-3 font-medium text-right">Tgl Berakhir</th>
                     <th class="px-6 py-3 font-medium">Status</th>
                     <th class="px-6 py-3 font-medium">Paket Member</th>
+                    <th class="px-6 py-3 font-medium">Catatan</th>
                     <th class="px-6 py-3 font-medium text-right">Nominal</th>
                     <th class="px-6 py-3 font-medium">Metode Bayar</th>
                     <th class="px-6 py-3 font-medium">Admin</th>
+                    <th class="px-6 py-3 font-medium">Follow Up</th>
                 </tr>
             </thead>
             <tbody>
@@ -373,15 +425,16 @@ new #[Layout('layouts::admin')] class extends Component
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
                             <div class="font-medium">{{ $transaction->payment_date ? \Carbon\Carbon::parse($transaction->payment_date)->format('d M Y') : '-' }}</div>
-                            <div class="text-xs text-gray-500">{{ $transaction->payment_date ? \Carbon\Carbon::parse($transaction->payment_date)->format('H:i') : '' }} WIB</div>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">{{ $transaction->start_date ? \Carbon\Carbon::parse($transaction->start_date)->format('d M Y') : '-' }}</td>
                         <td class="px-6 py-4 text-right whitespace-nowrap">{{ $transaction->end_date ? \Carbon\Carbon::parse($transaction->end_date)->format('d M Y') : '-' }}</td>
                         <td class="px-6 py-4 whitespace-nowrap"><span class="px-2 py-0.5 text-[10px] uppercase font-bold rounded-full bg-blue-100 text-blue-800">{{ $transaction->transaction_type }}</span></td>
                         <td class="px-6 py-4 font-medium text-gray-700 whitespace-nowrap">{{ $transaction->package_name }}</td>
+                        <td class="px-6 py-4 font-medium text-gray-700 whitespace-nowrap">{{ $transaction->notes }}</td>
                         <td class="px-6 py-4 text-right font-bold text-emerald-600 whitespace-nowrap">Rp {{ number_format($transaction->amount, 0, ',', '.') }}</td>
                         <td class="px-6 py-4 whitespace-nowrap"><span class="text-xs font-medium border bg-white px-2 py-0.5 rounded shadow-xs">{{ strtoupper($transaction->payment_method) }}</span></td>
                         <td class="px-6 py-4 whitespace-nowrap">{{ $transaction->admin->name ?? '-' }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">{{ $transaction->followUp->name ?? '-' }}</td>
                     </tr>
                 @empty
                     <tr><td colspan="10" class="px-6 py-8 text-center text-gray-500">Belum ada riwayat penjualan.</td></tr>

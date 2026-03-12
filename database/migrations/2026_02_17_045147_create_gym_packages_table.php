@@ -17,6 +17,8 @@ return new class extends Migration
             $table->integer('pt_sessions')->nullable();
             $table->decimal('price', 12, 0);
             $table->decimal('discount', 12, 0)->default(0);
+            $table->decimal('net_price', 12, 0)->nullable(); 
+            $table->decimal('unrecommended_price', 12, 0)->nullable();
             $table->text('description')->nullable(); 
             $table->boolean('is_active')->default(true);
             $table->timestamps();

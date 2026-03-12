@@ -11,6 +11,7 @@ class MembershipTransaction extends Model
         'membership_id', 
         'user_id',
         'admin_id',
+        'follow_up_id',
         'transaction_type',
         'package_name',
         'amount', 
@@ -31,6 +32,11 @@ class MembershipTransaction extends Model
     public function admin()
     {
         return $this->belongsTo(User::class, 'admin_id');
+    }
+
+    public function followUp()
+    {
+        return $this->belongsTo(User::class, 'follow_up_id');
     }
 
     public function membership()

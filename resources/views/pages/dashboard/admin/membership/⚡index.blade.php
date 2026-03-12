@@ -88,7 +88,7 @@ new #[Layout('layouts::admin')] class extends Component
     #[Computed]
     public function memberships()
     {
-        $query = Membership::with(['user', 'members', 'personalTrainer', 'gymPackage', 'ptPackage'])
+        $query = Membership::with(['user', 'members', 'admin', 'followUp', 'personalTrainer', 'gymPackage', 'ptPackage'])
             ->where('status', 'active');
 
         // 1. Logika Pencarian (Mencari di tabel Users atau Members)
@@ -231,8 +231,11 @@ new #[Layout('layouts::admin')] class extends Component
                     <th scope="col" class="px-6 py-3 font-medium">Member</th>
                     <th scope="col" class="px-6 py-3 font-medium">Program / Paket</th>
                     <th scope="col" class="px-6 py-3 font-medium text-right">Total Bayar</th>
+                    <th scope="col" class="px-6 py-3 font-medium text-right">Harga Net</th>
+                    <th scope="col" class="px-6 py-3 font-medium text-right">Harga Tidak disarankan</th>
                     <th scope="col" class="px-6 py-3 font-medium">Masa Aktif</th>
-                    <th scope="col" class="px-6 py-3 font-medium text-center">Status</th>
+                    <th scope="col" class="px-6 py-3 font-medium text-center">Admin</th>
+                    <th scope="col" class="px-6 py-3 font-medium text-center">Follow Up</th>
                 </tr>
             </thead>
             <tbody>
@@ -325,7 +328,16 @@ new #[Layout('layouts::admin')] class extends Component
                                 Rp {{ number_format($membership->price_paid, 0, ',', '.') }}
                             </div>
                         </td>
-
+                        <td class="px-6 py-4 text-right whitespace-nowrap">
+                            <div class="font-bold text-heading text-base">
+                                {{ $membership->net_price ? 'Rp ' . number_format($membership->net_price, 0, ',', '.') : '-' }}
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 text-right whitespace-nowrap">
+                            <div class="font-bold text-heading text-base ">
+                                {{ $membership->unrecommended_price ? 'Rp ' . number_format($membership->unrecommended_price, 0, ',', '.') : '-' }}
+                            </div>
+                        </td>
                         {{-- Masa Aktif --}}
                         <td class="px-6 py-4 whitespace-nowrap text-xs">
                             <div class="flex flex-col gap-1.5">
@@ -360,19 +372,11 @@ new #[Layout('layouts::admin')] class extends Component
                             </div>
                         </td>
 
-                        {{-- Status & Aksi --}}
-                        <td class="px-6 py-4 text-center whitespace-nowrap">
-                            @if ($membership->status === 'active')
-                                <span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">Active</span>
-                            @elseif ($membership->status === 'expired')
-                                <span class="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">Expired</span>
-                            @elseif ($membership->status === 'completed')
-                                <span class="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">Selesai / Sesi Habis</span>
-                            @elseif ($membership->status === 'pending')
-                                <span class="px-2 py-1 text-xs font-semibold rounded-full bg-orange-100 text-orange-800">Pending</span>
-                            @elseif ($membership->status === 'rejected')
-                                <span class="px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">Rejected</span>
-                            @endif
+                        <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
+                            <h1 class="font-semibold">{{ $membership->admin->name }}</h1>
+                        </td>
+                        <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
+                            <h1 class="font-semibold">{{ $membership->followUp->name ?? '-' }}</h1>
                         </td>
                     </tr>
                 @empty

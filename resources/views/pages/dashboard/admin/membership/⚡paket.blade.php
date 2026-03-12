@@ -35,6 +35,7 @@ new #[Layout('layouts::admin')] class extends Component
 
     // Kalkulasi Harga
     public $base_price = 0;
+    public $manual_discount = 0;
     public $discount_applied = 0; 
     public $price_paid = 0; // Total Tagihan Akhir
     public $calculated_total_sessions = 0;
@@ -43,9 +44,13 @@ new #[Layout('layouts::admin')] class extends Component
     public $payment_type = 'paid'; // 'paid' (Lunas) atau 'partial' (Nyicil)
     public $amount_paid = 0; // Uang yang dibayar SEKARANG
     public $payment_method = 'cash';
+    public $payment_date = '';
     public $transaction_type = '';
     public $package_name = '';
     public $notes = '';
+
+    public $admin_id = '';
+    public $follow_up_id = '';
 
     public function mount()
     {
@@ -73,6 +78,7 @@ new #[Layout('layouts::admin')] class extends Component
         }
 
         $this->start_date = now()->format('Y-m-d');
+        $this->payment_date = now()->format('Y-m-d');
         
         // Gunakan hitungan 30 hari kaku (tambah 29 hari karena hari ini sudah dihitung 1 hari)
         $this->membership_end_date = now()->addDays(29)->format('Y-m-d');
@@ -86,6 +92,20 @@ new #[Layout('layouts::admin')] class extends Component
         return User::find($userId)->memberships()
             ->whereIn('status', ['active', 'pending'])
             ->exists();
+    }
+
+    #[Computed]
+    public function adminUsers()
+    {
+        // Sesuaikan 'admin', 'kasir' dengan role yang ada di sistemmu
+        return User::whereIn('role', ['kasir_gym'])->where('is_active', true)->get();
+    }
+
+    #[Computed]
+    public function followUpUsers()
+    {
+        // Sesuaikan dengan role staff follow up di sistemmu
+        return User::whereIn('role', ['pt', 'kasir_gym', 'sales'])->where('is_active', true)->get();
     }
 
     #[Computed]
@@ -187,7 +207,7 @@ new #[Layout('layouts::admin')] class extends Component
             }
         }
 
-        if (in_array($property, ['registration_type', 'gym_package_id', 'pt_package_id'])) {
+        if (in_array($property, ['registration_type', 'gym_package_id', 'pt_package_id', 'manual_discount'])) {
             $this->calculateTotal();
         }
 
@@ -242,7 +262,8 @@ new #[Layout('layouts::admin')] class extends Component
         }
 
         $this->base_price = $hargaGym + $hargaPt; 
-        $this->discount_applied = $diskonGym + $diskonPt;
+        $diskonManualAngka = empty($this->manual_discount) ? 0 : (int) $this->manual_discount;
+        $this->discount_applied = $diskonGym + $diskonPt + $diskonManualAngka;
         
         $this->price_paid = $this->base_price - $this->discount_applied; 
         if ($this->price_paid < 0) $this->price_paid = 0;
@@ -276,10 +297,14 @@ new #[Layout('layouts::admin')] class extends Component
             'registration_type' => 'required|in:membership,pt,bundle_pt_membership,visit',
             'start_date' => 'required|date',
             'payment_type' => 'required|in:paid,partial',
-            'payment_method' => 'required|in:cash,transfer,qris,edc',
+            'payment_method' => 'required|in:cash,transfer,qris,debit',
+            'payment_date' => 'required|date',
             'transaction_type' => 'required|string',
             'package_name' => 'required|string',
-            'notes' => 'nullable|string',
+            'notes' => 'required|string',
+            'admin_id' => 'required|exists:users,id',
+            'follow_up_id' => 'nullable|exists:users,id|different:admin_id',
+            'manual_discount' => 'nullable|numeric|min:0|max:' . $this->base_price,
         ];
 
         // Validasi Nominal Nyicil
@@ -301,6 +326,7 @@ new #[Layout('layouts::admin')] class extends Component
         $this->validate($rules, [
             'amount_paid.max' => 'Nominal cicilan tidak boleh lebih atau sama dengan total tagihan.',
             'amount_paid.min' => 'Nominal cicilan harus lebih dari 0.',
+            'manual_discount.max' => 'Diskon tidak boleh melebihi total harga paket.',
         ]);
 
         foreach ($this->selectedUsers as $u) {
@@ -316,6 +342,8 @@ new #[Layout('layouts::admin')] class extends Component
         // Nominal aktual yang dibayarkan saat ini
         $actualAmountPaid = $this->payment_type === 'paid' ? $this->price_paid : $this->amount_paid;
 
+        $pkt = GymPackage::find($this->gym_package_id);
+
         // 👇 MULAI DATABASE TRANSACTION DI SINI 👇
         try {
             DB::beginTransaction();
@@ -328,9 +356,12 @@ new #[Layout('layouts::admin')] class extends Component
                 'gym_package_id' => in_array($this->registration_type, ['membership', 'bundle_pt_membership', 'visit']) ? $this->gym_package_id : null,
                 'pt_package_id' => in_array($this->registration_type, ['pt', 'bundle_pt_membership']) ? $this->pt_package_id : null,
                 'pt_id' => in_array($this->registration_type, ['pt', 'bundle_pt_membership']) ? $this->pt_id : null,
-                
+                'admin_id' => $this->admin_id,
+                'follow_up_id' => $this->follow_up_id ?: null,
                 'base_price' => $this->base_price,
                 'discount_applied' => $this->discount_applied,
+                'net_price' => $pkt->net_price,
+                'unrecommended_price' => $pkt->unrecommended_price,
                 'price_paid' => $this->price_paid, 
                 
                 'total_paid' => $actualAmountPaid, 
@@ -358,12 +389,13 @@ new #[Layout('layouts::admin')] class extends Component
                 'invoice_number' => 'INV-' . date('Ymd') . '-' . strtoupper(uniqid()),
                 'membership_id' => $membership->id,
                 'user_id' => $this->mainUser->id,
-                'admin_id' => Auth::id() ?? 1, 
+                'admin_id' => $this->admin_id, 
+                'follow_up_id' => $this->follow_up_id ?: null,
                 'transaction_type' => $this->transaction_type,
                 'package_name' => $this->package_name,
                 'amount' => $actualAmountPaid,
                 'payment_method' => $this->payment_method,
-                'payment_date' => now(),
+                'payment_date' => $this->payment_date,
                 'start_date' => $this->start_date,
                 'end_date' => in_array($this->registration_type, ['pt']) ? $this->pt_end_date : $this->membership_end_date,
                 'notes' => $this->notes,
@@ -373,7 +405,7 @@ new #[Layout('layouts::admin')] class extends Component
             DB::commit();
 
             session()->flash('success', 'Transaksi berhasil disimpan dan uang masuk sudah dicatat.');
-            return $this->redirectRoute('admin.membership.index', navigate: true); 
+            return $this->redirectRoute('admin.penjualan.index', navigate: true); 
 
         } catch (\Exception $e) {
             // Jika ada gagal/error/putus di tengah jalan, batalkan semua insert data
@@ -393,9 +425,14 @@ new #[Layout('layouts::admin')] class extends Component
             {{ session('error') }}
         </div>
     @endif
-    <div class="mb-6">
-        <h5 class="text-xl font-semibold text-heading mb-2">Pendaftaran & Transaksi Kasir</h5>
-        <p class="text-body text-sm">Pilih jenis program, tentukan durasi, dan catat pembayaran.</p>
+    <div class="mb-6 flex items-end gap-2">
+        <a href="{{ route('admin.membership.gabung') }}" wire:navigate class="p-2 bg-white border border-default rounded-md hover:bg-gray-50 text-gray-600 transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+        </a>
+        <div>
+            <h5 class="text-xl font-semibold text-heading mb-2">Pendaftaran & Transaksi Kasir</h5>
+            <p class="text-body text-sm">Pilih jenis program, tentukan durasi, dan catat pembayaran.</p>
+        </div>
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -543,6 +580,38 @@ new #[Layout('layouts::admin')] class extends Component
                         </div>
                         @endif
 
+                        {{-- 5. FORM PETUGAS INTERNAL --}}
+                        <div class="md:col-span-2 mt-2 p-4 bg-gray-50 rounded-md border border-gray-200">
+                            <h6 class="text-sm font-semibold text-heading mb-4 border-b border-gray-200 pb-2">Detail Petugas Internal</h6>
+                            <div class="grid gap-6 md:grid-cols-2">
+                                
+                                {{-- Dropdown Admin / Kasir --}}
+                                <div>
+                                    <label for="admin_id" class="block mb-2.5 text-sm font-medium text-heading">Admin<span class="text-red-500">*</span></label>
+                                    <select id="admin_id" wire:model="admin_id" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs">
+                                        <option value="">-- Pilih Admin --</option>
+                                        @foreach($this->adminUsers as $admin)
+                                            <option value="{{ $admin->id }}">{{ $admin->name }}</option>
+                                        @endforeach
+                                    </select>
+                                    @error('admin_id') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                                </div>
+
+                                {{-- Dropdown Staff Follow Up --}}
+                                <div>
+                                    <label for="follow_up_id" class="block mb-2.5 text-sm font-medium text-heading">Follow Up (Opsional)</label>
+                                    <select id="follow_up_id" wire:model="follow_up_id" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs">
+                                        <option value="">-- Pilih Staff Jika Ada--</option>
+                                        @foreach($this->followUpUsers as $staff)
+                                            <option value="{{ $staff->id }}">{{ $staff->name }}</option>
+                                        @endforeach
+                                    </select>
+                                    @error('follow_up_id') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                                </div>
+
+                            </div>
+                        </div>
+
                     @else
                         {{-- State Kosong --}}
                         <div class="md:col-span-2 text-center py-8 text-gray-400 border border-dashed border-gray-300 rounded-md mt-4">
@@ -568,12 +637,21 @@ new #[Layout('layouts::admin')] class extends Component
                     @endif
 
                     @if(in_array($registration_type, ['membership', 'bundle_pt_membership', 'visit']) && $gym_package_id)
-                        @php $gymPkg = App\Models\GymPackage::find($gym_package_id); @endphp
+                        @php 
+                            $gymPkg = App\Models\GymPackage::find($gym_package_id);
+                            $multiplier = ($registration_type === 'visit') ? $selectedUsers->count() : 1; 
+                        @endphp
                         @if($gymPkg)
                             <div class="flex justify-between">
                                 <span>{{ $registration_type === 'visit' ? 'Paket Visit' : 'Paket Gym' }}</span>
                                 <span class="font-medium text-heading">Rp {{ number_format($gymPkg->price * ($registration_type === 'visit' ? $selectedUsers->count() : 1), 0, ',', '.') }}</span>
                             </div>
+                            @if($gymPkg->discount > 0)
+                                <div class="flex justify-between text-red-500 text-xs mt-1">
+                                    <span>Diskon Paket</span>
+                                    <span>- Rp {{ number_format($gymPkg->discount * $multiplier, 0, ',', '.') }}</span>
+                                </div>
+                            @endif
                         @endif
                     @endif
 
@@ -585,7 +663,20 @@ new #[Layout('layouts::admin')] class extends Component
                                 <span>Paket PT ({{ $ptPkg->pt_sessions }} Sesi)</span>
                                 <span class="font-medium text-heading">Rp {{ number_format($ptPkg->price, 0, ',', '.') }}</span>
                             </div>
+                            @if($ptPkg->discount > 0)
+                                <div class="flex justify-between text-red-500 text-xs mt-1">
+                                    <span>Diskon Paket PT</span>
+                                    <span>- Rp {{ number_format($ptPkg->discount, 0, ',', '.') }}</span>
+                                </div>
+                            @endif
                         @endif
+                    @endif
+                    @if((int)$manual_discount > 0)
+                        <div class="border-t border-default-medium my-2"></div>
+                        <div class="flex justify-between text-red-500 font-medium text-sm">
+                            <span>Diskon Tambahan (Manual)</span>
+                            <span>- Rp {{ number_format((int)$manual_discount, 0, ',', '.') }}</span>
+                        </div>
                     @endif
                 </div>
 
@@ -593,6 +684,42 @@ new #[Layout('layouts::admin')] class extends Component
                     <span class="text-sm font-semibold text-heading">Total Tagihan:</span>
                     <span class="text-2xl font-bold text-brand-strong">Rp {{ number_format($price_paid, 0, ',', '.') }}</span>
                 </div>
+                {{-- FORM INPUT DISKON MANUAL --}}
+                @if($registration_type && $price_paid > 0)
+                <div class="mb-4">
+                    <label class="block mb-1 text-sm font-medium text-heading">Diskon Tambahan</label>
+                    <div x-data="{ 
+                        discount: $wire.entangle('manual_discount').live, 
+                        formatted: '',
+                        init() {
+                            this.formatValue(this.discount);
+                            $watch('discount', value => {
+                                this.formatValue(value);
+                            });
+                        },
+                        formatValue(value) {
+                            if (!value) {
+                                this.formatted = '';
+                                return;
+                            }
+                            let raw = value.toString().replace(/\D/g, '');
+                            this.formatted = new Intl.NumberFormat('id-ID').format(raw);
+                        },
+                        updateValue(event) {
+                            let raw = event.target.value.replace(/\D/g, '');
+                            this.discount = raw; 
+                            this.formatValue(raw);
+                        }
+                    }">
+                        <input type="text" 
+                            x-model="formatted" 
+                            @input="updateValue($event)"
+                            class="bg-white border border-default-medium text-heading text-lg font-bold rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2 shadow-xs text-red-600" 
+                            placeholder="Diskon (Jika Ada)">
+                    </div>
+                    @error('manual_discount') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                </div>
+                @endif
 
                 {{-- FORM KASIR (BAYAR) --}}
                 @if($registration_type && $price_paid > 0)
@@ -669,9 +796,15 @@ new #[Layout('layouts::admin')] class extends Component
                             <option value="cash">💵 Cash / Tunai</option>
                             <option value="transfer">🏦 Transfer Bank</option>
                             <option value="qris">📱 QRIS</option>
-                            <option value="edc">💳 Debit</option>
+                            <option value="debit">💳 Debit</option>
                         </select>
                         @error('payment_method') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                    </div>
+                    <div>
+                        <label class="block mb-1 text-sm font-medium text-heading">Tanggal Pembayaran</label>
+                        <input type="date" wire:model="payment_date" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2 shadow-xs">
+                        <p class="mt-1.5 text-xs text-brand-strong font-medium">{{ $this->getFormattedDate($payment_date) }}</p>
+                        @error('payment_date') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                     </div>
 
                     <div>
@@ -684,6 +817,12 @@ new #[Layout('layouts::admin')] class extends Component
                         <label class="block mb-1 text-sm font-medium text-heading">Status</label>
                         <textarea wire:model="transaction_type" rows="2" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2 shadow-xs placeholder-gray-400" placeholder="Contoh: NEW MEMBER, NEW PT 20 SESI"></textarea>
                         @error('transaction_type') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                    </div>
+
+                    <div>
+                        <label class="block mb-1 text-sm font-medium text-heading">Catatan</label>
+                        <textarea wire:model="notes" rows="2" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2 shadow-xs placeholder-gray-400" placeholder="Contoh: NEW MEMBER, NEW PT 20 SESI"></textarea>
+                        @error('notes') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                     </div>
 
                 </div>

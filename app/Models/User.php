@@ -54,6 +54,32 @@ class User extends Authenticatable
     }
 
     // --- UPDATE METHOD ---
+
+    // --- RELASI BARU (HAS MANY UNTUK ROLE LAIN) ---
+
+    /**
+     * Relasi sebagai Admin yang memproses/menginput membership
+     */
+    public function adminMemberships(): HasMany
+    {
+        return $this->hasMany(Membership::class, 'admin_id');
+    }
+
+    /**
+     * Relasi sebagai Personal Trainer (PT) yang menangani membership
+     */
+    public function ptMemberships(): HasMany
+    {
+        return $this->hasMany(Membership::class, 'pt_id');
+    }
+
+    /**
+     * Relasi sebagai Staff yang ditugaskan untuk follow-up membership
+     */
+    public function followUpMemberships(): HasMany
+    {
+        return $this->hasMany(Membership::class, 'follow_up_id');
+    }
     
     public function activeMembership()
     {

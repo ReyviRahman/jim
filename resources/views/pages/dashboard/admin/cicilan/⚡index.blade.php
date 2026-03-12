@@ -21,7 +21,7 @@ new #[Layout('layouts::admin')] class extends Component
     public function memberships()
     {
         // Tambahkan 'members' di dalam array with()
-        return Membership::with(['user', 'members', 'gymPackage', 'ptPackage'])
+        return Membership::with(['user', 'members', 'admin', 'followUp', 'gymPackage', 'ptPackage'])
             ->whereIn('payment_status', ['partial', 'unpaid'])
             ->when($this->search, function ($query) {
                 $query->where(function ($q) {
@@ -57,11 +57,12 @@ new #[Layout('layouts::admin')] class extends Component
             <thead class="text-xs text-heading uppercase bg-neutral-primary-soft border-b border-default">
                 <tr>
                     <th class="px-4 py-3">Member</th>
+                    <th class="px-4 py-3">Admin</th>
+                    <th class="px-4 py-3">Follow Up</th>
                     <th class="px-4 py-3">Paket Layanan</th>
                     <th class="px-4 py-3 text-right">Total Tagihan</th>
                     <th class="px-4 py-3 text-right">Sudah Dibayar</th>
                     <th class="px-4 py-3 text-right">Sisa Tagihan</th>
-                    <th class="px-4 py-3 text-center">Status Akses</th>
                     <th class="px-4 py-3 text-center">Aksi</th>
                 </tr>
             </thead>
@@ -83,9 +84,15 @@ new #[Layout('layouts::admin')] class extends Component
                                     </div>
                                 @endif
                             </div>
-                            <div class="text-xs text-gray-500 font-normal">
+                            {{-- <div class="text-xs text-gray-500 font-normal">
                                 Tgl: {{ $m->start_date ? \Carbon\Carbon::parse($m->start_date)->format('d M Y') : '-' }}
-                            </div>
+                            </div> --}}
+                        </td>
+                        <td class="px-4 py-3 text-right font-medium text-heading">
+                            {{$m->admin->name}}
+                        </td>
+                        <td class="px-4 py-3 text-right font-medium text-heading">
+                            {{$m->followUp->name ?? '-' }}
                         </td>
                         <td class="px-4 py-3">
                             @if($m->type === 'visit') Visit Harian
@@ -96,13 +103,6 @@ new #[Layout('layouts::admin')] class extends Component
                         <td class="px-4 py-3 text-right font-medium text-heading">Rp {{ number_format($m->price_paid, 0, ',', '.') }}</td>
                         <td class="px-4 py-3 text-right text-green-600">Rp {{ number_format($m->total_paid, 0, ',', '.') }}</td>
                         <td class="px-4 py-3 text-right text-red-600 font-bold">Rp {{ number_format($m->price_paid - $m->total_paid, 0, ',', '.') }}</td>
-                        <td class="px-4 py-3 text-center whitespace-nowrap">
-                            @if($m->status === 'active')
-                                <span class="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded">Aktif</span>
-                            @else
-                                <span class="bg-orange-100 text-orange-800 text-xs font-medium px-2.5 py-0.5 rounded">Belum Lunas</span>
-                            @endif
-                        </td>
                         <td class="px-4 py-3 text-center whitespace-nowrap">
                             {{-- Ganti rute ini sesuai dengan rute halaman pembayaran kamu --}}
                             <a href="{{ route('admin.cicilan.pay', $m->id) }}" wire:navigate class="text-white bg-brand hover:bg-brand-strong focus:ring-4 focus:ring-brand-medium font-medium rounded-md text-xs px-3 py-1.5 transition-colors">

@@ -70,10 +70,14 @@ new #[Layout('layouts::admin')] class extends Component
     @endif
 
     <div class="relative overflow-x-auto bg-neutral-primary-soft shadow-xs rounded-base border border-default">
-        <div class="flex items-center justify-between flex-column flex-wrap md:flex-row space-y-4 md:space-y-0 p-4">
+        <div class="flex items-center flex-column flex-wrap md:flex-row space-y-4 md:space-y-0 p-4">
             <div>
                 <h5 class="text-xl font-semibold text-heading">Pilih Akun Member</h5>
                 <p class="text-sm text-body mt-1">Pilih 1 orang (Single), 2 orang (Couple), atau 3 orang lebih (Group).</p>
+            </div>
+
+            <div class="ms-auto me-2">
+                <a href="{{ route('admin.membership.gabung.daftar-member') }}" wire:navigate class="text-white bg-brand box-border border border-transparent hover:bg-brand-strong focus:ring-4 focus:ring-brand-medium shadow-xs font-medium leading-5 rounded-md text-sm px-4 py-2.5 focus:outline-none">+ Buat Akun</a>
             </div>
             
             <div class="relative">

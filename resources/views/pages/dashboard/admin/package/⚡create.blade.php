@@ -31,7 +31,13 @@ new #[Layout('layouts::admin')] class extends Component
     public $price = '';
 
     #[Validate('nullable|numeric|min:0')]
-    public $discount = ''; 
+    public $discount = '';
+
+    #[Validate('required|numeric|min:0')]
+    public $net_price = ''; 
+
+    #[Validate('required|numeric|min:0')]
+    public $unrecommended_price = ''; 
 
     // Reset dan atur UI jika Tipe diubah
     public function updatedType($value)
@@ -108,7 +114,9 @@ new #[Layout('layouts::admin')] class extends Component
             'max_members' => $this->max_members, 
             'price' => $this->price,
             'discount' => $this->discount === '' ? 0 : $this->discount,
-            // 'description' => $this->description, // Tambahkan ini jika Anda punya properti $description di class ini
+            'price' => $this->price,
+            'net_price' => $this->net_price,
+            'unrecommended_price' => $this->unrecommended_price,
         ]);
 
         $this->reset(); 
@@ -243,6 +251,32 @@ new #[Layout('layouts::admin')] class extends Component
                 </div>
                 <p class="mt-1 text-xs text-gray-500">Kosongkan jika tidak ada diskon.</p>
                 @error('discount') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+            </div>
+
+            <div>
+                <label for="net_price" class="block mb-2.5 text-sm font-medium text-heading">Harga Net</label>
+                <input 
+                    type="number" 
+                    id="net_price" 
+                    wire:model.live="net_price"
+                    class="bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs placeholder:text-body" 
+                    placeholder="Contoh: 150000" 
+                    required 
+                />
+                @error('net_price') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+            </div>
+
+            <div>
+                <label for="unrecommended_price" class="block mb-2.5 text-sm font-medium text-heading">Harga Tidak di Sarankan</label>
+                <input 
+                    type="number" 
+                    id="unrecommended_price" 
+                    wire:model.live="unrecommended_price"
+                    class="bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs placeholder:text-body" 
+                    placeholder="Contoh: 150000" 
+                    required 
+                />
+                @error('unrecommended_price') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
             </div>
             
             {{-- 8. Preview Harga Akhir --}}

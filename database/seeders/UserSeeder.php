@@ -61,8 +61,8 @@ class UserSeeder extends Seeder
         ]);
         
         User::create([
-            'name' => 'Ratna',
-            'email' => 'ratna@gmail.com', // Email untuk login admin
+            'name' => 'Dewi',
+            'email' => 'dewi@gmail.com', // Email untuk login admin
             'password' => $password,
             'role' => 'kasir_gym',
             'shift' => 'Pagi',
@@ -78,8 +78,8 @@ class UserSeeder extends Seeder
         ]);
 
         User::create([
-            'name' => 'C.Wira',
-            'email' => 'wira@gmail.com', // Email untuk login admin
+            'name' => 'Laurent',
+            'email' => 'laurent@gmail.com', // Email untuk login admin
             'password' => $password,
             'role' => 'kasir_gym',
             'shift' => 'Siang',
@@ -142,27 +142,43 @@ class UserSeeder extends Seeder
             'email_verified_at' => now(),
         ]);
 
+        User::create([
+            'name' => 'Coach Tiwi',
+            'email' => 'tiwi@gmail.com', 
+            'password' => $password,
+            'role' => 'pt',
+            'occupation' => 'Personal Trainer',
+            'age' => 30,
+            'gender' => 'Perempuan',
+            'phone' => '081372225122',
+            'medical_history' => null,
+            'address' => 'Jambi',
+            'joined_at' => Carbon::now()->subYears(2),
+            'is_active' => true,
+            'email_verified_at' => now(),
+        ]);
+
         // ==========================================
         // 3. BUAT 5 MEMBER
         // ==========================================
-        for ($i = 1; $i <= 20; $i++) {
-            $gender = $faker->randomElement(['Laki-laki', 'Perempuan']);
+        // for ($i = 1; $i <= 20; $i++) {
+        //     $gender = $faker->randomElement(['Laki-laki', 'Perempuan']);
             
-            User::create([
-                'name' => $faker->name($gender == 'Laki-laki' ? 'male' : 'female'),
-                'email' => 'member' . $i . '@gmail.com', // member1@gmail.com, dst
-                'password' => $password,
-                'role' => 'member',
-                'occupation' => $faker->jobTitle, // Pekerjaan acak
-                'age' => $faker->numberBetween(18, 55),
-                'gender' => $gender,
-                'phone' => $faker->phoneNumber,
-                'medical_history' => $faker->optional(0.3)->sentence, // 30% kemungkinan punya riwayat sakit
-                'address' => $faker->address,
-                'joined_at' => Carbon::now()->subDays($faker->numberBetween(1, 100)),
-                'is_active' => true, // Aktifkan supaya bisa langsung login
-                'email_verified_at' => now(),
-            ]);
-        }
+        //     User::create([
+        //         'name' => $faker->name($gender == 'Laki-laki' ? 'male' : 'female'),
+        //         'email' => 'member' . $i . '@gmail.com', // member1@gmail.com, dst
+        //         'password' => $password,
+        //         'role' => 'member',
+        //         'occupation' => $faker->jobTitle, // Pekerjaan acak
+        //         'age' => $faker->numberBetween(18, 55),
+        //         'gender' => $gender,
+        //         'phone' => $faker->phoneNumber,
+        //         'medical_history' => $faker->optional(0.3)->sentence, // 30% kemungkinan punya riwayat sakit
+        //         'address' => $faker->address,
+        //         'joined_at' => Carbon::now()->subDays($faker->numberBetween(1, 100)),
+        //         'is_active' => true, // Aktifkan supaya bisa langsung login
+        //         'email_verified_at' => now(),
+        //     ]);
+        // }
     }
 }

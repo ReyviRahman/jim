@@ -13,11 +13,15 @@ class Membership extends Model
         'user_id',
         'type', 
         'pt_id',
+        'admin_id',      
+        'follow_up_id',
         'gym_package_id',
         'pt_package_id',
         'base_price',
         'discount_applied', 
         'price_paid',
+        'net_price', 
+        'unrecommended_price',
         'total_paid',
         'payment_status',
         'total_sessions',
@@ -44,6 +48,16 @@ class Membership extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function admin(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'admin_id');
+    }
+
+    public function followUp(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'follow_up_id');
     }
 
     /**
@@ -74,7 +88,7 @@ class Membership extends Model
         return $this->belongsToMany(User::class, 'membership_users');
     }
 
-    public function transactions(): HasMany // 👈 2. TAMBAHKAN METHOD INI
+    public function transactions(): HasMany 
     {
         return $this->hasMany(MembershipTransaction::class);
     }
