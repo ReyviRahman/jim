@@ -244,6 +244,32 @@ new #[Layout('layouts::admin')] class extends Component
                 <p class="mt-1 text-xs text-gray-500">Kosongkan jika tidak ada diskon.</p>
                 @error('discount') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
             </div>
+
+            <div>
+                <label for="price" class="block mb-2.5 text-sm font-medium text-heading">Harga Net</label>
+                <input 
+                    type="number" 
+                    id="price" 
+                    wire:model.live="price"
+                    class="bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs placeholder:text-body" 
+                    placeholder="Contoh: 150000" 
+                    required 
+                />
+                @error('price') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+            </div>
+
+            <div>
+                <label for="price" class="block mb-2.5 text-sm font-medium text-heading">Harga Tidak di Sarankan</label>
+                <input 
+                    type="number" 
+                    id="price" 
+                    wire:model.live="price"
+                    class="bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs placeholder:text-body" 
+                    placeholder="Contoh: 150000" 
+                    required 
+                />
+                @error('price') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+            </div>
             
             {{-- 8. Preview Harga Akhir --}}
             <div class="md:col-span-2 flex items-end">

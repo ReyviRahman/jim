@@ -7,6 +7,7 @@ use Livewire\Attributes\Layout;
 use Livewire\Attributes\Computed;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 
 new #[Layout('layouts::admin')] class extends Component
 {
@@ -15,6 +16,8 @@ new #[Layout('layouts::admin')] class extends Component
     public $amount_paid;
     public $payment_method = 'cash';
     public $transaction_type = '';
+    public $payment_date = '';
+
 
     public function mount(Membership $membership)
     {
@@ -27,8 +30,17 @@ new #[Layout('layouts::admin')] class extends Component
             return redirect()->route('admin.cicilan.index');
         }
 
+        $this->payment_date = now()->format('Y-m-d');
+
         // Auto isi form dengan nominal sisa tagihan penuh
         // $this->amount_paid = $this->sisaTagihan;
+    }
+
+    public function getFormattedDate($date)
+    {
+        if (!$date) return '';
+        Carbon::setLocale('id');
+        return Carbon::parse($date)->translatedFormat('l, d F Y');
     }
 
     #[Computed]
@@ -41,8 +53,9 @@ new #[Layout('layouts::admin')] class extends Component
     {
         $this->validate([
             'amount_paid' => 'required|numeric|min:1|max:' . $this->sisaTagihan,
-            'payment_method' => 'required|in:cash,transfer,qris,edc',
+            'payment_method' => 'required|in:cash,transfer,qris,debit',
             'transaction_type' => 'required|string',
+            'payment_date' => 'required|date',
         ], [
             'amount_paid.max' => 'Nominal bayar tidak boleh melebihi sisa tagihan saat ini.',
             'amount_paid.min' => 'Nominal bayar harus lebih dari 0.',
@@ -89,12 +102,13 @@ new #[Layout('layouts::admin')] class extends Component
                 'invoice_number' => 'INV-' . date('Ymd') . '-' . strtoupper(uniqid()),
                 'membership_id' => $this->membership->id,
                 'user_id' => $this->membership->user_id,
-                'admin_id' => Auth::id() ?? 1,
+                'admin_id' => $this->membership->admin_id, 
+                'follow_up_id' => $this->membership->follow_up_id ?: null,
                 'transaction_type' => $this->transaction_type,
                 'package_name' => $packageNameStr,
                 'amount' => $this->amount_paid,
                 'payment_method' => $this->payment_method,
-                'payment_date' => now(),
+                'payment_date' => $this->payment_date,
                 'start_date' => $transactionStartDate,
                 'end_date' => $transactionEndDate,
             ]);
@@ -102,7 +116,7 @@ new #[Layout('layouts::admin')] class extends Component
             DB::commit();
 
             session()->flash('success', $isLunas ? 'Pembayaran berhasil dan tagihan LUNAS! Akses gym sudah aktif.' : 'Pembayaran cicilan berhasil dicatat.');
-            return $this->redirectRoute('admin.cicilan.index', navigate: true);
+            return $this->redirectRoute('admin.penjualan.index', navigate: true);
 
         } catch (\Exception $e) {
             DB::rollBack();
@@ -168,7 +182,7 @@ new #[Layout('layouts::admin')] class extends Component
                         <div class="flex justify-between items-center p-3 bg-gray-50 rounded border border-gray-100">
                             <div>
                                 <div class="font-semibold text-sm text-heading">{{ $trx->transaction_type }}</div>
-                                <div class="text-xs text-gray-500 mt-0.5">{{ \Carbon\Carbon::parse($trx->payment_date)->format('d M Y, H:i') }} • {{ strtoupper($trx->payment_method) }}</div>
+                                <div class="text-xs text-gray-500 mt-0.5">{{ \Carbon\Carbon::parse($trx->payment_date)->format('d M Y') }} • {{ strtoupper($trx->payment_method) }}</div>
                             </div>
                             <div class="font-bold text-green-600">
                                 + Rp {{ number_format($trx->amount, 0, ',', '.') }}
@@ -178,6 +192,7 @@ new #[Layout('layouts::admin')] class extends Component
                         <div class="text-sm text-gray-500 text-center py-4">Belum ada riwayat pembayaran yang tercatat.</div>
                     @endforelse
                 </div>
+                
             </div>
 
         </div>
@@ -252,9 +267,15 @@ new #[Layout('layouts::admin')] class extends Component
                             <option value="cash">💵 Cash / Tunai</option>
                             <option value="transfer">🏦 Transfer Bank</option>
                             <option value="qris">📱 QRIS</option>
-                            <option value="edc">💳 Debit</option>
+                            <option value="debit">💳 Debit</option>
                         </select>
                         @error('payment_method') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                    </div>
+                    <div>
+                        <label class="block mb-1 text-sm font-medium text-heading">Tanggal Pembayaran</label>
+                        <input type="date" wire:model="payment_date" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2 shadow-xs">
+                        <p class="mt-1.5 text-xs text-brand-strong font-medium">{{ $this->getFormattedDate($payment_date) }}</p>
+                        @error('payment_date') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                     </div>
 
                     {{-- Catatan Opsional --}}

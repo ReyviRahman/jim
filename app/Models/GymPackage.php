@@ -14,10 +14,12 @@ class GymPackage extends Model
         'max_members',
         'pt_sessions',
         'price',
+        'net_price',
+        'unrecommended_price',
         'discount',
         'is_active',
     ];
-
+    
     public function memberships(): HasMany
     {
         return $this->hasMany(Membership::class); 

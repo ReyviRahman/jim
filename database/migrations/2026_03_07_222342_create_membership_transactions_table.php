@@ -21,7 +21,7 @@ return new class extends Migration
             $table->string('transaction_type'); // Contoh isian: 'New Member', 'Renew Member', 'Cicilan 1', 'Pelunasan', 'New PT 20 Sesi'
             $table->string('package_name');
             $table->decimal('amount', 12, 0);
-            $table->enum('payment_method', ['cash', 'transfer', 'qris', 'edc'])->default('cash');
+            $table->enum('payment_method', ['cash', 'transfer', 'qris', 'debit'])->default('cash');
             $table->date('payment_date');
             $table->date('start_date')->nullable();
             $table->date('end_date')->nullable();

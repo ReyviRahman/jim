@@ -8,6 +8,7 @@ use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use App\Models\Expense;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Auth;
 
 new #[Layout('layouts::admin')] class extends Component
 {
@@ -19,7 +20,26 @@ new #[Layout('layouts::admin')] class extends Component
     public $dateEnd;
     
     public $perPage = 'all';
-    public $shift = 'pagi';
+    public $shift;
+
+    public function mount()
+    {
+        $user = Auth::user();
+        // Cek apakah user sudah login untuk menghindari error
+        if ($user) {
+            // Jika role admin, set ke 'all'
+            if ($user->role === 'admin') {
+                $this->shift = 'all';
+            } else {
+                // Jika bukan admin, ambil dari kolom shift milik user tersebut di database
+                // Asumsi di database kamu ada kolom bernama 'shift' (berisi 'pagi' atau 'siang')
+                $this->shift = $user->shift; 
+            }
+        } else {
+            // Fallback default jika user belum login (opsional, sesuaikan kebutuhan)
+            $this->shift = 'pagi';
+        }
+    }
 
     public function setFilterTime($val)
     {

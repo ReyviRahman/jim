@@ -241,7 +241,7 @@ new #[Layout('layouts::admin')] class extends Component
             'registration_type' => 'required|in:membership,pt,bundle_pt_membership,visit',
             'start_date' => 'required|date',
             'payment_type' => 'required|in:paid,partial',
-            'payment_method' => 'required|in:cash,transfer,qris,edc',
+            'payment_method' => 'required|in:cash,transfer,qris,debit',
             'transaction_type' => 'required|string',
             'package_name' => 'required|string',
             'notes' => 'nullable|string',
@@ -607,7 +607,7 @@ new #[Layout('layouts::admin')] class extends Component
                             <option value="cash">💵 Cash / Tunai</option>
                             <option value="transfer">🏦 Transfer Bank</option>
                             <option value="qris">📱 QRIS</option>
-                            <option value="edc">💳 Debit</option>
+                            <option value="debit">💳 Debit</option>
                         </select>
                         @error('payment_method') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                     </div>

@@ -232,7 +232,8 @@ new #[Layout('layouts::admin')] class extends Component
                     <th scope="col" class="px-6 py-3 font-medium">Program / Paket</th>
                     <th scope="col" class="px-6 py-3 font-medium text-right">Total Bayar</th>
                     <th scope="col" class="px-6 py-3 font-medium">Masa Aktif</th>
-                    <th scope="col" class="px-6 py-3 font-medium text-center">Status</th>
+                    <th scope="col" class="px-6 py-3 font-medium text-center">Admin</th>
+                    <th scope="col" class="px-6 py-3 font-medium text-center">Follow Up</th>
                 </tr>
             </thead>
             <tbody>
@@ -360,19 +361,11 @@ new #[Layout('layouts::admin')] class extends Component
                             </div>
                         </td>
 
-                        {{-- Status & Aksi --}}
-                        <td class="px-6 py-4 text-center whitespace-nowrap">
-                            @if ($membership->status === 'active')
-                                <span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">Active</span>
-                            @elseif ($membership->status === 'expired')
-                                <span class="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">Expired</span>
-                            @elseif ($membership->status === 'completed')
-                                <span class="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">Selesai / Sesi Habis</span>
-                            @elseif ($membership->status === 'pending')
-                                <span class="px-2 py-1 text-xs font-semibold rounded-full bg-orange-100 text-orange-800">Pending</span>
-                            @elseif ($membership->status === 'rejected')
-                                <span class="px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">Rejected</span>
-                            @endif
+                        <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
+                            <h1 class="font-semibold">{{ $membership->admin->name }}</h1>
+                        </td>
+                        <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
+                            <h1 class="font-semibold">{{ $membership->followUp->name }}</h1>
                         </td>
                     </tr>
                 @empty

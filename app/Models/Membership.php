@@ -20,6 +20,8 @@ class Membership extends Model
         'base_price',
         'discount_applied', 
         'price_paid',
+        'net_price', 
+        'unrecommended_price',
         'total_paid',
         'payment_status',
         'total_sessions',

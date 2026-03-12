@@ -11,6 +11,7 @@ use App\Models\Expense;
 use Carbon\Carbon;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\PenjualanExport;
+use Illuminate\Support\Facades\Auth;
 
 new #[Layout('layouts::admin')] class extends Component
 {
@@ -23,7 +24,26 @@ new #[Layout('layouts::admin')] class extends Component
     
     // Filter Baru
     public $perPage = 'all';
-    public $shift = 'pagi';
+    public $shift;
+
+    public function mount()
+    {
+        $user = Auth::user();
+        // Cek apakah user sudah login untuk menghindari error
+        if ($user) {
+            // Jika role admin, set ke 'all'
+            if ($user->role === 'admin') {
+                $this->shift = 'all';
+            } else {
+                // Jika bukan admin, ambil dari kolom shift milik user tersebut di database
+                // Asumsi di database kamu ada kolom bernama 'shift' (berisi 'pagi' atau 'siang')
+                $this->shift = $user->shift; 
+            }
+        } else {
+            // Fallback default jika user belum login (opsional, sesuaikan kebutuhan)
+            $this->shift = 'pagi';
+        }
+    }
 
     public function setFilterTime($val)
     {
@@ -111,7 +131,7 @@ new #[Layout('layouts::admin')] class extends Component
     #[Computed]
     public function transactions()
     {
-        $query = $this->getBaseQuery();
+        $query = $this->getBaseQuery()->with(['admin', 'followUp']);
         $limit = $this->perPage === 'all' ? 10000 : $this->perPage;
         return $query->latest('payment_date')->paginate($limit);
     }
@@ -127,7 +147,7 @@ new #[Layout('layouts::admin')] class extends Component
 
         // Keuangan (Kiri)
         $transfer = $data->where('payment_method', 'transfer')->sum('amount');
-        $debit = $data->where('payment_method', 'edc')->sum('amount'); 
+        $debit = $data->where('payment_method', 'debit')->sum('amount'); 
         $qris = $data->where('payment_method', 'qris')->sum('amount');
         $cash = $data->where('payment_method', 'cash')->sum('amount');
         
@@ -203,7 +223,7 @@ new #[Layout('layouts::admin')] class extends Component
 
         // 2. Hitung komponen uang pemasukan
         $transfer = $transactions->where('payment_method', 'transfer')->sum('amount');
-        $debit = $transactions->where('payment_method', 'edc')->sum('amount');
+        $debit = $transactions->where('payment_method', 'debit')->sum('amount');
         $qris = $transactions->where('payment_method', 'qris')->sum('amount');
         $cash = $transactions->where('payment_method', 'cash')->sum('amount');
         $totalSystemBalance = $transfer + $debit + $qris + $cash;
@@ -262,6 +282,9 @@ new #[Layout('layouts::admin')] class extends Component
 ?>
 
 <div>
+    
+
+
     <div class="flex sm:flex-row flex-col justify-between items-center mb-6">
         <h5 class="text-xl font-semibold text-heading">
             Riwayat Penjualan Shift {{ $this->shift === 'all' ? 'Pagi & Siang' : ucfirst($this->shift) }}
@@ -274,6 +297,16 @@ new #[Layout('layouts::admin')] class extends Component
             </button>
         </div>
     </div>
+    @if (session()->has('success'))
+        <div class="p-4 mb-4 text-sm text-green-800 rounded-lg bg-green-50" role="alert">
+            <span class="font-medium">Sukses!</span> {{ session('success') }}
+        </div>
+    @endif
+    @if (session()->has('error'))
+        <div class="p-4 mb-4 text-sm text-red-800 rounded-lg bg-red-50" role="alert">
+            <span class="font-medium">Gagal!</span> {{ session('error') }}
+        </div>
+    @endif
 
     {{-- Filter Bar --}}
     <div class="relative overflow-x-auto bg-neutral-primary-soft shadow-xs rounded-md border border-default mb-6">
@@ -374,7 +407,6 @@ new #[Layout('layouts::admin')] class extends Component
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
                             <div class="font-medium">{{ $transaction->payment_date ? \Carbon\Carbon::parse($transaction->payment_date)->format('d M Y') : '-' }}</div>
-                            <div class="text-xs text-gray-500">{{ $transaction->payment_date ? \Carbon\Carbon::parse($transaction->payment_date)->format('H:i') : '' }} WIB</div>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">{{ $transaction->start_date ? \Carbon\Carbon::parse($transaction->start_date)->format('d M Y') : '-' }}</td>
                         <td class="px-6 py-4 text-right whitespace-nowrap">{{ $transaction->end_date ? \Carbon\Carbon::parse($transaction->end_date)->format('d M Y') : '-' }}</td>
