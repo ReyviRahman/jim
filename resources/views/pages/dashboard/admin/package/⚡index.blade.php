@@ -72,6 +72,8 @@ new #[Layout('layouts::admin')] class extends Component
                     <th scope="col" class="px-6 py-3 font-medium text-right">Harga Dasar</th>
                     <th scope="col" class="px-6 py-3 font-medium text-center">Diskon</th>
                     <th scope="col" class="px-6 py-3 font-medium text-right">Harga Akhir</th>
+                    <th scope="col" class="px-6 py-3 font-medium text-right">Harga Net</th>
+                    <th scope="col" class="px-6 py-3 font-medium text-right">Harga Tidak disarankan</th>
                     <th scope="col" class="px-6 py-3 font-medium text-center">Status</th>
                     <th scope="col" class="px-6 py-3 font-medium text-center">Aksi</th>
                 </tr>
@@ -156,6 +158,12 @@ new #[Layout('layouts::admin')] class extends Component
                         @endphp
                         <td class="px-6 py-4 text-right font-bold text-green-700 whitespace-nowrap">
                             Rp {{ number_format($finalPrice > 0 ? $finalPrice : 0, 0, ',', '.') }}
+                        </td>
+                        <td class="px-6 py-4 text-right font-medium text-heading whitespace-nowrap">
+                            Rp {{ number_format($package->net_price, 0, ',', '.') }}
+                        </td>
+                        <td class="px-6 py-4 text-right font-medium text-heading whitespace-nowrap">
+                            Rp {{ number_format($package->unrecommended_price, 0, ',', '.') }}
                         </td>
                         
                         {{-- Status dengan Toggle --}}

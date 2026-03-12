@@ -21,7 +21,7 @@ new #[Layout('layouts::admin')] class extends Component
     public function memberships()
     {
         // Tambahkan 'members' di dalam array with()
-        return Membership::with(['user', 'members', 'gymPackage', 'ptPackage'])
+        return Membership::with(['user', 'members', 'admin', 'followUp', 'gymPackage', 'ptPackage'])
             ->whereIn('payment_status', ['partial', 'unpaid'])
             ->when($this->search, function ($query) {
                 $query->where(function ($q) {
@@ -57,6 +57,8 @@ new #[Layout('layouts::admin')] class extends Component
             <thead class="text-xs text-heading uppercase bg-neutral-primary-soft border-b border-default">
                 <tr>
                     <th class="px-4 py-3">Member</th>
+                    <th class="px-4 py-3">Admin</th>
+                    <th class="px-4 py-3">Follow Up</th>
                     <th class="px-4 py-3">Paket Layanan</th>
                     <th class="px-4 py-3 text-right">Total Tagihan</th>
                     <th class="px-4 py-3 text-right">Sudah Dibayar</th>
@@ -82,9 +84,15 @@ new #[Layout('layouts::admin')] class extends Component
                                     </div>
                                 @endif
                             </div>
-                            <div class="text-xs text-gray-500 font-normal">
+                            {{-- <div class="text-xs text-gray-500 font-normal">
                                 Tgl: {{ $m->start_date ? \Carbon\Carbon::parse($m->start_date)->format('d M Y') : '-' }}
-                            </div>
+                            </div> --}}
+                        </td>
+                        <td class="px-4 py-3 text-right font-medium text-heading">
+                            {{$m->admin->name}}
+                        </td>
+                        <td class="px-4 py-3 text-right font-medium text-heading">
+                            {{$m->followUp->name ?? '-' }}
                         </td>
                         <td class="px-4 py-3">
                             @if($m->type === 'visit') Visit Harian

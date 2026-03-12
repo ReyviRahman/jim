@@ -14,14 +14,16 @@ class PenjualanExport implements WithEvents
 {
     protected $transactions;
     protected $summaryTotal;
-    protected $tanggal;
-    protected $shift; // Tambahkan variabel shift
+    protected $startDate; 
+    protected $endDate;
+    protected $shift; 
 
-    public function __construct($transactions, $summaryTotal, $tanggal, $shift)
+    public function __construct($transactions, $summaryTotal, $startDate, $endDate, $shift)
     {
         $this->transactions = $transactions;
         $this->summaryTotal = $summaryTotal;
-        $this->tanggal = $tanggal;
+        $this->startDate = $startDate; 
+        $this->endDate = $endDate;
         $this->shift = $shift;
     }
 
@@ -31,12 +33,10 @@ class PenjualanExport implements WithEvents
             AfterSheet::class => function (AfterSheet $event) {
                 $sheet = $event->sheet->getDelegate();
                 
-                $sheet->setTitle(Carbon::parse($this->tanggal)->translatedFormat('d F Y'));
-
                 // ==========================================
-                // 1. PENGATURAN LEBAR KOLOM (A - J)
+                // 1. PENGATURAN LEBAR KOLOM (A - K) -> Ditambah untuk Catatan & Follow Up
                 // ==========================================
-                $columns = ['A'=>20, 'B'=>15, 'C'=>20, 'D'=>20, 'E'=>30, 'F'=>18, 'G'=>15, 'H'=>15, 'I'=>12, 'J'=>12];
+                $columns = ['A'=>25, 'B'=>15, 'C'=>20, 'D'=>20, 'E'=>20, 'F'=>25, 'G'=>25, 'H'=>15, 'I'=>15, 'J'=>18, 'K'=>18];
                 foreach ($columns as $col => $width) {
                     $sheet->getColumnDimension($col)->setWidth($width);
                 }
@@ -44,27 +44,42 @@ class PenjualanExport implements WithEvents
                 // ==========================================
                 // 2. JUDUL PALING ATAS (Baris 1)
                 // ==========================================
+                // 2. JUDUL PALING ATAS (Baris 1)
                 $shiftText = strtoupper($this->shift === 'all' ? 'PAGI & SIANG' : $this->shift);
-                $judulBesar = "PENJUALAN ADMIN " . $shiftText;
+
+                // Logika Format Tanggal
+                if ($this->startDate === $this->endDate) {
+                    // Jika cuma 1 hari (misal: 15 Agustus 2026)
+                    $tanggalFormat = Carbon::parse($this->startDate)->translatedFormat('d F Y');
+                } else {
+                    // Jika rentang hari (misal: 01 Agustus 2026 - 15 Agustus 2026)
+                    $awal = Carbon::parse($this->startDate)->translatedFormat('d M Y');
+                    $akhir = Carbon::parse($this->endDate)->translatedFormat('d M Y');
+                    $tanggalFormat = $awal . ' - ' . $akhir;
+                }
+
+                $judulBesar = "PENJUALAN ADMIN " . $shiftText . " - " . strtoupper($tanggalFormat);
+
+                $sheet->setCellValue('A1', $judulBesar);
                 
                 $sheet->setCellValue('A1', $judulBesar);
-                $sheet->mergeCells('A1:J1');
-                $sheet->getStyle('A1:J1')->applyFromArray([
-                    'font' => ['bold' => true, 'size' => 14], // Ukuran font diperbesar
+                $sheet->mergeCells('A1:K1'); // Merge diperlebar sampai K
+                $sheet->getStyle('A1:K1')->applyFromArray([
+                    'font' => ['bold' => true, 'size' => 14],
                     'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
                 ]);
                 $sheet->getRowDimension(1)->setRowHeight(25);
 
                 // ==========================================
-                // 3. HEADER TABEL UTAMA (Baris 3) -> Digeser ke baris 3
+                // 3. HEADER TABEL UTAMA (Baris 3) -> Penambahan Catatan & Follow Up
                 // ==========================================
-                $headers = ['NAMA', 'TANGGAL BAYAR', 'TANGGAL MULAI AKTIF', 'TANGGAL BERAKHIR (MASA AKTIF)', 'STATUS', 'PAKET MEMBER', 'NOMINAL', 'METODE BAYAR', 'ADMIN'];
+                $headers = ['NAMA', 'TANGGAL BAYAR', 'TANGGAL MULAI AKTIF', 'TANGGAL BERAKHIR (MASA AKTIF)', 'STATUS', 'PAKET MEMBER', 'CATATAN', 'NOMINAL', 'METODE BAYAR', 'ADMIN', 'FOLLOW UP'];
                 foreach (array_values($headers) as $index => $header) {
                     $col = chr(65 + $index);
                     $sheet->setCellValue($col . '3', $header);
                 }
 
-                $sheet->getStyle('A3:I3')->applyFromArray([
+                $sheet->getStyle('A3:K3')->applyFromArray([ // Diperlebar sampai K
                     'font' => ['bold' => true, 'color' => ['argb' => Color::COLOR_WHITE]],
                     'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FF1F2937']], 
                     'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER, 'wrapText' => true],
@@ -75,7 +90,7 @@ class PenjualanExport implements WithEvents
                 // ==========================================
                 // 4. ISI DATA TRANSAKSI (Mulai Baris 4)
                 // ==========================================
-                $row = 4; // Data dimulai dari baris 4
+                $row = 4;
                 foreach ($this->transactions as $trx) {
                     $nama = '-';
                     if ($trx->membership && $trx->membership->members->count() > 0) {
@@ -90,44 +105,46 @@ class PenjualanExport implements WithEvents
                     $sheet->setCellValue('D'.$row, $trx->end_date ? Carbon::parse($trx->end_date)->format('d/m/Y') : 'BELUM AKTIF');
                     $sheet->setCellValue('E'.$row, strtoupper($trx->transaction_type));
                     $sheet->setCellValue('F'.$row, strtoupper($trx->package_name));
-                    $sheet->setCellValue('G'.$row, $trx->amount);
-                    $sheet->setCellValue('H'.$row, strtoupper($trx->payment_method));
-                    $sheet->setCellValue('I'.$row, strtoupper($trx->admin->name ?? '-'));
+                    $sheet->setCellValue('G'.$row, $trx->notes ?? '-'); // Kolom Catatan Baru
+                    $sheet->setCellValue('H'.$row, $trx->amount); // Nominal Geser ke H
+                    $sheet->setCellValue('I'.$row, strtoupper($trx->payment_method)); // Geser ke I
+                    $sheet->setCellValue('J'.$row, strtoupper($trx->admin->name ?? '-')); // Geser ke J
+                    $sheet->setCellValue('K'.$row, strtoupper($trx->followUp->name ?? '-')); // Kolom Follow Up Baru
 
                     $row++;
                 }
 
                 $lastDataRow = $row - 1;
-                if ($lastDataRow >= 4) { // Pengecekan disesuaikan ke baris 4
-                    $sheet->getStyle('A4:I'.$lastDataRow)->applyFromArray([
+                if ($lastDataRow >= 4) {
+                    $sheet->getStyle('A4:K'.$lastDataRow)->applyFromArray([ // Diperlebar sampai K
                         'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFCCFFFF']], 
                         'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
                         'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER]
                     ]);
-                    $sheet->getStyle('G4:G'.$lastDataRow)->getNumberFormat()->setFormatCode('_("Rp"* #,##0_);_("Rp"* \(#,##0\);_("Rp"* "-"??_);_(@_)');
+                    // Kolom nominal berubah dari G menjadi H
+                    $sheet->getStyle('H4:H'.$lastDataRow)->getNumberFormat()->setFormatCode('_("Rp"* #,##0_);_("Rp"* \(#,##0\);_("Rp"* "-"??_);_(@_)');
                 }
 
                 // ==========================================
                 // 5. BARIS TOTAL TRANSAKSI
                 // ==========================================
-                $sheet->setCellValue('F'.$row, 'GRAND TOTAL');
+                // Teks "GRAND TOTAL" diletakkan di bawah "Catatan" (G), angkanya di bawah "Nominal" (H)
+                $sheet->setCellValue('G'.$row, 'GRAND TOTAL');
+                $sheet->setCellValue('H'.$row, $this->summaryTotal['uang_total'] ?? 0); 
                 
-                // Hapus rumus =SUM() dan ganti dengan variabel total yang sudah dihitung di PHP
-                $sheet->setCellValue('G'.$row, $this->summaryTotal['uang_total'] ?? 0); 
-                
-                $sheet->getStyle('F'.$row.':G'.$row)->applyFromArray([
+                $sheet->getStyle('G'.$row.':H'.$row)->applyFromArray([
                     'font' => ['bold' => true],
                     'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFC6E0B4']], 
                     'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]
                 ]);
-                $sheet->getStyle('G'.$row)->getNumberFormat()->setFormatCode('_("Rp"* #,##0_);_("Rp"* \(#,##0\);_("Rp"* "-"??_);_(@_)');
+                $sheet->getStyle('H'.$row)->getNumberFormat()->setFormatCode('_("Rp"* #,##0_);_("Rp"* \(#,##0\);_("Rp"* "-"??_);_(@_)');
 
                 // ==========================================
                 // 6. KOTAK REKAPITULASI GRAND TOTAL BAWAH
                 // ==========================================
+                // Untuk kotak rincian di bawah tidak ada perubahan posisi, tetap pakai kolom A,B,C,D
                 $startRow = $row + 2; 
 
-                // 6.1. Header Kotak Total (Merge full A-D, BG Hijau Tua)
                 $sheet->setCellValue('A'.$startRow, 'GRAND TOTAL');
                 $sheet->mergeCells("A{$startRow}:D{$startRow}");
                 $sheet->getStyle("A{$startRow}:D{$startRow}")->applyFromArray([
@@ -136,7 +153,6 @@ class PenjualanExport implements WithEvents
                     'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FF16A34A']] 
                 ]);
 
-                // 6.2. Siapkan data statis untuk sisi kiri dan atas sisi kanan
                 $rowsDataKiri = [
                     ['TRANSFER BCA:', $this->summaryTotal['transfer'] ?? 0],
                     ['DEBIT BCA:', $this->summaryTotal['debit'] ?? 0],
@@ -153,10 +169,9 @@ class PenjualanExport implements WithEvents
                     ['VISIT:', $this->summaryTotal['uang_visit'] ?? 0],
                     ['PERSONAL TRAINER:', $this->summaryTotal['uang_pt'] ?? 0],
                     ['BALANCE', $this->summaryTotal['uang_total'] ?? 0],
-                    ['CATATAN PENGELUARAN', ''] // Judul Catatan
+                    ['CATATAN PENGELUARAN', ''] 
                 ];
 
-                // 6.3. Siapkan rincian pengeluaran untuk di-loop nanti
                 $pengeluaranList = [];
                 if (isset($this->summaryTotal['rincian_pengeluaran']) && count($this->summaryTotal['rincian_pengeluaran']) > 0) {
                     foreach ($this->summaryTotal['rincian_pengeluaran'] as $exp) {
@@ -170,18 +185,15 @@ class PenjualanExport implements WithEvents
                     $pengeluaranList[] = ['- Tidak ada pengeluaran', null];
                 }
 
-                // Hitung total baris yang dibutuhkan (ambil yang terpanjang antara kiri atau kanan)
                 $totalBarisKiri = count($rowsDataKiri);
                 $totalBarisKanan = count($rowsDataKananAtas) + count($pengeluaranList);
                 $jumlahBarisKotak = max($totalBarisKiri, $totalBarisKanan);
                 $endRow = $startRow + $jumlahBarisKotak;
 
-                // Set Border untuk seluruh kotak rekapitulasi agar rapi sampai bawah
                 $sheet->getStyle("A{$startRow}:D{$endRow}")->applyFromArray([
                     'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]
                 ]);
 
-                // 6.4. Loop untuk mengisi tabel (Kiri dan Kanan bersamaan tiap baris)
                 $currentRow = $startRow + 1;
                 for ($i = 0; $i < $jumlahBarisKotak; $i++) {
                     
@@ -190,19 +202,16 @@ class PenjualanExport implements WithEvents
                         $sheet->setCellValue('A'.$currentRow, $rowsDataKiri[$i][0]);
                         $sheet->setCellValue('B'.$currentRow, $rowsDataKiri[$i][1]);
 
-                        // Bold baris Balance Kiri (Index 3, 4, 7)
                         if (in_array($i, [3, 4, 7])) {
                             $sheet->getStyle("A{$currentRow}:B{$currentRow}")->getFont()->setBold(true);
                         }
 
-                        // BG Merah (Index 4)
                         if ($i === 4) {
                             $sheet->getStyle("A{$currentRow}:B{$currentRow}")->applyFromArray([
                                 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFFEE2E2']], 
                                 'font' => ['color' => ['argb' => 'FFB91C1C']] 
                             ]);
                         }
-                        // BG Hijau (Index 7)
                         if ($i === 7) {
                             $sheet->getStyle("A{$currentRow}:B{$currentRow}")->applyFromArray([
                                 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFD1FAE5']], 
@@ -213,11 +222,9 @@ class PenjualanExport implements WithEvents
 
                     // --- SISI KANAN (C & D) ---
                     if ($i < count($rowsDataKananAtas)) {
-                        // Jika masih baris kategori atas (Member, Visit, dll)
                         $sheet->setCellValue('C'.$currentRow, $rowsDataKananAtas[$i][0]);
                         $sheet->setCellValue('D'.$currentRow, $rowsDataKananAtas[$i][1]);
 
-                        // Bold Balance Kanan (Index 3)
                         if ($i === 3) {
                             $sheet->getStyle("C{$currentRow}:D{$currentRow}")->getFont()->setBold(true);
                             $sheet->getStyle("C{$currentRow}:D{$currentRow}")->applyFromArray([
@@ -226,7 +233,6 @@ class PenjualanExport implements WithEvents
                             ]);
                         }
 
-                        // Judul Catatan (Index 4)
                         if ($i === 4) {
                             $sheet->mergeCells("C{$currentRow}:D{$currentRow}");
                             $sheet->getStyle("C{$currentRow}:D{$currentRow}")->applyFromArray([
@@ -235,14 +241,12 @@ class PenjualanExport implements WithEvents
                             ]);
                         }
                     } else {
-                        // Jika baris kategori atas sudah habis, mulai print isi pengeluaran
                         $indexPengeluaran = $i - count($rowsDataKananAtas);
                         if (isset($pengeluaranList[$indexPengeluaran])) {
                             $sheet->setCellValue('C'.$currentRow, $pengeluaranList[$indexPengeluaran][0]);
                             if ($pengeluaranList[$indexPengeluaran][1] !== null) {
                                 $sheet->setCellValue('D'.$currentRow, $pengeluaranList[$indexPengeluaran][1]);
                             } else {
-                                // Jika "Tidak ada pengeluaran", merge C dan D
                                 $sheet->mergeCells("C{$currentRow}:D{$currentRow}");
                             }
                         }
@@ -251,7 +255,6 @@ class PenjualanExport implements WithEvents
                     $currentRow++;
                 }
 
-                // 6.5. Terapkan format Rupiah ke semua baris angka (Kecuali bagian yang kosong)
                 $sheet->getStyle("B{$startRow}:B{$endRow}")->getNumberFormat()->setFormatCode('_("Rp"* #,##0_);_("Rp"* \(#,##0\);_("Rp"* "-"??_);_(@_)');
                 $sheet->getStyle("D{$startRow}:D{$endRow}")->getNumberFormat()->setFormatCode('_("Rp"* #,##0_);_("Rp"* \(#,##0\);_("Rp"* "-"??_);_(@_)');
             }

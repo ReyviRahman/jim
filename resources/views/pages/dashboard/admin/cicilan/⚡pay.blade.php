@@ -17,6 +17,7 @@ new #[Layout('layouts::admin')] class extends Component
     public $payment_method = 'cash';
     public $transaction_type = '';
     public $payment_date = '';
+    public $notes = '';
 
 
     public function mount(Membership $membership)
@@ -56,6 +57,7 @@ new #[Layout('layouts::admin')] class extends Component
             'payment_method' => 'required|in:cash,transfer,qris,debit',
             'transaction_type' => 'required|string',
             'payment_date' => 'required|date',
+            'notes' => 'required|string',
         ], [
             'amount_paid.max' => 'Nominal bayar tidak boleh melebihi sisa tagihan saat ini.',
             'amount_paid.min' => 'Nominal bayar harus lebih dari 0.',
@@ -111,6 +113,7 @@ new #[Layout('layouts::admin')] class extends Component
                 'payment_date' => $this->payment_date,
                 'start_date' => $transactionStartDate,
                 'end_date' => $transactionEndDate,
+                'notes' => $this->notes,
             ]);
 
             DB::commit();
@@ -283,6 +286,12 @@ new #[Layout('layouts::admin')] class extends Component
                         <label class="block mb-1 text-sm font-medium text-heading">Status</label>
                         <textarea wire:model="transaction_type" rows="2" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2 shadow-xs placeholder-gray-400" placeholder="Contoh: PELUNASAN NEW MEMBER" required></textarea>
                         @error('transaction_type') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                    </div>
+
+                    <div>
+                        <label class="block mb-1 text-sm font-medium text-heading">Catatan</label>
+                        <textarea wire:model="notes" rows="2" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2 shadow-xs placeholder-gray-400" placeholder="Contoh: PELUNASAN NEW MEMBER" required></textarea>
+                        @error('notes') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                     </div>
 
                 </div>

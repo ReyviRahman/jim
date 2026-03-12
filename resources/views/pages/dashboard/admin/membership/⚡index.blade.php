@@ -88,7 +88,7 @@ new #[Layout('layouts::admin')] class extends Component
     #[Computed]
     public function memberships()
     {
-        $query = Membership::with(['user', 'members', 'personalTrainer', 'gymPackage', 'ptPackage'])
+        $query = Membership::with(['user', 'members', 'admin', 'followUp', 'personalTrainer', 'gymPackage', 'ptPackage'])
             ->where('status', 'active');
 
         // 1. Logika Pencarian (Mencari di tabel Users atau Members)
@@ -231,6 +231,8 @@ new #[Layout('layouts::admin')] class extends Component
                     <th scope="col" class="px-6 py-3 font-medium">Member</th>
                     <th scope="col" class="px-6 py-3 font-medium">Program / Paket</th>
                     <th scope="col" class="px-6 py-3 font-medium text-right">Total Bayar</th>
+                    <th scope="col" class="px-6 py-3 font-medium text-right">Harga Net</th>
+                    <th scope="col" class="px-6 py-3 font-medium text-right">Harga Tidak disarankan</th>
                     <th scope="col" class="px-6 py-3 font-medium">Masa Aktif</th>
                     <th scope="col" class="px-6 py-3 font-medium text-center">Admin</th>
                     <th scope="col" class="px-6 py-3 font-medium text-center">Follow Up</th>
@@ -326,7 +328,16 @@ new #[Layout('layouts::admin')] class extends Component
                                 Rp {{ number_format($membership->price_paid, 0, ',', '.') }}
                             </div>
                         </td>
-
+                        <td class="px-6 py-4 text-right whitespace-nowrap">
+                            <div class="font-bold text-heading text-base">
+                                {{ $membership->net_price ? 'Rp ' . number_format($membership->net_price, 0, ',', '.') : '-' }}
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 text-right whitespace-nowrap">
+                            <div class="font-bold text-heading text-base ">
+                                {{ $membership->unrecommended_price ? 'Rp ' . number_format($membership->unrecommended_price, 0, ',', '.') : '-' }}
+                            </div>
+                        </td>
                         {{-- Masa Aktif --}}
                         <td class="px-6 py-4 whitespace-nowrap text-xs">
                             <div class="flex flex-col gap-1.5">
@@ -365,7 +376,7 @@ new #[Layout('layouts::admin')] class extends Component
                             <h1 class="font-semibold">{{ $membership->admin->name }}</h1>
                         </td>
                         <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
-                            <h1 class="font-semibold">{{ $membership->followUp->name }}</h1>
+                            <h1 class="font-semibold">{{ $membership->followUp->name ?? '-' }}</h1>
                         </td>
                     </tr>
                 @empty

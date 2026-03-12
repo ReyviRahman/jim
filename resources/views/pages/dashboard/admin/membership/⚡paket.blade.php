@@ -301,7 +301,7 @@ new #[Layout('layouts::admin')] class extends Component
             'payment_date' => 'required|date',
             'transaction_type' => 'required|string',
             'package_name' => 'required|string',
-            'notes' => 'nullable|string',
+            'notes' => 'required|string',
             'admin_id' => 'required|exists:users,id',
             'follow_up_id' => 'nullable|exists:users,id|different:admin_id',
             'manual_discount' => 'nullable|numeric|min:0|max:' . $this->base_price,
@@ -342,6 +342,8 @@ new #[Layout('layouts::admin')] class extends Component
         // Nominal aktual yang dibayarkan saat ini
         $actualAmountPaid = $this->payment_type === 'paid' ? $this->price_paid : $this->amount_paid;
 
+        $pkt = GymPackage::find($this->gym_package_id);
+
         // 👇 MULAI DATABASE TRANSACTION DI SINI 👇
         try {
             DB::beginTransaction();
@@ -358,6 +360,8 @@ new #[Layout('layouts::admin')] class extends Component
                 'follow_up_id' => $this->follow_up_id ?: null,
                 'base_price' => $this->base_price,
                 'discount_applied' => $this->discount_applied,
+                'net_price' => $pkt->net_price,
+                'unrecommended_price' => $pkt->unrecommended_price,
                 'price_paid' => $this->price_paid, 
                 
                 'total_paid' => $actualAmountPaid, 
@@ -633,12 +637,21 @@ new #[Layout('layouts::admin')] class extends Component
                     @endif
 
                     @if(in_array($registration_type, ['membership', 'bundle_pt_membership', 'visit']) && $gym_package_id)
-                        @php $gymPkg = App\Models\GymPackage::find($gym_package_id); @endphp
+                        @php 
+                            $gymPkg = App\Models\GymPackage::find($gym_package_id);
+                            $multiplier = ($registration_type === 'visit') ? $selectedUsers->count() : 1; 
+                        @endphp
                         @if($gymPkg)
                             <div class="flex justify-between">
                                 <span>{{ $registration_type === 'visit' ? 'Paket Visit' : 'Paket Gym' }}</span>
                                 <span class="font-medium text-heading">Rp {{ number_format($gymPkg->price * ($registration_type === 'visit' ? $selectedUsers->count() : 1), 0, ',', '.') }}</span>
                             </div>
+                            @if($gymPkg->discount > 0)
+                                <div class="flex justify-between text-red-500 text-xs mt-1">
+                                    <span>Diskon Paket</span>
+                                    <span>- Rp {{ number_format($gymPkg->discount * $multiplier, 0, ',', '.') }}</span>
+                                </div>
+                            @endif
                         @endif
                     @endif
 
@@ -650,7 +663,20 @@ new #[Layout('layouts::admin')] class extends Component
                                 <span>Paket PT ({{ $ptPkg->pt_sessions }} Sesi)</span>
                                 <span class="font-medium text-heading">Rp {{ number_format($ptPkg->price, 0, ',', '.') }}</span>
                             </div>
+                            @if($ptPkg->discount > 0)
+                                <div class="flex justify-between text-red-500 text-xs mt-1">
+                                    <span>Diskon Paket PT</span>
+                                    <span>- Rp {{ number_format($ptPkg->discount, 0, ',', '.') }}</span>
+                                </div>
+                            @endif
                         @endif
+                    @endif
+                    @if((int)$manual_discount > 0)
+                        <div class="border-t border-default-medium my-2"></div>
+                        <div class="flex justify-between text-red-500 font-medium text-sm">
+                            <span>Diskon Tambahan (Manual)</span>
+                            <span>- Rp {{ number_format((int)$manual_discount, 0, ',', '.') }}</span>
+                        </div>
                     @endif
                 </div>
 
@@ -659,7 +685,7 @@ new #[Layout('layouts::admin')] class extends Component
                     <span class="text-2xl font-bold text-brand-strong">Rp {{ number_format($price_paid, 0, ',', '.') }}</span>
                 </div>
                 {{-- FORM INPUT DISKON MANUAL --}}
-                @if($registration_type)
+                @if($registration_type && $price_paid > 0)
                 <div class="mb-4">
                     <label class="block mb-1 text-sm font-medium text-heading">Diskon Tambahan</label>
                     <div x-data="{ 
@@ -689,7 +715,7 @@ new #[Layout('layouts::admin')] class extends Component
                             x-model="formatted" 
                             @input="updateValue($event)"
                             class="bg-white border border-default-medium text-heading text-lg font-bold rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2 shadow-xs text-red-600" 
-                            placeholder="Contoh: 50.000">
+                            placeholder="Diskon (Jika Ada)">
                     </div>
                     @error('manual_discount') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                 </div>
@@ -791,6 +817,12 @@ new #[Layout('layouts::admin')] class extends Component
                         <label class="block mb-1 text-sm font-medium text-heading">Status</label>
                         <textarea wire:model="transaction_type" rows="2" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2 shadow-xs placeholder-gray-400" placeholder="Contoh: NEW MEMBER, NEW PT 20 SESI"></textarea>
                         @error('transaction_type') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                    </div>
+
+                    <div>
+                        <label class="block mb-1 text-sm font-medium text-heading">Catatan</label>
+                        <textarea wire:model="notes" rows="2" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2 shadow-xs placeholder-gray-400" placeholder="Contoh: NEW MEMBER, NEW PT 20 SESI"></textarea>
+                        @error('notes') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                     </div>
 
                 </div>
