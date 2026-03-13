@@ -113,6 +113,15 @@ Route::middleware('auth')->group(function () {
         Route::livewire('/akun/trainer/{user}/edit', 'pages::dashboard.admin.akun.trainer.edit')
             ->name('admin.akun.trainer.edit');
 
+        Route::livewire('/akun/sales', 'pages::dashboard.admin.akun.sales.index')
+            ->name('admin.akun.sales.index');
+
+        Route::livewire('/akun/sales/create', 'pages::dashboard.admin.akun.sales.create')
+            ->name('admin.akun.sales.create');
+
+        Route::livewire('/akun/sales/{user}/edit', 'pages::dashboard.admin.akun.sales.edit')
+            ->name('admin.akun.sales.edit');
+
         // --- Package Management ---
         // Saya kelompokkan lagi dengan prefix 'package' biar URL rapi
         Route::prefix('package')->group(function () {

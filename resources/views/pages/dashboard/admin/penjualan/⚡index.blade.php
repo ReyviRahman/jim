@@ -111,10 +111,8 @@ new #[Layout('layouts::admin')] class extends Component
             $query->whereMonth('payment_date', now()->month)
                   ->whereYear('payment_date', now()->year);
         } elseif ($this->filterTime === 'custom' && $this->dateStart && $this->dateEnd) {
-            $query->whereBetween('payment_date', [
-                $this->dateStart . ' 00:00:00', 
-                $this->dateEnd . ' 23:59:59'
-            ]);
+            $query->whereDate('payment_date', '>=', $this->dateStart)
+                  ->whereDate('payment_date', '<=', $this->dateEnd);
         }
 
         // 3. Logika Filter Shift (Jam)
@@ -137,7 +135,7 @@ new #[Layout('layouts::admin')] class extends Component
     #[Computed]
     public function transactions()
     {
-        $query = $this->getBaseQuery()->with(['admin', 'followUp']);
+        $query = $this->getBaseQuery()->with(['admin', 'followUp', 'followUpTwo']);
         $limit = $this->perPage === 'all' ? 10000 : $this->perPage;
         return $query->latest('payment_date')->paginate($limit);
     }
@@ -182,10 +180,8 @@ new #[Layout('layouts::admin')] class extends Component
             $expenseQuery->whereMonth('expense_date', now()->month)
                          ->whereYear('expense_date', now()->year);
         } elseif ($this->filterTime === 'custom' && $this->dateStart && $this->dateEnd) {
-            $expenseQuery->whereBetween('expense_date', [
-                $this->dateStart . ' 00:00:00', 
-                $this->dateEnd . ' 23:59:59'
-            ]);
+            $expenseQuery->whereDate('expense_date', '>=', $this->dateStart)
+                         ->whereDate('expense_date', '<=', $this->dateEnd);
         }
 
         // Terapkan Filter Shift ke Pengeluaran (Jika ada)
@@ -225,7 +221,7 @@ new #[Layout('layouts::admin')] class extends Component
     public function exportExcel()
     {
         // 1. Ambil data pemasukan
-        $transactions = $this->getBaseQuery()->with(['admin', 'followUp'])->get();
+        $transactions = $this->getBaseQuery()->with(['admin', 'followUp', 'followUpTwo'])->get();
 
         $startDate = $this->dateStart;
         $endDate = $this->dateEnd;
@@ -253,7 +249,8 @@ new #[Layout('layouts::admin')] class extends Component
         } elseif ($this->filterTime === 'month') {
             $expenseQuery->whereMonth('expense_date', now()->month)->whereYear('expense_date', now()->year);
         } elseif ($this->filterTime === 'custom' && $this->dateStart && $this->dateEnd) {
-            $expenseQuery->whereBetween('expense_date', [$this->dateStart . ' 00:00:00', $this->dateEnd . ' 23:59:59']);
+            $expenseQuery->whereDate('expense_date', '>=', $this->dateStart)
+                         ->whereDate('expense_date', '<=', $this->dateEnd);
         }
         if ($this->shift === 'pagi') {
             $expenseQuery->whereHas('admin', fn($q) => $q->where('shift', 'Pagi'));
@@ -361,7 +358,7 @@ new #[Layout('layouts::admin')] class extends Component
                     <div class="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
                         <svg class="w-4 h-4 text-body" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 10h16M8 14h8m-4-7V4M7 7V4m10 3V4M5 20h14a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1Z"/></svg>
                     </div>
-                    <input type="text" x-data x-init="flatpickr($el, { mode: 'range', dateFormat: 'Y-m-d', placeholder: 'Pilih Tanggal', onClose: function(selectedDates, dateStr) { @this.call('setDateRange', dateStr) } })" class="block w-full ps-9 pe-3 py-2.5 bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand shadow-xs" placeholder="Pilih Rentang Tanggal">
+                    <input type="text" x-data x-init="flatpickr($el, { mode: 'range', dateFormat: 'Y-m-d', placeholder: 'Pilih Tanggal', onClose: function(selectedDates, dateStr) { $wire.setDateRange(dateStr) } })" class="block w-full ps-9 pe-3 py-2.5 bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand shadow-xs" placeholder="Pilih Rentang Tanggal">
                 </div>
 
                 {{-- Filter Presets (Hari ini, Bulan ini) --}}
@@ -398,8 +395,8 @@ new #[Layout('layouts::admin')] class extends Component
                     <th class="px-6 py-3 font-medium">Catatan</th>
                     <th class="px-6 py-3 font-medium text-right">Nominal</th>
                     <th class="px-6 py-3 font-medium">Metode Bayar</th>
-                    <th class="px-6 py-3 font-medium">Admin</th>
-                    <th class="px-6 py-3 font-medium">Follow Up</th>
+                    <th class="px-6 py-3 font-medium">Admin Follow Up</th>
+                    <th class="px-6 py-3 font-medium">Sales Follow Up</th>
                 </tr>
             </thead>
             <tbody>
@@ -433,8 +430,8 @@ new #[Layout('layouts::admin')] class extends Component
                         <td class="px-6 py-4 font-medium text-gray-700 whitespace-nowrap">{{ $transaction->notes }}</td>
                         <td class="px-6 py-4 text-right font-bold text-emerald-600 whitespace-nowrap">Rp {{ number_format($transaction->amount, 0, ',', '.') }}</td>
                         <td class="px-6 py-4 whitespace-nowrap"><span class="text-xs font-medium border bg-white px-2 py-0.5 rounded shadow-xs">{{ strtoupper($transaction->payment_method) }}</span></td>
-                        <td class="px-6 py-4 whitespace-nowrap">{{ $transaction->admin->name ?? '-' }}</td>
                         <td class="px-6 py-4 whitespace-nowrap">{{ $transaction->followUp->name ?? '-' }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">{{ $transaction->followUpTwo->name ?? '-' }}</td>
                     </tr>
                 @empty
                     <tr><td colspan="10" class="px-6 py-8 text-center text-gray-500">Belum ada riwayat penjualan.</td></tr>

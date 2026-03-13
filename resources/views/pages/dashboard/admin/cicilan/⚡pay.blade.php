@@ -106,6 +106,7 @@ new #[Layout('layouts::admin')] class extends Component
                 'user_id' => $this->membership->user_id,
                 'admin_id' => $this->membership->admin_id, 
                 'follow_up_id' => $this->membership->follow_up_id ?: null,
+                'follow_up_id_two' => $this->membership->follow_up_id_two ?: null,
                 'transaction_type' => $this->transaction_type,
                 'package_name' => $packageNameStr,
                 'amount' => $this->amount_paid,

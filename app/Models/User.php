@@ -80,6 +80,11 @@ class User extends Authenticatable
     {
         return $this->hasMany(Membership::class, 'follow_up_id');
     }
+
+    public function followUpTwoMemberships(): HasMany
+    {
+        return $this->hasMany(Membership::class, 'follow_up_id_two');
+    }
     
     public function activeMembership()
     {

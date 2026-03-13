@@ -15,6 +15,7 @@ class Membership extends Model
         'pt_id',
         'admin_id',      
         'follow_up_id',
+        'follow_up_id_two',
         'gym_package_id',
         'pt_package_id',
         'base_price',
@@ -58,6 +59,11 @@ class Membership extends Model
     public function followUp(): BelongsTo
     {
         return $this->belongsTo(User::class, 'follow_up_id');
+    }
+
+    public function followUpTwo(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'follow_up_id_two');
     }
 
     /**
