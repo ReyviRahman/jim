@@ -88,7 +88,7 @@ new #[Layout('layouts::admin')] class extends Component
     #[Computed]
     public function memberships()
     {
-        $query = Membership::with(['user', 'members', 'admin', 'followUp', 'personalTrainer', 'gymPackage', 'ptPackage'])
+        $query = Membership::with(['user', 'members', 'admin', 'followUp', 'followUpTwo', 'personalTrainer', 'gymPackage', 'ptPackage'])
             ->where('status', 'active');
 
         // 1. Logika Pencarian (Mencari di tabel Users atau Members)
@@ -234,8 +234,8 @@ new #[Layout('layouts::admin')] class extends Component
                     <th scope="col" class="px-6 py-3 font-medium text-right">Harga Net</th>
                     <th scope="col" class="px-6 py-3 font-medium text-right">Harga Tidak disarankan</th>
                     <th scope="col" class="px-6 py-3 font-medium">Masa Aktif</th>
-                    <th scope="col" class="px-6 py-3 font-medium text-center">Admin</th>
-                    <th scope="col" class="px-6 py-3 font-medium text-center">Follow Up</th>
+                    <th scope="col" class="px-6 py-3 font-medium text-center">Admin Follow Up</th>
+                    <th scope="col" class="px-6 py-3 font-medium text-center">Sales Follow Up</th>
                 </tr>
             </thead>
             <tbody>
@@ -373,10 +373,10 @@ new #[Layout('layouts::admin')] class extends Component
                         </td>
 
                         <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
-                            <h1 class="font-semibold">{{ $membership->admin->name }}</h1>
+                            <h1 class="font-semibold">{{ $membership->followUp->name ?? '-' }}</h1>
                         </td>
                         <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
-                            <h1 class="font-semibold">{{ $membership->followUp->name ?? '-' }}</h1>
+                            <h1 class="font-semibold">{{ $membership->followUpTwo->name ?? '-' }}</h1>
                         </td>
                     </tr>
                 @empty

@@ -17,6 +17,7 @@ return new class extends Migration
             $table->foreignId('pt_id')->nullable()->constrained('users'); 
             $table->foreignId('admin_id')->nullable()->constrained('users');
             $table->foreignId('follow_up_id')->nullable()->constrained('users');
+            $table->foreignId('follow_up_id_two')->nullable()->constrained('users');
             $table->decimal('base_price', 12, 0); 
             $table->decimal('discount_applied', 12, 0)->default(0); 
             $table->decimal('net_price', 12, 0)->nullable(); 

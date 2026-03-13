@@ -51,6 +51,7 @@ new #[Layout('layouts::admin')] class extends Component
 
     public $admin_id = '';
     public $follow_up_id = '';
+    public $follow_up_id_two = '';
 
     public function mount()
     {
@@ -303,7 +304,8 @@ new #[Layout('layouts::admin')] class extends Component
             'package_name' => 'required|string',
             'notes' => 'required|string',
             'admin_id' => 'required|exists:users,id',
-            'follow_up_id' => 'nullable|exists:users,id|different:admin_id',
+            'follow_up_id' => 'nullable|exists:users,id',
+            'follow_up_id_two' => 'nullable|exists:users,id|different:follow_up_id',
             'manual_discount' => 'nullable|numeric|min:0|max:' . $this->base_price,
         ];
 
@@ -358,6 +360,7 @@ new #[Layout('layouts::admin')] class extends Component
                 'pt_id' => in_array($this->registration_type, ['pt', 'bundle_pt_membership']) ? $this->pt_id : null,
                 'admin_id' => $this->admin_id,
                 'follow_up_id' => $this->follow_up_id ?: null,
+                'follow_up_id_two' => $this->follow_up_id_two ?: null,
                 'base_price' => $this->base_price,
                 'discount_applied' => $this->discount_applied,
                 'net_price' => $pkt->net_price,
@@ -391,6 +394,7 @@ new #[Layout('layouts::admin')] class extends Component
                 'user_id' => $this->mainUser->id,
                 'admin_id' => $this->admin_id, 
                 'follow_up_id' => $this->follow_up_id ?: null,
+                'follow_up_id_two' => $this->follow_up_id_two ?: null,
                 'transaction_type' => $this->transaction_type,
                 'package_name' => $this->package_name,
                 'amount' => $actualAmountPaid,
@@ -468,7 +472,7 @@ new #[Layout('layouts::admin')] class extends Component
                     
                     {{-- 1. PILIH JENIS PENDAFTARAN UTAMA --}}
                     <div class="md:col-span-2 pb-4 border-b border-default-medium">
-                        <label for="registration_type" class="block mb-2.5 text-sm font-semibold text-brand-strong">1. Pilih Jenis Pendaftaran</label>
+                        <label for="registration_type" class="block mb-2.5 text-sm font-semibold text-brand-strong">Pilih Jenis Pendaftaran</label>
                         <select id="registration_type" wire:model.live="registration_type" class="bg-white border border-brand-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-3 shadow-sm font-medium">
                             <option value="">-- Silakan Pilih Jenis Program --</option>
                             @if($selectedUsers->count() > 1)
@@ -485,7 +489,7 @@ new #[Layout('layouts::admin')] class extends Component
                     @if($registration_type)
                         {{-- 2. DURASI PROGRAM (SEKARANG BERDAMPINGAN: MULAI, BERAKHIR, DURASI) --}}
                         <div class="md:col-span-2">
-                            <h6 class="text-sm font-semibold text-heading mb-3">2. Durasi Program & Tanggal Aktif</h6>
+                            <h6 class="text-sm font-semibold text-heading mb-3">Durasi Program & Tanggal Aktif</h6>
                             <div class="grid gap-4 md:grid-cols-3 bg-gray-50 p-4 rounded border border-gray-200">
                                 
                                 {{-- Tanggal Mulai --}}
@@ -529,7 +533,7 @@ new #[Layout('layouts::admin')] class extends Component
                         {{-- 3. FORM MEMBERSHIP GYM (TERMASUK VISIT) --}}
                         @if(in_array($registration_type, ['membership', 'bundle_pt_membership', 'visit']))
                         <div class="md:col-span-2 mt-2 p-4 bg-gray-50 rounded-md border border-gray-200">
-                            <h6 class="text-sm font-semibold text-heading mb-4 border-b border-gray-200 pb-2">3. Detail {{ $registration_type === 'visit' ? 'Kunjungan Harian' : 'Membership Gym' }}</h6>
+                            <h6 class="text-sm font-semibold text-heading mb-4 border-b border-gray-200 pb-2">Detail {{ $registration_type === 'visit' ? 'Kunjungan Harian' : 'Membership Gym' }}</h6>
                             <div class="grid gap-6 md:grid-cols-2">
                                 <div class="md:col-span-2">
                                     <label for="gym_package_id" class="block mb-2.5 text-sm font-medium text-heading">Pilih Paket {{ $registration_type === 'visit' ? 'Visit' : 'Gym' }}</label>
@@ -551,7 +555,7 @@ new #[Layout('layouts::admin')] class extends Component
                         {{-- 4. FORM PERSONAL TRAINER --}}
                         @if(in_array($registration_type, ['pt', 'bundle_pt_membership']))
                         <div class="md:col-span-2 mt-2 p-4 bg-blue-50 rounded-md border border-blue-100">
-                            <h6 class="text-sm font-semibold text-blue-800 mb-4 border-b border-blue-200 pb-2">3. Detail Personal Trainer (PT)</h6>
+                            <h6 class="text-sm font-semibold text-blue-800 mb-4 border-b border-blue-200 pb-2">Detail Personal Trainer (PT)</h6>
                             <div class="grid gap-6 md:grid-cols-2">
                                 <div class="md:col-span-2">
                                     <label for="pt_package_id" class="block mb-2.5 text-sm font-medium text-heading">Pilih Paket Layanan PT</label>
@@ -586,27 +590,37 @@ new #[Layout('layouts::admin')] class extends Component
                             <div class="grid gap-6 md:grid-cols-2">
                                 
                                 {{-- Dropdown Admin / Kasir --}}
-                                <div>
-                                    <label for="admin_id" class="block mb-2.5 text-sm font-medium text-heading">Admin<span class="text-red-500">*</span></label>
+                                <div class="col-span-2">
+                                    <label for="admin_id" class="block mb-2.5 text-sm font-medium text-heading">Shift</label>
                                     <select id="admin_id" wire:model="admin_id" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs">
-                                        <option value="">-- Pilih Admin --</option>
+                                        <option value="">-- Pilih Shift --</option>
                                         @foreach($this->adminUsers as $admin)
-                                            <option value="{{ $admin->id }}">{{ $admin->name }}</option>
+                                            <option value="{{ $admin->id }}">{{ $admin->name }} ({{ $admin->shift }})</option>
                                         @endforeach
                                     </select>
                                     @error('admin_id') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                                 </div>
 
-                                {{-- Dropdown Staff Follow Up --}}
                                 <div>
-                                    <label for="follow_up_id" class="block mb-2.5 text-sm font-medium text-heading">Follow Up (Opsional)</label>
+                                    <label for="follow_up_id" class="block mb-2.5 text-sm font-medium text-heading">Admin Follow Up</label>
                                     <select id="follow_up_id" wire:model="follow_up_id" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs">
-                                        <option value="">-- Pilih Staff Jika Ada--</option>
+                                        <option value="">-- Pilih Staff --</option>
                                         @foreach($this->followUpUsers as $staff)
                                             <option value="{{ $staff->id }}">{{ $staff->name }}</option>
                                         @endforeach
                                     </select>
                                     @error('follow_up_id') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                                </div>
+
+                                <div>
+                                    <label for="follow_up_id_two" class="block mb-2.5 text-sm font-medium text-heading">Sales Follow Up</label>
+                                    <select id="follow_up_id_two" wire:model="follow_up_id_two" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs">
+                                        <option value="">-- Pilih Staff --</option>
+                                        @foreach($this->followUpUsers as $staff)
+                                            <option value="{{ $staff->id }}">{{ $staff->name }}</option>
+                                        @endforeach
+                                    </select>
+                                    @error('follow_up_id_two') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                                 </div>
 
                             </div>

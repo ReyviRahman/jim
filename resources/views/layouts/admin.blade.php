@@ -56,6 +56,14 @@
                             <span class="ms-3">Paket</span>
                         </a>
                     </li>
+
+                    <li>
+                        <a href="{{ route('admin.akun.member.index') }}" wire:navigate 
+                            class="{{ request()->routeIs('admin.akun.member.*') ? 'text-[#34342F] bg-brand' : 'text-white' }} flex items-center px-2 py-1.5 rounded-md hover:bg-brand hover:text-[#34342F] group transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="16.271186440677965" viewBox="0 0 472 384"><path fill="currentColor" d="M427 43h42v298h-42zm-86 298V43h43v298zM277 43q9 0 15.5 6t6.5 15v256q0 9-6.5 15t-15.5 6H21q-8 0-14.5-6T0 320V64q0-9 6.5-15T21 43zm-128 58q-20 0-34 14t-14 34t14 34t34 14t34-14t14-34t-14-34t-34-14m96 198v-16q0-22-33-35t-63-13t-63 13t-33 35v16z"/></svg>
+                            <span class="ms-3">Member</span>
+                        </a>
+                    </li>
                     
                     <li>
                         <a href="{{ route('admin.akun.admin.index') }}" wire:navigate 
@@ -64,18 +72,19 @@
                             <span class="ms-3">Admin</span>
                         </a>
                     </li>
-                    <li>
-                        <a href="{{ route('admin.akun.member.index') }}" wire:navigate 
-                            class="{{ request()->routeIs('admin.akun.member.*') ? 'text-[#34342F] bg-brand' : 'text-white' }} flex items-center px-2 py-1.5 rounded-md hover:bg-brand hover:text-[#34342F] group transition-colors">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="16.271186440677965" viewBox="0 0 472 384"><path fill="currentColor" d="M427 43h42v298h-42zm-86 298V43h43v298zM277 43q9 0 15.5 6t6.5 15v256q0 9-6.5 15t-15.5 6H21q-8 0-14.5-6T0 320V64q0-9 6.5-15T21 43zm-128 58q-20 0-34 14t-14 34t14 34t34 14t34-14t14-34t-14-34t-34-14m96 198v-16q0-22-33-35t-63-13t-63 13t-33 35v16z"/></svg>
-                            <span class="ms-3">Member</span>
-                        </a>
-                    </li>
+                    
                     <li>
                         <a href="{{ route('admin.akun.trainer.index') }}" wire:navigate 
                             class="{{ request()->routeIs('admin.akun.trainer.*') ? 'text-[#34342F] bg-brand' : 'text-white' }} flex items-center px-2 py-1.5 rounded-md hover:bg-brand hover:text-[#34342F] group transition-colors">
                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 512 512"><path fill="currentColor" d="M165.906 18.688C15.593 59.28-42.187 198.55 92.72 245.375h-1.095c.635.086 1.274.186 1.906.28c8.985 3.077 18.83 5.733 29.532 7.94C173.36 273.35 209.74 321.22 212.69 368c-33.514 23.096-59.47 62.844-59.47 62.844l26.28 38.686L138.28 493h81.97c-40.425-40.435-11.76-85.906 36.125-85.906c48.54 0 73.945 48.112 36.156 85.906h81.126l-40.375-23.47l26.283-38.686s-26.376-40.4-60.282-63.406c3.204-46.602 39.5-94.167 89.595-113.844c10.706-2.207 20.546-4.86 29.53-7.938c.633-.095 1.273-.195 1.908-.28h-1.125c134.927-46.82 77.163-186.094-73.157-226.69c-40.722 39.37 6.54 101.683 43.626 56.877c36.9 69.08 8.603 127.587-72.28 83.406c-11.88 24.492-34.213 41.374-60.688 41.374c-26.703 0-49.168-17.167-60.97-42c-81.774 45.38-110.512-13.372-73.437-82.78c37.09 44.805 84.35-17.508 43.626-56.876zm90.79 35.92c-27.388 0-51.33 27.556-51.33 63.61c0 36.056 23.942 62.995 51.33 62.995s51.327-26.94 51.327-62.994c0-36.058-23.94-63.61-51.328-63.61z"/></svg>
                             <span class="ms-3">Trainer</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ route('admin.akun.sales.index') }}" wire:navigate 
+                            class="{{ request()->routeIs('admin.akun.sales.*') ? 'text-[#34342F] bg-brand' : 'text-white' }} flex items-center px-2 py-1.5 rounded-md hover:bg-brand hover:text-[#34342F] group transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 32 32"><path fill="currentColor" d="M30 6V4h-3V2h-2v2h-1c-1.103 0-2 .898-2 2v2c0 1.103.897 2 2 2h4v2h-6v2h3v2h2v-2h1c1.103 0 2-.897 2-2v-2c0-1.102-.897-2-2-2h-4V6zm-6 14v2h2.586L23 25.586l-2.292-2.293a1 1 0 0 0-.706-.293H20a1 1 0 0 0-.706.293L14 28.586L15.414 30l4.587-4.586l2.292 2.293a1 1 0 0 0 1.414 0L28 23.414V26h2v-6zM4 30H2v-5c0-3.86 3.14-7 7-7h6c1.989 0 3.89.85 5.217 2.333l-1.49 1.334A5 5 0 0 0 15 20H9c-2.757 0-5 2.243-5 5zm8-14a7 7 0 1 0 0-14a7 7 0 0 0 0 14m0-12a5 5 0 1 1 0 10a5 5 0 0 1 0-10"/></svg>
+                            <span class="ms-3">Sales</span>
                         </a>
                     </li>
                 </ul>

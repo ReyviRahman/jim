@@ -73,7 +73,7 @@ class PenjualanExport implements WithEvents
                 // ==========================================
                 // 3. HEADER TABEL UTAMA (Baris 3) -> Penambahan Catatan & Follow Up
                 // ==========================================
-                $headers = ['NAMA', 'TANGGAL BAYAR', 'TANGGAL MULAI AKTIF', 'TANGGAL BERAKHIR (MASA AKTIF)', 'STATUS', 'PAKET MEMBER', 'CATATAN', 'NOMINAL', 'METODE BAYAR', 'ADMIN', 'FOLLOW UP'];
+                $headers = ['NAMA', 'TANGGAL BAYAR', 'TANGGAL MULAI AKTIF', 'TANGGAL BERAKHIR (MASA AKTIF)', 'STATUS', 'PAKET MEMBER', 'CATATAN', 'NOMINAL', 'METODE BAYAR', 'ADMIN FOLLOW UP', 'SALES FOLLOW UP'];
                 foreach (array_values($headers) as $index => $header) {
                     $col = chr(65 + $index);
                     $sheet->setCellValue($col . '3', $header);
@@ -108,8 +108,8 @@ class PenjualanExport implements WithEvents
                     $sheet->setCellValue('G'.$row, $trx->notes ?? '-'); // Kolom Catatan Baru
                     $sheet->setCellValue('H'.$row, $trx->amount); // Nominal Geser ke H
                     $sheet->setCellValue('I'.$row, strtoupper($trx->payment_method)); // Geser ke I
-                    $sheet->setCellValue('J'.$row, strtoupper($trx->admin->name ?? '-')); // Geser ke J
-                    $sheet->setCellValue('K'.$row, strtoupper($trx->followUp->name ?? '-')); // Kolom Follow Up Baru
+                    $sheet->setCellValue('J'.$row, strtoupper($trx->followUp->name ?? '-')); // Geser ke J
+                    $sheet->setCellValue('K'.$row, strtoupper($trx->followUpTwo->name ?? '-')); // Kolom Follow Up Baru
 
                     $row++;
                 }
