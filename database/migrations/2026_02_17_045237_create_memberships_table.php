@@ -30,6 +30,7 @@ return new class extends Migration
             $table->date('pt_end_date')->nullable(); 
             $table->date('membership_end_date')->nullable(); 
             $table->string('member_goal')->nullable();
+            $table->string('notes')->nullable();
             $table->date('start_date'); 
             $table->enum('status', ['pending', 'active', 'rejected', 'completed'])->index()->default('pending');
             $table->timestamps();

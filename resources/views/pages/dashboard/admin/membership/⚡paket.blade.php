@@ -378,6 +378,7 @@ new #[Layout('layouts::admin')] class extends Component
                 'pt_end_date' => in_array($this->registration_type, ['pt', 'bundle_pt_membership']) ? $this->pt_end_date : null,
                 
                 'status' => $this->payment_type === 'paid' ? 'active' : 'pending',
+                'notes' => $this->notes,
             ]);
 
             $membership->members()->attach($this->selectedUsers->pluck('id')->toArray());
