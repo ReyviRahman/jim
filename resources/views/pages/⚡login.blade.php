@@ -35,6 +35,13 @@ new class extends Component {
                 return;
             }
 
+            if ($user->role === 'sales') {
+                Auth::logout();
+                session()->invalidate();
+                session()->regenerateToken();
+                return;
+            }
+
             // 4. Jika akun aktif, regenerasi session untuk keamanan
             session()->regenerate();
 

@@ -121,6 +121,12 @@ Route::middleware('auth')->group(function () {
 
         Route::livewire('/akun/sales/{user}/edit', 'pages::dashboard.admin.akun.sales.edit')
             ->name('admin.akun.sales.edit');
+        
+        Route::livewire('/rekap-bonus', 'pages::dashboard.admin.rekap-bonus.index')
+            ->name('admin.rekap-bonus.index');
+
+        Route::livewire('/rekap-bonus/{user}/detail', 'pages::dashboard.admin.rekap-bonus.detail')
+            ->name('admin.rekap-bonus.detail');
 
         // --- Package Management ---
         // Saya kelompokkan lagi dengan prefix 'package' biar URL rapi

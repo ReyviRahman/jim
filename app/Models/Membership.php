@@ -32,6 +32,7 @@ class Membership extends Model
         'pt_end_date', 
         'membership_end_date', 
         'status',
+        'notes',
     ];
 
     protected $casts = [
