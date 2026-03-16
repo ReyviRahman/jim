@@ -33,10 +33,10 @@ new #[Layout('layouts::admin')] class extends Component
     #[Validate('nullable|numeric|min:0')]
     public $discount = '';
 
-    #[Validate('required|numeric|min:0')]
+    #[Validate('nullable|numeric|min:0')]
     public $net_price = ''; 
 
-    #[Validate('required|numeric|min:0')]
+    #[Validate('nullable|numeric|min:0')]
     public $unrecommended_price = ''; 
 
     public function mount(GymPackage $package)
@@ -123,8 +123,8 @@ new #[Layout('layouts::admin')] class extends Component
             'max_members' => $this->max_members,
             'price' => $this->price,
             'discount' => $this->discount === '' ? 0 : $this->discount,
-            'net_price' => $this->net_price,
-            'unrecommended_price' => $this->unrecommended_price,
+            'net_price' => $this->net_price === '' ? null : $this->net_price,
+            'unrecommended_price' => $this->unrecommended_price === '' ? null : $this->unrecommended_price,
         ]);
 
         session()->flash('success', 'Paket berhasil diperbarui!');
@@ -228,7 +228,7 @@ new #[Layout('layouts::admin')] class extends Component
 
             {{-- 6. Harga --}}
             <div>
-                <label for="price" class="block mb-2.5 text-sm font-medium text-heading">Harga (Rp)</label>
+                <label for="price" class="block mb-2.5 text-sm font-medium text-heading">Harga Normal</label>
                 <input 
                     type="number" 
                     id="price" 
@@ -266,7 +266,7 @@ new #[Layout('layouts::admin')] class extends Component
                     wire:model.live="net_price"
                     class="bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs placeholder:text-body" 
                     placeholder="Contoh: 150000" 
-                    required 
+                     
                 />
                 @error('net_price') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
             </div>
@@ -279,7 +279,7 @@ new #[Layout('layouts::admin')] class extends Component
                     wire:model.live="unrecommended_price"
                     class="bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs placeholder:text-body" 
                     placeholder="Contoh: 150000" 
-                    required 
+                     
                 />
                 @error('unrecommended_price') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
             </div>
