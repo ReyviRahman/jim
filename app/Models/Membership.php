@@ -21,6 +21,7 @@ class Membership extends Model
         'base_price',
         'discount_applied', 
         'price_paid',
+        'normal_price',
         'net_price', 
         'unrecommended_price',
         'total_paid',

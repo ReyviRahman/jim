@@ -20,6 +20,7 @@ return new class extends Migration
             $table->foreignId('follow_up_id_two')->nullable()->constrained('users');
             $table->decimal('base_price', 12, 0); 
             $table->decimal('discount_applied', 12, 0)->default(0); 
+            $table->decimal('normal_price', 12, 0)->nullable();
             $table->decimal('net_price', 12, 0)->nullable(); 
             $table->decimal('unrecommended_price', 12, 0)->nullable();
             $table->decimal('price_paid', 12, 0); 

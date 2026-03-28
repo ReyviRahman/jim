@@ -69,9 +69,10 @@ new #[Layout('layouts::admin')] class extends Component
                     <th scope="col" class="px-6 py-3 font-medium text-center">Tipe Layanan</th>
                     <th scope="col" class="px-6 py-3 font-medium">Nama Paket</th>
                     <th scope="col" class="px-6 py-3 font-medium text-center">Kategori</th>
-                    <th scope="col" class="px-6 py-3 font-medium text-right">Harga Dasar</th>
+                    {{-- <th scope="col" class="px-6 py-3 font-medium text-right">Harga Dasar</th> --}}
                     <th scope="col" class="px-6 py-3 font-medium text-center">Diskon</th>
-                    <th scope="col" class="px-6 py-3 font-medium text-right">Harga Akhir</th>
+                    {{-- <th scope="col" class="px-6 py-3 font-medium text-right">Harga Akhir</th> --}}
+                    <th scope="col" class="px-6 py-3 font-medium text-right">Harga Normal</th>
                     <th scope="col" class="px-6 py-3 font-medium text-right">Harga Net</th>
                     <th scope="col" class="px-6 py-3 font-medium text-right">Harga Tidak disarankan</th>
                     <th scope="col" class="px-6 py-3 font-medium text-center">Status</th>
@@ -131,9 +132,9 @@ new #[Layout('layouts::admin')] class extends Component
                         </td>
                         
                         {{-- Harga Dasar --}}
-                        <td class="px-6 py-4 text-right font-medium text-gray-500 whitespace-nowrap {{ $package->discount > 0 ? 'line-through' : 'text-heading' }}">
+                        {{-- <td class="px-6 py-4 text-right font-medium text-gray-500 whitespace-nowrap {{ $package->discount > 0 ? 'line-through' : 'text-heading' }}">
                             Rp {{ number_format($package->price, 0, ',', '.') }}
-                        </td>
+                        </td> --}}
                         
                         {{-- Diskon --}}
                         <td class="px-6 py-4 font-medium text-center whitespace-nowrap">
@@ -156,14 +157,29 @@ new #[Layout('layouts::admin')] class extends Component
                         @php
                             $finalPrice = $package->price - $package->discount;
                         @endphp
-                        <td class="px-6 py-4 text-right font-bold text-green-700 whitespace-nowrap">
+                        {{-- <td class="px-6 py-4 text-right font-bold text-green-700 whitespace-nowrap">
                             Rp {{ number_format($finalPrice > 0 ? $finalPrice : 0, 0, ',', '.') }}
+                        </td> --}}
+                        <td class="px-6 py-4 text-right font-medium text-heading whitespace-nowrap">
+                            @if($package->normal_price != $package->price)
+                                Rp {{ number_format($package->normal_price, 0, ',', '.') }} - Rp {{ number_format($package->price, 0, ',', '.') }}
+                            @else
+                                Rp {{ number_format($package->price, 0, ',', '.') }}
+                            @endif
                         </td>
                         <td class="px-6 py-4 text-right font-medium text-heading whitespace-nowrap">
-                            Rp {{ number_format($package->net_price, 0, ',', '.') }}
+                            @if($package->net_price !== null)
+                                Rp {{ number_format($package->net_price, 0, ',', '.') }}
+                            @else
+                                -
+                            @endif
                         </td>
                         <td class="px-6 py-4 text-right font-medium text-heading whitespace-nowrap">
-                            Rp {{ number_format($package->unrecommended_price, 0, ',', '.') }}
+                            @if($package->unrecommended_price !== null)
+                                Rp {{ number_format($package->unrecommended_price, 0, ',', '.') }}
+                            @else
+                                -
+                            @endif
                         </td>
                         
                         {{-- Status dengan Toggle --}}

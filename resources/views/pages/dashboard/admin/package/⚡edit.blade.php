@@ -33,6 +33,9 @@ new #[Layout('layouts::admin')] class extends Component
     #[Validate('nullable|numeric|min:0')]
     public $discount = '';
 
+    #[Validate('required|numeric|min:0')]
+    public $normal_price = '';
+
     #[Validate('nullable|numeric|min:0')]
     public $net_price = ''; 
 
@@ -50,6 +53,7 @@ new #[Layout('layouts::admin')] class extends Component
         $this->max_members = $package->max_members; 
         $this->price = $package->price;
         $this->discount = $package->discount;
+        $this->normal_price = $package->normal_price;
         $this->net_price = $package->net_price;
         $this->unrecommended_price = $package->unrecommended_price;
 
@@ -123,6 +127,7 @@ new #[Layout('layouts::admin')] class extends Component
             'max_members' => $this->max_members,
             'price' => $this->price,
             'discount' => $this->discount === '' ? 0 : $this->discount,
+            'normal_price' => $this->normal_price === '' ? null : $this->normal_price,
             'net_price' => $this->net_price === '' ? null : $this->net_price,
             'unrecommended_price' => $this->unrecommended_price === '' ? null : $this->unrecommended_price,
         ]);
@@ -227,18 +232,7 @@ new #[Layout('layouts::admin')] class extends Component
             </div>
 
             {{-- 6. Harga --}}
-            <div>
-                <label for="price" class="block mb-2.5 text-sm font-medium text-heading">Harga Normal</label>
-                <input 
-                    type="number" 
-                    id="price" 
-                    wire:model.live="price"
-                    class="bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs" 
-                    required 
-                />
-                <p class="mt-1 text-xs text-gray-500">Harga dasar paket.</p>
-                @error('price') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
-            </div>
+            
 
             {{-- 7. Diskon Nominal --}}
             <div>
@@ -258,6 +252,32 @@ new #[Layout('layouts::admin')] class extends Component
                 <p class="mt-1 text-xs text-gray-500">Kosongkan jika tidak ada diskon.</p>
                 @error('discount') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
             </div>
+
+            <div>
+                <div>
+                    <label for="price" class="block mb-2.5 text-sm font-medium text-heading">Harga Normal</label>
+                    <div class="flex">
+                        <input 
+                            type="number" 
+                            id="price" 
+                            wire:model.live="price"
+                            class="bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs" 
+                            required 
+                        />
+                        @error('price') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                        <div class="flex items-center mx-2"> - </div>
+                        <input 
+                            type="number" 
+                            id="normal_price" 
+                            wire:model.live="normal_price"
+                            class="bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs" 
+                            required 
+                        />
+                        @error('normal_price') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                    </div>
+                </div>
+            </div>
+
             <div>
                 <label for="net_price" class="block mb-2.5 text-sm font-medium text-heading">Harga Net</label>
                 <input 
