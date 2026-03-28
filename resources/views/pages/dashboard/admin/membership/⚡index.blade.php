@@ -231,8 +231,6 @@ new #[Layout('layouts::admin')] class extends Component
                     <th scope="col" class="px-6 py-3 font-medium">Member</th>
                     <th scope="col" class="px-6 py-3 font-medium">Program / Paket</th>
                     <th scope="col" class="px-6 py-3 font-medium text-right">Total Bayar</th>
-                    <th scope="col" class="px-6 py-3 font-medium text-right">Harga Net</th>
-                    <th scope="col" class="px-6 py-3 font-medium text-right">Harga Tidak disarankan</th>
                     <th scope="col" class="px-6 py-3 font-medium">Masa Aktif</th>
                     <th scope="col" class="px-6 py-3 font-medium text-center">Admin Follow Up</th>
                     <th scope="col" class="px-6 py-3 font-medium text-center">Sales Follow Up</th>
@@ -305,39 +303,93 @@ new #[Layout('layouts::admin')] class extends Component
 
                         {{-- Total Bayar --}}
                         <td class="px-6 py-4 text-right whitespace-nowrap">
-                            @if($membership->discount_applied > 0)
-                                @php
-                                    $originalPrice = $membership->price_paid + $membership->discount_applied;
-                                    $percentage = ($originalPrice > 0) ? ($membership->discount_applied / $originalPrice) * 100 : 0;
-                                @endphp
-                                
-                                <div class="flex flex-col items-end mb-1">
-                                    <div class="flex items-center gap-2">
-                                        <span class="text-xs text-gray-400 line-through">Rp {{ number_format($originalPrice, 0, ',', '.') }}</span>
-                                        <span class="bg-green-100 text-green-800 text-[10px] font-bold px-1.5 py-0.5 rounded">
-                                            -{{ is_float($percentage) ? round($percentage, 1) : $percentage }}%
-                                        </span>
-                                    </div>
-                                    <div class="text-[10px] text-green-600 font-medium mt-0.5">
-                                        Diskon Rp {{ number_format($membership->discount_applied, 0, ',', '.') }}
-                                    </div>
-                                </div>
-                            @endif
-                            
-                            <div class="font-bold text-heading text-base">
-                                Rp {{ number_format($membership->price_paid, 0, ',', '.') }}
-                            </div>
-                        </td>
-                        <td class="px-6 py-4 text-right whitespace-nowrap">
-                            <div class="font-bold text-heading text-base">
-                                {{ $membership->net_price ? 'Rp ' . number_format($membership->net_price, 0, ',', '.') : '-' }}
-                            </div>
-                        </td>
-                        <td class="px-6 py-4 text-right whitespace-nowrap">
-                            <div class="font-bold text-heading text-base ">
-                                {{ $membership->unrecommended_price ? 'Rp ' . number_format($membership->unrecommended_price, 0, ',', '.') : '-' }}
-                            </div>
-                        </td>
+    @if($membership->discount_applied > 0)
+        @php
+            $originalPrice = $membership->price_paid + $membership->discount_applied;
+            $percentage = ($originalPrice > 0) ? ($membership->discount_applied / $originalPrice) * 100 : 0;
+        @endphp
+        
+        <div class="flex flex-col items-end mb-1">
+            <div class="flex items-center gap-2">
+                <span class="text-xs text-gray-400 line-through">Rp {{ number_format($originalPrice, 0, ',', '.') }}</span>
+                <span class="bg-green-100 text-green-800 text-[10px] font-bold px-1.5 py-0.5 rounded">
+                    -{{ is_float($percentage) ? round($percentage, 1) : $percentage }}%
+                </span>
+            </div>
+            <div class="text-[10px] text-green-600 font-medium mt-0.5">
+                Diskon Rp {{ number_format($membership->discount_applied, 0, ',', '.') }}
+            </div>
+        </div>
+    @endif
+
+    <div class="font-bold text-heading text-base">
+        Rp {{ number_format($membership->price_paid, 0, ',', '.') }}
+    </div>
+
+    {{-- Logika Penentuan Label Harga Sesuai Rentang --}}
+    @php
+        $priceLabel = null;
+        $labelColor = '';
+        
+        $pricePaid = $membership->price_paid;
+        $normalPrice = $membership->normal_price;
+        $basePrice = $membership->base_price;
+        $netPrice = $membership->net_price;
+        $unrecommendedPrice = $membership->unrecommended_price;
+
+        if ($netPrice !== null) {
+            // Jika harga lebih besar dari Harga Net (misal: 251.000 > 250.000) -> Normal
+            if ($pricePaid > $netPrice) {
+                $priceLabel = 'Harga Normal';
+                $labelColor = 'bg-blue-100 text-blue-800';
+            } else {
+                // Harga <= Harga Net (misal: 250.000 ke bawah)
+                if ($unrecommendedPrice !== null) {
+                    // Jika harga lebih besar dari Harga Tidak Disarankan (misal: 221.000 > 220.000) -> Net
+                    if ($pricePaid > $unrecommendedPrice) {
+                        $priceLabel = 'Harga Net';
+                        $labelColor = 'bg-emerald-100 text-emerald-800';
+                    } 
+                    // Jika harga <= Harga Tidak Disarankan (misal: 220.000, 119.000) -> Tidak Disarankan
+                    else {
+                        $priceLabel = 'Harga Tidak Disarankan';
+                        $labelColor = 'bg-red-100 text-red-800';
+                    }
+                } else {
+                    // Jika unrecommended_price NULL, semua yang <= net_price masuk ke Harga Net
+                    $priceLabel = 'Harga Net';
+                    $labelColor = 'bg-emerald-100 text-emerald-800';
+                }
+            }
+        } 
+        // Jika net_price NULL tapi unrecommended_price ada
+        elseif ($unrecommendedPrice !== null) {
+            if ($pricePaid > $unrecommendedPrice) {
+                $priceLabel = 'Harga Normal';
+                $labelColor = 'bg-blue-100 text-blue-800';
+            } else {
+                $priceLabel = 'Harga Tidak Disarankan';
+                $labelColor = 'bg-red-100 text-red-800';
+            }
+        } 
+        // Jika net_price & unrecommended_price sama-sama NULL (seperti paket Daily Pass)
+        else {
+            if (($normalPrice !== null && $pricePaid >= $normalPrice) || ($basePrice !== null && $pricePaid >= $basePrice)) {
+                $priceLabel = 'Harga Normal';
+                $labelColor = 'bg-blue-100 text-blue-800';
+            }
+        }
+    @endphp
+
+    {{-- Hanya cetak div label jika $priceLabel tidak null --}}
+    @if($priceLabel)
+        <div class="mt-1 flex justify-end">
+            <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full {{ $labelColor }}">
+                {{ $priceLabel }}
+            </span>
+        </div>
+    @endif
+</td>
                         {{-- Masa Aktif --}}
                         <td class="px-6 py-4 whitespace-nowrap text-xs">
                             <div class="flex flex-col gap-1.5">

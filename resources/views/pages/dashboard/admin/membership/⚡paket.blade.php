@@ -363,6 +363,7 @@ new #[Layout('layouts::admin')] class extends Component
                 'follow_up_id_two' => $this->follow_up_id_two ?: null,
                 'base_price' => $this->base_price,
                 'discount_applied' => $this->discount_applied,
+                'normal_price' => $pkt?->normal_price,
                 'net_price' => $pkt?->net_price,
                 'unrecommended_price' => $pkt?->unrecommended_price,
                 'price_paid' => $this->price_paid, 

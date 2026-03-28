@@ -14,6 +14,7 @@ class GymPackage extends Model
         'max_members',
         'pt_sessions',
         'price',
+        'normal_price',
         'net_price',
         'unrecommended_price',
         'discount',
