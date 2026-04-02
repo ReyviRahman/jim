@@ -24,9 +24,9 @@ class UserSeeder extends Seeder
         // 1. BUAT 1 ADMIN
         // ==========================================
         User::create([
-            'name' => 'Super Admin',
-            'email' => 'admin@gmail.com', // Email untuk login admin
-            'password' => $password,
+            'name' => 'Manager Frans',
+            'email' => 'Managerfrans@gmail.com', // Email untuk login admin
+            'password' => Hash::make('24022024'),
             'role' => 'admin',
             'shift' => 'Siang',
             'occupation' => 'Gym Manager',
