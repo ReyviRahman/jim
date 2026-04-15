@@ -41,14 +41,18 @@
             
             // Logika Nominal
             $nominal = $membership->total_paid ?? 0;
-            $isBagiDua = !empty($membership->follow_up_id_two);
+            
+            // UBAHAN DISINI: Cek apakah ada Follow Up 2 DAN orangnya BERBEDA dengan Follow Up 1
+            $isBagiDua = $membership->follow_up_id && $membership->follow_up_id_two && ($membership->follow_up_id !== $membership->follow_up_id_two);
+            
             $nominalAkhir = $isBagiDua ? ($nominal / 2) : $nominal;
 
             // Tambahkan ke Total Keseluruhan
             $totalNominalBagiDua += $nominalAkhir;
 
-            // Logika Warna Background (Merah jika dibagi 2, Putih jika full)
-            $bgColor = $isBagiDua ? '#ff0000' : '#ffffff';
+            // Logika Warna Background 
+            // (Menggunakan #FF0000 / merah muda agar teks tetap terbaca, putih jika full)
+            $bgColor = $isBagiDua ? '#FF0000' : '#ffffff';
 
             // Logika Format Tanggal (Contoh: Jumat, Januari 16, 2026)
             $tglMulai = $membership->start_date ? \Carbon\Carbon::parse($membership->start_date)->locale('id')->translatedFormat('l, F d, Y') : 'BELUM AKTIF';

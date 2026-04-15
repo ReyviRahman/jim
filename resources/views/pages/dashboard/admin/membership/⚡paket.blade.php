@@ -304,8 +304,8 @@ new #[Layout('layouts::admin')] class extends Component
             'package_name' => 'required|string',
             'notes' => 'required|string',
             'admin_id' => 'required|exists:users,id',
-            'follow_up_id' => 'nullable|exists:users,id',
-            'follow_up_id_two' => 'nullable|exists:users,id|different:follow_up_id',
+            'follow_up_id' => 'required|exists:users,id',
+            'follow_up_id_two' => 'required|exists:users,id',
             'manual_discount' => 'nullable|numeric|min:0|max:' . $this->base_price,
         ];
 

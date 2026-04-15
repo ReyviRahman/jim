@@ -109,13 +109,20 @@ new #[Layout('layouts::admin')] class extends Component
     #[Computed]
     public function totalNominalAkhir()
     {
-        $memberships = $this->getBaseQuery()->get(['total_paid', 'follow_up_id_two']);
+        // Tambahkan 'follow_up_id' ke dalam select agar bisa dibandingkan
+        $memberships = $this->getBaseQuery()->get(['total_paid', 'follow_up_id', 'follow_up_id_two']);
         
         $total = 0;
         foreach ($memberships as $membership) {
             $nominal = $membership->total_paid ?? 0;
-            // Jika ada follow up 2, nominal dibagi 2, jika tidak, full nominal
-            $nominalAkhir = $membership->follow_up_id_two ? ($nominal / 2) : $nominal;
+            
+            // Logika Pembagian: Bagi 2 HANYA JIKA kedua form terisi dengan orang yang BERBEDA
+            if ($membership->follow_up_id && $membership->follow_up_id_two && ($membership->follow_up_id !== $membership->follow_up_id_two)) {
+                $nominalAkhir = $nominal / 2;
+            } else {
+                $nominalAkhir = $nominal; // Jika hanya 1 yang diisi atau keduanya orang yang SAMA, dapat FULL
+            }
+            
             $total += $nominalAkhir;
         }
 
@@ -226,15 +233,20 @@ new #[Layout('layouts::admin')] class extends Component
                 </tr>
             </thead>
             <tbody>
-                @forelse ($this->memberships as $membership)
+               @forelse ($this->memberships as $membership)
                     @php
                         // Menentukan nama paket (Bisa Gym atau PT)
                         $packageName = $membership->gymPackage->name ?? $membership->ptPackage->name ?? $membership->type;
                         
                         // Menentukan Nominal Akhir
-                        // Menggunakan total_paid atau price_paid berdasarkan model. Di sini asumsinya total_paid.
                         $nominal = $membership->total_paid ?? 0;
-                        $nominalAkhir = $membership->follow_up_id_two ? ($nominal / 2) : $nominal;
+                        
+                        // Logika Pembagian yang sama dengan yang di atas
+                        if ($membership->follow_up_id && $membership->follow_up_id_two && ($membership->follow_up_id !== $membership->follow_up_id_two)) {
+                            $nominalAkhir = $nominal / 2;
+                        } else {
+                            $nominalAkhir = $nominal;
+                        }
                     @endphp
                     
                     <tr wire:key="{{ $membership->id }}" class="bg-white border-b border-gray-100 hover:bg-gray-50">
