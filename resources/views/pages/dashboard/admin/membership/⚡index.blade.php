@@ -1,14 +1,14 @@
 <?php
 
-namespace App\Livewire\Admin; 
+namespace App\Livewire\Admin;
 
-use Livewire\Component;
-use Livewire\Attributes\Layout;
-use Livewire\Attributes\Computed; 
-use App\Models\Membership;
-use Livewire\WithPagination;
-use Maatwebsite\Excel\Facades\Excel; 
 use App\Exports\MembershipExport;
+use App\Models\Membership;
+use Livewire\Attributes\Computed;
+use Livewire\Attributes\Layout;
+use Livewire\Component;
+use Livewire\WithPagination;
+use Maatwebsite\Excel\Facades\Excel;
 
 new #[Layout('layouts::admin')] class extends Component
 {
@@ -16,8 +16,11 @@ new #[Layout('layouts::admin')] class extends Component
 
     // --- VARIABEL UNTUK FILTER & PENCARIAN ---
     public $search = '';
+
     public $filterTime = 'all'; // all, today, week, month, custom
+
     public $dateStart = null;
+
     public $dateEnd = null;
 
     // Reset halaman ke 1 setiap kali user mengetik pencarian
@@ -58,31 +61,46 @@ new #[Layout('layouts::admin')] class extends Component
     public function approve($membershipId)
     {
         $membership = Membership::findOrFail($membershipId);
-        
+
         if ($membership->status === 'pending') {
             $membership->update([
-                'status' => 'active'
+                'status' => 'active',
             ]);
-            
-            session()->flash('success', "Membership berhasil diaktifkan!");
+
+            session()->flash('success', 'Membership berhasil diaktifkan!');
         } else {
-            session()->flash('error', "Gagal: Membership ini tidak dalam status pending.");
+            session()->flash('error', 'Gagal: Membership ini tidak dalam status pending.');
         }
     }
 
     public function reject($membershipId)
     {
         $membership = Membership::findOrFail($membershipId);
-        
+
         if ($membership->status === 'pending') {
             $membership->update([
-                'status' => 'rejected'
+                'status' => 'rejected',
             ]);
 
-            session()->flash('success', "Pengajuan membership berhasil ditolak.");
+            session()->flash('success', 'Pengajuan membership berhasil ditolak.');
         } else {
-            session()->flash('error', "Gagal: Membership ini tidak dalam status pending.");
+            session()->flash('error', 'Gagal: Membership ini tidak dalam status pending.');
         }
+    }
+
+    public function delete($membershipId)
+    {
+        // 1. Cek apakah user login dan apakah role-nya BUKAN admin
+        if (auth()->check() && auth()->user()->role !== 'admin') {
+            session()->flash('error', 'Akses ditolak! Hanya Admin yang dapat menghapus data ini.');
+            return; // Hentikan proses eksekusi di sini
+        }
+
+        // 2. Jika lolos pengecekan, lanjutkan proses hapus
+        $membership = Membership::findOrFail($membershipId);
+        $membership->delete();
+
+        session()->flash('success', 'Membership dan semua data terkait berhasil dihapus.');
     }
 
     #[Computed]
@@ -92,12 +110,12 @@ new #[Layout('layouts::admin')] class extends Component
             ->where('status', 'active');
 
         // 1. Logika Pencarian (Mencari di tabel Users atau Members)
-        if (!empty($this->search)) {
+        if (! empty($this->search)) {
             $query->where(function ($q) {
                 $q->whereHas('user', function ($subQ) {
-                    $subQ->where('name', 'like', '%' . $this->search . '%');
+                    $subQ->where('name', 'like', '%'.$this->search.'%');
                 })->orWhereHas('members', function ($subQ) {
-                    $subQ->where('name', 'like', '%' . $this->search . '%');
+                    $subQ->where('name', 'like', '%'.$this->search.'%');
                 });
             });
         }
@@ -109,12 +127,12 @@ new #[Layout('layouts::admin')] class extends Component
             $query->whereBetween('created_at', [now()->startOfWeek(), now()->endOfWeek()]);
         } elseif ($this->filterTime === 'month') {
             $query->whereMonth('created_at', now()->month)
-                  ->whereYear('created_at', now()->year);
+                ->whereYear('created_at', now()->year);
         } elseif ($this->filterTime === 'custom' && $this->dateStart && $this->dateEnd) {
             // Logika Flatpickr
             $query->whereBetween('created_at', [
-                $this->dateStart . ' 00:00:00', 
-                $this->dateEnd . ' 23:59:59'
+                $this->dateStart.' 00:00:00',
+                $this->dateEnd.' 23:59:59',
             ]);
         }
 
@@ -123,15 +141,15 @@ new #[Layout('layouts::admin')] class extends Component
 
     public function exportExcel()
     {
-        $fileName = 'Data-Membership-' . date('Y-m-d') . '.xlsx';
-        
+        $fileName = 'Data-Membership-'.date('Y-m-d').'.xlsx';
+
         return Excel::download(
             new MembershipExport(
-                $this->search, 
-                $this->filterTime, 
-                $this->dateStart, 
+                $this->search,
+                $this->filterTime,
+                $this->dateStart,
                 $this->dateEnd
-            ), 
+            ),
             $fileName
         );
     }
@@ -434,10 +452,22 @@ new #[Layout('layouts::admin')] class extends Component
                             <h1 class="font-semibold">{{ $membership->followUpTwo->name ?? '-' }}</h1>
                         </td>
                         <td class="px-6 py-4 text-center whitespace-nowrap">
-                            <a href="{{ route('admin.membership.renew', ['id' => $membership->id]) }}" wire:navigate class="inline-flex items-center gap-1 px-3 py-2 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 focus:ring-2 focus:ring-blue-300 transition-colors">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path><path d="M3 21v-5h5"></path></svg>
-                                Perpanjang
-                            </a>
+                            <div class="flex items-center justify-center gap-2">
+                                <a href="{{ route('admin.membership.renew', ['id' => $membership->id]) }}" wire:navigate class="inline-flex items-center gap-1 px-3 py-2 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 focus:ring-2 focus:ring-blue-300 transition-colors">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path><path d="M3 21v-5h5"></path></svg>
+                                    Perpanjang
+                                </a>
+                                @if(auth()->check() && auth()->user()->role === 'admin')
+                                    {{-- <a href="{{ route('admin.membership.edit', ['id' => $membership->id]) }}" wire:navigate class="inline-flex items-center gap-1 px-3 py-2 text-sm font-medium text-yellow-700 bg-yellow-50 border border-yellow-200 rounded-md hover:bg-yellow-100 focus:ring-2 focus:ring-yellow-300 transition-colors">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path></svg>
+                                        Edit
+                                    </a> --}}
+                                    <button type="button" wire:click="delete({{ $membership->id }})" wire:confirm="Apakah Anda yakin ingin menghapus membership ini?" class="inline-flex items-center gap-1 px-3 py-2 text-sm font-medium text-red-700 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 focus:ring-2 focus:ring-red-300 transition-colors">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path><line x1="10" x2="10" y1="11" y2="17"></line><line x1="14" x2="14" y1="11" y2="17"></line></svg>
+                                        Hapus
+                                    </button>
+                                @endif
+                            </div>
                         </td>
                     </tr>
                 @empty

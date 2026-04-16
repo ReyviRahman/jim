@@ -104,6 +104,21 @@ new #[Layout('layouts::admin')] class extends Component
             $fileName
         );
     }
+
+    public function delete($membershipId)
+    {
+        // 1. Cek apakah user login dan apakah role-nya BUKAN admin
+        if (auth()->check() && auth()->user()->role !== 'admin') {
+            session()->flash('error', 'Akses ditolak! Hanya Admin yang dapat menghapus data ini.');
+            return; // Hentikan proses eksekusi di sini
+        }
+
+        // 2. Jika lolos pengecekan, lanjutkan proses hapus
+        $membership = Membership::findOrFail($membershipId);
+        $membership->delete();
+
+        session()->flash('success', 'Membership dan semua data terkait berhasil dihapus.');
+    }
 };
 ?>
 
@@ -203,6 +218,7 @@ new #[Layout('layouts::admin')] class extends Component
                     <th scope="col" class="px-6 py-3 font-medium">Masa Aktif</th>
                     <th scope="col" class="px-6 py-3 font-medium text-center">Admin Follow Up</th>
                     <th scope="col" class="px-6 py-3 font-medium text-center">Sales Follow Up</th>
+                    <th scope="col" class="px-6 py-3 font-medium text-center">Aksi</th>
                 </tr>
             </thead>
             <tbody>
@@ -401,6 +417,20 @@ new #[Layout('layouts::admin')] class extends Component
                         </td>
                         <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
                             <h1 class="font-semibold">{{ $membership->followUpTwo->name ?? '-' }}</h1>
+                        </td>
+                        <td class="px-6 py-4 text-center whitespace-nowrap">
+                            <div class="flex items-center justify-center gap-2">
+                                @if(auth()->check() && auth()->user()->role === 'admin')
+                                    {{-- <a href="{{ route('admin.membership.edit', ['id' => $membership->id]) }}" wire:navigate class="inline-flex items-center gap-1 px-3 py-2 text-sm font-medium text-yellow-700 bg-yellow-50 border border-yellow-200 rounded-md hover:bg-yellow-100 focus:ring-2 focus:ring-yellow-300 transition-colors">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path></svg>
+                                        Edit
+                                    </a> --}}
+                                    <button type="button" wire:click="delete({{ $membership->id }})" wire:confirm="Apakah Anda yakin ingin menghapus membership ini?" class="inline-flex items-center gap-1 px-3 py-2 text-sm font-medium text-red-700 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 focus:ring-2 focus:ring-red-300 transition-colors">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path><line x1="10" x2="10" y1="11" y2="17"></line><line x1="14" x2="14" y1="11" y2="17"></line></svg>
+                                        Hapus
+                                    </button>
+                                @endif
+                            </div>
                         </td>
                     </tr>
                 @empty
