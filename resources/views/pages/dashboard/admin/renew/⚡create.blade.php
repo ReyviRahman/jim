@@ -311,10 +311,12 @@ new #[Layout('layouts::admin')] class extends Component
             $remainingSessionsFromOld = $this->oldMembership->remaining_sessions;
         }
         
-        // Ambil GymPackage untuk normal_price, net_price, unrecommended_price
+        // Ambil GymPackage untuk normal_price, net_price, unrecommended_price berdasarkan tipe
         $pkt = null;
-        if ($this->gym_package_id) {
+        if (in_array($this->registration_type, ['membership', 'bundle_pt_membership', 'visit']) && $this->gym_package_id) {
             $pkt = GymPackage::find($this->gym_package_id);
+        } elseif ($this->registration_type === 'pt' && $this->pt_package_id) {
+            $pkt = GymPackage::find($this->pt_package_id);
         }
 
         try {

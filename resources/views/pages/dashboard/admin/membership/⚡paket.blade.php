@@ -344,7 +344,13 @@ new #[Layout('layouts::admin')] class extends Component
         // Nominal aktual yang dibayarkan saat ini
         $actualAmountPaid = $this->payment_type === 'paid' ? $this->price_paid : $this->amount_paid;
 
-        $pkt = GymPackage::find($this->gym_package_id);
+        // Ambil package data berdasarkan tipe registrasi
+        $pkt = null;
+        if (in_array($this->registration_type, ['membership', 'bundle_pt_membership', 'visit']) && $this->gym_package_id) {
+            $pkt = GymPackage::find($this->gym_package_id);
+        } elseif ($this->registration_type === 'pt' && $this->pt_package_id) {
+            $pkt = GymPackage::find($this->pt_package_id);
+        }
 
         // 👇 MULAI DATABASE TRANSACTION DI SINI 👇
         try {
