@@ -47,6 +47,10 @@ new #[Layout('layouts::admin')] class extends Component
     public $transaction_type = '';
     public $package_name = '';
     public $notes = '';
+    
+    public $admin_id = '';
+    public $follow_up_id = '';
+    public $follow_up_id_two = '';
 
     public function mount($id)
     {
@@ -60,11 +64,11 @@ new #[Layout('layouts::admin')] class extends Component
         $this->selectedUsers = User::whereIn('id', array_unique($userIds))->get();
         $this->mainUser = $this->selectedUsers->where('id', $this->oldMembership->user_id)->first();
 
-        // Pengecekan keamanan: Pastikan tidak ada paket aktif lain
+        // Pengecekan keamanan: Pastikan tidak ada paket aktif lain (EXCLUDE membership lama yang diperpanjang)
         foreach ($this->selectedUsers as $u) {
-            if ($this->hasActiveOrPendingMembership($u->id)) {
-                session()->flash('error', "User {$u->name} saat ini sudah memiliki membership yang sedang aktif atau pending.");
-                return redirect()->route('admin.membership.index'); // Sesuaikan rute kembalinya
+            if ($this->hasActiveOrPendingMembership($u->id, $this->oldMembership->id)) {
+                session()->flash('error', "User {$u->name} saat ini sudah memiliki membership lain yang sedang aktif atau pending (selain paket yang akan diperpanjang).");
+                return redirect()->route('admin.membership.index');
             }
         }
 
@@ -86,11 +90,29 @@ new #[Layout('layouts::admin')] class extends Component
         $this->calculateTotal();
     }
 
-    private function hasActiveOrPendingMembership($userId)
+    private function hasActiveOrPendingMembership($userId, $excludeMembershipId = null)
     {
-        return User::find($userId)->memberships()
-            ->whereIn('status', ['active', 'pending'])
-            ->exists();
+        $query = User::find($userId)->memberships()
+            ->whereIn('status', ['active', 'pending']);
+        
+        // Abaikan membership yang sedang diperpanjang
+        if ($excludeMembershipId) {
+            $query->where('membership_id', '!=', $excludeMembershipId);
+        }
+        
+        return $query->exists();
+    }
+
+    #[Computed]
+    public function adminUsers()
+    {
+        return User::whereIn('role', ['kasir_gym'])->where('is_active', true)->get();
+    }
+
+    #[Computed]
+    public function followUpUsers()
+    {
+        return User::whereIn('role', ['pt', 'kasir_gym', 'sales'])->where('is_active', true)->get();
     }
 
     #[Computed]
@@ -266,22 +288,43 @@ new #[Layout('layouts::admin')] class extends Component
             'amount_paid.max' => 'Nominal cicilan tidak boleh lebih atau sama dengan total tagihan.',
             'amount_paid.min' => 'Nominal cicilan harus lebih dari 0.',
         ]);
+        
+        // Validasi admin_id
+        if (!$this->admin_id) {
+            $this->addError('admin_id', 'Pilih admin/kasir yang menginput transaksi.');
+            return;
+        }
 
         foreach ($this->selectedUsers as $u) {
-            if ($this->hasActiveOrPendingMembership($u->id)) {
-                session()->flash('error', "Pendaftaran dibatalkan: User {$u->name} masih memiliki paket yang aktif atau pending.");
-                return redirect()->route('admin.membership.index'); // Sesuaikan rute kembalinya
-
+            if ($this->hasActiveOrPendingMembership($u->id, $this->oldMembership->id)) {
+                session()->flash('error', "Pendaftaran dibatalkan: User {$u->name} masih memiliki paket lain yang aktif atau pending (selain paket yang akan diperpanjang).");
+                return redirect()->route('admin.membership.index');
             }
         }
         
         $this->calculateTotal();
         $actualAmountPaid = $this->payment_type === 'paid' ? $this->price_paid : $this->amount_paid;
+        
+        // Hitung remaining sessions dari membership lama yang akan ditambahkan ke baru
+        $remainingSessionsFromOld = 0;
+        if ($this->oldMembership->remaining_sessions && $this->oldMembership->remaining_sessions > 0) {
+            $remainingSessionsFromOld = $this->oldMembership->remaining_sessions;
+        }
+        
+        // Ambil GymPackage untuk normal_price, net_price, unrecommended_price
+        $pkt = null;
+        if ($this->gym_package_id) {
+            $pkt = GymPackage::find($this->gym_package_id);
+        }
 
         try {
             DB::beginTransaction();
 
             // 1. BUAT KONTRAK MEMBERSHIP BARU (BUKAN UPDATE YANG LAMA)
+            $totalSessionsNew = in_array($this->registration_type, ['pt', 'bundle_pt_membership']) 
+                ? ($this->calculated_total_sessions + $remainingSessionsFromOld)
+                : null;
+            
             $newMembership = MembershipModel::create([
                 'user_id' => $this->mainUser->id, 
                 'type' => $this->registration_type,
@@ -289,30 +332,42 @@ new #[Layout('layouts::admin')] class extends Component
                 'gym_package_id' => in_array($this->registration_type, ['membership', 'bundle_pt_membership', 'visit']) ? $this->gym_package_id : null,
                 'pt_package_id' => in_array($this->registration_type, ['pt', 'bundle_pt_membership']) ? $this->pt_package_id : null,
                 'pt_id' => in_array($this->registration_type, ['pt', 'bundle_pt_membership']) ? $this->pt_id : null,
+                'admin_id' => $this->admin_id,
+                'follow_up_id' => $this->follow_up_id ?: null,
+                'follow_up_id_two' => $this->follow_up_id_two ?: null,
                 
                 'base_price' => $this->base_price,
                 'discount_applied' => $this->discount_applied,
                 'price_paid' => $this->price_paid, 
                 'total_paid' => $actualAmountPaid, 
-                'payment_status' => $this->payment_type, 
+                'payment_status' => $this->payment_type,
+                'normal_price' => $pkt?->normal_price,
+                'net_price' => $pkt?->net_price,
+                'unrecommended_price' => $pkt?->unrecommended_price,
                 
-                'total_sessions' => in_array($this->registration_type, ['pt', 'bundle_pt_membership']) ? $this->calculated_total_sessions : null,
-                'remaining_sessions' => in_array($this->registration_type, ['pt', 'bundle_pt_membership']) ? $this->calculated_total_sessions : null,
+                'total_sessions' => $totalSessionsNew,
+                'remaining_sessions' => $totalSessionsNew,
                 
                 'start_date' => $this->start_date,
                 'membership_end_date' => in_array($this->registration_type, ['membership', 'bundle_pt_membership', 'visit']) ? $this->membership_end_date : null,
                 'pt_end_date' => in_array($this->registration_type, ['pt', 'bundle_pt_membership']) ? $this->pt_end_date : null,
                 
                 'status' => $this->payment_type === 'paid' ? 'active' : 'pending',
+                'notes' => $this->notes,
             ]);
 
             $newMembership->members()->attach($this->selectedUsers->pluck('id')->toArray());
+
+            // 2. UPDATE STATUS MEMBERSHIP LAMA MENJADI COMPLETED
+            $this->oldMembership->update(['status' => 'completed']);
 
             MembershipTransaction::create([
                 'invoice_number' => 'INV-' . date('Ymd') . '-' . strtoupper(uniqid()),
                 'membership_id' => $newMembership->id,
                 'user_id' => $this->mainUser->id,
-                'admin_id' => Auth::id() ?? 1, 
+                'admin_id' => $this->admin_id,
+                'follow_up_id' => $this->follow_up_id ?: null,
+                'follow_up_id_two' => $this->follow_up_id_two ?: null,
                 'transaction_type' => $this->transaction_type,
                 'package_name' => $this->package_name,
                 'amount' => $actualAmountPaid,
@@ -320,12 +375,12 @@ new #[Layout('layouts::admin')] class extends Component
                 'payment_date' => now(),
                 'start_date' => $this->start_date,
                 'end_date' => in_array($this->registration_type, ['pt']) ? $this->pt_end_date : $this->membership_end_date,
-                'notes' => "Perpanjangan dari paket lama (ID: {$this->oldMembership->id}). " . $this->notes,
+                'notes' => $this->notes,
             ]);
 
             DB::commit();
 
-            session()->flash('success', 'Paket berhasil diperpanjang! Transaksi sudah dicatat.');
+            session()->flash('success', 'Paket berhasil diperpanjang! Transaksi sudah dicatat.' . ($remainingSessionsFromOld > 0 ? " ({$remainingSessionsFromOld} sesi lama dipindahkan)" : ''));
             return $this->redirectRoute('admin.membership.index', navigate: true); 
 
         } catch (\Exception $e) {
@@ -612,6 +667,42 @@ new #[Layout('layouts::admin')] class extends Component
                         @error('payment_method') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                     </div>
 
+                    {{-- Admin / Kasir --}}
+                    <div>
+                        <label class="block mb-1 text-sm font-medium text-heading">Admin / Kasir*</label>
+                        <select wire:model="admin_id" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2 shadow-xs">
+                            <option value="">-- Pilih Admin/Kasir --</option>
+                            @foreach($this->adminUsers as $user)
+                                <option value="{{ $user->id }}">{{ $user->name }}</option>
+                            @endforeach
+                        </select>
+                        @error('admin_id') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                    </div>
+
+                    {{-- Follow Up 1 --}}
+                    <div>
+                        <label class="block mb-1 text-sm font-medium text-heading">Admin Follow Up</label>
+                        <select wire:model="follow_up_id" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2 shadow-xs">
+                            <option value="">-- Pilih Follow Up --</option>
+                            @foreach($this->followUpUsers as $user)
+                                <option value="{{ $user->id }}">{{ $user->name }}</option>
+                            @endforeach
+                        </select>
+                        @error('follow_up_id') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                    </div>
+
+                    {{-- Follow Up 2 --}}
+                    <div>
+                        <label class="block mb-1 text-sm font-medium text-heading">Sales Follow Up</label>
+                        <select wire:model="follow_up_id_two" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2 shadow-xs">
+                            <option value="">-- Pilih Follow Up --</option>
+                            @foreach($this->followUpUsers as $user)
+                                <option value="{{ $user->id }}">{{ $user->name }}</option>
+                            @endforeach
+                        </select>
+                        @error('follow_up_id_two') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                    </div>
+
                     <div>
                         <label class="block mb-1 text-sm font-medium text-heading">Paket Member</label>
                         <textarea wire:model="package_name" rows="2" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2 shadow-xs placeholder-gray-400" placeholder="Contoh: 1 BULAN, 6 + 2 BULAN, PT 20 SESI"></textarea>
@@ -622,6 +713,12 @@ new #[Layout('layouts::admin')] class extends Component
                         <label class="block mb-1 text-sm font-medium text-heading">Status</label>
                         <textarea wire:model="transaction_type" rows="2" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2 shadow-xs placeholder-gray-400" placeholder="Contoh: RENEW MEMBER, RENEW PT 20 SESI"></textarea>
                         @error('transaction_type') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                    </div>
+
+                    <div>
+                        <label class="block mb-1 text-sm font-medium text-heading">Catatan</label>
+                        <textarea wire:model="notes" rows="2" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2 shadow-xs placeholder-gray-400" placeholder="Tambahkan catatan perpanjangan (opsional)"></textarea>
+                        @error('notes') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                     </div>
                 </div>
                 @endif

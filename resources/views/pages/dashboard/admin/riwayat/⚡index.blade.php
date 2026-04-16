@@ -55,41 +55,10 @@ new #[Layout('layouts::admin')] class extends Component
         $this->resetPage();
     }
 
-    public function approve($membershipId)
-    {
-        $membership = Membership::findOrFail($membershipId);
-        
-        if ($membership->status === 'pending') {
-            $membership->update([
-                'status' => 'active'
-            ]);
-            
-            session()->flash('success', "Membership berhasil diaktifkan!");
-        } else {
-            session()->flash('error', "Gagal: Membership ini tidak dalam status pending.");
-        }
-    }
-
-    public function reject($membershipId)
-    {
-        $membership = Membership::findOrFail($membershipId);
-        
-        if ($membership->status === 'pending') {
-            $membership->update([
-                'status' => 'rejected'
-            ]);
-
-            session()->flash('success', "Pengajuan membership berhasil ditolak.");
-        } else {
-            session()->flash('error', "Gagal: Membership ini tidak dalam status pending.");
-        }
-    }
-
     #[Computed]
     public function memberships()
     {
-        $query = Membership::with(['user', 'members', 'admin', 'followUp', 'followUpTwo', 'personalTrainer', 'gymPackage', 'ptPackage'])
-            ->where('status', 'active');
+        $query = Membership::with(['user', 'members', 'admin', 'followUp', 'followUpTwo', 'personalTrainer', 'gymPackage', 'ptPackage']);
 
         // 1. Logika Pencarian (Mencari di tabel Users atau Members)
         if (!empty($this->search)) {
@@ -140,7 +109,7 @@ new #[Layout('layouts::admin')] class extends Component
 
 <div>
     <div class="flex sm:flex-row flex-col justify-between items-center mb-6">
-    <h5 class="text-xl font-semibold text-heading">Data Membership & Program</h5>
+    <h5 class="text-xl font-semibold text-heading">Data Riwayat Membership</h5>
     <div class="flex gap-2">
             {{-- <button wire:click="exportExcel" type="button" class="text-green-700 bg-green-50 box-border border border-green-200 hover:bg-green-100 focus:ring-4 focus:ring-green-200 shadow-xs font-medium leading-5 rounded-md text-sm px-4 py-2.5 focus:outline-none flex items-center gap-2">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
@@ -234,7 +203,6 @@ new #[Layout('layouts::admin')] class extends Component
                     <th scope="col" class="px-6 py-3 font-medium">Masa Aktif</th>
                     <th scope="col" class="px-6 py-3 font-medium text-center">Admin Follow Up</th>
                     <th scope="col" class="px-6 py-3 font-medium text-center">Sales Follow Up</th>
-                    <th scope="col" class="px-6 py-3 font-medium text-center">Aksi</th>
                 </tr>
             </thead>
             <tbody>
@@ -329,6 +297,7 @@ new #[Layout('layouts::admin')] class extends Component
 
                             {{-- Logika Penentuan Label Harga Sesuai Rentang --}}
                             @if(auth()->check() && auth()->user()->role === 'admin')
+
                                 @php
                                     $priceLabel = null;
                                     $labelColor = '';
@@ -432,12 +401,6 @@ new #[Layout('layouts::admin')] class extends Component
                         </td>
                         <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
                             <h1 class="font-semibold">{{ $membership->followUpTwo->name ?? '-' }}</h1>
-                        </td>
-                        <td class="px-6 py-4 text-center whitespace-nowrap">
-                            <a href="{{ route('admin.membership.renew', ['id' => $membership->id]) }}" wire:navigate class="inline-flex items-center gap-1 px-3 py-2 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 focus:ring-2 focus:ring-blue-300 transition-colors">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path><path d="M3 21v-5h5"></path></svg>
-                                Perpanjang
-                            </a>
                         </td>
                     </tr>
                 @empty

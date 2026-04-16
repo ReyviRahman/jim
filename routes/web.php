@@ -64,6 +64,9 @@ Route::middleware('auth')->group(function () {
         Route::livewire('/membership', 'pages::dashboard.admin.membership')
             ->name('admin.membership.index');
 
+        Route::livewire('/riwayat', 'pages::dashboard.admin.riwayat.index')
+            ->name('admin.riwayat.index');
+
         Route::livewire('/membership/gabung', 'pages::dashboard.admin.membership.gabung')
             ->name('admin.membership.gabung');
 
@@ -88,8 +91,7 @@ Route::middleware('auth')->group(function () {
         Route::livewire('/membership/cicilan', 'pages::dashboard.admin.cicilan.index')->name('admin.cicilan.index');
         Route::livewire('/membership/cicilan/{membership}/pay', 'pages::dashboard.admin.cicilan.pay')->name('admin.cicilan.pay');
         
-        // Route::livewire('/renew', 'pages::dashboard.admin.renew.index')->name('admin.renew.index');
-        // Route::livewire('/renew/{id}/create', 'pages::dashboard.admin.renew.create')->name('admin.renew.create');
+        Route::livewire('/membership/renew/{id}', 'pages::dashboard.admin.renew.create')->name('admin.membership.renew');
     });
 
     Route::middleware('role:admin')->prefix('dashboard/admin')->group(function () {
