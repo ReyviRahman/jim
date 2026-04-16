@@ -11,18 +11,18 @@ class Membership extends Model
 {
     protected $fillable = [
         'user_id',
-        'type', 
+        'type',
         'pt_id',
-        'admin_id',      
+        'admin_id',
         'follow_up_id',
         'follow_up_id_two',
         'gym_package_id',
         'pt_package_id',
         'base_price',
-        'discount_applied', 
+        'discount_applied',
         'price_paid',
         'normal_price',
-        'net_price', 
+        'net_price',
         'unrecommended_price',
         'total_paid',
         'payment_status',
@@ -30,16 +30,16 @@ class Membership extends Model
         'remaining_sessions',
         'member_goal',
         'start_date',
-        'pt_end_date', 
-        'membership_end_date', 
+        'pt_end_date',
+        'membership_end_date',
         'status',
         'notes',
     ];
 
     protected $casts = [
         'start_date' => 'date',
-        'pt_end_date' => 'date', 
-        'membership_end_date' => 'date', 
+        'pt_end_date' => 'date',
+        'membership_end_date' => 'date',
         'price_paid' => 'decimal:0',
         'total_sessions' => 'integer',
         'remaining_sessions' => 'integer',
@@ -75,7 +75,7 @@ class Membership extends Model
     public function members(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'membership_users', 'membership_id', 'user_id')
-                    ->withTimestamps();
+            ->withTimestamps();
     }
 
     public function personalTrainer(): BelongsTo
@@ -88,16 +88,28 @@ class Membership extends Model
         return $this->belongsTo(GymPackage::class, 'gym_package_id');
     }
 
-    public function ptPackage() {
-        return $this->belongsTo(GymPackage::class, 'pt_package_id'); 
+    public function ptPackage()
+    {
+        return $this->belongsTo(GymPackage::class, 'pt_package_id');
     }
 
-    public function users() {
+    public function users()
+    {
         return $this->belongsToMany(User::class, 'membership_users');
     }
 
-    public function transactions(): HasMany 
+    public function transactions(): HasMany
     {
         return $this->hasMany(MembershipTransaction::class);
+    }
+
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::deleting(function ($membership) {
+            $membership->transactions()->delete();
+            $membership->members()->detach();
+        });
     }
 }

@@ -110,6 +110,15 @@
             </div>
             <ul class="space-y-2 font-medium px-3">
                 <li>
+                    <a href="{{ route('admin.riwayat.index') }}" wire:navigate 
+                        class="{{ request()->routeIs('admin.riwayat.*') ? 'text-[#34342F] bg-brand' : 'text-white' }} flex items-center px-2 py-1.5 rounded-md hover:bg-brand hover:text-[#34342F] group transition-colors">
+                        
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 8 8"><path fill="currentColor" d="M1 0C.93 0 .87.01.81.03C.42.11.11.42.03.81C0 .87 0 .93 0 1v5.5C0 7.33.67 8 1.5 8H7V7H1.5c-.28 0-.5-.22-.5-.5s.22-.5.5-.5H7V.5c0-.28-.22-.5-.5-.5H6v3L5 2L4 3V0z"/></svg>
+                        
+                        <span class="ms-3">Riwayat Member</span>
+                    </a>
+                </li>
+                <li>
                     <a href="{{ route('admin.penjualan.index') }}" wire:navigate 
                         class="{{ request()->routeIs('admin.penjualan.*') ? 'text-[#34342F] bg-brand' : 'text-white' }} flex items-center px-2 py-1.5 rounded-md hover:bg-brand hover:text-[#34342F] group transition-colors">
                         

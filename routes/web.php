@@ -8,15 +8,14 @@ Route::livewire('/', 'pages::index')
 
 // --- HALAMAN GUEST (Hanya bisa diakses jika BELUM login) ---
 Route::middleware('guest')->group(function () {
-    
+
     Route::livewire('/login', 'pages::login')
         ->name('login');
-        
+
     // Pendaftaran biasanya untuk orang yang belum punya akun
     Route::livewire('/pendaftaran/member', 'pages::registration.registration')
         ->name('member.register');
 });
-
 
 // --- HALAMAN YANG BUTUH LOGIN (AUTH) ---
 Route::middleware('auth')->group(function () {
@@ -24,15 +23,15 @@ Route::middleware('auth')->group(function () {
     // GROUP 1: KHUSUS MEMBER
     // Middleware: harus login DAN role = member
     Route::middleware('role:member')->prefix('dashboard/member')->group(function () {
-        
+
         Route::livewire('/home', 'pages::dashboard.member.home')
             ->name('member.dashboard');
-            
+
         Route::livewire('/riwayat-kehadiran', 'pages::dashboard.member.kehadiran')
             ->name('member.kehadiran.index');
 
         Route::livewire('/membership', 'pages::dashboard.member.membership')
-        ->name('member.membership.index');
+            ->name('member.membership.index');
 
         // Route::livewire('/paket', 'pages::dashboard.member.package')
         //     ->name('member.paket.index');
@@ -49,7 +48,6 @@ Route::middleware('auth')->group(function () {
             ->name('pt.kehadiran.index');
     });
 
-
     // GROUP 2: KHUSUS ADMIN
     // Middleware: harus login DAN role = admin
     Route::middleware('role:admin,kasir_gym')->prefix('dashboard/admin')->group(function () {
@@ -63,6 +61,9 @@ Route::middleware('auth')->group(function () {
         // --- Membership Management ---
         Route::livewire('/membership', 'pages::dashboard.admin.membership')
             ->name('admin.membership.index');
+
+        Route::livewire('/riwayat', 'pages::dashboard.admin.riwayat.index')
+            ->name('admin.riwayat.index');
 
         Route::livewire('/membership/gabung', 'pages::dashboard.admin.membership.gabung')
             ->name('admin.membership.gabung');
@@ -87,9 +88,8 @@ Route::middleware('auth')->group(function () {
 
         Route::livewire('/membership/cicilan', 'pages::dashboard.admin.cicilan.index')->name('admin.cicilan.index');
         Route::livewire('/membership/cicilan/{membership}/pay', 'pages::dashboard.admin.cicilan.pay')->name('admin.cicilan.pay');
-        
-        // Route::livewire('/renew', 'pages::dashboard.admin.renew.index')->name('admin.renew.index');
-        // Route::livewire('/renew/{id}/create', 'pages::dashboard.admin.renew.create')->name('admin.renew.create');
+
+        Route::livewire('/membership/renew/{id}', 'pages::dashboard.admin.renew.create')->name('admin.membership.renew');
     });
 
     Route::middleware('role:admin')->prefix('dashboard/admin')->group(function () {
@@ -121,17 +121,20 @@ Route::middleware('auth')->group(function () {
 
         Route::livewire('/akun/sales/{user}/edit', 'pages::dashboard.admin.akun.sales.edit')
             ->name('admin.akun.sales.edit');
-        
+
         Route::livewire('/rekap-bonus', 'pages::dashboard.admin.rekap-bonus.index')
             ->name('admin.rekap-bonus.index');
 
         Route::livewire('/rekap-bonus/{user}/detail', 'pages::dashboard.admin.rekap-bonus.detail')
             ->name('admin.rekap-bonus.detail');
 
+        Route::livewire('/membership/{id}/edit', 'pages::dashboard.admin.membership.edit')->name('admin.membership.edit');
+
+
         // --- Package Management ---
         // Saya kelompokkan lagi dengan prefix 'package' biar URL rapi
         Route::prefix('package')->group(function () {
-            
+
             Route::livewire('/', 'pages::dashboard.admin.package')
                 ->name('admin.packages.index'); // List Data
 
