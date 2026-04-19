@@ -83,8 +83,8 @@ new #[Layout('layouts::admin')] class extends Component
         $this->payment_date = now()->format('Y-m-d');
         
         // Gunakan hitungan 30 hari kaku (tambah 29 hari karena hari ini sudah dihitung 1 hari)
-        $this->membership_end_date = now()->addDays(29)->format('Y-m-d');
-        $this->pt_end_date = now()->addDays(29)->format('Y-m-d');
+        $this->membership_end_date = now()->addMonthsNoOverflow(1)->format('Y-m-d');
+        $this->pt_end_date = now()->addMonthsNoOverflow(1)->format('Y-m-d');
         
         $this->calculateTotal();
     }
@@ -164,33 +164,33 @@ new #[Layout('layouts::admin')] class extends Component
         $end = null;
 
         if (in_array($this->registration_type, ['membership', 'bundle_pt_membership', 'visit']) && $this->membership_end_date) {
-            $end = Carbon::parse($this->membership_end_date)->startOfDay();
+        $end = Carbon::parse($this->membership_end_date)->startOfDay();
         } elseif ($this->registration_type === 'pt' && $this->pt_end_date) {
-            $end = Carbon::parse($this->pt_end_date)->startOfDay();
+        $end = Carbon::parse($this->pt_end_date)->startOfDay();
         }
 
         if ($end) {
-            if ($this->registration_type === 'visit') {
-                return '1 Hari (Visit Harian)';
-            }
+        if ($this->registration_type === 'visit') {
+            return '1 Hari (Visit Harian)';
+        }
 
-            // 1. Hitung total selisih hari (+1 agar hari pertama dihitung / Inklusif)
-            $totalDays = $start->diffInDays($end) + 1;
+        // MENGGUNAKAN CARBON DIFF (Sesuai Kalender Asli)
+        $diff = $start->diff($end);
+        
+        // Konversi tahun ke bulan (jika langganan lebih dari 1 tahun)
+        $months = ($diff->y * 12) + $diff->m;
+        $days = $diff->d;
 
-            // 2. Terapkan Logika Bisnis (1 Bulan = mutlak 30 Hari)
-            $months = floor($totalDays / 30);
-            $days = $totalDays % 30;
+        // Gabungkan menjadi teks
+        $parts = [];
+        if ($months > 0) $parts[] = $months . ' Bulan';
+        if ($days > 0) $parts[] = $days . ' Hari';
 
-            // 3. Gabungkan menjadi teks
-            $parts = [];
-            if ($months > 0) $parts[] = $months . ' Bulan';
-            if ($days > 0) $parts[] = $days . ' Hari';
+        if (empty($parts)) {
+            return 'Berakhir hari ini';
+        }
 
-            if (empty($parts)) {
-                return 'Berakhir hari ini';
-            }
-
-            return implode(' ', $parts);
+        return implode(' ', $parts);
         }
 
         return '-';
@@ -217,10 +217,10 @@ new #[Layout('layouts::admin')] class extends Component
             if ($this->registration_type === 'visit') {
                 $this->membership_end_date = $this->start_date;
             } else {
-                // Gunakan 30 hari kaku (tambah 29 hari dari start_date)
-                $this->membership_end_date = Carbon::parse($this->start_date)->addDays(29)->format('Y-m-d');
+                // GANTI addDays(29) menjadi addMonthsNoOverflow(1)
+                $this->membership_end_date = Carbon::parse($this->start_date)->addMonthsNoOverflow(1)->format('Y-m-d');
             }
-            $this->pt_end_date = Carbon::parse($this->start_date)->addDays(29)->format('Y-m-d');
+ $this->pt_end_date = Carbon::parse($this->start_date)->addMonthsNoOverflow(1)->format('Y-m-d');
         }
 
         if ($property === 'payment_type') {
@@ -527,7 +527,7 @@ new #[Layout('layouts::admin')] class extends Component
                         </div>
 
                         {{-- 3. DURASI PROGRAM (SEKARANG BERDAMPINGAN: MULAI, BERAKHIR, DURASI) --}}
-                        <div class="md:col-span-2">
+                        <div class="md:col-span-2" {{ !$this->is_active ? 'style=display:none' : '' }}>
                             <h6 class="text-sm font-semibold text-heading mb-3">Durasi Program & Tanggal Aktif</h6>
                             <div class="grid gap-4 md:grid-cols-3 bg-gray-50 p-4 rounded border border-gray-200">
                                 
