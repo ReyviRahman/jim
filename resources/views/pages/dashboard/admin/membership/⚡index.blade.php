@@ -481,6 +481,7 @@ new #[Layout('layouts::admin')] class extends Component
                                 @endif
 
                                 {{-- Masa aktif PT --}}
+                                {{-- Masa aktif PT --}}
                                 @if(in_array($membership->type, ['pt', 'bundle_pt_membership']))
                                     <div class="flex items-center text-gray-600">
                                         <span class="inline-block w-2 h-2 rounded-full bg-indigo-400 mr-2"></span>
