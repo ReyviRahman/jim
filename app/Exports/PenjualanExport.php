@@ -101,8 +101,17 @@ class PenjualanExport implements WithEvents
 
                     $sheet->setCellValue('A'.$row, $nama);
                     $sheet->setCellValue('B'.$row, Carbon::parse($trx->payment_date)->format('d-M-Y'));
-                    $sheet->setCellValue('C'.$row, $trx->start_date ? Carbon::parse($trx->start_date)->format('d/m/Y') : 'BELUM AKTIF');
-                    $sheet->setCellValue('D'.$row, $trx->end_date ? Carbon::parse($trx->end_date)->format('d/m/Y') : 'BELUM AKTIF');
+                    // Cek jika tipe transaksinya Pemasukan Lain, langsung jadikan strip '-', jika bukan cek tanggalnya.
+                    $tglMulai = ($trx->transaction_type === 'Pemasukan Lain') 
+                        ? '-' 
+                        : ($trx->start_date ? Carbon::parse($trx->start_date)->format('d/m/Y') : 'BELUM AKTIF');
+
+                    $tglAkhir = ($trx->transaction_type === 'Pemasukan Lain') 
+                        ? '-' 
+                        : ($trx->end_date ? Carbon::parse($trx->end_date)->format('d/m/Y') : 'BELUM AKTIF');
+
+                    $sheet->setCellValue('C'.$row, $tglMulai);
+                    $sheet->setCellValue('D'.$row, $tglAkhir);
                     $sheet->setCellValue('E'.$row, strtoupper($trx->transaction_type));
                     $sheet->setCellValue('F'.$row, strtoupper($trx->package_name));
                     $sheet->setCellValue('G'.$row, $trx->notes ?? '-'); // Kolom Catatan Baru
