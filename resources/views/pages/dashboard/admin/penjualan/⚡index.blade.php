@@ -12,6 +12,7 @@ use Carbon\Carbon;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\PenjualanExport;
 use Illuminate\Support\Facades\Auth;
+use App\Models\User;
 
 new #[Layout('layouts::admin')] class extends Component
 {
@@ -25,6 +26,16 @@ new #[Layout('layouts::admin')] class extends Component
     // Filter Baru
     public $perPage = 'all';
     public $shift;
+    
+    public $showIncomeModal = false;
+    public $incomeCategory = '';
+    public $incomeAmount = '';
+    public $incomePaymentMethod = 'qris';
+
+    public $searchUser = '';
+    public $selectedUserId = null;
+    public $selectedUserName = '';
+    public $adminId;
 
     public function mount()
     {
@@ -43,6 +54,98 @@ new #[Layout('layouts::admin')] class extends Component
             // Fallback default jika user belum login (opsional, sesuaikan kebutuhan)
             $this->shift = 'pagi';
         }
+    }
+
+    public function openIncomeModal()
+    {
+        $this->reset([
+            'incomeCategory', 'incomeAmount', 'searchUser', 
+            'selectedUserId', 'selectedUserName'
+        ]);
+        $this->incomePaymentMethod = 'qris';
+        
+        // --- LOGIKA DEFAULT DROPDOWN ---
+        $user = Auth::user();
+        if ($user->role === 'kasir_gym') {
+            // Jika yang login kasir, otomatis pilih dirinya sendiri
+            $this->adminId = $user->id; 
+        } else {
+            // Jika yang login admin/selain kasir, kosongkan agar wajib memilih manual
+            $this->adminId = ''; 
+        }
+        
+        $this->showIncomeModal = true;
+    }
+
+    public function closeIncomeModal()
+    {
+        $this->showIncomeModal = false;
+        $this->resetValidation();
+    }
+
+    public function selectUser($id, $name)
+    {
+        $this->selectedUserId = $id;
+        $this->selectedUserName = $name;
+        $this->searchUser = ''; // Kosongkan input pencarian
+    }
+
+    public function resetUserSelection()
+    {
+        $this->selectedUserId = null;
+        $this->selectedUserName = '';
+        $this->searchUser = '';
+    }
+
+    #[Computed]
+    public function searchedUsers()
+    {
+        if (strlen($this->searchUser) >= 2) {
+            return User::where('name', 'like', '%' . $this->searchUser . '%')
+                        ->limit(5)
+                        ->get();
+        }
+        return collect(); // Kembalikan collection kosong jika ketikan kurang dari 2 huruf
+    }
+
+    #[Computed]
+    public function adminList()
+    {
+        // Asumsi admin dibedakan berdasarkan kolom 'role'. 
+        // Jika beda, silakan sesuaikan query-nya (misal User::all() jika semua user muncul)
+        return User::where('role', 'kasir_gym')->get(); 
+    }
+
+    public function saveIncome()
+    {
+        $this->validate([
+            'selectedUserId' => 'required',
+            'adminId' => 'required', // Tambahkan validasi admin_id
+            'incomeCategory' => 'required|string|max:255',
+            'incomeAmount' => 'required|numeric|min:0',
+            'incomePaymentMethod' => 'required|in:transfer,debit,qris,cash',
+        ], [
+            'selectedUserId.required' => 'Silakan cari dan pilih User terlebih dahulu.',
+            'adminId.required' => 'Silakan pilih Admin pencatat.',
+        ]);
+
+        $invoiceNumber = 'INV-INC-' . time() . '-' . strtoupper(\Illuminate\Support\Str::random(3));
+
+        MembershipTransaction::create([
+            'invoice_number' => $invoiceNumber,
+            'user_id' => $this->selectedUserId,
+            'membership_id' => null, 
+            'admin_id' => $this->adminId, // Ubah dari Auth::id() menjadi pilihan dari modal
+            'transaction_type' => 'Pemasukan Lain', 
+            'package_name' => $this->incomeCategory, 
+            'amount' => $this->incomeAmount,         
+            'payment_method' => $this->incomePaymentMethod, 
+            'payment_date' => now(),
+            'notes' => 'Data Pemasukan Tambahan',
+        ]);
+
+        $this->closeIncomeModal();
+        session()->flash('success', 'Data pemasukan lain berhasil dicatat!');
     }
 
     public function setFilterTime($val)
@@ -298,14 +401,17 @@ new #[Layout('layouts::admin')] class extends Component
 ?>
 
 <div>
-    
-
-
-    <div class="flex sm:flex-row flex-col justify-between items-center mb-6">
+    <div class="flex flex-col items-center justify-between mb-6 sm:flex-row">
         <h5 class="text-xl font-semibold text-heading">
             Riwayat Penjualan Shift {{ $this->shift === 'all' ? 'Pagi & Siang' : ucfirst($this->shift) }}
         </h5>
-        <div class="flex gap-2">
+        <div class="flex gap-2 mt-4 sm:mt-0">
+            {{-- TOMBOL BUKA MODAL --}}
+            <button wire:click="openIncomeModal" type="button" class="inline-flex items-center justify-center px-4 py-2.5 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-xs hover:bg-blue-700 focus:ring-4 focus:ring-blue-300 focus:outline-none">
+                <svg class="w-4 h-4 me-2" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14m-7 7V5"/></svg>
+                Pemasukan Lain
+            </button>
+
             <button wire:click="exportExcel" wire:loading.attr="disabled" class="inline-flex items-center justify-center text-white bg-emerald-600 border border-transparent hover:bg-emerald-700 focus:ring-4 focus:ring-emerald-300 shadow-xs font-medium rounded-md text-sm px-4 py-2.5 focus:outline-none disabled:opacity-50">
                 <svg class="w-4 h-4 me-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"></path></svg>
                 <span wire:loading.remove wire:target="exportExcel">Export Excel</span>
@@ -423,8 +529,21 @@ new #[Layout('layouts::admin')] class extends Component
                         <td class="px-6 py-4 whitespace-nowrap">
                             <div class="font-medium">{{ $transaction->payment_date ? \Carbon\Carbon::parse($transaction->payment_date)->format('d M Y') : '-' }}</div>
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap">{{ $transaction->start_date ? \Carbon\Carbon::parse($transaction->start_date)->format('d M Y') : 'BELUM AKTIF' }}</td>
-                        <td class="px-6 py-4 text-right whitespace-nowrap">{{ $transaction->end_date ? \Carbon\Carbon::parse($transaction->end_date)->format('d M Y') : 'BELUM AKTIF' }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            @if($transaction->transaction_type === 'Pemasukan Lain')
+                                <span class="text-gray-400">-</span>
+                            @else
+                                {{ $transaction->start_date ? \Carbon\Carbon::parse($transaction->start_date)->format('d M Y') : 'BELUM AKTIF' }}
+                            @endif
+                        </td>
+
+                        <td class="px-6 py-4 text-right whitespace-nowrap">
+                            @if($transaction->transaction_type === 'Pemasukan Lain')
+                                <span class="text-gray-400">-</span>
+                            @else
+                                {{ $transaction->end_date ? \Carbon\Carbon::parse($transaction->end_date)->format('d M Y') : 'BELUM AKTIF' }}
+                            @endif
+                        </td>
                         <td class="px-6 py-4 whitespace-nowrap"><span class="px-2 py-0.5 text-[10px] uppercase font-bold rounded-full bg-blue-100 text-blue-800">{{ $transaction->transaction_type }}</span></td>
                         <td class="px-6 py-4 font-medium text-gray-700 whitespace-nowrap">{{ $transaction->package_name }}</td>
                         <td class="px-6 py-4 font-medium text-gray-700 whitespace-nowrap">{{ $transaction->notes }}</td>
@@ -542,4 +661,88 @@ new #[Layout('layouts::admin')] class extends Component
             </table>
         </div>
     </div>
+
+    @if($showIncomeModal)
+    <div class="fixed inset-0 z-50 flex items-center justify-center w-full h-full overflow-y-auto bg-gray-900/20 backdrop-blur-sm">
+        <div class="relative w-full max-w-md p-4 bg-white rounded-lg shadow sm:p-5">
+            <div class="flex items-center justify-between pb-4 mb-4 border-b rounded-t">
+                <h3 class="text-lg font-semibold text-gray-900">
+                    Tambah Pemasukan Lain
+                </h3>
+                <button wire:click="closeIncomeModal" type="button" class="text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm p-1.5 ml-auto inline-flex items-center">
+                    <svg aria-hidden="true" class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg>
+                    <span class="sr-only">Close modal</span>
+                </button>
+            </div>
+            
+            <form wire:submit.prevent="saveIncome">
+                <div class="grid gap-4 mb-4 sm:grid-cols-2">
+                    
+                    {{-- SEARCHABLE DROPDOWN USER --}}
+                    <div class="sm:col-span-2 relative">
+                        <label class="block mb-2 text-sm font-medium text-gray-900">Pilih User</label>
+                        
+                        @if($selectedUserId)
+                            <div class="flex items-center justify-between bg-green-50 border border-green-300 text-green-900 text-sm rounded-lg p-2.5">
+                                <span class="font-semibold">{{ $selectedUserName }}</span>
+                                <button type="button" wire:click="resetUserSelection" class="text-xs font-medium text-red-600 hover:underline">Ganti</button>
+                            </div>
+                        @else
+                            <input type="text" wire:model.live.debounce.300ms="searchUser" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-600 focus:border-blue-600 block w-full p-2.5" placeholder="Ketik nama user...">
+                            
+                            @if(strlen($searchUser) >= 2)
+                                <ul class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                                    @forelse($this->searchedUsers as $u)
+                                        <li wire:click="selectUser({{ $u->id }}, '{{ $u->name }}')" class="px-4 py-2 text-sm text-gray-700 cursor-pointer hover:bg-blue-50 hover:text-blue-700 border-b last:border-b-0">
+                                            {{ $u->name }}
+                                        </li>
+                                    @empty
+                                        <li class="px-4 py-2 text-sm text-gray-500 italic text-center">User tidak ditemukan...</li>
+                                    @endforelse
+                                </ul>
+                            @endif
+                        @endif
+                        
+                        @error('selectedUserId') <span class="text-xs text-red-500 mt-1 block">{{ $message }}</span> @enderror
+                    </div>
+
+                    <div class="sm:col-span-2">
+                        <label for="incomeCategory" class="block mb-2 text-sm font-medium text-gray-900">Kategori / Transaksi (Contoh: Nimbang)</label>
+                        <input type="text" wire:model="incomeCategory" id="incomeCategory" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-600 focus:border-blue-600 block w-full p-2.5" placeholder="Masukkan keterangan...">
+                        @error('incomeCategory') <span class="text-xs text-red-500">{{ $message }}</span> @enderror
+                    </div>
+                    <div>
+                        <label for="incomeAmount" class="block mb-2 text-sm font-medium text-gray-900">Nominal (Rp)</label>
+                        <input type="number" wire:model="incomeAmount" id="incomeAmount" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-600 focus:border-blue-600 block w-full p-2.5" placeholder="35000">
+                        @error('incomeAmount') <span class="text-xs text-red-500">{{ $message }}</span> @enderror
+                    </div>
+                    <div>
+                        <label for="incomePaymentMethod" class="block mb-2 text-sm font-medium text-gray-900">Metode Bayar</label>
+                        <select wire:model="incomePaymentMethod" id="incomePaymentMethod" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-600 focus:border-blue-600 block w-full p-2.5">
+                            <option value="qris">QRIS</option>
+                            <option value="transfer">Transfer</option>
+                            <option value="debit">Debit</option>
+                            <option value="cash">Cash</option>
+                        </select>
+                        @error('incomePaymentMethod') <span class="text-xs text-red-500">{{ $message }}</span> @enderror
+                    </div>
+                    <div class="sm:col-span-2">
+                        <label for="adminId" class="block mb-2 text-sm font-medium text-gray-900">Pilih Admin Pencatat</label>
+                        <select wire:model="adminId" id="adminId" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-600 focus:border-blue-600 block w-full p-2.5">
+                            <option value="">-- Pilih Admin --</option>
+                            @foreach($this->adminList as $admin)
+                                <option value="{{ $admin->id }}">{{ $admin->name }}</option>
+                            @endforeach
+                        </select>
+                        @error('adminId') <span class="text-xs text-red-500">{{ $message }}</span> @enderror
+                    </div>
+                </div>
+                <button type="submit" wire:loading.attr="disabled" class="w-full text-white inline-flex justify-center items-center bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center disabled:opacity-50 mt-2">
+                    <span wire:loading.remove wire:target="saveIncome">Simpan Pemasukan</span>
+                    <span wire:loading wire:target="saveIncome">Menyimpan...</span>
+                </button>
+            </form>
+        </div>
+    </div>
+    @endif
 </div>
