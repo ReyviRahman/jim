@@ -92,24 +92,9 @@ new #[Layout('layouts::admin')] class extends Component
             </div>
         </div>
 
-        {{-- TOMBOL LANJUTKAN CHECKOUT (Muncul Dinamis jika ada yang dicentang) --}}
-        @if(count($selectedUsers) > 0)
-            <div class="bg-brand-soft border-t border-b border-brand-medium p-3 flex justify-between items-center px-4">
-                <div class="text-sm font-medium text-brand-strong">
-                    Terpilih: <span class="font-bold text-lg">{{ count($selectedUsers) }}</span> Member
-                </div>
-                <button wire:click="lanjutkanCheckout" class="text-white bg-brand hover:bg-brand-strong focus:ring-4 focus:ring-brand-medium font-medium rounded-md text-sm px-5 py-2 transition-colors">
-                    Lanjutkan ke Checkout &rarr;
-                </button>
-            </div>
-        @endif
-
         <table class="w-full text-sm text-left rtl:text-right text-body">
             <thead class="text-sm text-body bg-neutral-secondary-medium border-b border-t border-default-medium">
                 <tr>
-                    <th scope="col" class="px-6 py-3 font-medium w-4">
-                        {{-- Dikosongkan untuk header checkbox --}}
-                    </th>
                     <th scope="col" class="px-6 py-3 font-medium">Nama</th>
                     <th scope="col" class="px-6 py-3 font-medium">Pekerjaan</th>
                 </tr>

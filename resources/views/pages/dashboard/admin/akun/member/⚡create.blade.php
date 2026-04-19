@@ -56,7 +56,7 @@ new #[Layout('layouts::admin')] class extends Component
             $photoPath = $this->photo->store('profile-photos', 'public');
         }
 
-        User::create([
+        $newUser = User::create([
             'name' => $this->name,
             'occupation' => $this->occupation,
             'age' => $this->age,
@@ -70,9 +70,9 @@ new #[Layout('layouts::admin')] class extends Component
             'joined_at' => $this->joined_at,
         ]);
 
-        session()->flash('success', 'Registrasi berhasil!');
-
-        return $this->redirectRoute('admin.akun.member.index', navigate:true);
+        return $this->redirectRoute('admin.membership.paket', [
+            'users' => [$newUser->id] 
+        ], navigate: true);
     }
 };
 ?>
