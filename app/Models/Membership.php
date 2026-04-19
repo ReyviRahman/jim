@@ -33,6 +33,7 @@ class Membership extends Model
         'pt_end_date',
         'membership_end_date',
         'status',
+        'is_active',
         'notes',
     ];
 
@@ -43,6 +44,7 @@ class Membership extends Model
         'price_paid' => 'decimal:0',
         'total_sessions' => 'integer',
         'remaining_sessions' => 'integer',
+        'is_active' => 'boolean',
     ];
 
     /**

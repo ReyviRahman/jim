@@ -16,7 +16,7 @@ new #[Layout('layouts::member')] class extends Component
     {
         return [
             // Eager loading sudah benar, memanggil user tidak perlu karena ini halaman milik user itu sendiri
-            'attendances' => Attendance::with(['membership.gymPackage', 'membership.ptPackage'])
+            'attendances' => Attendance::with(['membership.gymPackage', 'membership.ptPackage', 'membership.personalTrainer'])
                 ->where('user_id', Auth::id())
                 ->latest('check_in_time')
                 ->paginate(10),

@@ -383,14 +383,14 @@ new #[Layout('layouts::admin')] class extends Component
                             <div class="flex flex-col gap-1.5">
                                 <div class="flex items-center text-gray-600">
                                     <svg class="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                                    Mulai: <span class="font-medium text-heading ml-1">{{ $membership->start_date ? $membership->start_date->format('d M Y') : '-' }}</span>
+                                    Mulai: <span class="font-medium text-heading ml-1">{{ $membership->start_date ? $membership->start_date->format('d M Y') : 'BELUM AKTIF' }}</span>
                                 </div>
 
                                 {{-- Masa aktif Gym --}}
                                 @if(in_array($membership->type, ['membership', 'bundle_pt_membership']))
                                     <div class="flex items-center text-gray-600">
                                         <span class="inline-block w-2 h-2 rounded-full bg-emerald-400 mr-2"></span>
-                                        Gym s/d: <span class="font-medium text-emerald-600 ml-1">{{ $membership->membership_end_date ? $membership->membership_end_date->format('d M Y') : '-' }}</span>
+                                        Gym s/d: <span class="font-medium text-emerald-600 ml-1">{{ $membership->membership_end_date ? $membership->membership_end_date->format('d M Y') : 'BELUM AKTIF' }}</span>
                                     </div>
                                 @endif
 
@@ -406,7 +406,7 @@ new #[Layout('layouts::admin')] class extends Component
                                 @if(in_array($membership->type, ['pt', 'bundle_pt_membership']))
                                     <div class="flex items-center text-gray-600">
                                         <span class="inline-block w-2 h-2 rounded-full bg-indigo-400 mr-2"></span>
-                                        PT s/d: <span class="font-medium text-indigo-600 ml-1">{{ $membership->pt_end_date ? $membership->pt_end_date->format('d M Y') : '-' }}</span>
+                                        PT s/d: <span class="font-medium text-indigo-600 ml-1">{{ $membership->pt_end_date ? $membership->pt_end_date->format('d M Y') : 'BELUM AKTIF' }}</span>
                                     </div>
                                 @endif
                             </div>

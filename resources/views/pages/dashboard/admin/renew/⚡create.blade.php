@@ -18,6 +18,8 @@ new #[Layout('layouts::admin')] class extends Component
     public MembershipModel $oldMembership;
     public $selectedUsers; 
     public $mainUser; 
+    public $toastMessage = '';
+    public $toastType = '';
 
     // --- FORM INPUTS ---
     public $registration_type = ''; 
@@ -28,14 +30,16 @@ new #[Layout('layouts::admin')] class extends Component
     
     // PT Input
     public $pt_package_id = ''; 
-    public $pt_id = '';
+    public $pt_id = null;
     public $pt_end_date = '';
 
     // General Input
     public $start_date = '';
+    public $is_active = true;
 
     // Kalkulasi Harga
     public $base_price = 0;
+    public $manual_discount = 0;
     public $discount_applied = 0; 
     public $price_paid = 0; // Total Tagihan Akhir
     public $calculated_total_sessions = 0;
@@ -44,6 +48,7 @@ new #[Layout('layouts::admin')] class extends Component
     public $payment_type = 'paid'; 
     public $amount_paid = 0; 
     public $payment_method = 'cash';
+    public $payment_date = '';
     public $transaction_type = '';
     public $package_name = '';
     public $notes = '';
@@ -78,14 +83,15 @@ new #[Layout('layouts::admin')] class extends Component
         $this->pt_package_id = $this->oldMembership->pt_package_id;
         $this->pt_id = $this->oldMembership->pt_id;
 
-        // 4. Set tanggal baru (Hari ini + 29 hari kaku)
+        // 4. Set tanggal baru (30 hari kaku dengan addMonthsNoOverflow)
         $this->start_date = now()->format('Y-m-d');
+        $this->payment_date = now()->format('Y-m-d');
         if ($this->registration_type === 'visit') {
             $this->membership_end_date = $this->start_date;
         } else {
-            $this->membership_end_date = now()->addDays(29)->format('Y-m-d');
+            $this->membership_end_date = now()->addMonthsNoOverflow(1)->format('Y-m-d');
         }
-        $this->pt_end_date = now()->addDays(29)->format('Y-m-d');
+        $this->pt_end_date = now()->addMonthsNoOverflow(1)->format('Y-m-d');
         
         $this->calculateTotal();
     }
@@ -182,7 +188,7 @@ new #[Layout('layouts::admin')] class extends Component
     {
         if ($property === 'registration_type') {
             $this->pt_package_id = '';
-            $this->pt_id = '';
+            $this->pt_id = null;
             $this->gym_package_id = '';
             if ($this->registration_type === 'visit') {
                 $this->membership_end_date = $this->start_date;
@@ -190,7 +196,7 @@ new #[Layout('layouts::admin')] class extends Component
             }
         }
 
-        if (in_array($property, ['registration_type', 'gym_package_id', 'pt_package_id'])) {
+        if (in_array($property, ['registration_type', 'gym_package_id', 'pt_package_id', 'manual_discount'])) {
             $this->calculateTotal();
         }
 
@@ -198,13 +204,36 @@ new #[Layout('layouts::admin')] class extends Component
             if ($this->registration_type === 'visit') {
                 $this->membership_end_date = $this->start_date;
             } else {
-                $this->membership_end_date = Carbon::parse($this->start_date)->addDays(29)->format('Y-m-d');
+                $this->membership_end_date = Carbon::parse($this->start_date)->addMonthsNoOverflow(1)->format('Y-m-d');
             }
-            $this->pt_end_date = Carbon::parse($this->start_date)->addDays(29)->format('Y-m-d');
+            $this->pt_end_date = Carbon::parse($this->start_date)->addMonthsNoOverflow(1)->format('Y-m-d');
         }
 
         if ($property === 'payment_type') {
-            $this->amount_paid = $this->payment_type === 'paid' ? $this->price_paid : '';
+            if ($this->payment_type === 'paid') {
+                $this->amount_paid = $this->price_paid;
+            } else {
+                $this->amount_paid = '';
+                $this->is_active = false;
+                $this->toastMessage = 'Status membership diubah ke tidak aktif karena pembayaran cicilan';
+                $this->toastType = 'warning';
+            }
+        }
+
+        if ($property === 'is_active') {
+            if ($this->payment_type === 'partial') {
+                $this->is_active = false;
+                $this->toastMessage = 'Status keanggotaan tidak dapat diaktifkan karena tipe pembayaran masih cicilan. Silakan lunasi terlebih dahulu.';
+                $this->toastType = 'warning';
+                return;
+            }
+            if (!$this->is_active) {
+                $this->payment_type = 'partial';
+                $this->amount_paid = '';
+                $this->start_date = null;
+                $this->membership_end_date = null;
+                $this->pt_end_date = null;
+            }
         }
     }
 
@@ -234,7 +263,8 @@ new #[Layout('layouts::admin')] class extends Component
         }
 
         $this->base_price = $hargaGym + $hargaPt; 
-        $this->discount_applied = $diskonGym + $diskonPt;
+        $diskonManualAngka = empty($this->manual_discount) ? 0 : (int) $this->manual_discount;
+        $this->discount_applied = $diskonGym + $diskonPt + $diskonManualAngka;
         $this->price_paid = max(0, $this->base_price - $this->discount_applied); 
 
         if ($this->payment_type === 'paid') $this->amount_paid = $this->price_paid;
@@ -261,12 +291,15 @@ new #[Layout('layouts::admin')] class extends Component
 
         $rules = [
             'registration_type' => 'required|in:membership,pt,bundle_pt_membership,visit',
-            'start_date' => 'required|date',
+            'start_date' => $this->is_active ? 'required|date' : 'nullable|date',
             'payment_type' => 'required|in:paid,partial',
             'payment_method' => 'required|in:cash,transfer,qris,debit',
+            'payment_date' => 'required|date',
             'transaction_type' => 'required|string',
             'package_name' => 'required|string',
             'notes' => 'nullable|string',
+            'is_active' => 'required|boolean',
+            'manual_discount' => 'nullable|numeric|min:0|max:' . $this->base_price,
         ];
 
         if ($this->payment_type === 'partial') {
@@ -275,18 +308,19 @@ new #[Layout('layouts::admin')] class extends Component
 
         if (in_array($this->registration_type, ['membership', 'bundle_pt_membership', 'visit'])) {
             $rules['gym_package_id'] = 'required|exists:gym_packages,id';
-            $rules['membership_end_date'] = 'required|date|after_or_equal:start_date';
+            $rules['membership_end_date'] = $this->is_active ? 'required|date|after_or_equal:start_date' : 'nullable|date';
         }
 
         if (in_array($this->registration_type, ['pt', 'bundle_pt_membership'])) {
             $rules['pt_package_id'] = 'required|exists:gym_packages,id'; 
-            $rules['pt_id'] = 'required|exists:users,id';
-            $rules['pt_end_date'] = 'required|date|after_or_equal:start_date';
+            $rules['pt_id'] = 'nullable|exists:users,id';
+            $rules['pt_end_date'] = $this->is_active ? 'required|date|after_or_equal:start_date' : 'nullable|date';
         }
 
         $this->validate($rules, [
             'amount_paid.max' => 'Nominal cicilan tidak boleh lebih atau sama dengan total tagihan.',
             'amount_paid.min' => 'Nominal cicilan harus lebih dari 0.',
+            'manual_discount.max' => 'Diskon tidak boleh melebihi total harga paket.',
         ]);
         
         // Validasi admin_id
@@ -303,6 +337,11 @@ new #[Layout('layouts::admin')] class extends Component
         }
         
         $this->calculateTotal();
+
+        if ($this->payment_type === 'partial') {
+            $this->is_active = false;
+        }
+
         $actualAmountPaid = $this->payment_type === 'paid' ? $this->price_paid : $this->amount_paid;
         
         // Hitung remaining sessions dari membership lama yang akan ditambahkan ke baru
@@ -333,7 +372,7 @@ new #[Layout('layouts::admin')] class extends Component
                 
                 'gym_package_id' => in_array($this->registration_type, ['membership', 'bundle_pt_membership', 'visit']) ? $this->gym_package_id : null,
                 'pt_package_id' => in_array($this->registration_type, ['pt', 'bundle_pt_membership']) ? $this->pt_package_id : null,
-                'pt_id' => in_array($this->registration_type, ['pt', 'bundle_pt_membership']) ? $this->pt_id : null,
+                'pt_id' => in_array($this->registration_type, ['pt', 'bundle_pt_membership']) ? (($this->pt_id && $this->pt_id !== '') ? $this->pt_id : null) : null,
                 'admin_id' => $this->admin_id,
                 'follow_up_id' => $this->follow_up_id ?: null,
                 'follow_up_id_two' => $this->follow_up_id_two ?: null,
@@ -355,6 +394,7 @@ new #[Layout('layouts::admin')] class extends Component
                 'pt_end_date' => in_array($this->registration_type, ['pt', 'bundle_pt_membership']) ? $this->pt_end_date : null,
                 
                 'status' => $this->payment_type === 'paid' ? 'active' : 'pending',
+                'is_active' => $this->is_active,
                 'notes' => $this->notes,
             ]);
 
@@ -374,7 +414,7 @@ new #[Layout('layouts::admin')] class extends Component
                 'package_name' => $this->package_name,
                 'amount' => $actualAmountPaid,
                 'payment_method' => $this->payment_method,
-                'payment_date' => now(),
+                'payment_date' => $this->payment_date,
                 'start_date' => $this->start_date,
                 'end_date' => in_array($this->registration_type, ['pt']) ? $this->pt_end_date : $this->membership_end_date,
                 'notes' => $this->notes,
@@ -394,7 +434,20 @@ new #[Layout('layouts::admin')] class extends Component
 ?>
 
 <div>
-    <div class="mb-6 flex items-center gap-3">
+    <div x-data="{ show: false }" 
+         x-init="$watch('toastMessage', value => { if(value) { show = true; setTimeout(() => show = false, 5000); } })">
+    <div x-show="show && toastType === 'warning'" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-4" x-transition:enter-end="opacity-100 translate-y-0" x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100 translate-y-0" x-transition:leave-end="opacity-0 translate-y-4"
+         class="fixed top-4 right-4 z-50 p-4 text-sm text-orange-800 rounded-lg bg-orange-50 border border-orange-200 shadow-lg max-w-sm">
+        <div class="flex items-center">
+            <svg class="flex-shrink-0 w-5 h-5 me-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+            <span x-text="toastMessage"></span>
+            <button type="button" @click="show = false" class="ms-auto text-orange-500 hover:text-orange-700">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+    </div>
+
+    <div class="mb-6 flex items-end gap-2">
         <a href="{{ route('admin.membership.index') }}" wire:navigate class="p-2 bg-white border border-default rounded-md hover:bg-gray-50 text-gray-600 transition-colors">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
         </a>
@@ -461,47 +514,63 @@ new #[Layout('layouts::admin')] class extends Component
                     </div>
 
                     @if($registration_type)
+                        {{-- 2. STATUS AKTIF / TIDAK AKTIF --}}
+                        <div class="md:col-span-2 pb-4 border-b border-default-medium">
+                            <label class="block mb-2.5 text-sm font-semibold text-brand-strong">Status Keanggotaan</label>
+                            <div class="flex gap-6">
+                                <label class="flex items-center gap-2 cursor-pointer">
+                                    <input type="radio" wire:model.live="is_active" value="1" {{ $is_active ? 'checked' : '' }} class="text-brand focus:ring-brand w-4 h-4">
+                                    <span class="text-sm font-medium text-heading">✅ Aktif Sekarang</span>
+                                </label>
+                                <label class="flex items-center gap-2 cursor-pointer">
+                                    <input type="radio" wire:model.live="is_active" value="0" {{ !$is_active ? 'checked' : '' }} class="text-red-500 focus:ring-red-500 w-4 h-4">
+                                    <span class="text-sm font-medium text-heading">❌ Tidak Aktif (Pending)</span>
+                                </label>
+                            </div>
+                            <p class="text-xs text-body mt-2">Jika "Tidak Aktif", member akan masuk status pending dan tanggal tidak perlu diisi hingga aktivasi.</p>
+                        </div>
+
                         {{-- 2. DURASI PROGRAM --}}
-                        {{-- 2. DURASI PROGRAM --}}
-                        <div class="md:col-span-2">
-                            <h6 class="text-sm font-semibold text-heading mb-3">2. Durasi Program & Tanggal Aktif</h6>
+                        {{-- 3. DURASI PROGRAM (SEKARANG BERDAMPINGAN: MULAI, BERAKHIR, DURASI) --}}
+                        <div class="md:col-span-2" {{ !$this->is_active ? 'style=display:none' : '' }}>
+                            <h6 class="text-sm font-semibold text-heading mb-3">Durasi Program & Tanggal Aktif</h6>
                             <div class="grid gap-4 md:grid-cols-3 bg-gray-50 p-4 rounded border border-gray-200">
                                 
                                 {{-- Tanggal Mulai --}}
-                                <div>
-                                    <label for="start_date" class="block mb-2.5 text-sm font-medium text-heading">Tanggal Mulai Baru</label>
-                                    <input type="date" id="start_date" wire:model.live="start_date" class="bg-white border border-brand-medium text-brand-strong text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs font-semibold">
+                                <div {{ !$this->is_active ? 'style=display:none' : '' }}>
+                                    <label for="start_date" class="block mb-2.5 text-sm font-medium text-heading">Tanggal Mulai</label>
+                                    <input type="date" id="start_date" wire:model.live="start_date" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs">
                                     <p class="mt-1.5 text-xs text-brand-strong font-medium">{{ $this->getFormattedDate($start_date) }}</p>
                                     @error('start_date') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                                 </div>
                                 
-                                {{-- Tanggal Berakhir Gym (DIBUKA KUNCINYA) --}}
-                                @if(in_array($registration_type, ['membership', 'bundle_pt_membership', 'visit']))
-                                <div class="{{ $registration_type === 'visit' ? 'hidden' : '' }}">
-                                    <label for="membership_end_date" class="block mb-2.5 text-sm font-medium text-heading">Berakhir Gym</label>
-                                    {{-- Hapus readonly, bg-gray-100, dan cursor-not-allowed --}}
-                                    <input type="date" id="membership_end_date" wire:model.live="membership_end_date" class="bg-white border border-brand-medium text-brand-strong text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs font-semibold">
-                                    <p class="mt-1.5 text-xs text-brand-strong">{{ $this->getFormattedDate($membership_end_date) }}</p>
+                                {{-- Tanggal Berakhir (Menyesuaikan dengan tipe pendaftaran) --}}
+                                @if(in_array($registration_type, ['membership', 'visit']))
+                                <div class="{{ !$this->is_active ? 'hidden' : '' }}">
+                                    <label for="membership_end_date" class="block mb-2.5 text-sm font-medium text-heading">Tanggal Berakhir Gym</label>
+                                    <input type="date" id="membership_end_date" wire:model.live="membership_end_date" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs">
+                                    <p class="mt-1.5 text-xs text-brand-strong font-medium">{{ $this->getFormattedDate($membership_end_date) }}</p>
+                                    @error('membership_end_date') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                                 </div>
                                 @endif
 
-                                {{-- Tanggal Berakhir PT (DIBUKA KUNCINYA) --}}
-                                @if(in_array($registration_type, ['pt', 'bundle_pt_membership']))
-                                <div>
+                                @if(in_array($registration_type, ['pt']))
+                                <div class="{{ !$this->is_active ? 'hidden' : '' }}">
                                     <label for="pt_end_date" class="block mb-2.5 text-sm font-medium text-heading">Berakhir Sesi PT</label>
-                                    {{-- Hapus readonly, bg-gray-100, dan cursor-not-allowed --}}
-                                    <input type="date" id="pt_end_date" wire:model.live="pt_end_date" class="bg-white border border-brand-medium text-brand-strong text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs font-semibold">
-                                    <p class="mt-1.5 text-xs text-gray-500">{{ $this->getFormattedDate($pt_end_date) }}</p>
+                                    <input type="date" id="pt_end_date" wire:model.live="pt_end_date" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs">
+                                    <p class="mt-1.5 text-xs text-brand-strong font-medium">{{ $this->getFormattedDate($pt_end_date) }}</p>
+                                    @error('pt_end_date') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                                 </div>
                                 @endif
 
                                 {{-- Hitungan Durasi --}}
-                                <div class="flex flex-col justify-start items-start {{ $registration_type === 'visit' ? 'md:col-span-2' : '' }}">
-                                    <span class="text-xs text-gray-500 mb-1">Total Durasi:</span>
-                                    <span class="text-md font-bold text-brand-strong px-3 py-2 rounded-md inline-block w-full border border-brand-medium">
+                                <div class="flex flex-col justify-start items-start {{ $registration_type === 'visit' ? 'md:col-span-2' : '' }} {{ !$this->is_active ? 'hidden' : '' }}">
+                                    <span class="text-xs text-gray-500 mb-1">Total Durasi Program:</span>
+                                    <span class="text-md font-bold text-brand-strong  px-3 py-2 rounded-md inline-block w-full border border-brand-medium">
                                         ⏱️ {{ $this->programDuration }}
                                     </span>
                                 </div>
+
                             </div>
                         </div>
 
@@ -595,6 +664,42 @@ new #[Layout('layouts::admin')] class extends Component
                     <span class="text-sm font-semibold text-heading">Total Tagihan:</span>
                     <span class="text-2xl font-bold text-brand-strong">Rp {{ number_format($price_paid, 0, ',', '.') }}</span>
                 </div>
+                {{-- FORM INPUT DISKON MANUAL --}}
+                @if($registration_type && $price_paid > 0)
+                <div class="mb-4">
+                    <label class="block mb-1 text-sm font-medium text-heading">Diskon Tambahan</label>
+                    <div x-data="{ 
+                        discount: $wire.entangle('manual_discount').live, 
+                        formatted: '',
+                        init() {
+                            this.formatValue(this.discount);
+                            $watch('discount', value => {
+                                this.formatValue(value);
+                            });
+                        },
+                        formatValue(value) {
+                            if (!value) {
+                                this.formatted = '';
+                                return;
+                            }
+                            let raw = value.toString().replace(/\D/g, '');
+                            this.formatted = new Intl.NumberFormat('id-ID').format(raw);
+                        },
+                        updateValue(event) {
+                            let raw = event.target.value.replace(/\D/g, '');
+                            this.discount = raw; 
+                            this.formatValue(raw);
+                        }
+                    }">
+                        <input type="text" 
+                            x-model="formatted" 
+                            @input="updateValue($event)"
+                            class="bg-white border border-default-medium text-heading text-lg font-bold rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2 shadow-xs text-red-600" 
+                            placeholder="Diskon (Jika Ada)">
+                    </div>
+                    @error('manual_discount') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                </div>
+                @endif
 
                 {{-- FORM KASIR (BAYAR) --}}
                 @if($registration_type && $price_paid > 0)
@@ -668,6 +773,12 @@ new #[Layout('layouts::admin')] class extends Component
                         </select>
                         @error('payment_method') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                     </div>
+                    <div>
+                        <label class="block mb-1 text-sm font-medium text-heading">Tanggal Pembayaran</label>
+                        <input type="date" wire:model="payment_date" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2 shadow-xs">
+                        <p class="mt-1.5 text-xs text-brand-strong font-medium">{{ $this->getFormattedDate($payment_date) }}</p>
+                        @error('payment_date') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                    </div>
 
                     {{-- Admin / Kasir --}}
                     <div>
@@ -731,5 +842,5 @@ new #[Layout('layouts::admin')] class extends Component
                 </button>
             </div>
         </div>
-    </>
+    </div>
 </div>

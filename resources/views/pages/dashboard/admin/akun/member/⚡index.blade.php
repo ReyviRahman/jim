@@ -10,6 +10,24 @@ new #[Layout('layouts::admin')] class extends Component
     use WithPagination; // Menggunakan trait pagination
 
     public $search = '';
+    // Properti untuk menyimpan ID user yang dicentang
+    public array $selectedUsers = []; 
+
+    public function lanjutkanCheckout()
+    {
+        $jumlahTerpilih = count($this->selectedUsers);
+
+        if ($jumlahTerpilih === 0) {
+            session()->flash('error', 'Silakan pilih minimal 1 member untuk didaftarkan.');
+            return;
+        }
+
+        // Bawa array ID user ke rute halaman pilih paket/checkout
+        // Gunakan parameter array agar di URL menjadi ?users[0]=1&users[1]=2
+        return $this->redirectRoute('admin.membership.paket', [
+            'users' => $this->selectedUsers
+        ], navigate: true);
+    }
 
     // Reset halaman ke 1 setiap kali user mengetik di pencarian
     public function updatedSearch()
@@ -32,6 +50,9 @@ new #[Layout('layouts::admin')] class extends Component
                 }])
                 // 2. Filter Role
                 ->where('role', 'member')
+                ->whereDoesntHave('memberships', function ($query) {
+                    $query->whereIn('status', ['active', 'pending']);
+                })
                 // 3. Pencarian Name & Email
                 ->where(function ($query) {
                     $query->where('name', 'like', '%' . $this->search . '%')
@@ -74,18 +95,37 @@ new #[Layout('layouts::admin')] class extends Component
             </div>
         </div>
 
+        @if(count($selectedUsers) > 0)
+            <div class="bg-brand-soft border-t border-b border-brand-medium p-3 flex justify-between items-center px-4">
+                <div class="text-sm font-medium text-brand-strong">
+                    Terpilih: <span class="font-bold text-lg">{{ count($selectedUsers) }}</span> Member
+                </div>
+                <button wire:click="lanjutkanCheckout" class="text-white bg-brand hover:bg-brand-strong focus:ring-4 focus:ring-brand-medium font-medium rounded-md text-sm px-5 py-2 transition-colors">
+                    Lanjutkan ke Checkout &rarr;
+                </button>
+            </div>
+        @endif
+
         <table class="w-full text-sm text-left rtl:text-right text-body">
             <thead class="text-sm text-body bg-neutral-secondary-medium border-b border-t border-default-medium">
                 <tr>
+                    <th scope="col" class="px-6 py-3 font-medium w-4">
+                        {{-- Dikosongkan untuk header checkbox --}}
+                    </th>
                     <th scope="col" class="px-6 py-3 font-medium">Nama</th>
                     <th scope="col" class="px-6 py-3 font-medium">Pekerjaan</th>
-                    <th scope="col" class="px-6 py-3 font-medium">Status</th>
                     <th scope="col" class="px-6 py-3 font-medium">Aksi</th>
                 </tr>
             </thead>
             <tbody>
                 @forelse ($users as $user)
                     <tr class="bg-neutral-primary-soft border-b border-default hover:bg-neutral-secondary-medium">
+                        <td class="px-6 py-4">
+                            <div class="flex items-center">
+                                <input id="checkbox-{{ $user->id }}" type="checkbox" value="{{ $user->id }}" wire:model.live="selectedUsers" 
+                                    class="w-4 h-4 text-brand bg-gray-100 border-gray-300 rounded focus:ring-brand focus:ring-2 cursor-pointer">
+                            </div>
+                        </td>
                         <th scope="row" class="flex items-center px-6 py-4 text-heading whitespace-nowrap">
                             @if($user->photo)
                                 <img class="w-10 h-10 rounded-full object-cover" src="{{ asset('storage/' . $user->photo) }}" alt="{{ $user->name }}">
@@ -100,18 +140,6 @@ new #[Layout('layouts::admin')] class extends Component
                         </th>
                         <td class="px-6 py-4">
                             {{ $user->occupation ?? '-' }}
-                        </td>
-                        <td class="px-6 py-4">
-                            <div class="flex items-center">
-                                {{-- Mengecek apakah collection memberships memiliki isi (ada yang aktif) --}}
-                                @if($user->memberships->isNotEmpty())
-                                    <div class="h-2.5 w-2.5 rounded-full bg-green-500 me-2"></div> 
-                                    Aktif
-                                @else
-                                    <div class="h-2.5 w-2.5 rounded-full bg-red-500 me-2"></div> 
-                                    Tidak Aktif
-                                @endif
-                            </div>
                         </td>
                         <td class="px-6 py-4 text-center">
                             <a href="{{ route('admin.akun.member.edit', $user->id) }}" wire:navigate class="font-medium text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1">
