@@ -4,6 +4,7 @@ namespace App\Livewire\Admin;
 
 use App\Exports\MembershipExport;
 use App\Models\Membership;
+use App\Models\User;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -22,6 +23,49 @@ new #[Layout('layouts::admin')] class extends Component
     public $dateStart = null;
 
     public $dateEnd = null;
+
+    public $showCoachModal = false;
+    public $selectedMembershipForCoach = null;
+    public $selectedCoachId = null;
+
+    #[Computed]
+    public function trainers()
+    {
+        return User::where('role', 'pt')->where('is_active', true)->get();
+    }
+
+    public function openCoachModal($membershipId)
+    {
+        $this->selectedMembershipForCoach = $membershipId;
+        $this->selectedCoachId = null;
+        $membership = Membership::find($membershipId);
+        if ($membership && $membership->pt_id) {
+            $this->selectedCoachId = $membership->pt_id;
+        }
+        $this->showCoachModal = true;
+    }
+
+    public function closeCoachModal()
+    {
+        $this->showCoachModal = false;
+        $this->selectedMembershipForCoach = null;
+        $this->selectedCoachId = null;
+    }
+
+    public function saveCoach()
+    {
+        if (!$this->selectedCoachId) {
+            $this->addError('coach', 'Pilih coach terlebih dahulu.');
+            return;
+        }
+
+        $membership = Membership::find($this->selectedMembershipForCoach);
+        if ($membership) {
+            $membership->update(['pt_id' => $this->selectedCoachId]);
+            session()->flash('success', 'Coach berhasil dipilih!');
+        }
+        $this->closeCoachModal();
+    }
 
     // Reset halaman ke 1 setiap kali user mengetik pencarian
     public function updatingSearch()
@@ -454,6 +498,13 @@ new #[Layout('layouts::admin')] class extends Component
                         </td>
                         <td class="px-6 py-4 text-center whitespace-nowrap">
                             <div class="flex items-center justify-center gap-2">
+                                @if($membership->ptPackage && !$membership->pt_id)
+                                    <button type="button" wire:click="openCoachModal({{ $membership->id }})" 
+                                        class="inline-flex items-center gap-1 px-3 py-2 text-sm font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-md hover:bg-indigo-100 focus:ring-2 focus:ring-indigo-300 transition-colors">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path><path d="M3 21v-5h5"></path></svg>
+                                        Pilih Coach
+                                    </button>
+                                @endif
                                 <a href="{{ route('admin.membership.renew', ['id' => $membership->id]) }}" wire:navigate class="inline-flex items-center gap-1 px-3 py-2 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 focus:ring-2 focus:ring-blue-300 transition-colors">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path><path d="M3 21v-5h5"></path></svg>
                                     Perpanjang
@@ -485,4 +536,69 @@ new #[Layout('layouts::admin')] class extends Component
     <div class="mt-4">
         {{ $this->memberships->links() }}
     </div>
+
+    @if ($showCoachModal && $selectedMembershipForCoach)
+        @php
+            $coachMembership = \App\Models\Membership::find($selectedMembershipForCoach);
+        @endphp
+    <div class="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm">
+        <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div class="p-6 border-b border-default-medium flex items-center justify-between">
+                <h3 class="text-lg font-semibold text-heading">Pilih Coach</h3>
+                <button type="button" wire:click="closeCoachModal()" class="text-body hover:text-heading">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <form wire:submit.prevent="saveCoach">
+                <div class="p-6 space-y-4">
+                    @if ($errors->has('coach'))
+                        <div class="p-3 bg-red-100 border border-red-400 text-red-700 rounded text-sm">
+                            {{ $errors->first('coach') }}
+                        </div>
+                    @endif
+
+                    @if($coachMembership)
+                        <div class="bg-neutral-secondary-medium p-3 rounded-md">
+                            <div>
+                                <p class="text-xs text-gray-500 uppercase font-bold">Member</p>
+                                <p class="font-semibold text-heading">{{ $coachMembership->user->name }}</p>
+                            </div>
+                            <div class="mt-2">
+                                <p class="text-xs text-gray-500 uppercase font-bold">Paket Trainer</p>
+                                <p class="font-semibold text-heading text-indigo-600">{{ $coachMembership->ptPackage->name }}</p>
+                            </div>
+                        </div>
+                    @endif
+
+                    <div>
+                        <label for="selectedCoachId" class="block text-sm font-medium text-heading mb-1">
+                            Pilih Coach
+                        </label>
+                        <select id="selectedCoachId" wire:model.live="selectedCoachId"
+                            class="w-full px-3 py-2 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs">
+                            <option value="">-- Pilih Coach --</option>
+                            @foreach($this->trainers as $trainer)
+                                <option value="{{ $trainer->id }}">{{ $trainer->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                </div>
+
+                <div class="p-6 border-t border-default-medium flex gap-3 justify-end">
+                    <button type="button" wire:click="closeCoachModal()"
+                        class="px-4 py-2 text-heading bg-neutral-secondary-medium border border-default-medium rounded-md hover:bg-neutral-secondary-strong font-medium text-sm">
+                        Batal
+                    </button>
+                    <button type="submit"
+                        class="px-4 py-2 text-white bg-indigo-600 hover:bg-indigo-700 rounded-md font-medium text-sm">
+                        Simpan Coach
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    @endif
 </div>

@@ -27,7 +27,7 @@ new #[Layout('layouts::admin')] class extends Component
     
     // PT Input
     public $pt_package_id = ''; 
-    public $pt_id = '';
+    public $pt_id = null;
     public $pt_end_date = '';
 
     // General Input
@@ -200,7 +200,7 @@ new #[Layout('layouts::admin')] class extends Component
     {
         if ($property === 'registration_type') {
             $this->pt_package_id = '';
-            $this->pt_id = '';
+            $this->pt_id = null;
             $this->gym_package_id = '';
             
             if ($this->registration_type === 'visit') {
@@ -227,16 +227,20 @@ new #[Layout('layouts::admin')] class extends Component
             if ($this->payment_type === 'paid') {
                 $this->amount_paid = $this->price_paid;
             } else {
-                $this->amount_paid = ''; // Kosongkan agar kasir input manual jika nyicil
+                $this->amount_paid = '';
+                $this->is_active = false;
             }
         }
 
         if ($property === 'is_active') {
-            // Jika user ingin set ke tidak aktif, paksa payment_type ke partial
+            if ($this->payment_type === 'partial') {
+                $this->is_active = false;
+                session()->flash('warning', 'Status keanggotaan tidak dapat diaktifkan karena tipe pembayaran masih cicilan. Silakan lunasi terlebih dahulu.');
+                return;
+            }
             if (!$this->is_active) {
                 $this->payment_type = 'partial';
                 $this->amount_paid = '';
-                // Null kan semua tanggal saat tidak aktif
                 $this->start_date = null;
                 $this->membership_end_date = null;
                 $this->pt_end_date = null;
@@ -335,7 +339,7 @@ new #[Layout('layouts::admin')] class extends Component
 
         if (in_array($this->registration_type, ['pt', 'bundle_pt_membership'])) {
             $rules['pt_package_id'] = 'required|exists:gym_packages,id'; 
-            $rules['pt_id'] = 'required|exists:users,id';
+            $rules['pt_id'] = 'nullable|exists:users,id';
             $rules['pt_end_date'] = $this->is_active ? 'required|date|after_or_equal:start_date' : 'nullable|date';
         }
 
@@ -354,6 +358,10 @@ new #[Layout('layouts::admin')] class extends Component
         }
         
         $this->calculateTotal();
+
+        if ($this->payment_type === 'partial') {
+            $this->is_active = false;
+        }
 
         // Nominal aktual yang dibayarkan saat ini
         $actualAmountPaid = $this->payment_type === 'paid' ? $this->price_paid : $this->amount_paid;
@@ -377,7 +385,7 @@ new #[Layout('layouts::admin')] class extends Component
                 
                 'gym_package_id' => in_array($this->registration_type, ['membership', 'bundle_pt_membership', 'visit']) ? $this->gym_package_id : null,
                 'pt_package_id' => in_array($this->registration_type, ['pt', 'bundle_pt_membership']) ? $this->pt_package_id : null,
-                'pt_id' => in_array($this->registration_type, ['pt', 'bundle_pt_membership']) ? $this->pt_id : null,
+                'pt_id' => in_array($this->registration_type, ['pt', 'bundle_pt_membership']) ? (($this->pt_id && $this->pt_id !== '') ? $this->pt_id : null) : null,
                 'admin_id' => $this->admin_id,
                 'follow_up_id' => $this->follow_up_id ?: null,
                 'follow_up_id_two' => $this->follow_up_id_two ?: null,
@@ -447,11 +455,52 @@ new #[Layout('layouts::admin')] class extends Component
 ?>
 
 <div>
-    @if (session()->has('error'))
-        <div class="mb-4 p-4 text-sm text-red-800 rounded-lg bg-red-50 border border-red-200">
-            {{ session('error') }}
-        </div>
-    @endif
+    {{-- Container Fixed di Pojok Kanan Atas --}}
+    <div class="fixed top-4 right-4 z-50 flex flex-col gap-3 w-full max-w-sm">
+        
+        {{-- Error Toast --}}
+        @if (session()->has('error'))
+            <div x-data="{ show: true }" x-show="show" 
+                x-transition:enter="transition ease-out duration-300" 
+                x-transition:enter-start="opacity-0 translate-y-[-1rem]" 
+                x-transition:enter-end="opacity-100 translate-y-0" 
+                x-transition:leave="transition ease-in duration-200" 
+                x-transition:leave-start="opacity-100 translate-y-0" 
+                x-transition:leave-end="opacity-0 translate-y-[-1rem]"
+                class="flex items-center p-4 text-sm text-red-800 rounded-lg bg-red-50 border border-red-200 shadow-lg">
+                
+                <svg class="flex-shrink-0 w-5 h-5 me-2 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                
+                <span class="flex-1">{{ session('error') }}</span>
+                
+                <button type="button" @click="show = false" class="ms-3 -mx-1.5 -my-1.5 text-red-500 hover:text-red-900 rounded-lg focus:ring-2 focus:ring-red-400 p-1.5 inline-flex items-center justify-center h-8 w-8">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+        @endif
+
+        {{-- Warning Toast --}}
+        @if (session()->has('warning'))
+            <div x-data="{ show: true }" x-show="show" 
+                x-transition:enter="transition ease-out duration-300" 
+                x-transition:enter-start="opacity-0 translate-y-[-1rem]" 
+                x-transition:enter-end="opacity-100 translate-y-0" 
+                x-transition:leave="transition ease-in duration-200" 
+                x-transition:leave-start="opacity-100 translate-y-0" 
+                x-transition:leave-end="opacity-0 translate-y-[-1rem]"
+                class="flex items-center p-4 text-sm text-orange-800 rounded-lg bg-orange-50 border border-orange-200 shadow-lg">
+                
+                <svg class="flex-shrink-0 w-5 h-5 me-2 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                
+                <span class="flex-1">{{ session('warning') }}</span>
+                
+                <button type="button" @click="show = false" class="ms-3 -mx-1.5 -my-1.5 text-orange-500 hover:text-orange-900 rounded-lg focus:ring-2 focus:ring-orange-400 p-1.5 inline-flex items-center justify-center h-8 w-8">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+        @endif
+
+    </div>
     <div class="mb-6 flex items-end gap-2">
         <a href="{{ route('admin.akun.member.index') }}" wire:navigate class="p-2 bg-white border border-default rounded-md hover:bg-gray-50 text-gray-600 transition-colors">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
@@ -612,7 +661,7 @@ new #[Layout('layouts::admin')] class extends Component
                                 <div class="md:col-span-2">
                                     <label for="pt_id" class="block mb-2.5 text-sm font-medium text-heading">Pilih Personal Trainer</label>
                                     <select id="pt_id" wire:model.live="pt_id" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs">
-                                        <option value="">-- Pilih Trainer --</option>
+                                        <option value="">-- Belum Ada Trainer --</option>
                                         @foreach($this->trainers as $trainer)
                                             <option value="{{ $trainer->id }}">{{ $trainer->name }}</option>
                                         @endforeach
