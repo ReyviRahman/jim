@@ -32,6 +32,7 @@ new #[Layout('layouts::admin')] class extends Component
 
     // General Input
     public $start_date = '';
+    public $is_active = true; // Status aktif/tidak aktif membership
 
     // Kalkulasi Harga
     public $base_price = 0;
@@ -229,6 +230,18 @@ new #[Layout('layouts::admin')] class extends Component
                 $this->amount_paid = ''; // Kosongkan agar kasir input manual jika nyicil
             }
         }
+
+        if ($property === 'is_active') {
+            // Jika user ingin set ke tidak aktif, paksa payment_type ke partial
+            if (!$this->is_active) {
+                $this->payment_type = 'partial';
+                $this->amount_paid = '';
+                // Null kan semua tanggal saat tidak aktif
+                $this->start_date = null;
+                $this->membership_end_date = null;
+                $this->pt_end_date = null;
+            }
+        }
     }
 
     public function calculateTotal()
@@ -296,7 +309,7 @@ new #[Layout('layouts::admin')] class extends Component
 
         $rules = [
             'registration_type' => 'required|in:membership,pt,bundle_pt_membership,visit',
-            'start_date' => 'required|date',
+            'start_date' => $this->is_active ? 'required|date' : 'nullable|date',
             'payment_type' => 'required|in:paid,partial',
             'payment_method' => 'required|in:cash,transfer,qris,debit',
             'payment_date' => 'required|date',
@@ -306,6 +319,7 @@ new #[Layout('layouts::admin')] class extends Component
             'admin_id' => 'required|exists:users,id',
             'follow_up_id' => 'required|exists:users,id',
             'follow_up_id_two' => 'required|exists:users,id',
+            'is_active' => 'required|boolean',
             'manual_discount' => 'nullable|numeric|min:0|max:' . $this->base_price,
         ];
 
@@ -316,13 +330,13 @@ new #[Layout('layouts::admin')] class extends Component
 
         if (in_array($this->registration_type, ['membership', 'bundle_pt_membership', 'visit'])) {
             $rules['gym_package_id'] = 'required|exists:gym_packages,id';
-            $rules['membership_end_date'] = 'required|date|after_or_equal:start_date';
+            $rules['membership_end_date'] = $this->is_active ? 'required|date|after_or_equal:start_date' : 'nullable|date';
         }
 
         if (in_array($this->registration_type, ['pt', 'bundle_pt_membership'])) {
             $rules['pt_package_id'] = 'required|exists:gym_packages,id'; 
             $rules['pt_id'] = 'required|exists:users,id';
-            $rules['pt_end_date'] = 'required|date|after_or_equal:start_date';
+            $rules['pt_end_date'] = $this->is_active ? 'required|date|after_or_equal:start_date' : 'nullable|date';
         }
 
         $this->validate($rules, [
@@ -385,6 +399,7 @@ new #[Layout('layouts::admin')] class extends Component
                 'pt_end_date' => in_array($this->registration_type, ['pt', 'bundle_pt_membership']) ? $this->pt_end_date : null,
                 
                 'status' => $this->payment_type === 'paid' ? 'active' : 'pending',
+                'is_active' => $this->is_active,
                 'notes' => $this->notes,
             ]);
 
@@ -495,13 +510,29 @@ new #[Layout('layouts::admin')] class extends Component
                     </div>
 
                     @if($registration_type)
-                        {{-- 2. DURASI PROGRAM (SEKARANG BERDAMPINGAN: MULAI, BERAKHIR, DURASI) --}}
+                        {{-- 2. STATUS AKTIF / TIDAK AKTIF --}}
+                        <div class="md:col-span-2 pb-4 border-b border-default-medium">
+                            <label class="block mb-2.5 text-sm font-semibold text-brand-strong">Status Keanggotaan</label>
+                            <div class="flex gap-6">
+                                <label class="flex items-center gap-2 cursor-pointer">
+                                    <input type="radio" wire:model.live="is_active" value="1" {{ $is_active ? 'checked' : '' }} class="text-brand focus:ring-brand w-4 h-4">
+                                    <span class="text-sm font-medium text-heading">✅ Aktif Sekarang</span>
+                                </label>
+                                <label class="flex items-center gap-2 cursor-pointer">
+                                    <input type="radio" wire:model.live="is_active" value="0" {{ !$is_active ? 'checked' : '' }} class="text-red-500 focus:ring-red-500 w-4 h-4">
+                                    <span class="text-sm font-medium text-heading">❌ Tidak Aktif (Pending)</span>
+                                </label>
+                            </div>
+                            <p class="text-xs text-body mt-2">Jika "Tidak Aktif", member akan masuk status pending dan tanggal tidak perlu diisi hingga aktivasi.</p>
+                        </div>
+
+                        {{-- 3. DURASI PROGRAM (SEKARANG BERDAMPINGAN: MULAI, BERAKHIR, DURASI) --}}
                         <div class="md:col-span-2">
                             <h6 class="text-sm font-semibold text-heading mb-3">Durasi Program & Tanggal Aktif</h6>
                             <div class="grid gap-4 md:grid-cols-3 bg-gray-50 p-4 rounded border border-gray-200">
                                 
                                 {{-- Tanggal Mulai --}}
-                                <div>
+                                <div {{ !$this->is_active ? 'style=display:none' : '' }}>
                                     <label for="start_date" class="block mb-2.5 text-sm font-medium text-heading">Tanggal Mulai</label>
                                     <input type="date" id="start_date" wire:model.live="start_date" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs">
                                     <p class="mt-1.5 text-xs text-brand-strong font-medium">{{ $this->getFormattedDate($start_date) }}</p>
@@ -510,7 +541,7 @@ new #[Layout('layouts::admin')] class extends Component
                                 
                                 {{-- Tanggal Berakhir (Menyesuaikan dengan tipe pendaftaran) --}}
                                 @if(in_array($registration_type, ['membership', 'visit']))
-                                <div class="{{ $registration_type === 'visit' ? 'hidden' : '' }}">
+                                <div class="{{ !$this->is_active ? 'hidden' : '' }}">
                                     <label for="membership_end_date" class="block mb-2.5 text-sm font-medium text-heading">Tanggal Berakhir Gym</label>
                                     <input type="date" id="membership_end_date" wire:model.live="membership_end_date" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs">
                                     <p class="mt-1.5 text-xs text-brand-strong font-medium">{{ $this->getFormattedDate($membership_end_date) }}</p>
@@ -519,7 +550,7 @@ new #[Layout('layouts::admin')] class extends Component
                                 @endif
 
                                 @if(in_array($registration_type, ['pt']))
-                                <div>
+                                <div class="{{ !$this->is_active ? 'hidden' : '' }}">
                                     <label for="pt_end_date" class="block mb-2.5 text-sm font-medium text-heading">Berakhir Sesi PT</label>
                                     <input type="date" id="pt_end_date" wire:model.live="pt_end_date" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs">
                                     <p class="mt-1.5 text-xs text-brand-strong font-medium">{{ $this->getFormattedDate($pt_end_date) }}</p>
@@ -528,7 +559,7 @@ new #[Layout('layouts::admin')] class extends Component
                                 @endif
 
                                 {{-- Hitungan Durasi --}}
-                                <div class="flex flex-col justify-start items-start {{ $registration_type === 'visit' ? 'md:col-span-2' : '' }}">
+                                <div class="flex flex-col justify-start items-start {{ $registration_type === 'visit' ? 'md:col-span-2' : '' }} {{ !$this->is_active ? 'hidden' : '' }}">
                                     <span class="text-xs text-gray-500 mb-1">Total Durasi Program:</span>
                                     <span class="text-md font-bold text-brand-strong  px-3 py-2 rounded-md inline-block w-full border border-brand-medium">
                                         ⏱️ {{ $this->programDuration }}
