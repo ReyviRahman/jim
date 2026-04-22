@@ -19,7 +19,7 @@ new #[Layout('layouts::admin')] class extends Component
     public $dateStart;
     public $dateEnd;
     
-    public $perPage = 'all';
+    public $perPage = '50';
     public $shift;
 
     public function mount()
