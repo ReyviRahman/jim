@@ -35,7 +35,7 @@ new #[Layout('layouts::admin')] class extends Component
     public $password = '';
     
     // Tambahkan properti untuk foto profil (opsional, max 10MB)
-    #[Validate('required|image|max:10048')]
+    #[Validate('nullable|image|max:10048')]
     public $photo = null;
 
     public $joined_at;
@@ -82,7 +82,7 @@ new #[Layout('layouts::admin')] class extends Component
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             
             <div class="mb-4 sm:col-span-2">
-                <label for="photo" class="block mb-2.5 text-sm font-medium text-heading">Foto Profil (Wajib)</label>
+                <label for="photo" class="block mb-2.5 text-sm font-medium text-heading">Foto Profil (Opsional)</label>
                 
                 @if ($photo)
                     <div class="mb-3">
