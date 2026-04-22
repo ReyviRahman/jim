@@ -11,7 +11,7 @@ Artisan::command('inspire', function () {
 // Cron job: Cek membership expired setiap tengah malam (Asia/Jakarta)
 Schedule::command('memberships:check-expired')
     ->daily()
-    ->at('00:00')
+    ->at('04:00')
     ->timezone('Asia/Jakarta')
     ->withoutOverlapping()
     ->onOneServer()
