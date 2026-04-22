@@ -24,7 +24,7 @@ new #[Layout('layouts::admin')] class extends Component
     public $dateEnd;
     
     // Filter Baru
-    public $perPage = 'all';
+    public $perPage = '50';
     public $shift;
     
     public $showIncomeModal = false;
