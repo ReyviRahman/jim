@@ -83,6 +83,7 @@ new #[Layout('layouts::admin')] class extends Component
                 $query->where('follow_up_id', $this->staffUser->id)
                       ->orWhere('follow_up_id_two', $this->staffUser->id);
             })
+            ->where('type', '!=', 'visit')
             ->where('payment_status', 'paid')
             ->when($this->search, function ($query) {
                 $query->where(function ($q) {
@@ -262,11 +263,11 @@ new #[Layout('layouts::admin')] class extends Component
                         
                         
                         <td class="px-6 py-4 whitespace-nowrap">
-                            {{ $membership->start_date ? \Carbon\Carbon::parse($membership->start_date)->translatedFormat('l, d F Y') : '-' }}
+                            {{ $membership->start_date ? \Carbon\Carbon::parse($membership->start_date)->translatedFormat('l, d F Y') : 'BELUM AKTIF' }}
                         </td>
                         
                         <td class="px-6 py-4 whitespace-nowrap">
-                            {{ $membership->membership_end_date ? \Carbon\Carbon::parse($membership->membership_end_date)->translatedFormat('l, d F Y') : '-' }}
+                            {{ $membership->membership_end_date ? \Carbon\Carbon::parse($membership->membership_end_date)->translatedFormat('l, d F Y') : 'BELUM AKTIF' }}
                         </td>
                         
                         <td class="px-6 py-4 font-medium text-gray-700 whitespace-nowrap">

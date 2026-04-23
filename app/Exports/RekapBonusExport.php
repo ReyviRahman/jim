@@ -36,6 +36,7 @@ class RekapBonusExport implements FromView, ShouldAutoSize, WithStyles
                 $query->where('follow_up_id', $this->staffUserId)
                       ->orWhere('follow_up_id_two', $this->staffUserId);
             })
+            ->where('type', '!=', 'visit')
             ->where('payment_status', 'paid')
             ->when($this->search, function ($query) {
                 $query->where(function ($q) {
