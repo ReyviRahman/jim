@@ -18,6 +18,7 @@ class Expense extends Model
         'expense_date' => 'date',
     ];
 
+    
     public function admin(): BelongsTo
     {
         return $this->belongsTo(User::class, 'admin_id');
