@@ -101,7 +101,8 @@ new #[Layout('layouts::admin')] class extends Component
                 'total_paid' => $newTotalPaid,
                 'payment_status' => $isLunas ? 'paid' : 'partial',
                 // Otomatis aktifkan akses gym kalau lunas, kalau nyicil tetap status sebelumnya
-                'status' => $isLunas ? 'active' : $this->membership->status, 
+                'status' => $isLunas ? 'active' : $this->membership->status,
+                'transaction_type' => $this->transaction_type,
             ]);
 
             // 2. Ambil data transaksi SEBELUMNYA untuk menjaga konsistensi
