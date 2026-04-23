@@ -89,6 +89,9 @@ Route::middleware('auth')->group(function () {
         Route::livewire('/membership/cicilan', 'pages::dashboard.admin.cicilan.index')->name('admin.cicilan.index');
         Route::livewire('/membership/cicilan/{membership}/pay', 'pages::dashboard.admin.cicilan.pay')->name('admin.cicilan.pay');
 
+        Route::livewire('/membership/non-member', 'pages::dashboard.admin.membership.non-member')
+            ->name('admin.membership.non-member');
+
         Route::livewire('/membership/renew/{id}', 'pages::dashboard.admin.renew.create')->name('admin.membership.renew');
     });
 
