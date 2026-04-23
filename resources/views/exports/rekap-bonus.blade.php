@@ -37,7 +37,7 @@
     {{-- BARIS DATA --}}
     @foreach($memberships as $membership)
         @php
-            $packageName = $membership->gymPackage->name ?? $membership->ptPackage->name ?? $membership->type;
+            $packageName = trim(($membership->transaction_type ?? '') . ' ' . ($membership->package_name ?? ''));
             
             // Logika Nominal
             $nominal = $membership->total_paid ?? 0;
@@ -67,7 +67,7 @@
                 {{ $tglSelesai }}
             </td>
             <td style="background-color: {{ $bgColor }}; border: 1px solid #000000; text-align: center;">
-                {{ strtoupper($membership->notes) }}
+                {{ strtoupper($packageName) }}
             </td>
             <td style="background-color: {{ $bgColor }}; border: 1px solid #000000;">
                 {{ strtoupper($membership->user->name ?? '-') }}

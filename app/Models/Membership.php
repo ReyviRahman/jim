@@ -35,6 +35,8 @@ class Membership extends Model
         'status',
         'is_active',
         'notes',
+        'transaction_type',
+        'package_name',
     ];
 
     protected $casts = [

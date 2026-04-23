@@ -83,7 +83,7 @@ new #[Layout('layouts::admin')] class extends Component
                 $query->where('follow_up_id', $this->staffUser->id)
                       ->orWhere('follow_up_id_two', $this->staffUser->id);
             })
-            ->whereIn('status', ['active', 'completed'])
+            ->where('payment_status', 'paid')
             ->when($this->search, function ($query) {
                 $query->whereHas('user', function ($q) {
                     $q->where('name', 'like', '%' . $this->search . '%');
@@ -235,8 +235,8 @@ new #[Layout('layouts::admin')] class extends Component
             <tbody>
                @forelse ($this->memberships as $membership)
                     @php
-                        // Menentukan nama paket (Bisa Gym atau PT)
-                        $packageName = $membership->gymPackage->name ?? $membership->ptPackage->name ?? $membership->type;
+                        // Menentukan nama paket (transaction_type + package_name)
+                        $packageName = trim(($membership->transaction_type ?? '') . ' ' . ($membership->package_name ?? ''));
                         
                         // Menentukan Nominal Akhir
                         $nominal = $membership->total_paid ?? 0;
@@ -264,7 +264,7 @@ new #[Layout('layouts::admin')] class extends Component
                         
                         <td class="px-6 py-4 font-medium text-gray-700 whitespace-nowrap">
                             <span class="px-2 py-0.5 text-xs rounded border border-gray-200 bg-gray-50 shadow-xs uppercase">
-                                {{ $membership->notes }}
+                                {{ $packageName }}
                             </span>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap font-bold text-gray-800">

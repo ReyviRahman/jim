@@ -435,6 +435,8 @@ new #[Layout('layouts::admin')] class extends Component
                 'status' => $this->payment_type === 'paid' ? 'active' : 'pending',
                 'is_active' => $this->is_active,
                 'notes' => $this->notes,
+                'transaction_type' => $this->transaction_type,
+                'package_name' => $this->package_name,
             ]);
 
             $membership->members()->attach($this->selectedUsers->pluck('id')->toArray());
