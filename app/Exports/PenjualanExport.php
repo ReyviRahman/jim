@@ -177,6 +177,7 @@ class PenjualanExport implements WithEvents
                     ['MEMBER:', $this->summaryTotal['uang_member'] ?? 0],
                     ['VISIT:', $this->summaryTotal['uang_visit'] ?? 0],
                     ['PERSONAL TRAINER:', $this->summaryTotal['uang_pt'] ?? 0],
+                    ['NIMBANG:', $this->summaryTotal['uang_nimbang'] ?? 0],
                     ['BALANCE', $this->summaryTotal['uang_total'] ?? 0],
                     ['CATATAN PENGELUARAN', ''] 
                 ];
@@ -234,7 +235,7 @@ class PenjualanExport implements WithEvents
                         $sheet->setCellValue('C'.$currentRow, $rowsDataKananAtas[$i][0]);
                         $sheet->setCellValue('D'.$currentRow, $rowsDataKananAtas[$i][1]);
 
-                        if ($i === 3) {
+                        if ($i === 4) {
                             $sheet->getStyle("C{$currentRow}:D{$currentRow}")->getFont()->setBold(true);
                             $sheet->getStyle("C{$currentRow}:D{$currentRow}")->applyFromArray([
                                 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFD1FAE5']], 
@@ -242,7 +243,7 @@ class PenjualanExport implements WithEvents
                             ]);
                         }
 
-                        if ($i === 4) {
+                        if ($i === 5) {
                             $sheet->mergeCells("C{$currentRow}:D{$currentRow}");
                             $sheet->getStyle("C{$currentRow}:D{$currentRow}")->applyFromArray([
                                 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFF3F4F6']], 

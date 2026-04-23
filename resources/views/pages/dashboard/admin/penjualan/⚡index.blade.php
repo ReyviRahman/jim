@@ -263,10 +263,12 @@ new #[Layout('layouts::admin')] class extends Component
         // Statistik Uang Berdasarkan Kategori Paket (Kanan)
         $visitData = $data->filter(fn($item) => $item->membership && $item->membership->type === 'visit');
         $ptData = $data->filter(fn($item) => $item->membership && $item->membership->type === 'pt');
+        $nimbangData = $data->filter(fn($item) => is_null($item->membership_id));
         
         $totalUangVisit = $visitData->sum('amount');
         $totalUangPT = $ptData->sum('amount');
-        $totalUangMember = $totalSystemBalance - $totalUangVisit - $totalUangPT; 
+        $totalUangNimbang = $nimbangData->sum('amount');
+        $totalUangMember = $totalSystemBalance - $totalUangVisit - $totalUangPT - $totalUangNimbang; 
 
         // ==========================================
         // 2. DATA PENGELUARAN (Expenses)
@@ -316,6 +318,7 @@ new #[Layout('layouts::admin')] class extends Component
             'uang_member' => $totalUangMember,
             'uang_visit' => $totalUangVisit,
             'uang_pt' => $totalUangPT,
+            'uang_nimbang' => $totalUangNimbang,
             'uang_total' => $totalSystemBalance, 
             'rincian_pengeluaran' => $rincianPengeluaran,
         ];
@@ -338,10 +341,12 @@ new #[Layout('layouts::admin')] class extends Component
 
         $visitData = $transactions->filter(fn($item) => $item->membership && $item->membership->type === 'visit');
         $ptData = $transactions->filter(fn($item) => $item->membership && $item->membership->type === 'pt');
+        $nimbangData = $transactions->filter(fn($item) => is_null($item->membership_id));
         
         $uangVisit = $visitData->sum('amount');
         $uangPT = $ptData->sum('amount');
-        $uangMember = $totalSystemBalance - $uangVisit - $uangPT;
+        $uangNimbang = $nimbangData->sum('amount');
+        $uangMember = $totalSystemBalance - $uangVisit - $uangPT - $uangNimbang;
 
         // 3. Ambil data pengeluaran dengan filter yang sama persis
         $expenseQuery = \App\Models\Expense::query();
@@ -372,6 +377,7 @@ new #[Layout('layouts::admin')] class extends Component
             'real_cash' => $cash - $pengeluaran,
             'balance_hijau' => $totalSystemBalance - $pengeluaran,
             'uang_member' => $uangMember, 'uang_visit' => $uangVisit, 'uang_pt' => $uangPT,
+            'uang_nimbang' => $uangNimbang,
             'uang_total' => $totalSystemBalance,
             'rincian_pengeluaran' => $rincianPengeluaran // Rincian teks pengeluaran dilempar ke Excel
         ];
@@ -605,6 +611,13 @@ new #[Layout('layouts::admin')] class extends Component
                         <td class="px-4 py-3 font-medium">CASH ON HAND</td>
                         <td class="px-4 py-3 text-right font-bold">Rp {{ number_format($this->summary['cash'], 0, ',', '.') }}</td>
                         
+                        <td class="px-4 py-3 font-medium border-l border-gray-200">NIMBANG</td>
+                        <td class="px-4 py-3 text-right font-bold">Rp {{ number_format($this->summary['uang_nimbang'], 0, ',', '.') }}</td>
+                    </tr>
+                    <tr class="border-b border-gray-100">
+                        <td class="px-4 py-3"></td>
+                        <td class="px-4 py-3"></td>
+                        
                         {{-- Balance Kategori Pendapatan (Sisi Kanan) --}}
                         <td class="px-4 py-3 bg-emerald-50 text-emerald-800 font-bold uppercase tracking-wide border-l border-gray-200">BALANCE</td>
                         <td class="px-4 py-3 bg-emerald-50 text-emerald-800 text-right font-black text-lg">Rp {{ number_format($this->summary['uang_total'], 0, ',', '.') }}</td>
@@ -616,7 +629,7 @@ new #[Layout('layouts::admin')] class extends Component
                         <td class="px-4 py-3 text-right font-bold text-base">Rp {{ number_format($this->summary['balance_merah'], 0, ',', '.') }}</td>
                         
                         {{-- RINCIAN PENGELUARAN (Sisi Kanan) --}}
-                        <td colspan="2" rowspan="4" class="bg-gray-50 border-l border-gray-200 align-top p-4">
+                        <td colspan="2" rowspan="5" class="bg-gray-50 border-l border-gray-200 align-top p-4">
                             <div class="font-bold text-gray-700 mb-3 border-b border-gray-200 pb-2 text-sm uppercase tracking-wide">
                                 CATATAN
                             </div>

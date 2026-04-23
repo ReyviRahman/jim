@@ -36,17 +36,25 @@ class RekapBonusExport implements FromView, ShouldAutoSize, WithStyles
                 $query->where('follow_up_id', $this->staffUserId)
                       ->orWhere('follow_up_id_two', $this->staffUserId);
             })
+            ->where('type', '!=', 'visit')
             ->where('payment_status', 'paid')
             ->when($this->search, function ($query) {
-                $query->whereHas('user', function ($q) {
-                    $q->where('name', 'like', '%' . $this->search . '%');
+                $query->where(function ($q) {
+                    $q->whereHas('members', function ($sub) {
+                        $sub->where('name', 'like', '%' . $this->search . '%');
+                    })
+                    ->orWhereHas('user', function ($sub) {
+                        $sub->where('name', 'like', '%' . $this->search . '%');
+                    });
                 });
             })
             ->when($this->startDate && $this->endDate, function ($query) {
-                $query->whereBetween('start_date', [
-                    $this->startDate . ' 00:00:00',
-                    $this->endDate . ' 23:59:59'
-                ]);
+                $query->whereHas('transactions', function ($q) {
+                    $q->whereBetween('payment_date', [
+                        $this->startDate . ' 00:00:00',
+                        $this->endDate . ' 23:59:59'
+                    ]);
+                });
             })
             ->latest('start_date')
             ->get();

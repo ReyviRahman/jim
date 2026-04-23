@@ -83,17 +83,25 @@ new #[Layout('layouts::admin')] class extends Component
                 $query->where('follow_up_id', $this->staffUser->id)
                       ->orWhere('follow_up_id_two', $this->staffUser->id);
             })
+            ->where('type', '!=', 'visit')
             ->where('payment_status', 'paid')
             ->when($this->search, function ($query) {
-                $query->whereHas('user', function ($q) {
-                    $q->where('name', 'like', '%' . $this->search . '%');
+                $query->where(function ($q) {
+                    $q->whereHas('members', function ($sub) {
+                        $sub->where('name', 'like', '%' . $this->search . '%');
+                    })
+                    ->orWhereHas('user', function ($sub) {
+                        $sub->where('name', 'like', '%' . $this->search . '%');
+                    });
                 });
             })
             ->when($this->startDate && $this->endDate, function ($query) {
-                $query->whereBetween('start_date', [
-                    $this->startDate . ' 00:00:00',
-                    $this->endDate . ' 23:59:59'
-                ]);
+                $query->whereHas('transactions', function ($q) {
+                    $q->whereBetween('payment_date', [
+                        $this->startDate . ' 00:00:00',
+                        $this->endDate . ' 23:59:59'
+                    ]);
+                });
             });
     }
 
@@ -255,11 +263,11 @@ new #[Layout('layouts::admin')] class extends Component
                         
                         
                         <td class="px-6 py-4 whitespace-nowrap">
-                            {{ $membership->start_date ? \Carbon\Carbon::parse($membership->start_date)->translatedFormat('l, d F Y') : '-' }}
+                            {{ $membership->start_date ? \Carbon\Carbon::parse($membership->start_date)->translatedFormat('l, d F Y') : 'BELUM AKTIF' }}
                         </td>
                         
                         <td class="px-6 py-4 whitespace-nowrap">
-                            {{ $membership->membership_end_date ? \Carbon\Carbon::parse($membership->membership_end_date)->translatedFormat('l, d F Y') : '-' }}
+                            {{ $membership->membership_end_date ? \Carbon\Carbon::parse($membership->membership_end_date)->translatedFormat('l, d F Y') : 'BELUM AKTIF' }}
                         </td>
                         
                         <td class="px-6 py-4 font-medium text-gray-700 whitespace-nowrap">

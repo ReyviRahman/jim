@@ -50,7 +50,7 @@ Route::middleware('auth')->group(function () {
 
     // GROUP 2: KHUSUS ADMIN
     // Middleware: harus login DAN role = admin
-    Route::middleware('role:admin,kasir_gym')->prefix('dashboard/admin')->group(function () {
+    Route::middleware('role:admin,kasir_gym,head_coach')->prefix('dashboard/admin')->group(function () {
         Route::livewire('/absensi', 'pages::dashboard.admin.absensi')
             ->name('admin.absensi.index');
 
@@ -89,10 +89,13 @@ Route::middleware('auth')->group(function () {
         Route::livewire('/membership/cicilan', 'pages::dashboard.admin.cicilan.index')->name('admin.cicilan.index');
         Route::livewire('/membership/cicilan/{membership}/pay', 'pages::dashboard.admin.cicilan.pay')->name('admin.cicilan.pay');
 
+        Route::livewire('/membership/non-member', 'pages::dashboard.admin.membership.non-member')
+            ->name('admin.membership.non-member');
+
         Route::livewire('/membership/renew/{id}', 'pages::dashboard.admin.renew.create')->name('admin.membership.renew');
     });
 
-    Route::middleware('role:admin')->prefix('dashboard/admin')->group(function () {
+    Route::middleware('role:admin,head_coach')->prefix('dashboard/admin')->group(function () {
         Route::livewire('/pengeluaran/{expense}/edit', 'pages::dashboard.admin.pengeluaran.edit')->name('admin.pengeluaran.edit');
 
         Route::livewire('/akun/admin', 'pages::dashboard.admin.akun.admin.index')
