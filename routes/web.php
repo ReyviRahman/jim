@@ -95,7 +95,7 @@ Route::middleware('auth')->group(function () {
         Route::livewire('/membership/renew/{id}', 'pages::dashboard.admin.renew.create')->name('admin.membership.renew');
     });
 
-    Route::middleware('role:admin')->prefix('dashboard/admin')->group(function () {
+    Route::middleware('role:admin,head_coach')->prefix('dashboard/admin')->group(function () {
         Route::livewire('/pengeluaran/{expense}/edit', 'pages::dashboard.admin.pengeluaran.edit')->name('admin.pengeluaran.edit');
 
         Route::livewire('/akun/admin', 'pages::dashboard.admin.akun.admin.index')
