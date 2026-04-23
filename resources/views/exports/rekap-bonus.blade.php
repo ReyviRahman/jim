@@ -56,7 +56,8 @@
 
             // Logika Format Tanggal (Contoh: Jumat, Januari 16, 2026)
             $tglMulai = $membership->start_date ? \Carbon\Carbon::parse($membership->start_date)->locale('id')->translatedFormat('l, F d, Y') : 'BELUM AKTIF';
-            $tglSelesai = $membership->membership_end_date ? \Carbon\Carbon::parse($membership->membership_end_date)->locale('id')->translatedFormat('l, F d, Y') : 'BELUM AKTIF';
+            $endDate = $membership->type === 'pt' ? $membership->pt_end_date : $membership->membership_end_date;
+            $tglSelesai = $endDate ? \Carbon\Carbon::parse($endDate)->locale('id')->translatedFormat('l, F d, Y') : 'BELUM AKTIF';
         @endphp
         
         <tr>

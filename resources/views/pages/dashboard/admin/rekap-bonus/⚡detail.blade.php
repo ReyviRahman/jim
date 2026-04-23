@@ -267,7 +267,10 @@ new #[Layout('layouts::admin')] class extends Component
                         </td>
                         
                         <td class="px-6 py-4 whitespace-nowrap">
-                            {{ $membership->membership_end_date ? \Carbon\Carbon::parse($membership->membership_end_date)->translatedFormat('l, d F Y') : 'BELUM AKTIF' }}
+                            @php
+                                $endDate = $membership->type === 'pt' ? $membership->pt_end_date : $membership->membership_end_date;
+                            @endphp
+                            {{ $endDate ? \Carbon\Carbon::parse($endDate)->translatedFormat('l, d F Y') : 'BELUM AKTIF' }}
                         </td>
                         
                         <td class="px-6 py-4 font-medium text-gray-700 whitespace-nowrap">
