@@ -261,8 +261,8 @@ new #[Layout('layouts::admin')] class extends Component
         $totalSystemBalance = $transfer + $debit + $qris + $cash;
         
         // Statistik Uang Berdasarkan Kategori Paket (Kanan)
-        $visitData = $data->filter(fn($item) => stripos($item->package_name, 'visit') !== false);
-        $ptData = $data->filter(fn($item) => stripos($item->package_name, 'pt') !== false || stripos($item->package_name, 'trainer') !== false);
+        $visitData = $data->filter(fn($item) => $item->membership && $item->membership->type === 'visit');
+        $ptData = $data->filter(fn($item) => $item->membership && $item->membership->type === 'pt');
         
         $totalUangVisit = $visitData->sum('amount');
         $totalUangPT = $ptData->sum('amount');
@@ -336,8 +336,8 @@ new #[Layout('layouts::admin')] class extends Component
         $cash = $transactions->where('payment_method', 'cash')->sum('amount');
         $totalSystemBalance = $transfer + $debit + $qris + $cash;
 
-        $visitData = $transactions->filter(fn($item) => stripos($item->package_name, 'visit') !== false);
-        $ptData = $transactions->filter(fn($item) => stripos($item->package_name, 'pt') !== false || stripos($item->package_name, 'trainer') !== false);
+        $visitData = $transactions->filter(fn($item) => $item->membership && $item->membership->type === 'visit');
+        $ptData = $transactions->filter(fn($item) => $item->membership && $item->membership->type === 'pt');
         
         $uangVisit = $visitData->sum('amount');
         $uangPT = $ptData->sum('amount');
