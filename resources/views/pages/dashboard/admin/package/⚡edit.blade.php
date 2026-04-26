@@ -33,13 +33,13 @@ new #[Layout('layouts::admin')] class extends Component
     #[Validate('nullable|numeric|min:0')]
     public $discount = '';
 
-    #[Validate('nullable|numeric|min:0')]
+    #[Validate('nullable|numeric|min:1')]
     public $normal_price = '';
 
-    #[Validate('nullable|numeric|min:0')]
-    public $net_price = ''; 
+    #[Validate('nullable|numeric|min:1')]
+    public $net_price = '';
 
-    #[Validate('nullable|numeric|min:0')]
+    #[Validate('nullable|numeric|min:1')]
     public $unrecommended_price = ''; 
 
     public function mount(GymPackage $package)
