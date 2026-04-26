@@ -44,7 +44,7 @@
                             <th>ID</th>
                             <th>Tipe</th>
                             <th>Alasan</th>
-                            <th>User ID</th>
+                            <th>User</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -64,7 +64,7 @@
                                     <span class="badge {{ $badgeClass }}">{{ strtoupper($item['type']) }}</span>
                                 </td>
                                 <td>{{ $item['reason'] }}</td>
-                                <td>{{ $item['user_id'] }}</td>
+                                <td>{{ $item['user_name'] }} ({{ $item['user_id'] }})</td>
                             </tr>
                         @endforeach
                     </tbody>
