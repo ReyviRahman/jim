@@ -23,7 +23,7 @@ class CheckExpiredMemberships extends Command
 
         $this->info("Memeriksa membership aktif... (Timestamp: {$now->toDateTimeString()})");
 
-        $memberships = Membership::where('status', 'active')->get();
+        $memberships = Membership::where('status', 'active')->with('user')->get();
 
         if ($memberships->isEmpty()) {
             $this->warn('Tidak ada membership aktif yang perlu dicek.');
@@ -99,6 +99,7 @@ class CheckExpiredMemberships extends Command
                     'type' => $membership->type,
                     'reason' => $reason,
                     'user_id' => $membership->user_id,
+                    'user_name' => $membership->user->name ?? 'N/A',
                 ];
 
                 $updatedCount++;
@@ -131,7 +132,7 @@ class CheckExpiredMemberships extends Command
 
             $mail = new MembershipExpiredNotification($updatedCount, $details);
 
-            Mail::to($recipient)->queue($mail);
+            Mail::to($recipient)->send($mail);
 
             $this->info('Email notifikasi telah dikirim ke: ' . $recipient);
             Log::info('[CheckExpiredMemberships] Email notifikasi dikirim ke: ' . $recipient);
