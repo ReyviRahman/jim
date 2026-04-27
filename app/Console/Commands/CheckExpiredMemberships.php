@@ -112,7 +112,12 @@ class CheckExpiredMemberships extends Command
         if ($dryRun) {
             $this->warn("DRY RUN: {$updatedCount} membership akan diupdate ke completed.");
         } else {
-            $this->info("{$updatedCount} membership berhasil diupdate ke completed.");
+            $memberNames = collect($details)->pluck('user_name')->filter()->implode(', ');
+            $msg = "{$updatedCount} membership berhasil diupdate ke completed.";
+            if ($updatedCount > 0) {
+                $msg .= " Member: {$memberNames}";
+            }
+            $this->info($msg);
         }
 
         // Kirim email notifikasi jika ada yang diupdate
@@ -120,7 +125,8 @@ class CheckExpiredMemberships extends Command
             $this->sendEmailNotification($updatedCount, $details);
         }
 
-        Log::info("[CheckExpiredMemberships] Selesai. Total updated: {$updatedCount}");
+        $memberNames = collect($details)->pluck('user_name')->filter()->implode(', ');
+        Log::info("[CheckExpiredMemberships] Selesai. Total updated: {$updatedCount}. Member: {$memberNames}");
 
         return self::SUCCESS;
     }
