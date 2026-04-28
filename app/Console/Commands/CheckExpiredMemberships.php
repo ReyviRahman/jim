@@ -20,6 +20,7 @@ class CheckExpiredMemberships extends Command
     {
         $dryRun = $this->option('dry-run');
         $now = Carbon::now()->startOfDay();
+        $timestamp = $now->toISOString();
 
         $this->info("Memeriksa membership aktif... (Timestamp: {$now->toDateTimeString()})");
 
@@ -27,7 +28,7 @@ class CheckExpiredMemberships extends Command
 
         if ($memberships->isEmpty()) {
             $this->warn('Tidak ada membership aktif yang perlu dicek.');
-            Log::info('[CheckExpiredMemberships] Tidak ada membership aktif.');
+            Log::info("[CheckExpiredMemberships] {$timestamp} - Tidak ada membership aktif.");
             return self::SUCCESS;
         }
 
@@ -105,7 +106,7 @@ class CheckExpiredMemberships extends Command
                 $updatedCount++;
 
                 $actionText = $dryRun ? '[DRY-RUN] Would update' : 'Updated';
-                Log::info("[CheckExpiredMemberships] {$actionText} membership #{$membership->id} (type: {$membership->type}, user: {$membership->user_id}) - {$reason}");
+                Log::info("[CheckExpiredMemberships] {$timestamp} - {$actionText} membership #{$membership->id} (type: {$membership->type}, user: {$membership->user_id}) - {$reason}");
             }
         }
 
@@ -126,7 +127,7 @@ class CheckExpiredMemberships extends Command
         }
 
         $memberNames = collect($details)->pluck('user_name')->filter()->implode(', ');
-        Log::info("[CheckExpiredMemberships] Selesai. Total updated: {$updatedCount}. Member: {$memberNames}");
+        Log::info("[CheckExpiredMemberships] {$timestamp} - Selesai. Total updated: {$updatedCount}. Member: {$memberNames}");
 
         return self::SUCCESS;
     }
@@ -141,9 +142,9 @@ class CheckExpiredMemberships extends Command
             Mail::to($recipient)->send($mail);
 
             $this->info('Email notifikasi telah dikirim ke: ' . $recipient);
-            Log::info('[CheckExpiredMemberships] Email notifikasi dikirim ke: ' . $recipient);
+            Log::info("[CheckExpiredMemberships] {$timestamp} - Email notifikasi dikirim ke: " . $recipient);
         } catch (\Exception $e) {
-            Log::error('[CheckExpiredMemberships] Gagal mengirim email: ' . $e->getMessage());
+            Log::error("[CheckExpiredMemberships] {$timestamp} - Gagal mengirim email: " . $e->getMessage());
             $this->error('Gagal mengirim email notifikasi: ' . $e->getMessage());
         }
     }
