@@ -17,10 +17,10 @@ new #[Layout('layouts::member')] class extends Component
     public $hasCheckedIn = false;
     public $selectedMembershipId = null;
 
-    public function mount()
+public function mount()
     {
         $user = Auth::user();
-        
+
         $rawActiveMemberships = Membership::with(['gymPackage', 'ptPackage'])
             ->where(function ($query) use ($user) {
                 $query->where('user_id', $user->id)
@@ -31,16 +31,11 @@ new #[Layout('layouts::member')] class extends Component
                                    ->where('membership_users.user_id', $user->id);
                       });
             })
-            ->where(function($query) {
-                 $query->where('status', 'active')
-                       ->orWhere(function($q) {
-                           $q->where('status', 'completed')
-                             ->where('type', 'pt');
-                       });
-            })
+            ->where('status', 'active')
             ->get();
 
         $activeMemberships = collect();
+
         foreach ($rawActiveMemberships as $membership) {
             $isExpired = false;
 
@@ -48,7 +43,7 @@ new #[Layout('layouts::member')] class extends Component
                 if ($membership->pt_end_date && Carbon::parse($membership->pt_end_date)->endOfDay()->isPast()) {
                     $isExpired = true;
                 }
-                
+
                 if (!is_null($membership->remaining_sessions) && $membership->remaining_sessions <= 0) {
                     $isUsedToday = Attendance::where('membership_id', $membership->id)
                         ->where('type', 'pt')
@@ -60,6 +55,13 @@ new #[Layout('layouts::member')] class extends Component
                         $isExpired = true;
                     }
                 }
+            } elseif ($membership->type === 'bundle_pt_membership') {
+                if ($membership->membership_end_date && Carbon::parse($membership->membership_end_date)->endOfDay()->isPast()) {
+                    $isExpired = true;
+                }
+                if (!is_null($membership->remaining_sessions) && $membership->remaining_sessions <= 0) {
+                    $isExpired = true;
+                }
             } else {
                 if ($membership->membership_end_date && Carbon::parse($membership->membership_end_date)->endOfDay()->isPast()) {
                     $isExpired = true;
@@ -68,7 +70,7 @@ new #[Layout('layouts::member')] class extends Component
 
             if ($isExpired) {
                 if ($membership->status !== 'completed') {
-                    $membership->update(['status' => 'completed']);
+                    $membership->update(['status' => 'completed', 'is_active' => false]);
                 }
             } else {
                 $activeMemberships->push($membership);
@@ -103,8 +105,7 @@ new #[Layout('layouts::member')] class extends Component
     {
         $user = Auth::user();
         
-        // 1. Ambil paket 'active', ATAU paket 'completed' khusus PT
-        // OPTIMASI: Menggunakan orWhereExists agar super cepat tanpa JOIN ke tabel users
+// 1. Ambil paket 'active' saja
         $rawActiveMemberships = Membership::with(['gymPackage', 'ptPackage'])
             ->where(function ($query) use ($user) {
                 $query->where('user_id', $user->id)
@@ -115,13 +116,7 @@ new #[Layout('layouts::member')] class extends Component
                                    ->where('membership_users.user_id', $user->id);
                       });
             })
-            ->where(function($query) {
-                 $query->where('status', 'active')
-                       ->orWhere(function($q) {
-                           $q->where('status', 'completed')
-                             ->where('type', 'pt');
-                       });
-            })
+            ->where('status', 'active')
             ->get();
 
         // 2. Siapkan collection baru untuk menyimpan paket yang valid tayang
@@ -132,15 +127,11 @@ new #[Layout('layouts::member')] class extends Component
             $isExpired = false;
 
             if ($membership->type === 'pt') {
-                // Cek kadaluarsa PT 
                 if ($membership->pt_end_date && Carbon::parse($membership->pt_end_date)->endOfDay()->isPast()) {
                     $isExpired = true;
                 }
                 
-                // Cek sisa sesi PT
                 if (!is_null($membership->remaining_sessions) && $membership->remaining_sessions <= 0) {
-                    
-                    // OPTIMASI: Menghindari whereDate() agar Index Database tetap bekerja
                     $isUsedToday = Attendance::where('membership_id', $membership->id)
                         ->where('type', 'pt')
                         ->where('check_in_time', '>=', today()->startOfDay())
@@ -151,17 +142,22 @@ new #[Layout('layouts::member')] class extends Component
                         $isExpired = true;
                     }
                 }
+            } elseif ($membership->type === 'bundle_pt_membership') {
+                if ($membership->membership_end_date && Carbon::parse($membership->membership_end_date)->endOfDay()->isPast()) {
+                    $isExpired = true;
+                }
+                if (!is_null($membership->remaining_sessions) && $membership->remaining_sessions <= 0) {
+                    $isExpired = true;
+                }
             } else {
-                // Cek kadaluarsa Gym/Lainnya
                 if ($membership->membership_end_date && Carbon::parse($membership->membership_end_date)->endOfDay()->isPast()) {
                     $isExpired = true;
                 }
             }
 
-            // 4. Update ke completed jika expired
             if ($isExpired) {
                 if ($membership->status !== 'completed') {
-                    $membership->update(['status' => 'completed']);
+                    $membership->update(['status' => 'completed', 'is_active' => false]);
                 }
             } else {
                 $activeMemberships->push($membership);

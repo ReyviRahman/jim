@@ -64,18 +64,10 @@ new #[Layout('layouts::admin')] class extends Component
         
         // 2. Kumpulkan semua user yang terdaftar di paket lama
         $userIds = $this->oldMembership->members->pluck('id')->toArray();
-        $userIds[] = $this->oldMembership->user_id; // Masukkan user utama juga
+        $userIds[] = $this->oldMembership->user_id;
         
         $this->selectedUsers = User::whereIn('id', array_unique($userIds))->get();
         $this->mainUser = $this->selectedUsers->where('id', $this->oldMembership->user_id)->first();
-
-        // Pengecekan keamanan: Pastikan tidak ada paket aktif lain (EXCLUDE membership lama yang diperpanjang)
-        foreach ($this->selectedUsers as $u) {
-            if ($this->hasActiveOrPendingMembership($u->id, $this->oldMembership->id)) {
-                session()->flash('error', "User {$u->name} saat ini sudah memiliki membership lain yang sedang aktif atau pending (selain paket yang akan diperpanjang).");
-                return redirect()->route('admin.membership.index');
-            }
-        }
 
         // 3. Pre-fill data form dari paket lama
         $this->registration_type = $this->oldMembership->type;
@@ -94,19 +86,6 @@ new #[Layout('layouts::admin')] class extends Component
         $this->pt_end_date = now()->addMonthsNoOverflow(1)->format('Y-m-d');
         
         $this->calculateTotal();
-    }
-
-    private function hasActiveOrPendingMembership($userId, $excludeMembershipId = null)
-    {
-        $query = User::find($userId)->memberships()
-            ->whereIn('status', ['active', 'pending']);
-        
-        // Abaikan membership yang sedang diperpanjang
-        if ($excludeMembershipId) {
-            $query->where('membership_id', '!=', $excludeMembershipId);
-        }
-        
-        return $query->exists();
     }
 
     #[Computed]
@@ -329,13 +308,6 @@ new #[Layout('layouts::admin')] class extends Component
             return;
         }
 
-        foreach ($this->selectedUsers as $u) {
-            if ($this->hasActiveOrPendingMembership($u->id, $this->oldMembership->id)) {
-                session()->flash('error', "Pendaftaran dibatalkan: User {$u->name} masih memiliki paket lain yang aktif atau pending (selain paket yang akan diperpanjang).");
-                return redirect()->route('admin.membership.index');
-            }
-        }
-        
         $this->calculateTotal();
 
         if ($this->payment_type === 'partial') {
