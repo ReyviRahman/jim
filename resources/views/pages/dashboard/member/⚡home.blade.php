@@ -15,6 +15,75 @@ new #[Layout('layouts::member')] class extends Component
 {
     // --- TAMBAHAN UNTUK POLLING ---
     public $hasCheckedIn = false;
+    public $selectedMembershipId = null;
+
+    public function mount()
+    {
+        $user = Auth::user();
+        
+        $rawActiveMemberships = Membership::with(['gymPackage', 'ptPackage'])
+            ->where(function ($query) use ($user) {
+                $query->where('user_id', $user->id)
+                      ->orWhereExists(function ($subQuery) use ($user) {
+                          $subQuery->select(DB::raw(1))
+                                   ->from('membership_users')
+                                   ->whereColumn('membership_users.membership_id', 'memberships.id')
+                                   ->where('membership_users.user_id', $user->id);
+                      });
+            })
+            ->where(function($query) {
+                 $query->where('status', 'active')
+                       ->orWhere(function($q) {
+                           $q->where('status', 'completed')
+                             ->where('type', 'pt');
+                       });
+            })
+            ->get();
+
+        $activeMemberships = collect();
+        foreach ($rawActiveMemberships as $membership) {
+            $isExpired = false;
+
+            if ($membership->type === 'pt') {
+                if ($membership->pt_end_date && Carbon::parse($membership->pt_end_date)->endOfDay()->isPast()) {
+                    $isExpired = true;
+                }
+                
+                if (!is_null($membership->remaining_sessions) && $membership->remaining_sessions <= 0) {
+                    $isUsedToday = Attendance::where('membership_id', $membership->id)
+                        ->where('type', 'pt')
+                        ->where('check_in_time', '>=', today()->startOfDay())
+                        ->where('check_in_time', '<=', today()->endOfDay())
+                        ->exists();
+
+                    if (!$isUsedToday) {
+                        $isExpired = true;
+                    }
+                }
+            } else {
+                if ($membership->membership_end_date && Carbon::parse($membership->membership_end_date)->endOfDay()->isPast()) {
+                    $isExpired = true;
+                }
+            }
+
+            if ($isExpired) {
+                if ($membership->status !== 'completed') {
+                    $membership->update(['status' => 'completed']);
+                }
+            } else {
+                $activeMemberships->push($membership);
+            }
+        }
+
+        if ($activeMemberships->isNotEmpty() && is_null($this->selectedMembershipId)) {
+            $this->selectedMembershipId = $activeMemberships->first()->id;
+        }
+    }
+
+    public function selectMembership($membershipId)
+    {
+        $this->selectedMembershipId = $membershipId;
+    }
 
     public function checkAttendance()
     {
@@ -103,16 +172,23 @@ new #[Layout('layouts::member')] class extends Component
         $qrCode = null;
 
         // Hanya generate QR Code jika punya minimal 1 paket yang valid
-        if ($hasActivePackage) {
-            $qrData = json_encode(['user_id' => $user->id]);
+        if ($hasActivePackage && $this->selectedMembershipId) {
+            $qrData = json_encode([
+                'user_id' => $user->id,
+                'membership_id' => $this->selectedMembershipId
+            ]);
             $qrCode = QrCode::size(220)->margin(1)->generate($qrData);
         }
+
+        $selectedMembership = $activeMemberships->firstWhere('id', $this->selectedMembershipId);
 
         return [
             'user' => $user,
             'activeMemberships' => $activeMemberships, 
             'hasActivePackage' => $hasActivePackage,
             'qrCode' => $qrCode,
+            'selectedMembershipId' => $this->selectedMembershipId,
+            'selectedMembership' => $selectedMembership,
         ];
     }
 };
@@ -150,9 +226,39 @@ new #[Layout('layouts::member')] class extends Component
         @else
             <div class="bg-white rounded-3xl shadow-xl overflow-hidden border border-gray-100">
                 
-                <div class="py-4 text-center bg-white border-b border-gray-100">
+<div class="py-4 text-center bg-white border-b border-gray-100">
                     <p class="text-gray-500 text-sm mb-6 font-medium">Scan QR Code ini pada scanner admin untuk Check-in</p>
                     
+                    @if($activeMemberships->count() > 1)
+                        <div class="mb-4 px-4">
+                            <select wire:model="selectedMembershipId" class="w-full sm:w-auto text-sm border-gray-200 rounded-xl py-2 px-3 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                @foreach($activeMemberships as $membership)
+                                    <option value="{{ $membership->id }}">
+                                        @if($membership->type === 'pt' && $membership->ptPackage)
+                                            {{ $membership->ptPackage->name }} (PT - {{ $membership->remaining_sessions }} sesi)
+                                        @elseif($membership->gymPackage)
+                                            {{ $membership->gymPackage->name }} (Gym)
+                                        @else
+                                            Paket {{ ucfirst($membership->type) }}
+                                        @endif
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                    @elseif($selectedMembership)
+                        <div class="mb-4">
+                            <span class="inline-flex items-center px-3 py-1.5 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs font-bold">
+                                @if($selectedMembership->type === 'pt' && $selectedMembership->ptPackage)
+                                    {{ $selectedMembership->ptPackage->name }}
+                                @elseif($selectedMembership->gymPackage)
+                                    {{ $selectedMembership->gymPackage->name }}
+                                @else
+                                    Paket {{ ucfirst($selectedMembership->type) }}
+                                @endif
+                            </span>
+                        </div>
+                    @endif
+                     
                     <div class="inline-block p-4 bg-white rounded-2xl shadow-sm border border-gray-200 transition-transform hover:scale-105 duration-300 mb-6">
                         {!! $qrCode !!}
                     </div>
@@ -255,7 +361,7 @@ new #[Layout('layouts::member')] class extends Component
             <div class="mt-6 text-center">
                 <p class="text-xs text-gray-400 mb-2">Manual Input Data (Untuk Admin)</p>
                 <div class="inline-block bg-gray-100 border border-gray-200 rounded-lg py-2 px-4 text-xs text-gray-600 font-mono select-all cursor-text">
-                    {"user_id": {{ $user->id }}}
+                    {"user_id": {{ $user->id }}, "membership_id": {{ $selectedMembershipId }}}
                 </div>
             </div>
         @endif
