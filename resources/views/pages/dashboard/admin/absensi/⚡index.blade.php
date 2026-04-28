@@ -18,7 +18,7 @@ new #[Layout('layouts::admin')] class extends Component
 
     public function processScan()
     {
-        // 1. Decode JSON dari QR Code (Format: {"user_id": 1})
+        // 1. Decode JSON dari QR Code (Format: {"user_id": 1, "membership_id": 2})
         $data = json_decode($this->scannedCode, true);
 
         // Validasi format QR Code
@@ -29,6 +29,7 @@ new #[Layout('layouts::admin')] class extends Component
         }
 
         $userId = $data['user_id'];
+        $membershipId = $data['membership_id'] ?? null;
 
         // 2. Cari Data User
         $user = User::find($userId);
@@ -52,21 +53,20 @@ new #[Layout('layouts::admin')] class extends Component
         if ($user->role === 'pt') {
             Attendance::create([
                 'user_id' => $user->id,
-                'membership_id' => null, // Coach tidak butuh membership
-                'type' => 'coach_attendance', // Tipe absensi khusus coach
+                'membership_id' => null,
+                'type' => 'coach_attendance',
                 'check_in_time' => now(),
             ]);
 
             session()->flash('success', "Berhasil Check-In Coach: {$user->name}. Selamat bertugas!");
             $this->scannedCode = '';
-            return; // Hentikan proses disini agar tidak mengecek membership
+            return;
         }
 
-        // 4. Cari Data Membership (Perbaikan untuk menampung sesi terakhir Couple PT)
-        $membership = Membership::where(function ($query) use ($userId) {
-                $query->where('user_id', $userId) // Cek sebagai pemilik utama
+        // 4. Cari Data Membership - gunakan membership_id dari QR jika ada
+        $membershipQuery = Membership::where(function ($query) use ($userId) {
+                $query->where('user_id', $userId)
                     ->orWhereExists(function ($subQuery) use ($userId) {
-                        // Cek langsung ke tabel pivot tanpa join ke tabel users (SANGAT CEPAT)
                         $subQuery->select(DB::raw(1))
                                 ->from('membership_users')
                                 ->whereColumn('membership_users.membership_id', 'memberships.id')
@@ -74,18 +74,18 @@ new #[Layout('layouts::admin')] class extends Component
                     });
             })
             ->where(function ($query) {
-                // Cari paket yang statusnya 'active'
                 $query->where('status', 'active')
-                    // ATAU paket 'completed' khusus bertipe 'pt'.
                     ->orWhere(function ($q) {
                         $q->where('status', 'completed')
                             ->where('type', 'pt');
                     });
-            })
-            // Prioritaskan mengambil yang active jika member punya banyak paket
-            ->orderByRaw("CASE WHEN status = 'active' THEN 1 WHEN status = 'completed' THEN 2 ELSE 3 END") 
-            ->latest('id')
-            ->first();
+            });
+
+        if ($membershipId) {
+            $membership = $membershipQuery->where('id', $membershipId)->first();
+        } else {
+            $membership = $membershipQuery->orderByRaw("CASE WHEN status = 'active' THEN 1 WHEN status = 'completed' THEN 2 ELSE 3 END")->latest('id')->first();
+        }
 
         if (!$membership) {
             session()->flash('error', "Akses Ditolak! Member {$user->name} tidak memiliki paket aktif.");

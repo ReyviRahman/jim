@@ -79,13 +79,6 @@ new #[Layout('layouts::admin')] class extends Component
 
         $this->mainUser = $this->selectedUsers->first();
         
-        foreach ($this->selectedUsers as $u) {
-            if ($this->hasActiveOrPendingMembership($u->id)) {
-                session()->flash('error', "User {$u->name} masih memiliki membership yang aktif atau pending.");
-                return redirect()->route('admin.membership.gabung');
-            }
-        }
-
         $this->start_date = now()->format('Y-m-d');
         $this->payment_date = now()->format('Y-m-d');
         
@@ -375,14 +368,6 @@ new #[Layout('layouts::admin')] class extends Component
             }
         }
 
-        foreach ($this->selectedUsers as $u) {
-            if ($this->hasActiveOrPendingMembership($u->id)) {
-                session()->flash('error', "Pendaftaran dibatalkan: User {$u->name} masih memiliki paket yang aktif atau pending.");
-                return redirect()->route('admin.membership.index'); // Sesuaikan rute kembalinya
-
-            }
-        }
-        
         $this->calculateTotal();
 
         if ($this->payment_type === 'partial') {
