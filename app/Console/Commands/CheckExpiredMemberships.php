@@ -24,7 +24,10 @@ class CheckExpiredMemberships extends Command
 
         $this->info("Memeriksa membership aktif... (Timestamp: {$now->toDateTimeString()})");
 
-        $memberships = Membership::where('status', 'active')->with('user')->get();
+        $memberships = Membership::query()
+            ->where('status', 'active')
+            ->with('user')
+            ->get();
 
         if ($memberships->isEmpty()) {
             $this->warn('Tidak ada membership aktif yang perlu dicek.');
@@ -142,9 +145,9 @@ class CheckExpiredMemberships extends Command
             Mail::to($recipient)->send($mail);
 
             $this->info('Email notifikasi telah dikirim ke: ' . $recipient);
-            Log::info("[CheckExpiredMemberships] {$timestamp} - Email notifikasi dikirim ke: " . $recipient);
+            Log::info("[CheckExpiredMemberships] - Email notifikasi dikirim ke: " . $recipient);
         } catch (\Exception $e) {
-            Log::error("[CheckExpiredMemberships] {$timestamp} - Gagal mengirim email: " . $e->getMessage());
+            Log::error("[CheckExpiredMemberships] - Gagal mengirim email: " . $e->getMessage());
             $this->error('Gagal mengirim email notifikasi: ' . $e->getMessage());
         }
     }

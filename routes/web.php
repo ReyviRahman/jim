@@ -93,6 +93,21 @@ Route::middleware('auth')->group(function () {
             ->name('admin.membership.non-member');
 
         Route::livewire('/membership/renew/{id}', 'pages::dashboard.admin.renew.create')->name('admin.membership.renew');
+
+        Route::livewire('/beverages', 'pages::dashboard.admin.beverages.index')
+            ->name('admin.beverages.index');
+
+        Route::livewire('/beverages/create', 'pages::dashboard.admin.beverages.create')
+            ->name('admin.beverages.create');
+
+        Route::livewire('/beverages/{beverage}/edit', 'pages::dashboard.admin.beverages.edit')
+            ->name('admin.beverages.edit');
+
+        Route::livewire('/beverages/restock', 'pages::dashboard.admin.beverages.restock')
+            ->name('admin.beverages.restock');
+
+        Route::livewire('/beverages/pos', 'pages::dashboard.admin.beverages.pos')
+            ->name('admin.beverages.pos');
     });
 
     Route::middleware('role:admin,head_coach')->prefix('dashboard/admin')->group(function () {
