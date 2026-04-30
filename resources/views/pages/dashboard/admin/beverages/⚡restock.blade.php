@@ -215,11 +215,14 @@ new #[Layout('layouts::admin')] class extends Component
                     </label>
                 </div>
 
-                <div class="flex justify-end gap-3">
-                    <button type="submit" class="px-4 py-2.5 text-white bg-brand hover:bg-brand-strong rounded-md font-medium text-sm focus:outline-none">
-                        Simpan Stok
-                    </button>
-                </div>
+                <div class="flex items-center gap-3">
+            <a href="{{ route('admin.beverages.index') }}" wire:navigate class="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-body bg-neutral-secondary-medium border border-default-medium rounded-md hover:bg-neutral-secondary-strong transition-colors">
+                Batal
+            </a>
+            <button type="submit" class="px-4 py-2.5 text-white bg-brand hover:bg-brand-strong rounded-md font-medium text-sm focus:outline-none">
+                Simpan Stok
+            </button>
+        </div>
             </form>
         </div>
 

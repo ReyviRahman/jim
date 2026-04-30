@@ -126,11 +126,11 @@ new #[Layout('layouts::admin')] class extends Component
                                 @php
                                     $metode = [
                                         'cash' => 'Cash',
-                                        'qris' => 'QRIS',
-                                        'tf_bca' => 'Transfer BCA',
-                                        'lunas' => 'Lunas',
-                                        'deposit_hutang' => 'Deposit/Hutang',
-                                        'belum_bayar' => 'Belum Bayar',
+                                        'deposit_hutang' => 'Deposit/bayar utang',
+                                        'tf_bca_qris' => 'TF BCA/Qris',
+                                        'pengeluaran_umum' => 'Pengeluaran Umum',
+                                        'hutang' => 'Hutang',
+                                        'operasional' => 'Operasional',
                                     ];
                                 @endphp
                                 {{ $metode[$sale->keterangan_bayar] ?? $sale->keterangan_bayar }}

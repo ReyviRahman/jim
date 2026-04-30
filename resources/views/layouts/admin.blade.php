@@ -114,23 +114,16 @@
             <ul class="space-y-2 font-medium px-3">
                 <li>
                     <a href="{{ route('admin.beverages.index') }}" wire:navigate
-                        class="{{ request()->routeIs('admin.beverages.index') ? 'text-[#34342F] bg-brand' : 'text-white' }} flex items-center px-2 py-1.5 rounded-md hover:bg-brand hover:text-[#34342F] group transition-colors">
+                        class="{{ request()->routeIs('admin.beverages.index') || request()->routeIs('admin.beverages.restock') ? 'text-[#34342F] bg-brand' : 'text-white' }} flex items-center px-2 py-1.5 rounded-md hover:bg-brand hover:text-[#34342F] group transition-colors">
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="currentColor" d="M5 3h14a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-3v2h3a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-3v1a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zm0 10h14v8H6zm2 2v4h3v-4z"/></svg>
                         <span class="ms-3">Minuman</span>
-                    </a>
-                </li>
-                <li>
-                    <a href="{{ route('admin.beverages.restock') }}" wire:navigate
-                        class="{{ request()->routeIs('admin.beverages.restock') ? 'text-[#34342F] bg-brand' : 'text-white' }} flex items-center px-2 py-1.5 rounded-md hover:bg-brand hover:text-[#34342F] group transition-colors">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="currentColor" d="M12 22a10 10 0 0 1 0-20 10 10 0 0 1 0 20m5-11h-4V6a1 1 0 0 0-2 0v5H7a1 1 0 0 0 0 2h4v5a1 1 0 0 0 2 0v-5h4a1 1 0 0 0 0-2"/></svg>
-                        <span class="ms-3">Tambah Stok Minuman</span>
                     </a>
                 </li>
                 <li>
                     <a href="{{ route('admin.beverages.pos') }}" wire:navigate
                         class="{{ request()->routeIs('admin.beverages.pos') ? 'text-[#34342F] bg-brand' : 'text-white' }} flex items-center px-2 py-1.5 rounded-md hover:bg-brand hover:text-[#34342F] group transition-colors">
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="currentColor" d="M17 2H7a2 2 0 0 0-2 2v2c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2m0 4H7V4h10zm-1 4h-2v2h2zm0 4h-2v2h2zm4-6h-2v2h2zm0 4h-2v2h2zm4-6h-2v2h2zm0 4h-2v2h2zM7 20h10a2 2 0 0 0 2-2v-2a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v2a2 2 0 0 0 2 2"/></svg>
-                        <span class="ms-3">POS Minuman</span>
+                        <span class="ms-3">Bayar</span>
                     </a>
                 </li>
                 <li>
