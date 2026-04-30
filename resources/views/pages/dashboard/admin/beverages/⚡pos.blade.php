@@ -346,10 +346,11 @@ new #[Layout('layouts::admin')] class extends Component
                     <select x-model="keterangan_bayar" name="keterangan_bayar" 
                         class="block w-full px-3 py-2.5 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs">
                         <option value="cash">Cash</option>
-                        <option value="qris">QRIS</option>
-                        <option value="tf_bca">Transfer BCA</option>
-                        <option value="deposit_hutang">Deposit/Hutang</option>
+                        <option value="deposit_hutang">Deposit/bayar utang</option>
+                        <option value="tf_bca_qris">TF BCA/Qris</option>
+                        <option value="pengeluaran_umum">Pengeluaran Umum</option>
                         <option value="hutang">Hutang</option>
+                        <option value="operasional">Operasional</option>
                     </select>
                 </div>
 
