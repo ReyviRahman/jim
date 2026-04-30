@@ -11,6 +11,7 @@ return new class extends Migration
         Schema::create('beverages', function (Blueprint $table) {
             $table->id();
             $table->string('nama_produk');
+            $table->integer('stok_awal')->default(0);
             $table->integer('harga_modal')->comment('Harga beli / modal');
             $table->integer('harga_jual');
             $table->integer('stok_sekarang')->default(0)->comment('Stok dinamis real-time');

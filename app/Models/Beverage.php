@@ -13,6 +13,7 @@ class Beverage extends Model
 
     protected $fillable = [
         'nama_produk',
+        'stok_awal',
         'harga_modal',
         'harga_jual',
         'stok_sekarang',
@@ -22,6 +23,7 @@ class Beverage extends Model
     {
         return [
             'harga_modal' => 'integer',
+            'stok_awal' => 'integer',
             'harga_jual' => 'integer',
             'stok_sekarang' => 'integer',
         ];

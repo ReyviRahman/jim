@@ -1,10 +1,18 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\BeverageApiController;
+use App\Http\Controllers\BeverageSaleController;
 
 // --- HALAMAN PUBLIK (Bisa diakses siapa saja) ---
 Route::livewire('/', 'pages::index')
     ->name('home');
+
+// --- API ROUTES ---
+Route::middleware('auth')->group(function () {
+    Route::get('/api/beverages/search', [BeverageApiController::class, 'search']);
+    Route::post('/admin/beverages/pos/process', [BeverageApiController::class, 'processSale'])->name('admin.beverages.pos.process');
+});
 
 // --- HALAMAN GUEST (Hanya bisa diakses jika BELUM login) ---
 Route::middleware('guest')->group(function () {
@@ -108,6 +116,9 @@ Route::middleware('auth')->group(function () {
 
         Route::livewire('/beverages/pos', 'pages::dashboard.admin.beverages.pos')
             ->name('admin.beverages.pos');
+
+        Route::livewire('/beverages/sales', 'pages::dashboard.admin.beverages.sales')
+            ->name('admin.beverages.sales');
     });
 
     Route::middleware('role:admin,head_coach')->prefix('dashboard/admin')->group(function () {

@@ -19,12 +19,11 @@ return new class extends Migration
             $table->integer('harga_satuan')->comment('Snapshot harga jual saat transaksi');
             $table->integer('total_harga')->generatedAs('jumlah_beli * harga_satuan');
             $table->enum('keterangan_bayar', [
-                'lunas', 
                 'cash', 
                 'qris', 
                 'tf_bca', 
                 'deposit_hutang', 
-                'belum_bayar'
+                'hutang'
             ]);
             $table->timestamps();
         });

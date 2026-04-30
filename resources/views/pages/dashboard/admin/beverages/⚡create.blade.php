@@ -50,7 +50,7 @@ new #[Layout('layouts::admin')] class extends Component
             <label for="nama_produk" class="block mb-2.5 text-sm font-medium text-heading">Nama Produk</label>
             <input type="text" id="nama_produk" wire:model="nama_produk"
                 class="block w-full px-3 py-2.5 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs placeholder:text-body"
-                placeholder="Contoh: Aqua 600ml">
+                placeholder="Contoh: Le Mineral 600ml">
             @error('nama_produk') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
         </div>
 

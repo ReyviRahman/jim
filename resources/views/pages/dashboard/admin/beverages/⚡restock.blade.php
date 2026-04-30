@@ -19,10 +19,16 @@ new #[Layout('layouts::admin')] class extends Component
     public $jumlah_tambah = '';
     public $keterangan = '';
     public $tanggal = '';
+    public $jadikan_stok_awal = false;
+
+    public $start_date = '';
+    public $end_date = '';
 
     public function mount()
     {
         $this->tanggal = date('Y-m-d');
+        $this->start_date = date('Y-m-01');
+        $this->end_date = date('Y-m-d');
     }
 
     public function selectProduct($id)
@@ -51,6 +57,8 @@ new #[Layout('layouts::admin')] class extends Component
             return;
         }
 
+        $newStokSekarang = $beverage->stok_sekarang + $this->jumlah_tambah;
+
         BeverageRestock::create([
             'beverage_id' => $this->beverage_id,
             'tanggal' => $this->tanggal,
@@ -58,14 +66,35 @@ new #[Layout('layouts::admin')] class extends Component
             'keterangan' => $this->keterangan,
         ]);
 
-        $beverage->update([
-            'stok_sekarang' => $beverage->stok_sekarang + $this->jumlah_tambah,
-        ]);
+        $updateData = [
+            'stok_sekarang' => $newStokSekarang,
+        ];
+
+        if ($this->jadikan_stok_awal) {
+            $updateData['stok_awal'] = $this->jumlah_tambah;
+        }
+
+        $beverage->update($updateData);
 
         session()->flash('success', 'Stok berhasil ditambahkan.');
 
-        $this->reset(['beverage_id', 'jumlah_tambah', 'keterangan', 'selectedBeverage']);
+        $this->reset(['beverage_id', 'jumlah_tambah', 'keterangan', 'selectedBeverage', 'jadikan_stok_awal']);
         $this->tanggal = date('Y-m-d');
+    }
+
+    public function forceDelete($id)
+    {
+        $restock = BeverageRestock::find($id);
+        if ($restock) {
+            $beverage = Beverage::find($restock->beverage_id);
+            if ($beverage) {
+                $beverage->update([
+                    'stok_sekarang' => $beverage->stok_sekarang - $restock->jumlah_tambah,
+                ]);
+            }
+            $restock->forceDelete();
+            session()->flash('success', 'Data restock berhasil dihapus permanen.');
+        }
     }
 
     public function getProductsProperty()
@@ -77,6 +106,21 @@ new #[Layout('layouts::admin')] class extends Component
             ->orderBy('nama_produk')
             ->limit(10)
             ->get();
+    }
+
+    public function getRestocksProperty()
+    {
+        return BeverageRestock::with(['beverage' => function ($query) {
+            $query->withTrashed();
+        }])
+        ->when($this->start_date, function ($query) {
+            $query->whereDate('tanggal', '>=', $this->start_date);
+        })
+        ->when($this->end_date, function ($query) {
+            $query->whereDate('tanggal', '<=', $this->end_date);
+        })
+        ->latest()
+        ->paginate(10);
     }
 
     public function with(): array
@@ -157,11 +201,18 @@ new #[Layout('layouts::admin')] class extends Component
                     @error('jumlah_tambah') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
                 </div>
 
-                <div class="mb-6">
+                <div class="mb-4">
                     <label for="keterangan" class="block mb-2.5 text-sm font-medium text-heading">Keterangan (Opsional)</label>
                     <input type="text" id="keterangan" wire:model="keterangan"
                         class="block w-full px-3 py-2.5 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs placeholder:text-body"
                         placeholder="Contoh: Pengiriman dari supplier">
+                </div>
+
+                <div class="mb-6">
+                    <label class="inline-flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" wire:model="jadikan_stok_awal" class="w-4 h-4 text-brand bg-neutral-secondary-medium border-gray-300 rounded focus:ring-brand">
+                        <span class="text-sm font-medium text-heading">Jadikan Stok Awal</span>
+                    </label>
                 </div>
 
                 <div class="flex justify-end gap-3">
@@ -174,11 +225,22 @@ new #[Layout('layouts::admin')] class extends Component
 
         <div class="bg-neutral-primary-soft shadow-xs rounded-md border border-default">
             <div class="p-4 border-b border-default-medium">
-                <h6 class="text-lg font-semibold text-heading">Riwayat Restock</h6>
+                <div class="flex flex-col gap-3">
+                    <h6 class="text-lg font-semibold text-heading">Riwayat Restock</h6>
+                    <div class="flex gap-2">
+                        <div class="flex-1">
+                            <label class="block mb-1 text-xs font-medium text-heading">Tanggal Mulai</label>
+                            <input type="date" wire:model.live="start_date"
+                                class="block w-full px-2 py-1.5 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs">
+                        </div>
+                        <div class="flex-1">
+                            <label class="block mb-1 text-xs font-medium text-heading">Tanggal Akhir</label>
+                            <input type="date" wire:model.live="end_date"
+                                class="block w-full px-2 py-1.5 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs">
+                        </div>
+                    </div>
+                </div>
             </div>
-            @php
-                $restocks = \App\Models\BeverageRestock::with('beverage')->latest()->paginate(10);
-            @endphp
             <div class="overflow-x-auto">
                 <table class="w-full text-sm text-left rtl:text-right text-body">
                     <thead class="text-sm text-body bg-neutral-secondary-medium border-b border-default-medium">
@@ -187,26 +249,34 @@ new #[Layout('layouts::admin')] class extends Component
                             <th scope="col" class="px-4 py-3 font-medium">Produk</th>
                             <th scope="col" class="px-4 py-3 font-medium text-center">Jumlah</th>
                             <th scope="col" class="px-4 py-3 font-medium">Keterangan</th>
+                            <th scope="col" class="px-4 py-3 font-medium text-center">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @forelse ($restocks as $restock)
+                        @forelse ($this->restocks as $restock)
                             <tr wire:key="{{ $restock->id }}" class="bg-neutral-primary-soft border-b border-default hover:bg-neutral-secondary-medium">
                                 <td class="px-4 py-3 whitespace-nowrap">{{ $restock->tanggal->format('d M Y') }}</td>
                                 <td class="px-4 py-3 whitespace-nowrap">{{ $restock->beverage->nama_produk ?? '-' }}</td>
                                 <td class="px-4 py-3 text-center whitespace-nowrap text-emerald-600 font-semibold">+{{ $restock->jumlah_tambah }}</td>
                                 <td class="px-4 py-3 whitespace-nowrap text-xs">{{ $restock->keterangan ?? '-' }}</td>
+                                <td class="px-4 py-3 text-center whitespace-nowrap">
+                                    <button type="button" wire:click="forceDelete({{ $restock->id }})" wire:confirm="Yakin ingin menghapus permanen data restock ini? Stok akan dikurangi."
+                                        class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-red-700 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 focus:ring-2 focus:ring-red-300 transition-colors">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                                        Hapus
+                                    </button>
+                                </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="4" class="px-4 py-8 text-center text-gray-500">Belum ada riwayat restock.</td>
+                                <td colspan="5" class="px-4 py-8 text-center text-gray-500">Belum ada riwayat restock.</td>
                             </tr>
                         @endforelse
                     </tbody>
                 </table>
             </div>
             <div class="mt-4 px-4">
-                {{ $restocks->links() }}
+                {{ $this->restocks->links() }}
             </div>
         </div>
     </div>
