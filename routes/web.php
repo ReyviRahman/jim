@@ -119,6 +119,9 @@ Route::middleware('auth')->group(function () {
 
         Route::livewire('/beverages/sales', 'pages::dashboard.admin.beverages.sales')
             ->name('admin.beverages.sales');
+
+        Route::livewire('/beverages/hutang', 'pages::dashboard.admin.beverages.hutang')
+            ->name('admin.beverages.hutang');
     });
 
     Route::middleware('role:admin,head_coach')->prefix('dashboard/admin')->group(function () {

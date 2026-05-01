@@ -104,6 +104,7 @@ new #[Layout('layouts::admin')] class extends Component
                     <tr>
                         <th scope="col" class="px-4 py-3 font-medium">Tanggal</th>
                         <th scope="col" class="px-4 py-3 font-medium">Staff</th>
+                        <th scope="col" class="px-4 py-3 font-medium">Nama Pelanggan</th>
                         <th scope="col" class="px-4 py-3 font-medium">Produk</th>
                         <th scope="col" class="px-4 py-3 font-medium text-center">Jumlah</th>
                         <th scope="col" class="px-4 py-3 font-medium text-right">Harga Satuan</th>
@@ -117,6 +118,7 @@ new #[Layout('layouts::admin')] class extends Component
                         <tr class="bg-neutral-primary-soft border-b border-default hover:bg-neutral-secondary-medium">
                             <td class="px-4 py-3 whitespace-nowrap">{{ $sale->waktu_transaksi->format('d M Y H:i') }}</td>
                             <td class="px-4 py-3 whitespace-nowrap">{{ $sale->nama_staff }}</td>
+                            <td class="px-4 py-3 whitespace-nowrap">{{ $sale->nama_penghutang ?? '-' }}</td>
                             <td class="px-4 py-3 whitespace-nowrap">{{ $sale->beverage->nama_produk ?? '-' }}</td>
                             <td class="px-4 py-3 text-center whitespace-nowrap">{{ $sale->jumlah_beli }}</td>
                             <td class="px-4 py-3 text-right whitespace-nowrap">Rp {{ number_format($sale->harga_satuan, 0, ',', '.') }}</td>
@@ -127,6 +129,8 @@ new #[Layout('layouts::admin')] class extends Component
                                     $metode = [
                                         'cash' => 'Cash',
                                         'deposit_hutang' => 'Deposit/bayar utang',
+                                        'deposit_hutang_cash' => 'Deposit/Cash',
+                                        'deposit_hutang_qris' => 'Deposit/TF BCA/QRIS',
                                         'tf_bca_qris' => 'TF BCA/Qris',
                                         'pengeluaran_umum' => 'Pengeluaran Umum',
                                         'hutang' => 'Hutang',
@@ -138,7 +142,7 @@ new #[Layout('layouts::admin')] class extends Component
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="8" class="px-4 py-8 text-center text-gray-500">Belum ada riwayat penjualan.</td>
+                            <td colspan="9" class="px-4 py-8 text-center text-gray-500">Belum ada riwayat penjualan.</td>
                         </tr>
                     @endforelse
                 </tbody>

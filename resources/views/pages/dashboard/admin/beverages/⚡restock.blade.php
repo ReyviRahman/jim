@@ -195,7 +195,11 @@ new #[Layout('layouts::admin')] class extends Component
 
                 <div class="mb-4">
                     <label for="jumlah_tambah" class="block mb-2.5 text-sm font-medium text-heading">Jumlah Tambah</label>
-                    <input type="number" id="jumlah_tambah" wire:model.live="jumlah_tambah" min="1"
+                    <input type="text" 
+                        inputmode="numeric" 
+                        pattern="[0-9]*" 
+                        id="jumlah_tambah" 
+                        wire:model.live="jumlah_tambah" 
                         class="block w-full px-3 py-2.5 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs placeholder:text-body"
                         placeholder="Contoh: 10">
                     @error('jumlah_tambah') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror

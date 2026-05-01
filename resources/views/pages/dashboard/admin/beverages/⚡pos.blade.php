@@ -14,6 +14,7 @@ new #[Layout('layouts::admin')] class extends Component
     public $selectedProducts = [];
     public $shift = '';
     public $keterangan_bayar = 'cash';
+    public $nama_penghutang = '';
     public $nama_staff = '';
     public $products = [];
     public $showNotFound = false;
@@ -145,6 +146,7 @@ new #[Layout('layouts::admin')] class extends Component
     products: [],
     showNotFound: false,
     keterangan_bayar: 'cash',
+    nama_penghutang: '',
     total: 0,
     totalItems: 0,
     showModal: false,
@@ -212,6 +214,10 @@ new #[Layout('layouts::admin')] class extends Component
 
     openModal() {
         if (this.selectedProducts.length === 0) return;
+        if (this.keterangan_bayar === 'hutang' && !this.nama_penghutang.trim()) {
+            alert('Nama penghutang harus diisi untuk transaksi hutang.');
+            return;
+        }
         this.showModal = true;
     },
 
@@ -240,13 +246,21 @@ new #[Layout('layouts::admin')] class extends Component
         </div>
     @endif
 
+    
+
     <form id="pos-form" action="{{ route('admin.beverages.pos.process') }}" method="POST">
         @csrf
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div class="lg:col-span-2 bg-neutral-primary-soft shadow-xs rounded-md border border-default">
                 <div class="p-4 border-b border-default-medium">
-                    <h6 class="text-lg font-semibold text-heading mb-3">Pilih Produk</h6>
-                    <div class="relative">
+                    <div class="flex flex-col sm:flex-row justify-between items-center gap-4">
+                        <h6 class="text-lg font-semibold text-heading mb-3">Pilih Produk</h6>
+                        <a href="{{ route('admin.beverages.hutang') }}"
+                            class="mt-2 sm:mt-0 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold rounded-md transition-colors">
+                            Daftar Hutang
+                        </a>
+                    </div>
+                    <div class="relative mt-2">
                         <input type="text" x-model="searchProduct" @input.debounce.300ms="searchProducts()"
                             class="block w-full px-3 py-2.5 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs placeholder:text-body"
                             placeholder="Ketik nama produk... (Le Minerale)">
@@ -346,13 +360,21 @@ new #[Layout('layouts::admin')] class extends Component
                     <select x-model="keterangan_bayar" name="keterangan_bayar" 
                         class="block w-full px-3 py-2.5 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs">
                         <option value="cash">Cash</option>
-                        <option value="deposit_hutang">Deposit/bayar utang</option>
                         <option value="tf_bca_qris">TF BCA/Qris</option>
                         <option value="pengeluaran_umum">Pengeluaran Umum</option>
                         <option value="hutang">Hutang</option>
                         <option value="operasional">Operasional</option>
                     </select>
                 </div>
+
+                <template x-if="keterangan_bayar === 'hutang'">
+                    <div class="mb-4">
+                        <label class="block mb-2 text-sm font-medium text-heading">Nama Penghutang</label>
+                        <input type="text" x-model="nama_penghutang" name="nama_penghutang"
+                            class="block w-full px-3 py-2.5 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs"
+                            placeholder="Masukkan nama penghutang">
+                    </div>
+                </template>
 
                 <div class="border-t border-default-medium pt-4 mt-4">
                     <div class="flex justify-between items-center mb-2">
@@ -365,6 +387,7 @@ new #[Layout('layouts::admin')] class extends Component
                     </div>
                 </div>
 
+                <input type="hidden" name="nama_penghutang" :value="nama_penghutang">
                 <input type="hidden" name="selected_products" :value="JSON.stringify(selectedProducts)">
 
                 <button type="button" @click="openModal()" :disabled="selectedProducts.length === 0"

@@ -35,10 +35,18 @@ class BeverageApiController extends Controller
             return redirect()->back();
         }
 
+        if ($request->keterangan_bayar === 'hutang' && empty($request->nama_penghutang)) {
+            Session::flash('error', 'Nama penghutang harus diisi untuk transaksi hutang.');
+            return redirect()->back();
+        }
+
         $namaStaff = $request->nama_staff;
         $shift = $request->shift;
         $keteranganBayar = $request->keterangan_bayar;
         $tanggal = $request->tanggal ? \Carbon\Carbon::parse($request->tanggal)->setTimezone('Asia/Jakarta') : now()->setTimezone('Asia/Jakarta');
+        $isHutang = $keteranganBayar === 'hutang';
+        $namaPenghutang = $isHutang ? $request->nama_penghutang : null;
+        $isLunas = $isHutang ? false : true;
 
         foreach ($selectedProducts as $item) {
             BeverageSale::create([
@@ -50,6 +58,8 @@ class BeverageApiController extends Controller
                 'harga_satuan' => $item['harga_satuan'],
                 'total_harga' => $item['harga_satuan'] * $item['jumlah_beli'],
                 'keterangan_bayar' => $keteranganBayar,
+                'nama_penghutang' => $namaPenghutang,
+                'is_lunas' => $isLunas,
             ]);
 
             $beverage = Beverage::find($item['beverage_id']);

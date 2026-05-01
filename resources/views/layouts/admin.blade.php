@@ -121,7 +121,7 @@
                 </li>
                 <li>
                     <a href="{{ route('admin.beverages.pos') }}" wire:navigate
-                        class="{{ request()->routeIs('admin.beverages.pos') ? 'text-[#34342F] bg-brand' : 'text-white' }} flex items-center px-2 py-1.5 rounded-md hover:bg-brand hover:text-[#34342F] group transition-colors">
+                        class="{{ request()->routeIs('admin.beverages.pos') || request()->routeIs('admin.beverages.hutang') ? 'text-[#34342F] bg-brand' : 'text-white' }} flex items-center px-2 py-1.5 rounded-md hover:bg-brand hover:text-[#34342F] group transition-colors">
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="currentColor" d="M17 2H7a2 2 0 0 0-2 2v2c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2m0 4H7V4h10zm-1 4h-2v2h2zm0 4h-2v2h2zm4-6h-2v2h2zm0 4h-2v2h2zm4-6h-2v2h2zm0 4h-2v2h2zM7 20h10a2 2 0 0 0 2-2v-2a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v2a2 2 0 0 0 2 2"/></svg>
                         <span class="ms-3">Bayar</span>
                     </a>
