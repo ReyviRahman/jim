@@ -14,9 +14,6 @@ new #[Layout('layouts::admin')] class extends Component
     use WithPagination;
 
     public $search = '';
-    public $showStokAwalModal = false;
-    public $selectedBeverageId = null;
-    public $stok_awal_baru = '';
 
     public function updatingSearch()
     {
@@ -58,36 +55,6 @@ new #[Layout('layouts::admin')] class extends Component
     {
         Beverage::withTrashed()->find($id)->forceDelete();
         session()->flash('success', 'Produk berhasil dihapus permanen.');
-    }
-
-    public function openStokAwalModal($id)
-    {
-        $beverage = Beverage::withTrashed()->find($id);
-        $this->selectedBeverageId = $id;
-        $this->stok_awal_baru = $beverage->stok_awal;
-        $this->showStokAwalModal = true;
-    }
-
-    public function updateStokAwal()
-    {
-        $this->validate([
-            'stok_awal_baru' => 'required|integer|min:0',
-        ]);
-
-        $beverage = Beverage::withTrashed()->find($this->selectedBeverageId);
-        if ($beverage) {
-            $beverage->update(['stok_awal' => $this->stok_awal_baru]);
-            session()->flash('success', 'Stok awal berhasil diperbarui.');
-        }
-
-        $this->closeStokAwalModal();
-    }
-
-    public function closeStokAwalModal()
-    {
-        $this->showStokAwalModal = false;
-        $this->selectedBeverageId = null;
-        $this->stok_awal_baru = '';
     }
 
     public function with(): array
@@ -156,12 +123,7 @@ new #[Layout('layouts::admin')] class extends Component
                                 Rp {{ number_format($beverage->harga_jual, 0, ',', '.') }}
                             </td>
                             <td class="px-4 py-3 text-center whitespace-nowrap">
-                                <div class="flex items-center justify-center gap-1">
-                                    <span>{{ $beverage->stok_awal }}</span>
-                                    <button type="button" wire:click="openStokAwalModal({{ $beverage->id }})" class="text-blue-500 hover:text-blue-700 p-1">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path></svg>
-                                    </button>
-                                </div>
+                                {{ $beverage->stok_awal }}
                             </td>
                             <td class="px-4 py-3 text-center whitespace-nowrap text-emerald-600 font-semibold">
                                 +{{ $beverage->ditambahkan }}
@@ -209,36 +171,4 @@ new #[Layout('layouts::admin')] class extends Component
             {{ $this->beveragesWithStock->links() }}
         </div>
     </div>
-
-    @if ($showStokAwalModal)
-        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" wire:click.self="closeStokAwalModal">
-            <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
-                <div class="flex items-center justify-between p-4 border-b border-default">
-                    <h5 class="text-lg font-semibold text-heading">Update Stok Awal</h5>
-                    <button type="button" wire:click="closeStokAwalModal" class="text-gray-400 hover:text-gray-600">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
-                    </button>
-                </div>
-                <form wire:submit.prevent="updateStokAwal">
-                    <div class="p-4">
-                        <label class="block mb-2.5 text-sm font-medium text-heading">Stok Awal Baru</label>
-                        <input type="text"
-                            inputmode="numeric"
-                            pattern="[0-9]*"
-                            wire:model.live="stok_awal_baru"
-                            class="block w-full px-3 py-2.5 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs placeholder:text-body">
-                        @error('stok_awal_baru') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
-                    </div>
-                    <div class="flex items-center justify-end gap-3 p-4 border-t border-default">
-                        <button type="button" wire:click="closeStokAwalModal" class="px-4 py-2 text-sm font-medium text-body bg-neutral-secondary-medium border border-default-medium rounded-md hover:bg-neutral-secondary-strong transition-colors">
-                            Batal
-                        </button>
-                        <button type="submit" class="px-4 py-2.5 text-white bg-brand hover:bg-brand-strong rounded-md font-medium text-sm focus:outline-none">
-                            Simpan
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    @endif
 </div>

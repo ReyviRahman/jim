@@ -16,6 +16,8 @@ new #[Layout('layouts::admin')] class extends Component
     public $searchProduct = '';
     public $start_date = '';
     public $end_date = '';
+    public $showDeleteModal = false;
+    public $selectedSaleId = null;
 
     public function mount()
     {
@@ -58,6 +60,43 @@ new #[Layout('layouts::admin')] class extends Component
             ),
             $fileName
         );
+    }
+
+    public function confirmDelete($id)
+    {
+        $this->selectedSaleId = $id;
+        $this->showDeleteModal = true;
+    }
+
+    public function deleteSale()
+    {
+        $sale = BeverageSale::find($this->selectedSaleId);
+        if (!$sale) {
+            $this->closeDeleteModal();
+            return;
+        }
+
+        $stockAffecting = !in_array($sale->keterangan_bayar, ['deposit_hutang_cash', 'deposit_hutang_qris', 'operasional', 'pengeluaran_umum']);
+
+        if ($stockAffecting && $sale->beverage) {
+            $beverage = $sale->beverage;
+            $beverage->update([
+                'stok_sekarang' => $beverage->stok_sekarang + $sale->jumlah_beli,
+            ]);
+        }
+
+        $sale->delete();
+
+        $message = $stockAffecting ? 'Data penjualan berhasil dihapus. Stok minuman dikembalikan.' : 'Data penjualan berhasil dihapus.';
+        session()->flash('success', $message);
+
+        $this->closeDeleteModal();
+    }
+
+    public function closeDeleteModal()
+    {
+        $this->showDeleteModal = false;
+        $this->selectedSaleId = null;
     }
 
     public function with(): array
@@ -111,6 +150,7 @@ new #[Layout('layouts::admin')] class extends Component
                         <th scope="col" class="px-4 py-3 font-medium text-right">Total</th>
                         <th scope="col" class="px-4 py-3 font-medium">Shift</th>
                         <th scope="col" class="px-4 py-3 font-medium">Metode Bayar</th>
+                        <th scope="col" class="px-4 py-3 font-medium text-center">Aksi</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -158,10 +198,16 @@ new #[Layout('layouts::admin')] class extends Component
                                     {{ $metode[$sale->keterangan_bayar] ?? $sale->keterangan_bayar }}
                                 </span>
                             </td>
+                            <td class="px-4 py-3 text-center whitespace-nowrap">
+                                <button type="button" wire:click="confirmDelete({{ $sale->id }})" class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-red-700 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 focus:ring-2 focus:ring-red-300 transition-colors">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                                    Hapus
+                                </button>
+                            </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="9" class="px-4 py-8 text-center text-gray-500">Belum ada riwayat penjualan.</td>
+                            <td colspan="10" class="px-4 py-8 text-center text-gray-500">Belum ada riwayat penjualan.</td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -171,4 +217,26 @@ new #[Layout('layouts::admin')] class extends Component
             {{ $this->sales->links() }}
         </div>
     </div>
+
+    @if ($showDeleteModal)
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" wire:click.self="closeDeleteModal">
+            <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h5 class="text-lg font-semibold text-heading">Konfirmasi Hapus</h5>
+                    <button type="button" wire:click="closeDeleteModal" class="text-gray-400 hover:text-gray-600">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+                    </button>
+                </div>
+                <p class="text-body mb-6">Apakah Anda yakin ingin menghapus data penjualan ini? Stok minuman akan dikembalikan.</p>
+                <div class="flex items-center justify-end gap-3">
+                    <button type="button" wire:click="closeDeleteModal" class="px-4 py-2 text-sm font-medium text-body bg-neutral-secondary-medium border border-default-medium rounded-md hover:bg-neutral-secondary-strong transition-colors">
+                        Batal
+                    </button>
+                    <button type="button" wire:click="deleteSale" class="px-4 py-2.5 text-white bg-red-600 hover:bg-red-700 rounded-md font-medium text-sm focus:outline-none">
+                        Hapus
+                    </button>
+                </div>
+            </div>
+        </div>
+    @endif
 </div>
