@@ -19,7 +19,6 @@ new #[Layout('layouts::admin')] class extends Component
     public $jumlah_tambah = '';
     public $keterangan = '';
     public $tanggal = '';
-    public $jadikan_stok_awal = false;
 
     public $editingId = null;
     public $edit_jumlah_tambah = '';
@@ -70,22 +69,17 @@ new #[Layout('layouts::admin')] class extends Component
             'beverage_id' => $this->beverage_id,
             'tanggal' => $this->tanggal,
             'jumlah_tambah' => $this->jumlah_tambah,
+            'tipe' => 'restock',
             'keterangan' => $this->keterangan,
         ]);
 
-        $updateData = [
+        $beverage->update([
             'stok_sekarang' => $newStokSekarang,
-        ];
-
-        if ($this->jadikan_stok_awal) {
-            $updateData['stok_awal'] = $this->jumlah_tambah;
-        }
-
-        $beverage->update($updateData);
+        ]);
 
         session()->flash('success', 'Stok berhasil ditambahkan.');
 
-        $this->reset(['beverage_id', 'jumlah_tambah', 'keterangan', 'selectedBeverage', 'jadikan_stok_awal']);
+        $this->reset(['beverage_id', 'jumlah_tambah', 'keterangan', 'selectedBeverage']);
         $this->tanggal = date('Y-m-d');
     }
 
@@ -185,6 +179,7 @@ new #[Layout('layouts::admin')] class extends Component
         return BeverageRestock::with(['beverage' => function ($query) {
             $query->withTrashed();
         }])
+        ->where('tipe', 'restock')
         ->when($this->start_date, function ($query) {
             $query->whereDate('tanggal', '>=', $this->start_date);
         })
