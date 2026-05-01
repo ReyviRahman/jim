@@ -36,7 +36,7 @@ new #[Layout('layouts::admin')] class extends Component
     {
         return [
             'users' => User::query()
-                ->where('role', 'kasir_gym')
+                ->where('role', '!=', 'member')
                 ->where(function ($query) {
                     $query->where('name', 'like', '%' . $this->search . '%')
                         ->orWhere('email', 'like', '%' . $this->search . '%');
@@ -59,12 +59,12 @@ new #[Layout('layouts::admin')] class extends Component
         <div class="flex items-center justify-between flex-col flex-wrap md:flex-row space-y-4 md:space-y-0 p-4">
             
             {{-- Ubah Judul --}}
-            <h5 class="text-xl font-semibold text-heading">Master Data Admin Gym</h5>
+            <h5 class="text-xl font-semibold text-heading">Master Data Akun</h5>
             
             <div class="flex sm:flex-row flex-col gap-4 items-center">
                 <div>
                     {{-- Sesuaikan route ini dengan route untuk halaman create kasir --}}
-                    <a href="{{ route('admin.akun.admin.create') }}" wire:navigate class="text-white bg-brand box-border border border-transparent hover:bg-brand-strong focus:ring-4 focus:ring-brand-medium shadow-xs font-medium leading-5 rounded-md text-sm px-4 py-2.5 focus:outline-none">+ Buat Akun Kasir</a>
+                    <a href="{{ route('admin.akun.admin.create') }}" wire:navigate class="text-white bg-brand box-border border border-transparent hover:bg-brand-strong focus:ring-4 focus:ring-brand-medium shadow-xs font-medium leading-5 rounded-md text-sm px-4 py-2.5 focus:outline-none">+ Buat Akun</a>
                 </div>
                 <div class="relative">
                     <div class="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
@@ -82,8 +82,8 @@ new #[Layout('layouts::admin')] class extends Component
         <table class="w-full text-sm text-left rtl:text-right text-body">
             <thead class="text-sm text-body bg-neutral-secondary-medium border-b border-t border-default-medium">
                 <tr>
-                    <th scope="col" class="px-6 py-3 font-medium">Nama Kasir</th>
-                    <th scope="col" class="px-6 py-3 font-medium">Shift</th>
+                    <th scope="col" class="px-6 py-3 font-medium">Nama</th>
+                    <th scope="col" class="px-6 py-3 font-medium">Role</th>
                     <th scope="col" class="px-6 py-3 font-medium">Status Akun</th>
                     <th scope="col" class="px-6 py-3 font-medium text-center">Aksi</th>
                 </tr>
@@ -106,13 +106,9 @@ new #[Layout('layouts::admin')] class extends Component
                         
                         {{-- Tampilkan Shift Kasir --}}
                         <td class="px-6 py-4">
-                            @if($user->shift)
-                                <span class="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800 uppercase">
-                                    {{ $user->shift }}
-                                </span>
-                            @else
-                                <span class="text-gray-400 italic">Belum diset</span>
-                            @endif
+                            <span class="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800 uppercase">
+                                {{ $user->role }}
+                            </span>
                         </td>
                         
                         {{-- Cek status pegawai dari is_active --}}
@@ -160,7 +156,7 @@ new #[Layout('layouts::admin')] class extends Component
                 @empty
                     <tr>
                         <td colspan="4" class="px-6 py-8 text-center text-body">
-                            Belum ada data Kasir Gym.
+                            Belum ada data akun.
                         </td>
                     </tr>
                 @endforelse

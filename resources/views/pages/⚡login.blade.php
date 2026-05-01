@@ -61,6 +61,10 @@ new class extends Component {
             if ($user->role === 'pt') {
                 return $this->redirectRoute('pt.absensi', navigate: true);
             } 
+
+            if ($user->role === 'kasir_minum') {
+                return $this->redirectRoute('admin.beverages.index', navigate: true);
+            } 
             
             // Default ke member dashboard
             return $this->redirectRoute('member.dashboard', navigate: true);

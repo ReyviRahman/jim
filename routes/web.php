@@ -102,35 +102,7 @@ Route::middleware('auth')->group(function () {
 
         Route::livewire('/membership/renew/{id}', 'pages::dashboard.admin.renew.create')->name('admin.membership.renew');
 
-        Route::livewire('/beverages', 'pages::dashboard.admin.beverages.index')
-            ->name('admin.beverages.index');
-
-        Route::livewire('/beverages/create', 'pages::dashboard.admin.beverages.create')
-            ->name('admin.beverages.create');
-
-        Route::livewire('/beverages/{beverage}/edit', 'pages::dashboard.admin.beverages.edit')
-            ->name('admin.beverages.edit');
-
-        Route::livewire('/beverages/restock', 'pages::dashboard.admin.beverages.restock')
-            ->name('admin.beverages.restock');
-
-        Route::livewire('/beverages/pos', 'pages::dashboard.admin.beverages.pos')
-            ->name('admin.beverages.pos');
-
-        Route::livewire('/beverages/sales', 'pages::dashboard.admin.beverages.sales')
-            ->name('admin.beverages.sales');
-
-        Route::livewire('/beverages/hutang', 'pages::dashboard.admin.beverages.hutang')
-            ->name('admin.beverages.hutang');
-
-        Route::livewire('/beverages/invoice', 'pages::dashboard.admin.beverages.invoice')
-            ->name('admin.beverages.invoice');
-
-        Route::livewire('/beverages/invoice/create', 'pages::dashboard.admin.beverages.invoice-create')
-            ->name('admin.beverages.invoice.create');
-
-        Route::livewire('/beverages/invoice/{invoice}/edit', 'pages::dashboard.admin.beverages.invoice-edit')
-            ->name('admin.beverages.invoice.edit');
+        
     });
 
     Route::middleware('role:admin,head_coach')->prefix('dashboard/admin')->group(function () {
@@ -187,4 +159,36 @@ Route::middleware('auth')->group(function () {
         });
     });
 
+
+    Route::middleware('role:admin,kasir_gym,kasir_minum')->prefix('dashboard/admin')->group(function () {
+        Route::livewire('/beverages', 'pages::dashboard.admin.beverages.index')
+            ->name('admin.beverages.index');
+
+        Route::livewire('/beverages/create', 'pages::dashboard.admin.beverages.create')
+            ->name('admin.beverages.create');
+
+        Route::livewire('/beverages/{beverage}/edit', 'pages::dashboard.admin.beverages.edit')
+            ->name('admin.beverages.edit');
+
+        Route::livewire('/beverages/restock', 'pages::dashboard.admin.beverages.restock')
+            ->name('admin.beverages.restock');
+
+        Route::livewire('/beverages/pos', 'pages::dashboard.admin.beverages.pos')
+            ->name('admin.beverages.pos');
+
+        Route::livewire('/beverages/sales', 'pages::dashboard.admin.beverages.sales')
+            ->name('admin.beverages.sales');
+
+        Route::livewire('/beverages/hutang', 'pages::dashboard.admin.beverages.hutang')
+            ->name('admin.beverages.hutang');
+
+        Route::livewire('/beverages/invoice', 'pages::dashboard.admin.beverages.invoice')
+            ->name('admin.beverages.invoice');
+
+        Route::livewire('/beverages/invoice/create', 'pages::dashboard.admin.beverages.invoice-create')
+            ->name('admin.beverages.invoice.create');
+
+        Route::livewire('/beverages/invoice/{invoice}/edit', 'pages::dashboard.admin.beverages.invoice-edit')
+            ->name('admin.beverages.invoice.edit');
+    });
 });
