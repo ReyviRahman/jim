@@ -78,6 +78,7 @@ new #[Layout('layouts::admin')] class extends Component
 
         BeverageSale::create([
             'beverage_id' => $originalSale->beverage_id,
+            'nama_produk' => $originalSale->nama_produk,
             'nama_staff' => $originalSale->nama_staff,
             'waktu_transaksi' => now(),
             'shift' => $originalSale->shift,
@@ -158,7 +159,7 @@ new #[Layout('layouts::admin')] class extends Component
                             <td class="px-4 py-3 whitespace-nowrap">{{ $sale->waktu_transaksi->format('d M Y H:i') }}</td>
                             <td class="px-4 py-3 whitespace-nowrap">{{ $sale->nama_staff }}</td>
                             <td class="px-4 py-3 whitespace-nowrap font-semibold text-red-600">{{ $sale->nama_penghutang ?? '-' }}</td>
-                            <td class="px-4 py-3 whitespace-nowrap">{{ $sale->beverage->nama_produk ?? '-' }}</td>
+                            <td class="px-4 py-3 whitespace-nowrap">{{ $sale->nama_produk ?? '-' }}</td>
                             <td class="px-4 py-3 text-center whitespace-nowrap">{{ $sale->jumlah_beli }}</td>
                             <td class="px-4 py-3 text-right whitespace-nowrap font-semibold text-emerald-600">Rp {{ number_format($sale->total_harga, 0, ',', '.') }}</td>
                             <td class="px-4 py-3 whitespace-nowrap">{{ ucfirst($sale->shift) }}</td>

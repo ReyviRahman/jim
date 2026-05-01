@@ -51,6 +51,7 @@ class BeverageApiController extends Controller
         foreach ($selectedProducts as $item) {
             BeverageSale::create([
                 'beverage_id' => $item['beverage_id'],
+                'nama_produk' => $item['nama_produk'],
                 'nama_staff' => $namaStaff,
                 'waktu_transaksi' => $tanggal,
                 'shift' => $shift,

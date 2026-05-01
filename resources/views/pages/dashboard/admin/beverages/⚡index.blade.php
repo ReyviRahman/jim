@@ -30,7 +30,9 @@ new #[Layout('layouts::admin')] class extends Component
         foreach ($beverages as $beverage) {
             $totalRestock = BeverageRestock::where('beverage_id', $beverage->id)->sum('jumlah_tambah');
             $beverage->ditambahkan = max(0, $totalRestock - $beverage->stok_awal);
-            $beverage->terjual = BeverageSale::where('beverage_id', $beverage->id)->sum('jumlah_beli');
+            $beverage->terjual = BeverageSale::where('beverage_id', $beverage->id)
+                ->whereNotIn('keterangan_bayar', ['deposit_hutang_cash', 'deposit_hutang_qris'])
+                ->sum('jumlah_beli');
             $beverage->stok_akhir = $beverage->stok_awal + $beverage->ditambahkan - $beverage->terjual;
         }
 

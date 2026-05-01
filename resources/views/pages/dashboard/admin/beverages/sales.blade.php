@@ -115,11 +115,20 @@ new #[Layout('layouts::admin')] class extends Component
                 </thead>
                 <tbody>
                     @forelse ($this->sales as $sale)
-                        <tr class="bg-neutral-primary-soft border-b border-default hover:bg-neutral-secondary-medium">
+                        @php
+                            $bgColor = match($sale->keterangan_bayar) {
+                                'operasional' => 'bg-blue-50',
+                                'pengeluaran_umum' => 'bg-red-50',
+                                'deposit_hutang_cash', 'deposit_hutang_qris' => 'bg-yellow-50',
+                                'hutang' => 'bg-purple-50',
+                                default => 'bg-neutral-primary-soft',
+                            };
+                        @endphp
+                        <tr class="{{ $bgColor }} border-b border-default hover:bg-neutral-secondary-medium">
                             <td class="px-4 py-3 whitespace-nowrap">{{ $sale->waktu_transaksi->format('d M Y H:i') }}</td>
                             <td class="px-4 py-3 whitespace-nowrap">{{ $sale->nama_staff }}</td>
                             <td class="px-4 py-3 whitespace-nowrap">{{ $sale->nama_penghutang ?? '-' }}</td>
-                            <td class="px-4 py-3 whitespace-nowrap">{{ $sale->beverage->nama_produk ?? '-' }}</td>
+                            <td class="px-4 py-3 whitespace-nowrap">{{ $sale->nama_produk ?? '-' }}</td>
                             <td class="px-4 py-3 text-center whitespace-nowrap">{{ $sale->jumlah_beli }}</td>
                             <td class="px-4 py-3 text-right whitespace-nowrap">Rp {{ number_format($sale->harga_satuan, 0, ',', '.') }}</td>
                             <td class="px-4 py-3 text-right whitespace-nowrap font-semibold text-emerald-600">Rp {{ number_format($sale->total_harga, 0, ',', '.') }}</td>
@@ -128,16 +137,26 @@ new #[Layout('layouts::admin')] class extends Component
                                 @php
                                     $metode = [
                                         'cash' => 'Cash',
-                                        'deposit_hutang' => 'Deposit/bayar utang',
-                                        'deposit_hutang_cash' => 'Deposit/Cash',
-                                        'deposit_hutang_qris' => 'Deposit/TF BCA/QRIS',
                                         'tf_bca_qris' => 'TF BCA/Qris',
-                                        'pengeluaran_umum' => 'Pengeluaran Umum',
-                                        'hutang' => 'Hutang',
                                         'operasional' => 'Operasional',
+                                        'pengeluaran_umum' => 'Pengeluaran Umum',
+                                        'deposit_hutang_cash' => 'Deposit/Cash',
+                                        'deposit_hutang_qris' => 'Deposit/QRIS',
+                                        'hutang' => 'Hutang',
                                     ];
+                                    $badge = match($sale->keterangan_bayar) {
+                                        'cash' => 'bg-emerald-100 text-emerald-700',
+                                        'tf_bca_qris' => 'bg-blue-100 text-blue-700',
+                                        'operasional' => 'bg-blue-100 text-blue-700',
+                                        'pengeluaran_umum' => 'bg-red-100 text-red-700',
+                                        'deposit_hutang_cash', 'deposit_hutang_qris' => 'bg-yellow-100 text-yellow-700',
+                                        'hutang' => 'bg-purple-100 text-purple-700',
+                                        default => 'bg-gray-100 text-gray-700',
+                                    };
                                 @endphp
-                                {{ $metode[$sale->keterangan_bayar] ?? $sale->keterangan_bayar }}
+                                <span class="px-2 py-1 rounded-full text-xs font-semibold {{ $badge }}">
+                                    {{ $metode[$sale->keterangan_bayar] ?? $sale->keterangan_bayar }}
+                                </span>
                             </td>
                         </tr>
                     @empty

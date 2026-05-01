@@ -12,6 +12,7 @@ class BeverageSale extends Model
 
     protected $fillable = [
         'beverage_id',
+        'nama_produk',
         'nama_staff',
         'waktu_transaksi',
         'shift',
