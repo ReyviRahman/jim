@@ -163,6 +163,8 @@ class BeverageSaleExport implements FromCollection, ShouldAutoSize, WithEvents
                 $totalCashRow = $dataStartRow + count($this->keteranganBayarList);
                 $grandTotalRow = $totalCashRow + 2;
                 $totalPenjualanRow = $grandTotalRow + 1;
+                $detailStartRow = $totalPenjualanRow + 1;
+                $totalRow = $detailStartRow + count($this->keteranganBayarList);
 
                 $firstShiftCol = 1;
                 $lastShiftCol = $numShifts * 2;
@@ -209,8 +211,8 @@ class BeverageSaleExport implements FromCollection, ShouldAutoSize, WithEvents
                 $sheet->mergeCells($firstColLetter . $grandTotalRow . ':' . $lastColLetter . $grandTotalRow);
 
                 $sheet->setCellValue($secondLastColLetter . $totalPenjualanRow, 'TOTAL PENJUALAN HARIAN:');
+                $sheet->setCellValue($valueColOfLastShift . $totalPenjualanRow, $this->grandTotal);
 
-                $detailStartRow = $totalPenjualanRow + 1;
                 $currentDetailRow = $detailStartRow;
                 foreach ($this->keteranganBayarList as $kb) {
                     $sheet->setCellValue($secondLastColLetter . $currentDetailRow, $this->keteranganBayarLabels[$kb] . ':');
@@ -218,7 +220,6 @@ class BeverageSaleExport implements FromCollection, ShouldAutoSize, WithEvents
                     $currentDetailRow++;
                 }
 
-                $totalRow = $currentDetailRow;
                 $sheet->setCellValue($secondLastColLetter . $totalRow, 'TOTAL:');
                 $sheet->setCellValue($valueColOfLastShift . $totalRow, $this->grandTotal);
 
@@ -267,6 +268,7 @@ class BeverageSaleExport implements FromCollection, ShouldAutoSize, WithEvents
                     'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
                     'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
                 ]);
+                $sheet->getStyle($valueColOfLastShift . $grandTotalRow)->getNumberFormat()->setFormatCode('_("Rp"* #,##0_);_("Rp"* \(#,##0\);_("Rp"* "-"??_);_(@_)');
 
                 $detailEndRow = $totalRow;
                 $sheet->getStyle($secondLastColLetter . $totalPenjualanRow . ':' . $secondLastColLetter . $detailEndRow)->applyFromArray([
@@ -276,19 +278,13 @@ class BeverageSaleExport implements FromCollection, ShouldAutoSize, WithEvents
                     'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
                 ]);
 
-                $sheet->getStyle($valueColOfLastShift . $detailStartRow . ':' . $valueColOfLastShift . $detailEndRow)->applyFromArray([
-                    'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FF16A34A']],
-                    'font' => ['bold' => true, 'color' => ['argb' => 'FFFFFFFF']],
-                    'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
-                    'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
-                ]);
-
                 $sheet->getStyle($valueColOfLastShift . $totalPenjualanRow)->applyFromArray([
                     'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFF97316']],
                     'font' => ['bold' => true, 'color' => ['argb' => 'FF000000']],
                     'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
                     'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
                 ]);
+                $sheet->getStyle($valueColOfLastShift . $totalPenjualanRow)->getNumberFormat()->setFormatCode('_("Rp"* #,##0_);_("Rp"* \(#,##0\);_("Rp"* "-"??_);_(@_)');
 
                 $sheet->getStyle($valueColOfLastShift . $totalRow)->applyFromArray([
                     'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFF97316']],
@@ -296,14 +292,7 @@ class BeverageSaleExport implements FromCollection, ShouldAutoSize, WithEvents
                     'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
                     'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
                 ]);
-
-                $sheet->getStyle($secondLastColLetter . $totalPenjualanRow)->applyFromArray([
-                    'alignment' => ['horizontal' => Alignment::HORIZONTAL_RIGHT],
-                ]);
-
-                $sheet->getStyle($secondLastColLetter . $totalRow)->applyFromArray([
-                    'alignment' => ['horizontal' => Alignment::HORIZONTAL_RIGHT],
-                ]);
+                $sheet->getStyle($valueColOfLastShift . $totalRow)->getNumberFormat()->setFormatCode('_("Rp"* #,##0_);_("Rp"* \(#,##0\);_("Rp"* "-"??_);_(@_)');
 
                 for ($col = $firstShiftCol; $col <= $lastShiftCol; $col++) {
                     $colLetter = Coordinate::stringFromColumnIndex($col);
