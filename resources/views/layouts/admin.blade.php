@@ -133,6 +133,13 @@
                         <span class="ms-3">Penjualan Minuman</span>
                     </a>
                 </li>
+                <li>
+                    <a href="{{ route('admin.beverages.invoice') }}" wire:navigate
+                        class="{{ request()->routeIs('admin.beverages.invoice') ? 'text-[#34342F] bg-brand' : 'text-white' }} flex items-center px-2 py-1.5 rounded-md hover:bg-brand hover:text-[#34342F] group transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="currentColor" d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zm-2 2l-4 4h3v6h2v-6h3z"/></svg>
+                        <span class="ms-3">Invoice</span>
+                    </a>
+                </li>
             </ul>
 
             

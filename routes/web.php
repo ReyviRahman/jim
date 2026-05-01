@@ -122,6 +122,12 @@ Route::middleware('auth')->group(function () {
 
         Route::livewire('/beverages/hutang', 'pages::dashboard.admin.beverages.hutang')
             ->name('admin.beverages.hutang');
+
+        Route::livewire('/beverages/invoice', 'pages::dashboard.admin.beverages.invoice')
+            ->name('admin.beverages.invoice');
+
+        Route::livewire('/beverages/invoice/create', 'pages::dashboard.admin.beverages.invoice-create')
+            ->name('admin.beverages.invoice.create');
     });
 
     Route::middleware('role:admin,head_coach')->prefix('dashboard/admin')->group(function () {

@@ -84,19 +84,28 @@ new #[Layout('layouts::admin')] class extends Component
             return;
         }
 
-        $stokAkhir = $beverage->stok_sekarang;
-
         BeverageRestock::updateOrCreate(
             ['beverage_id' => $id, 'tanggal' => $this->start_date, 'tipe' => 'init'],
             ['jumlah_tambah' => $beverage->stok_sekarang, 'keterangan' => 'Sinkronisasi stok awal dari stok akhir']
         );
 
+        session()->flash('success', 'Stok awal berhasil disinkronkan.');
+    }
+
+    public function syncStokAkhir($id)
+    {
+        $beverage = Beverage::find($id);
+        if (!$beverage) {
+            session()->flash('error', 'Produk tidak ditemukan.');
+            return;
+        }
+
         BeverageStokSnapshot::updateOrCreate(
             ['beverage_id' => $id, 'tanggal' => $this->start_date],
-            ['stok_akhir' => $stokAkhir]
+            ['stok_akhir' => $beverage->stok_sekarang]
         );
 
-        session()->flash('success', 'Stok awal berhasil disinkronkan dengan stok akhir.');
+        session()->flash('success', 'Stok akhir berhasil disinkronkan.');
     }
 
     public function with(): array
@@ -187,6 +196,9 @@ new #[Layout('layouts::admin')] class extends Component
                                 <span class="{{ $beverage->stok_akhir <= 5 ? 'text-red-600 font-bold' : 'text-emerald-600 font-semibold' }}">
                                     {{ $beverage->stok_akhir }}
                                 </span>
+                                <button type="button" wire:click="syncStokAkhir({{ $beverage->id }})" wire:confirm="Yakin ingin menyinkronkan stok akhir?" class="ml-1 text-xs text-purple-600 hover:text-purple-800" title="Sinkronkan stok akhir">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"></path><path d="M16 16h5v5"></path></svg>
+                                </button>
                             </td>
                             <td class="px-4 py-3 text-center whitespace-nowrap">
                                 <span class="{{ $beverage->stok_sekarang <= 5 ? 'text-red-600 font-bold' : 'text-blue-600 font-semibold' }}">
