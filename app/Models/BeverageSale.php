@@ -12,6 +12,7 @@ class BeverageSale extends Model
 
     protected $fillable = [
         'beverage_id',
+        'nama_produk',
         'nama_staff',
         'waktu_transaksi',
         'shift',
@@ -19,6 +20,8 @@ class BeverageSale extends Model
         'harga_satuan',
         'total_harga',
         'keterangan_bayar',
+        'nama_penghutang',
+        'is_lunas',
     ];
 
     protected function casts(): array

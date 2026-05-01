@@ -5,6 +5,7 @@ namespace App\Livewire\Pages\Dashboard\Admin\Beverages;
 use App\Models\Beverage;
 use App\Models\BeverageRestock;
 use App\Models\BeverageSale;
+use App\Models\BeverageStokSnapshot;
 use Livewire\Component;
 use Livewire\Attributes\Layout;
 use Livewire\WithPagination;
@@ -14,6 +15,12 @@ new #[Layout('layouts::admin')] class extends Component
     use WithPagination;
 
     public $search = '';
+    public $start_date = '';
+
+    public function mount()
+    {
+        $this->start_date = date('Y-m-d');
+    }
 
     public function updatingSearch()
     {
@@ -28,10 +35,24 @@ new #[Layout('layouts::admin')] class extends Component
             ->paginate(10);
 
         foreach ($beverages as $beverage) {
-            $totalRestock = BeverageRestock::where('beverage_id', $beverage->id)->sum('jumlah_tambah');
-            $beverage->ditambahkan = max(0, $totalRestock - $beverage->stok_awal);
-            $beverage->terjual = BeverageSale::where('beverage_id', $beverage->id)->sum('jumlah_beli');
-            $beverage->stok_akhir = $beverage->stok_awal + $beverage->ditambahkan - $beverage->terjual;
+            $beverage->stok_awal = BeverageRestock::where('beverage_id', $beverage->id)
+                ->where('tipe', 'init')
+                ->when($this->start_date, fn($q) => $q->whereDate('tanggal', $this->start_date))
+                ->sum('jumlah_tambah');
+
+            $beverage->ditambahkan = BeverageRestock::where('beverage_id', $beverage->id)
+                ->where('tipe', 'restock')
+                ->when($this->start_date, fn($q) => $q->whereDate('tanggal', $this->start_date))
+                ->sum('jumlah_tambah');
+
+            $beverage->terjual = BeverageSale::where('beverage_id', $beverage->id)
+                ->whereNotIn('keterangan_bayar', ['deposit_hutang_cash', 'deposit_hutang_qris'])
+                ->when($this->start_date, fn($q) => $q->whereDate('waktu_transaksi', $this->start_date))
+                ->sum('jumlah_beli');
+
+            $beverage->stok_akhir = BeverageStokSnapshot::where('beverage_id', $beverage->id)
+                ->when($this->start_date, fn($q) => $q->whereDate('tanggal', $this->start_date))
+                ->sum('stok_akhir');
         }
 
         return $beverages;
@@ -53,6 +74,38 @@ new #[Layout('layouts::admin')] class extends Component
     {
         Beverage::withTrashed()->find($id)->forceDelete();
         session()->flash('success', 'Produk berhasil dihapus permanen.');
+    }
+
+    public function syncStokAwal($id)
+    {
+        $beverage = Beverage::find($id);
+        if (!$beverage) {
+            session()->flash('error', 'Produk tidak ditemukan.');
+            return;
+        }
+
+        BeverageRestock::updateOrCreate(
+            ['beverage_id' => $id, 'tanggal' => $this->start_date, 'tipe' => 'init'],
+            ['jumlah_tambah' => $beverage->stok_sekarang, 'keterangan' => 'Sinkronisasi stok awal dari stok akhir']
+        );
+
+        session()->flash('success', 'Stok awal berhasil disinkronkan.');
+    }
+
+    public function syncStokAkhir($id)
+    {
+        $beverage = Beverage::find($id);
+        if (!$beverage) {
+            session()->flash('error', 'Produk tidak ditemukan.');
+            return;
+        }
+
+        BeverageStokSnapshot::updateOrCreate(
+            ['beverage_id' => $id, 'tanggal' => $this->start_date],
+            ['stok_akhir' => $beverage->stok_sekarang]
+        );
+
+        session()->flash('success', 'Stok akhir berhasil disinkronkan.');
     }
 
     public function with(): array
@@ -79,11 +132,17 @@ new #[Layout('layouts::admin')] class extends Component
 
     <div class="bg-neutral-primary-soft shadow-xs rounded-md border border-default">
         <div class="p-4 flex flex-col md:flex-row items-center justify-between gap-4">
-            <div class="relative w-full md:w-auto md:flex-1">
-                <div class="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
-                    <svg class="w-4 h-4 text-body" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" stroke-linecap="round" stroke-width="2" d="m21 21-3.5-3.5M17 10a7 7 0 1 1-14 0 7 7 0 0 1 14 0Z"/></svg>
+            <div class="flex flex-col sm:flex-row gap-2 w-full">
+                <div class="flex-1">
+                    <input type="text" wire:model.live.debounce.300ms="search" class="block w-full ps-9 pe-3 py-2.5 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs placeholder:text-body" placeholder="Cari nama produk...">
                 </div>
-                <input type="text" wire:model.live.debounce.300ms="search" class="block w-full max-w-sm ps-9 pe-3 py-2.5 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs placeholder:text-body" placeholder="Cari nama produk...">
+                <div class="flex gap-2">
+                    <div>
+                        <label class="block mb-1 text-xs font-medium text-heading">Tanggal</label>
+                        <input type="date" wire:model.live="start_date"
+                            class="block px-2 py-1.5 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs">
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -99,6 +158,7 @@ new #[Layout('layouts::admin')] class extends Component
                         <th scope="col" class="px-4 py-3 font-medium text-center">Ditambahkan</th>
                         <th scope="col" class="px-4 py-3 font-medium text-center">Terjual</th>
                         <th scope="col" class="px-4 py-3 font-medium text-center">Stok Akhir</th>
+                        <th scope="col" class="px-4 py-3 font-medium text-center">Real Stok</th>
                         <th scope="col" class="px-4 py-3 font-medium text-center">Aksi</th>
                     </tr>
                 </thead>
@@ -122,6 +182,9 @@ new #[Layout('layouts::admin')] class extends Component
                             </td>
                             <td class="px-4 py-3 text-center whitespace-nowrap">
                                 {{ $beverage->stok_awal }}
+                                <button type="button" wire:click="syncStokAwal({{ $beverage->id }})" wire:confirm="Yakin ingin menyamakan stok awal dengan stok akhir?" class="ml-1 text-xs text-blue-600 hover:text-blue-800" title="Sinkronkan stok awal">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"></path><path d="M16 16h5v5"></path></svg>
+                                </button>
                             </td>
                             <td class="px-4 py-3 text-center whitespace-nowrap text-emerald-600 font-semibold">
                                 +{{ $beverage->ditambahkan }}
@@ -132,6 +195,14 @@ new #[Layout('layouts::admin')] class extends Component
                             <td class="px-4 py-3 text-center whitespace-nowrap">
                                 <span class="{{ $beverage->stok_akhir <= 5 ? 'text-red-600 font-bold' : 'text-emerald-600 font-semibold' }}">
                                     {{ $beverage->stok_akhir }}
+                                </span>
+                                <button type="button" wire:click="syncStokAkhir({{ $beverage->id }})" wire:confirm="Yakin ingin menyinkronkan stok akhir?" class="ml-1 text-xs text-purple-600 hover:text-purple-800" title="Sinkronkan stok akhir">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"></path><path d="M16 16h5v5"></path></svg>
+                                </button>
+                            </td>
+                            <td class="px-4 py-3 text-center whitespace-nowrap">
+                                <span class="{{ $beverage->stok_sekarang <= 5 ? 'text-red-600 font-bold' : 'text-blue-600 font-semibold' }}">
+                                    {{ $beverage->stok_sekarang }}
                                 </span>
                             </td>
                             <td class="px-4 py-3 text-center whitespace-nowrap">

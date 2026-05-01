@@ -13,7 +13,6 @@ use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Color;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
-use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 
 class BeverageSaleExport implements FromCollection, ShouldAutoSize, WithEvents
 {
@@ -26,8 +25,6 @@ class BeverageSaleExport implements FromCollection, ShouldAutoSize, WithEvents
     private $groupedData = [];
     private $cashTotals = [];
     private $grandTotal = 0;
-    private $staffNames = [];
-    private $totalsPerKb = [];
     private $shifts = ['pagi', 'siang', 'malam'];
     private $keteranganBayarList = [
         'cash',
@@ -84,8 +81,6 @@ class BeverageSaleExport implements FromCollection, ShouldAutoSize, WithEvents
         $this->groupedData = [];
         $this->cashTotals = [];
         $this->grandTotal = 0;
-        $this->staffNames = [];
-        $this->totalsPerKb = [];
 
         foreach ($this->shifts as $shift) {
             $this->groupedData[$shift] = [];
@@ -93,11 +88,6 @@ class BeverageSaleExport implements FromCollection, ShouldAutoSize, WithEvents
                 $this->groupedData[$shift][$kb] = 0;
             }
             $this->cashTotals[$shift] = 0;
-            $this->staffNames[$shift] = [];
-        }
-
-        foreach ($this->keteranganBayarList as $kb) {
-            $this->totalsPerKb[$kb] = 0;
         }
 
         foreach ($sales as $sale) {
@@ -110,14 +100,6 @@ class BeverageSaleExport implements FromCollection, ShouldAutoSize, WithEvents
 
             if ($kb === 'cash') {
                 $this->cashTotals[$shift] += $sale->total_harga;
-            }
-
-            if (!in_array($sale->nama_staff, $this->staffNames[$shift])) {
-                $this->staffNames[$shift][] = $sale->nama_staff;
-            }
-
-            if (isset($this->totalsPerKb[$kb])) {
-                $this->totalsPerKb[$kb] += $sale->total_harga;
             }
 
             $this->grandTotal += $sale->total_harga;
@@ -154,7 +136,7 @@ class BeverageSaleExport implements FromCollection, ShouldAutoSize, WithEvents
                     return;
                 }
 
-                $labelWidth = 25;
+                $labelWidth = 20;
                 $valueWidth = 15;
 
                 $headerRow = 1;
@@ -162,25 +144,16 @@ class BeverageSaleExport implements FromCollection, ShouldAutoSize, WithEvents
                 $dataStartRow = 3;
                 $totalCashRow = $dataStartRow + count($this->keteranganBayarList);
                 $grandTotalRow = $totalCashRow + 2;
-                $totalPenjualanRow = $grandTotalRow + 1;
-                $detailStartRow = $totalPenjualanRow + 1;
-                $totalRow = $detailStartRow + count($this->keteranganBayarList);
-
-                $firstShiftCol = 1;
-                $lastShiftCol = $numShifts * 2;
-                $firstColLetter = Coordinate::stringFromColumnIndex($firstShiftCol);
-                $lastColLetter = Coordinate::stringFromColumnIndex($lastShiftCol);
 
                 foreach ($activeShifts as $index => $shift) {
                     $startCol = $index * 2 + 1;
                     $labelCol = $startCol;
                     $valueCol = $startCol + 1;
 
-                    $labelColLetter = Coordinate::stringFromColumnIndex($labelCol);
-                    $valueColLetter = Coordinate::stringFromColumnIndex($valueCol);
+                    $labelColLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($labelCol);
+                    $valueColLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($valueCol);
 
-                    $staffList = implode(', ', $this->staffNames[$shift]);
-                    $sheet->setCellValue($labelColLetter . $headerRow, 'SHIFT ' . strtoupper($shift) . ': ' . $staffList);
+                    $sheet->setCellValue($labelColLetter . $headerRow, ucfirst($shift));
                     $sheet->setCellValue($labelColLetter . $subHeaderRow, 'Keterangan Bayar');
                     $sheet->setCellValue($valueColLetter . $subHeaderRow, 'Total');
 
@@ -198,37 +171,26 @@ class BeverageSaleExport implements FromCollection, ShouldAutoSize, WithEvents
                     $sheet->getColumnDimension($valueColLetter)->setWidth($valueWidth);
                 }
 
+                $firstShiftCol = 1;
+                $lastShiftCol = $numShifts * 2;
+                $firstColLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($firstShiftCol);
+                $lastColLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($lastShiftCol);
+
                 for ($col = $firstShiftCol; $col <= $lastShiftCol; $col++) {
-                    $colLetter = Coordinate::stringFromColumnIndex($col);
+                    $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col);
                     $sheet->getColumnDimension($colLetter)->setWidth($col % 2 === 1 ? $labelWidth : $valueWidth);
                 }
 
-                $valueColOfLastShift = Coordinate::stringFromColumnIndex($lastShiftCol);
-                $secondLastCol = $lastShiftCol - 1;
-                $secondLastColLetter = Coordinate::stringFromColumnIndex($secondLastCol);
-
                 $sheet->setCellValue('A' . $grandTotalRow, 'GRAND TOTAL');
-                $sheet->mergeCells($firstColLetter . $grandTotalRow . ':' . $lastColLetter . $grandTotalRow);
-
-                $sheet->setCellValue($secondLastColLetter . $totalPenjualanRow, 'TOTAL PENJUALAN HARIAN:');
-                $sheet->setCellValue($valueColOfLastShift . $totalPenjualanRow, $this->grandTotal);
-
-                $currentDetailRow = $detailStartRow;
-                foreach ($this->keteranganBayarList as $kb) {
-                    $sheet->setCellValue($secondLastColLetter . $currentDetailRow, $this->keteranganBayarLabels[$kb] . ':');
-                    $sheet->setCellValue($valueColOfLastShift . $currentDetailRow, $this->totalsPerKb[$kb]);
-                    $currentDetailRow++;
-                }
-
-                $sheet->setCellValue($secondLastColLetter . $totalRow, 'TOTAL:');
-                $sheet->setCellValue($valueColOfLastShift . $totalRow, $this->grandTotal);
+                $valueColOfLastShift = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($lastShiftCol);
+                $sheet->setCellValue($valueColOfLastShift . $grandTotalRow, $this->grandTotal);
 
                 for ($i = 0; $i < $numShifts; $i++) {
                     $startCol = $i * 2 + 1;
                     $labelCol = $startCol;
                     $valueCol = $startCol + 1;
-                    $labelColLetter = Coordinate::stringFromColumnIndex($labelCol);
-                    $valueColLetter = Coordinate::stringFromColumnIndex($valueCol);
+                    $labelColLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($labelCol);
+                    $valueColLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($valueCol);
 
                     $sheet->getStyle($labelColLetter . $headerRow . ':' . $valueColLetter . $headerRow)->applyFromArray([
                         'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FF22C55E']],
@@ -262,41 +224,16 @@ class BeverageSaleExport implements FromCollection, ShouldAutoSize, WithEvents
                     ]);
                 }
 
-                $sheet->getStyle($firstColLetter . $grandTotalRow . ':' . $lastColLetter . $grandTotalRow)->applyFromArray([
+                $sheet->getStyle('A' . $grandTotalRow . ':' . $valueColOfLastShift . $grandTotalRow)->applyFromArray([
                     'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FF16A34A']],
                     'font' => ['bold' => true, 'color' => ['argb' => 'FFFFFFFF']],
                     'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
                     'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
                 ]);
-                $sheet->getStyle($valueColOfLastShift . $grandTotalRow)->getNumberFormat()->setFormatCode('_("Rp"* #,##0_);_("Rp"* \(#,##0\);_("Rp"* "-"??_);_(@_)');
-
-                $detailEndRow = $totalRow;
-                $sheet->getStyle($secondLastColLetter . $totalPenjualanRow . ':' . $secondLastColLetter . $detailEndRow)->applyFromArray([
-                    'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFF97316']],
-                    'font' => ['bold' => true, 'color' => ['argb' => 'FF000000']],
-                    'alignment' => ['horizontal' => Alignment::HORIZONTAL_RIGHT],
-                    'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
-                ]);
-
-                $sheet->getStyle($valueColOfLastShift . $totalPenjualanRow)->applyFromArray([
-                    'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFF97316']],
-                    'font' => ['bold' => true, 'color' => ['argb' => 'FF000000']],
-                    'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
-                    'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
-                ]);
-                $sheet->getStyle($valueColOfLastShift . $totalPenjualanRow)->getNumberFormat()->setFormatCode('_("Rp"* #,##0_);_("Rp"* \(#,##0\);_("Rp"* "-"??_);_(@_)');
-
-                $sheet->getStyle($valueColOfLastShift . $totalRow)->applyFromArray([
-                    'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFF97316']],
-                    'font' => ['bold' => true, 'color' => ['argb' => 'FF000000']],
-                    'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
-                    'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
-                ]);
-                $sheet->getStyle($valueColOfLastShift . $totalRow)->getNumberFormat()->setFormatCode('_("Rp"* #,##0_);_("Rp"* \(#,##0\);_("Rp"* "-"??_);_(@_)');
 
                 for ($col = $firstShiftCol; $col <= $lastShiftCol; $col++) {
-                    $colLetter = Coordinate::stringFromColumnIndex($col);
-                    for ($row = $headerRow; $row <= $detailEndRow; $row++) {
+                    $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col);
+                    for ($row = $headerRow; $row <= $grandTotalRow; $row++) {
                         $sheet->getStyle($colLetter . $row)->applyFromArray([
                             'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
                         ]);
@@ -305,16 +242,14 @@ class BeverageSaleExport implements FromCollection, ShouldAutoSize, WithEvents
 
                 for ($i = 0; $i < $numShifts; $i++) {
                     $valueCol = ($i * 2 + 1) + 1;
-                    $valueColLetter = Coordinate::stringFromColumnIndex($valueCol);
+                    $valueColLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($valueCol);
 
                     for ($row = $dataStartRow; $row <= $totalCashRow; $row++) {
                         $sheet->getStyle($valueColLetter . $row)->getNumberFormat()->setFormatCode('_("Rp"* #,##0_);_("Rp"* \(#,##0\);_("Rp"* "-"??_);_(@_)');
                     }
                 }
 
-                for ($row = $detailStartRow; $row <= $totalRow; $row++) {
-                    $sheet->getStyle($valueColOfLastShift . $row)->getNumberFormat()->setFormatCode('_("Rp"* #,##0_);_("Rp"* \(#,##0\);_("Rp"* "-"??_);_(@_)');
-                }
+                $sheet->getStyle($valueColOfLastShift . $grandTotalRow)->getNumberFormat()->setFormatCode('_("Rp"* #,##0_);_("Rp"* \(#,##0\);_("Rp"* "-"??_);_(@_)');
             }
         ];
     }

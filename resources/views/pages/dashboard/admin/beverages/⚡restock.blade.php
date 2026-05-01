@@ -19,7 +19,13 @@ new #[Layout('layouts::admin')] class extends Component
     public $jumlah_tambah = '';
     public $keterangan = '';
     public $tanggal = '';
-    public $jadikan_stok_awal = false;
+
+    public $editingId = null;
+    public $edit_jumlah_tambah = '';
+    public $edit_keterangan = '';
+    public $edit_tanggal = '';
+
+    public $deleteId = null;
 
     public $start_date = '';
     public $end_date = '';
@@ -63,28 +69,25 @@ new #[Layout('layouts::admin')] class extends Component
             'beverage_id' => $this->beverage_id,
             'tanggal' => $this->tanggal,
             'jumlah_tambah' => $this->jumlah_tambah,
+            'tipe' => 'restock',
             'keterangan' => $this->keterangan,
         ]);
 
-        $updateData = [
+        $beverage->update([
             'stok_sekarang' => $newStokSekarang,
-        ];
-
-        if ($this->jadikan_stok_awal) {
-            $updateData['stok_awal'] = $this->jumlah_tambah;
-        }
-
-        $beverage->update($updateData);
+        ]);
 
         session()->flash('success', 'Stok berhasil ditambahkan.');
 
-        $this->reset(['beverage_id', 'jumlah_tambah', 'keterangan', 'selectedBeverage', 'jadikan_stok_awal']);
+        $this->reset(['beverage_id', 'jumlah_tambah', 'keterangan', 'selectedBeverage']);
         $this->tanggal = date('Y-m-d');
     }
 
-    public function forceDelete($id)
+    public function executeDelete()
     {
-        $restock = BeverageRestock::find($id);
+        if (!$this->deleteId) return;
+
+        $restock = BeverageRestock::find($this->deleteId);
         if ($restock) {
             $beverage = Beverage::find($restock->beverage_id);
             if ($beverage) {
@@ -95,6 +98,69 @@ new #[Layout('layouts::admin')] class extends Component
             $restock->forceDelete();
             session()->flash('success', 'Data restock berhasil dihapus permanen.');
         }
+        $this->deleteId = null;
+    }
+
+    public function edit($id)
+    {
+        $restock = BeverageRestock::find($id);
+        if ($restock) {
+            $this->editingId = $id;
+            $this->edit_tanggal = $restock->tanggal->format('Y-m-d');
+            $this->edit_jumlah_tambah = $restock->jumlah_tambah;
+            $this->edit_keterangan = $restock->keterangan ?? '';
+        }
+    }
+
+    public function cancelEdit()
+    {
+        $this->editingId = null;
+        $this->edit_jumlah_tambah = '';
+        $this->edit_keterangan = '';
+        $this->edit_tanggal = '';
+    }
+
+    public function confirmDelete($id)
+    {
+        $this->deleteId = $id;
+    }
+
+    public function cancelDelete()
+    {
+        $this->deleteId = null;
+    }
+
+    public function update()
+    {
+        $this->validate([
+            'editingId' => 'required',
+            'edit_jumlah_tambah' => 'required|integer|min:1',
+        ]);
+
+        $restock = BeverageRestock::find($this->editingId);
+        if (!$restock) {
+            session()->flash('error', 'Data restock tidak ditemukan.');
+            return;
+        }
+
+        $selisih = $this->edit_jumlah_tambah - $restock->jumlah_tambah;
+
+        $restock->update([
+            'tanggal' => $this->edit_tanggal,
+            'jumlah_tambah' => $this->edit_jumlah_tambah,
+            'keterangan' => $this->edit_keterangan,
+        ]);
+
+        $beverage = Beverage::find($restock->beverage_id);
+        if ($beverage) {
+            $beverage->update([
+                'stok_sekarang' => $beverage->stok_sekarang + $selisih,
+            ]);
+        }
+
+        session()->flash('success', 'Data restock berhasil diperbarui.');
+
+        $this->cancelEdit();
     }
 
     public function getProductsProperty()
@@ -113,6 +179,7 @@ new #[Layout('layouts::admin')] class extends Component
         return BeverageRestock::with(['beverage' => function ($query) {
             $query->withTrashed();
         }])
+        ->where('tipe', 'restock')
         ->when($this->start_date, function ($query) {
             $query->whereDate('tanggal', '>=', $this->start_date);
         })
@@ -195,7 +262,11 @@ new #[Layout('layouts::admin')] class extends Component
 
                 <div class="mb-4">
                     <label for="jumlah_tambah" class="block mb-2.5 text-sm font-medium text-heading">Jumlah Tambah</label>
-                    <input type="number" id="jumlah_tambah" wire:model.live="jumlah_tambah" min="1"
+                    <input type="text" 
+                        inputmode="numeric" 
+                        pattern="[0-9]*" 
+                        id="jumlah_tambah" 
+                        wire:model.live="jumlah_tambah" 
                         class="block w-full px-3 py-2.5 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs placeholder:text-body"
                         placeholder="Contoh: 10">
                     @error('jumlah_tambah') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
@@ -206,13 +277,6 @@ new #[Layout('layouts::admin')] class extends Component
                     <input type="text" id="keterangan" wire:model="keterangan"
                         class="block w-full px-3 py-2.5 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs placeholder:text-body"
                         placeholder="Contoh: Pengiriman dari supplier">
-                </div>
-
-                <div class="mb-6">
-                    <label class="inline-flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" wire:model="jadikan_stok_awal" class="w-4 h-4 text-brand bg-neutral-secondary-medium border-gray-300 rounded focus:ring-brand">
-                        <span class="text-sm font-medium text-heading">Jadikan Stok Awal</span>
-                    </label>
                 </div>
 
                 <div class="flex items-center gap-3">
@@ -258,16 +322,55 @@ new #[Layout('layouts::admin')] class extends Component
                     <tbody>
                         @forelse ($this->restocks as $restock)
                             <tr wire:key="{{ $restock->id }}" class="bg-neutral-primary-soft border-b border-default hover:bg-neutral-secondary-medium">
-                                <td class="px-4 py-3 whitespace-nowrap">{{ $restock->tanggal->format('d M Y') }}</td>
-                                <td class="px-4 py-3 whitespace-nowrap">{{ $restock->beverage->nama_produk ?? '-' }}</td>
-                                <td class="px-4 py-3 text-center whitespace-nowrap text-emerald-600 font-semibold">+{{ $restock->jumlah_tambah }}</td>
-                                <td class="px-4 py-3 whitespace-nowrap text-xs">{{ $restock->keterangan ?? '-' }}</td>
+                                @if ($restock->id === $this->editingId)
+                                    <td class="px-4 py-3 whitespace-nowrap">
+                                        <input type="date" wire:model.live="edit_tanggal" class="block w-full px-2 py-1 bg-white border border-default-medium text-heading text-xs rounded-base">
+                                    </td>
+                                    <td class="px-4 py-3 whitespace-nowrap">{{ $restock->beverage->nama_produk ?? '-' }}</td>
+                                    <td class="px-4 py-3 whitespace-nowrap">
+                                        <input type="text" inputmode="numeric" pattern="[0-9]*" wire:model.live="edit_jumlah_tambah" class="block w-20 px-2 py-1 bg-white border border-default-medium text-heading text-xs rounded-base text-center">
+                                    </td>
+                                    <td class="px-4 py-3 whitespace-nowrap">
+                                        <input type="text" wire:model.live="edit_keterangan" class="block w-full px-2 py-1 bg-white border border-default-medium text-heading text-xs rounded-base" placeholder="Keterangan">
+                                    </td>
+                                @else
+                                    <td class="px-4 py-3 whitespace-nowrap">{{ $restock->tanggal->format('d M Y') }}</td>
+                                    <td class="px-4 py-3 whitespace-nowrap">{{ $restock->beverage->nama_produk ?? '-' }}</td>
+                                    <td class="px-4 py-3 text-center whitespace-nowrap text-emerald-600 font-semibold">+{{ $restock->jumlah_tambah }}</td>
+                                    <td class="px-4 py-3 whitespace-nowrap text-xs">{{ $restock->keterangan ?? '-' }}</td>
+                                @endif
                                 <td class="px-4 py-3 text-center whitespace-nowrap">
-                                    <button type="button" wire:click="forceDelete({{ $restock->id }})" wire:confirm="Yakin ingin menghapus permanen data restock ini? Stok akan dikurangi."
-                                        class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-red-700 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 focus:ring-2 focus:ring-red-300 transition-colors">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
-                                        Hapus
-                                    </button>
+                                    @if ($restock->id === $this->editingId)
+                                        <div class="flex items-center justify-center gap-1">
+                                            <button type="button" wire:click="update" class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-white bg-emerald-600 border border-emerald-600 rounded-md hover:bg-emerald-700">
+                                                Simpan
+                                            </button>
+                                            <button type="button" wire:click="cancelEdit" class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200">
+                                                Batal
+                                            </button>
+                                        </div>
+                                    @elseif ($this->deleteId === $restock->id)
+                                        <div class="flex items-center justify-center gap-1">
+                                            <span class="text-xs text-red-600 font-medium">Hapus?</span>
+                                            <button type="button" wire:click="executeDelete" class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-white bg-red-600 border border-red-600 rounded-md hover:bg-red-700">
+                                                Ya
+                                            </button>
+                                            <button type="button" wire:click="cancelDelete" class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200">
+                                                Tidak
+                                            </button>
+                                        </div>
+                                    @else
+                                        <div class="flex items-center justify-center gap-1">
+                                            <button type="button" wire:click="edit({{ $restock->id }})" class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                                                Edit
+                                            </button>
+                                            <button type="button" wire:click="confirmDelete({{ $restock->id }})" class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-red-700 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 focus:ring-2 focus:ring-red-300 transition-colors">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                                                Hapus
+                                            </button>
+                                        </div>
+                                    @endif
                                 </td>
                             </tr>
                         @empty

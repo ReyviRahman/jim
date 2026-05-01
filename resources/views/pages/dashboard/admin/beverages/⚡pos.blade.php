@@ -14,9 +14,13 @@ new #[Layout('layouts::admin')] class extends Component
     public $selectedProducts = [];
     public $shift = '';
     public $keterangan_bayar = 'cash';
+    public $nama_penghutang = '';
     public $nama_staff = '';
     public $products = [];
     public $showNotFound = false;
+    public $showExpenseModal = false;
+    public $expense_name = '';
+    public $expense_amount = '';
 
     public function mount()
     {
@@ -132,6 +136,42 @@ new #[Layout('layouts::admin')] class extends Component
         return redirect(request()->header('Referer'));
     }
 
+    public function openExpenseModal()
+    {
+        $this->showExpenseModal = true;
+    }
+
+    public function closeExpenseModal()
+    {
+        $this->showExpenseModal = false;
+        $this->expense_name = '';
+        $this->expense_amount = '';
+    }
+
+    public function saveExpense()
+    {
+        if (empty($this->expense_name) || empty($this->expense_amount)) {
+            session()->flash('error', 'Nama dan jumlah pengeluaran harus diisi.');
+            return;
+        }
+
+        BeverageSale::create([
+            'nama_staff' => $this->nama_staff,
+            'waktu_transaksi' => now(),
+            'shift' => $this->shift,
+            'jumlah_beli' => 0,
+            'harga_satuan' => 0,
+            'total_harga' => (int) str_replace('.', '', $this->expense_amount),
+            'keterangan_bayar' => 'pengeluaran_umum',
+            'nama_produk' => $this->expense_name,
+            'nama_penghutang' => auth()->user()->name,
+        ]);
+
+        session()->flash('success', 'Pengeluaran berhasil disimpan!');
+
+        $this->closeExpenseModal();
+    }
+
     public function with(): array
     {
         return [];
@@ -145,9 +185,13 @@ new #[Layout('layouts::admin')] class extends Component
     products: [],
     showNotFound: false,
     keterangan_bayar: 'cash',
+    nama_penghutang: '',
     total: 0,
     totalItems: 0,
     showModal: false,
+    showExpenseModal: false,
+    expense_name: '',
+    expense_amount: '',
     shift: '{{ auth()->user()->shift ?? 'pagi' }}',
     nama_staff: '{{ auth()->user()->name ?? '' }}',
     tanggal: (() => {
@@ -212,11 +256,25 @@ new #[Layout('layouts::admin')] class extends Component
 
     openModal() {
         if (this.selectedProducts.length === 0) return;
+        if (this.keterangan_bayar === 'hutang' && !this.nama_penghutang.trim()) {
+            alert('Nama penghutang harus diisi untuk transaksi hutang.');
+            return;
+        }
         this.showModal = true;
     },
 
     closeModal() {
         this.showModal = false;
+    },
+
+    openExpenseModal() {
+        this.showExpenseModal = true;
+    },
+
+    closeExpenseModal() {
+        this.showExpenseModal = false;
+        this.expense_name = '';
+        this.expense_amount = '';
     },
 
     submitForm() {
@@ -240,13 +298,27 @@ new #[Layout('layouts::admin')] class extends Component
         </div>
     @endif
 
+    
+
     <form id="pos-form" action="{{ route('admin.beverages.pos.process') }}" method="POST">
         @csrf
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div class="lg:col-span-2 bg-neutral-primary-soft shadow-xs rounded-md border border-default">
                 <div class="p-4 border-b border-default-medium">
-                    <h6 class="text-lg font-semibold text-heading mb-3">Pilih Produk</h6>
-                    <div class="relative">
+                    <div class="flex flex-col sm:flex-row justify-between items-center gap-4">
+                        <h6 class="text-lg font-semibold text-heading mb-3">Pilih Produk</h6>
+                        <div class="flex gap-2">
+                            <button type="button" wire:click="openExpenseModal"
+                                class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-semibold rounded-md transition-colors">
+                                + Pengeluaran Umum
+                            </button>
+                            <a href="{{ route('admin.beverages.hutang') }}"
+                                class="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold rounded-md transition-colors">
+                                Daftar Hutang
+                            </a>
+                        </div>
+                    </div>
+                    <div class="relative mt-2">
                         <input type="text" x-model="searchProduct" @input.debounce.300ms="searchProducts()"
                             class="block w-full px-3 py-2.5 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs placeholder:text-body"
                             placeholder="Ketik nama produk... (Le Minerale)">
@@ -346,13 +418,20 @@ new #[Layout('layouts::admin')] class extends Component
                     <select x-model="keterangan_bayar" name="keterangan_bayar" 
                         class="block w-full px-3 py-2.5 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs">
                         <option value="cash">Cash</option>
-                        <option value="deposit_hutang">Deposit/bayar utang</option>
                         <option value="tf_bca_qris">TF BCA/Qris</option>
-                        <option value="pengeluaran_umum">Pengeluaran Umum</option>
                         <option value="hutang">Hutang</option>
                         <option value="operasional">Operasional</option>
                     </select>
                 </div>
+
+                <template x-if="keterangan_bayar === 'hutang'">
+                    <div class="mb-4">
+                        <label class="block mb-2 text-sm font-medium text-heading">Nama Penghutang</label>
+                        <input type="text" x-model="nama_penghutang" name="nama_penghutang"
+                            class="block w-full px-3 py-2.5 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs"
+                            placeholder="Masukkan nama penghutang">
+                    </div>
+                </template>
 
                 <div class="border-t border-default-medium pt-4 mt-4">
                     <div class="flex justify-between items-center mb-2">
@@ -365,6 +444,7 @@ new #[Layout('layouts::admin')] class extends Component
                     </div>
                 </div>
 
+                <input type="hidden" name="nama_penghutang" :value="nama_penghutang">
                 <input type="hidden" name="selected_products" :value="JSON.stringify(selectedProducts)">
 
                 <button type="button" @click="openModal()" :disabled="selectedProducts.length === 0"
@@ -462,6 +542,63 @@ new #[Layout('layouts::admin')] class extends Component
                         class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-heading hover:bg-gray-50 focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
                         Batal
                     </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div x-show="showExpenseModal" x-on:keydown.escape.window="closeExpenseModal()"
+        class="fixed inset-0 z-50 overflow-y-auto"
+        x-transition:enter="transition ease-out duration-300"
+        x-transition:enter-start="opacity-0"
+        x-transition:enter-end="opacity-100"
+        x-transition:leave="transition ease-in duration-200"
+        x-transition:leave-start="opacity-100"
+        x-transition:leave-end="opacity-0"
+        style="display: none;">
+        <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 bg-black/30 backdrop-blur-sm" @click="closeExpenseModal()"></div>
+
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+            <div x-show="showExpenseModal"
+                x-transition:enter="transition ease-out duration-300"
+                x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
+                x-transition:leave="transition ease-in duration-200"
+                x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100"
+                x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                class="relative inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform sm:align-middle sm:max-w-md sm:w-full">
+
+                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <div class="text-center">
+                        <h3 class="text-lg leading-6 font-semibold text-heading mb-4">Tambah Pengeluaran Umum</h3>
+                        
+                        <div class="mb-4">
+                            <label class="block mb-2 text-sm font-medium text-heading">Nama Pengeluaran</label>
+                            <input type="text" wire:model.live="expense_name"
+                                class="block w-full px-3 py-2.5 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs"
+                                placeholder="Contoh: Listrik, Air, Maintenance">
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="block mb-2 text-sm font-medium text-heading">Jumlah (Rp)</label>
+                            <input type="text" wire:model.live="expense_amount"
+                                class="block w-full px-3 py-2.5 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs"
+                                placeholder="Contoh: 50000">
+                        </div>
+
+                        <div class="flex flex-col gap-2 mt-6">
+                            <button type="button" wire:click="saveExpense" @click="closeExpenseModal()"
+                                class="w-full px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-semibold rounded-md transition-colors">
+                                Simpan Pengeluaran
+                            </button>
+                            <button type="button" @click="closeExpenseModal()"
+                                class="w-full px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 text-sm font-semibold rounded-md transition-colors">
+                                Batal
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

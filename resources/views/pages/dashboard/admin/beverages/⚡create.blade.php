@@ -3,6 +3,8 @@
 namespace App\Livewire\Pages\Dashboard\Admin\Beverages;
 
 use App\Models\Beverage;
+use App\Models\BeverageRestock;
+use App\Models\BeverageStokSnapshot;
 use Livewire\Component;
 use Livewire\Attributes\Validate;
 use Livewire\Attributes\Layout;
@@ -18,16 +20,34 @@ new #[Layout('layouts::admin')] class extends Component
     #[Validate('required|integer|min:0')]
     public $harga_jual = '';
 
+    #[Validate('required|integer|min:0')]
+    public $stok_awal = '';
+
     public function store()
     {
         $this->validate();
 
-        Beverage::create([
+        $beverage = Beverage::create([
             'nama_produk' => $this->nama_produk,
             'harga_modal' => $this->harga_modal,
             'harga_jual' => $this->harga_jual,
-            'stok_sekarang' => 0,
+            'stok_sekarang' => $this->stok_awal ?: 0,
         ]);
+
+        if ($this->stok_awal > 0) {
+            BeverageRestock::create([
+                'beverage_id' => $beverage->id,
+                'tanggal' => date('Y-m-d'),
+                'jumlah_tambah' => $this->stok_awal,
+                'tipe' => 'init',
+                'keterangan' => 'Stok awal saat membuat produk',
+            ]);
+
+            BeverageStokSnapshot::updateOrCreate(
+                ['beverage_id' => $beverage->id, 'tanggal' => date('Y-m-d')],
+                ['stok_akhir' => $this->stok_awal]
+            );
+        }
 
         session()->flash('success', 'Minuman berhasil ditambahkan.');
 
@@ -68,6 +88,14 @@ new #[Layout('layouts::admin')] class extends Component
                 class="block w-full px-3 py-2.5 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs placeholder:text-body"
                 placeholder="Contoh: 5000">
             @error('harga_jual') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
+        </div>
+
+        <div class="mb-6">
+            <label for="stok_awal" class="block mb-2.5 text-sm font-medium text-heading">Stok Awal</label>
+            <input type="number" id="stok_awal" wire:model="stok_awal" min="0"
+                class="block w-full px-3 py-2.5 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs placeholder:text-body"
+                placeholder="Contoh: 24">
+            @error('stok_awal') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
         </div>
 
         <div class="flex justify-end gap-3">

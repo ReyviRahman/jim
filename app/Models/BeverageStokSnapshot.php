@@ -6,23 +6,21 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class BeverageRestock extends Model
+class BeverageStokSnapshot extends Model
 {
     use HasFactory;
 
     protected $fillable = [
         'beverage_id',
         'tanggal',
-        'jumlah_tambah',
-        'tipe',
-        'keterangan',
+        'stok_akhir',
     ];
 
     protected function casts(): array
     {
         return [
             'tanggal' => 'date',
-            'jumlah_tambah' => 'integer',
+            'stok_akhir' => 'integer',
         ];
     }
 
