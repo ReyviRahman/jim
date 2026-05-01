@@ -68,6 +68,7 @@ class BeverageSaleExport implements FromQuery, WithHeadings, WithMapping, Should
             'No',
             'Tanggal',
             'Staff',
+            'Nama Pelanggan',
             'Produk',
             'Jumlah',
             'Harga Satuan',
@@ -84,18 +85,20 @@ class BeverageSaleExport implements FromQuery, WithHeadings, WithMapping, Should
 
         $metode = [
             'cash' => 'Cash',
-            'qris' => 'QRIS',
-            'tf_bca' => 'Transfer BCA',
-            'lunas' => 'Lunas',
-            'deposit_hutang' => 'Deposit/Hutang',
-            'belum_bayar' => 'Belum Bayar',
+            'tf_bca_qris' => 'TF BCA/Qris',
+            'operasional' => 'Operasional',
+            'pengeluaran_umum' => 'Pengeluaran Umum',
+            'deposit_hutang_cash' => 'Deposit/Cash',
+            'deposit_hutang_qris' => 'Deposit/QRIS',
+            'hutang' => 'Hutang',
         ];
 
         return [
             ++$this->rowNumber,
             $sale->waktu_transaksi->format('d M Y H:i'),
             $sale->nama_staff,
-            $sale->beverage->nama_produk ?? '-',
+            $sale->nama_penghutang ?? '-',
+            $sale->nama_produk ?? '-',
             $sale->jumlah_beli,
             $sale->harga_satuan,
             $sale->total_harga,
@@ -112,21 +115,21 @@ class BeverageSaleExport implements FromQuery, WithHeadings, WithMapping, Should
                 $lastRow = $sheet->getHighestRow() + 1;
 
                 $sheet->setCellValue('A' . $lastRow, 'GRAND TOTAL');
-                $sheet->setCellValue('E' . $lastRow, $this->totalItem);
-                $sheet->setCellValue('G' . $lastRow, $this->grandTotal);
+                $sheet->setCellValue('F' . $lastRow, $this->totalItem);
+                $sheet->setCellValue('H' . $lastRow, $this->grandTotal);
 
-                $sheet->getStyle('A' . $lastRow . ':I' . $lastRow)->applyFromArray([
+                $sheet->getStyle('A' . $lastRow . ':J' . $lastRow)->applyFromArray([
                     'font' => ['bold' => true],
                     'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FF16A34A']],
                     'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
                     'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['argb' => Color::COLOR_BLACK]]]
                 ]);
 
-                $sheet->getStyle('E' . $lastRow)->applyFromArray([
+                $sheet->getStyle('F' . $lastRow)->applyFromArray([
                     'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER]
                 ]);
 
-                $sheet->getStyle('G' . $lastRow)->getNumberFormat()->setFormatCode('_("Rp"* #,##0_);_("Rp"* \(#,##0\);_("Rp"* "-"??_);_(@_)');
+                $sheet->getStyle('H' . $lastRow)->getNumberFormat()->setFormatCode('_("Rp"* #,##0_);_("Rp"* \(#,##0\);_("Rp"* "-"??_);_(@_)');
             }
         ];
     }

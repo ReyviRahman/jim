@@ -212,13 +212,6 @@ new #[Layout('layouts::admin')] class extends Component
                         placeholder="Contoh: Pengiriman dari supplier">
                 </div>
 
-                <div class="mb-6">
-                    <label class="inline-flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" wire:model="jadikan_stok_awal" class="w-4 h-4 text-brand bg-neutral-secondary-medium border-gray-300 rounded focus:ring-brand">
-                        <span class="text-sm font-medium text-heading">Jadikan Stok Awal</span>
-                    </label>
-                </div>
-
                 <div class="flex items-center gap-3">
             <a href="{{ route('admin.beverages.index') }}" wire:navigate class="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-body bg-neutral-secondary-medium border border-default-medium rounded-md hover:bg-neutral-secondary-strong transition-colors">
                 Batal
