@@ -9,6 +9,7 @@ use Livewire\Attributes\Layout;
 
 new #[Layout('layouts::admin')] class extends Component
 {
+    public $invoiceId;
     public $no_faktur = '';
     public $tanggal_order = '';
     public $tanggal_menerima = '';
@@ -17,15 +18,34 @@ new #[Layout('layouts::admin')] class extends Component
     public $metode_pembayaran = 'cash';
     public $items = [];
 
-    public function mount()
+    public function mount($invoice)
     {
-        $this->tanggal_order = date('Y-m-d');
-        $this->addItem();
+        $this->invoiceId = $invoice;
+        $inv = BeverageInvoice::with('items')->findOrFail($invoice);
+
+        $this->no_faktur = $inv->no_faktur;
+        $this->tanggal_order = $inv->tanggal_order->format('Y-m-d');
+        $this->tanggal_menerima = $inv->tanggal_menerima?->format('Y-m-d') ?? '';
+        $this->diterima_oleh = $inv->diterima_oleh ?? '';
+        $this->status = $inv->status;
+        $this->metode_pembayaran = $inv->metode_pembayaran;
+
+        foreach ($inv->items as $item) {
+            $this->items[] = [
+                'id' => $item->id,
+                'nama_barang' => $item->nama_barang,
+                'qty' => $item->qty,
+                'harga_perdus' => $item->harga_perdus,
+                'biaya_ppn' => $item->biaya_ppn,
+                'total' => $item->total,
+            ];
+        }
     }
 
     public function addItem()
     {
         $this->items[] = [
+            'id' => null,
             'nama_barang' => '',
             'qty' => '',
             'harga_perdus' => '',
@@ -55,10 +75,10 @@ new #[Layout('layouts::admin')] class extends Component
         return collect($this->items)->sum('total');
     }
 
-    public function store()
+    public function update()
     {
         $this->validate([
-            'no_faktur' => 'required|unique:beverage_invoices,no_faktur',
+            'no_faktur' => 'required|unique:beverage_invoices,no_faktur,' . $this->invoiceId,
             'tanggal_order' => 'required|date',
             'status' => 'required|in:pending,lunas',
             'metode_pembayaran' => 'required|in:cash,tf_bca,qris,hutang',
@@ -68,7 +88,9 @@ new #[Layout('layouts::admin')] class extends Component
             'items.*.harga_perdus' => 'required|integer|min:0',
         ]);
 
-        $invoice = BeverageInvoice::create([
+        $invoice = BeverageInvoice::findOrFail($this->invoiceId);
+
+        $invoice->update([
             'no_faktur' => $this->no_faktur,
             'tanggal_order' => $this->tanggal_order,
             'tanggal_menerima' => $this->tanggal_menerima ?: null,
@@ -77,20 +99,36 @@ new #[Layout('layouts::admin')] class extends Component
             'metode_pembayaran' => $this->metode_pembayaran,
         ]);
 
+        $existingItemIds = collect($this->items)->where('id', '!=', null)->pluck('id')->toArray();
+        $invoice->items()->whereNotIn('id', $existingItemIds)->delete();
+
         foreach ($this->items as $item) {
             if (!empty($item['nama_barang'])) {
-                BeverageInvoiceItem::create([
-                    'beverage_invoice_id' => $invoice->id,
-                    'nama_barang' => $item['nama_barang'],
-                    'qty' => intval($item['qty']),
-                    'harga_perdus' => intval($item['harga_perdus']),
-                    'biaya_ppn' => intval($item['biaya_ppn'] ?? 0),
-                    'total' => intval($item['total']),
-                ]);
+                if ($item['id']) {
+                    $invoiceItem = BeverageInvoiceItem::find($item['id']);
+                    if ($invoiceItem) {
+                        $invoiceItem->update([
+                            'nama_barang' => $item['nama_barang'],
+                            'qty' => intval($item['qty']),
+                            'harga_perdus' => intval($item['harga_perdus']),
+                            'biaya_ppn' => intval($item['biaya_ppn'] ?? 0),
+                            'total' => intval($item['total']),
+                        ]);
+                    }
+                } else {
+                    BeverageInvoiceItem::create([
+                        'beverage_invoice_id' => $invoice->id,
+                        'nama_barang' => $item['nama_barang'],
+                        'qty' => intval($item['qty']),
+                        'harga_perdus' => intval($item['harga_perdus']),
+                        'biaya_ppn' => intval($item['biaya_ppn'] ?? 0),
+                        'total' => intval($item['total']),
+                    ]);
+                }
             }
         }
 
-        session()->flash('success', 'Invoice berhasil dibuat.');
+        session()->flash('success', 'Invoice berhasil diperbarui.');
 
         return $this->redirectRoute('admin.beverages.invoice', navigate: true);
     }
@@ -104,7 +142,7 @@ new #[Layout('layouts::admin')] class extends Component
 
 <div>
     <div class="flex sm:flex-row flex-col justify-between items-center mb-6">
-        <h5 class="text-xl font-semibold text-heading">Tambah Invoice Pembelian</h5>
+        <h5 class="text-xl font-semibold text-heading">Edit Invoice Pembelian</h5>
     </div>
 
     @if (session()->has('success'))
@@ -113,7 +151,7 @@ new #[Layout('layouts::admin')] class extends Component
         </div>
     @endif
 
-    <form wire:submit.prevent="store" class="bg-neutral-primary-soft shadow-xs rounded-md border border-default p-6">
+    <form wire:submit.prevent="update" class="bg-neutral-primary-soft shadow-xs rounded-md border border-default p-6">
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
             <div>
                 <label for="no_faktur" class="block mb-2.5 text-sm font-medium text-heading">No Faktur *</label>
@@ -245,7 +283,7 @@ new #[Layout('layouts::admin')] class extends Component
                 Batal
             </a>
             <button type="submit" class="px-6 py-2.5 text-white bg-brand hover:bg-brand-strong rounded-md font-medium text-sm focus:outline-none">
-                Simpan Invoice
+                Simpan Perubahan
             </button>
         </div>
     </form>

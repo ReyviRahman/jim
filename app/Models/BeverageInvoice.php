@@ -15,7 +15,6 @@ class BeverageInvoice extends Model
         'tanggal_order',
         'tanggal_menerima',
         'diterima_oleh',
-        'supplier_name',
         'status',
         'metode_pembayaran',
     ];

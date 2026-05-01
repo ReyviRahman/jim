@@ -12,7 +12,6 @@ class BeverageInvoiceItem extends Model
 
     protected $fillable = [
         'beverage_invoice_id',
-        'beverage_id',
         'nama_barang',
         'qty',
         'harga_perdus',
@@ -33,10 +32,5 @@ class BeverageInvoiceItem extends Model
     public function invoice(): BelongsTo
     {
         return $this->belongsTo(BeverageInvoice::class, 'beverage_invoice_id');
-    }
-
-    public function beverage(): BelongsTo
-    {
-        return $this->belongsTo(Beverage::class);
     }
 }

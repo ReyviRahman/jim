@@ -130,7 +130,7 @@
                     <a href="{{ route('admin.beverages.sales') }}" wire:navigate
                         class="{{ request()->routeIs('admin.beverages.sales') ? 'text-[#34342F] bg-brand' : 'text-white' }} flex items-center px-2 py-1.5 rounded-md hover:bg-brand hover:text-[#34342F] group transition-colors">
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="currentColor" d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2m0 16H5V5h14zm-7-2h2V9h-2zm0-4h2V5h-2z"/></svg>
-                        <span class="ms-3">Penjualan Minuman</span>
+                        <span class="ms-3">Penjualan</span>
                     </a>
                 </li>
                 <li>

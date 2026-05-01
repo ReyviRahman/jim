@@ -128,6 +128,9 @@ Route::middleware('auth')->group(function () {
 
         Route::livewire('/beverages/invoice/create', 'pages::dashboard.admin.beverages.invoice-create')
             ->name('admin.beverages.invoice.create');
+
+        Route::livewire('/beverages/invoice/{invoice}/edit', 'pages::dashboard.admin.beverages.invoice-edit')
+            ->name('admin.beverages.invoice.edit');
     });
 
     Route::middleware('role:admin,head_coach')->prefix('dashboard/admin')->group(function () {

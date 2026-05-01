@@ -3,6 +3,7 @@
 namespace App\Livewire\Pages\Dashboard\Admin\Beverages;
 
 use App\Exports\BeverageSaleExport;
+use App\Exports\BeverageSaleExportDetail;
 use App\Models\BeverageSale;
 use Livewire\Component;
 use Livewire\Attributes\Layout;
@@ -54,6 +55,20 @@ new #[Layout('layouts::admin')] class extends Component
 
         return Excel::download(
             new BeverageSaleExport(
+                $this->searchProduct,
+                $this->start_date,
+                $this->end_date
+            ),
+            $fileName
+        );
+    }
+
+    public function exportExcelDetail()
+    {
+        $fileName = 'penjualan_minuman_detail_' . date('Y-m-d_His') . '.xlsx';
+
+        return Excel::download(
+            new BeverageSaleExportDetail(
                 $this->searchProduct,
                 $this->start_date,
                 $this->end_date
@@ -128,6 +143,15 @@ new #[Layout('layouts::admin')] class extends Component
                             <line x1="12" x2="12" y1="15" y2="3"/>
                         </svg>
                         Export
+                    </button>
+                    <button type="button" wire:click="exportExcelDetail"
+                        class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-base font-medium inline-flex items-center gap-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="7 10 12 15 17 10"/>
+                            <line x1="12" x2="12" y1="15" y2="3"/>
+                        </svg>
+                        Export Detail
                     </button>
                 </div>
             </div>
