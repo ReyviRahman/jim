@@ -135,7 +135,7 @@ new #[Layout('layouts::admin')] class extends Component
                         class="px-2 py-1.5 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs">
                     <input type="date" wire:model.live="end_date"
                         class="px-2 py-1.5 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs">
-                    <button type="button" wire:click="exportExcel"
+                    {{-- <button type="button" wire:click="exportExcel"
                         class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm rounded-base font-medium inline-flex items-center gap-1">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -143,7 +143,7 @@ new #[Layout('layouts::admin')] class extends Component
                             <line x1="12" x2="12" y1="15" y2="3"/>
                         </svg>
                         Export
-                    </button>
+                    </button> --}}
                     <button type="button" wire:click="exportExcelDetail"
                         class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-base font-medium inline-flex items-center gap-1">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -151,7 +151,7 @@ new #[Layout('layouts::admin')] class extends Component
                             <polyline points="7 10 12 15 17 10"/>
                             <line x1="12" x2="12" y1="15" y2="3"/>
                         </svg>
-                        Export Detail
+                        Export
                     </button>
                 </div>
             </div>
@@ -223,10 +223,12 @@ new #[Layout('layouts::admin')] class extends Component
                                 </span>
                             </td>
                             <td class="px-4 py-3 text-center whitespace-nowrap">
-                                <button type="button" wire:click="confirmDelete({{ $sale->id }})" class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-red-700 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 focus:ring-2 focus:ring-red-300 transition-colors">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
-                                    Hapus
-                                </button>
+                                @if(auth()->check() && auth()->user()->role === 'admin')
+                                    <button type="button" wire:click="confirmDelete({{ $sale->id }})" class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-red-700 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 focus:ring-2 focus:ring-red-300 transition-colors">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                                        Hapus
+                                    </button>
+                                @endif
                             </td>
                         </tr>
                     @empty
@@ -242,25 +244,27 @@ new #[Layout('layouts::admin')] class extends Component
         </div>
     </div>
 
-    @if ($showDeleteModal)
-        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" wire:click.self="closeDeleteModal">
-            <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 p-6">
-                <div class="flex items-center justify-between mb-4">
-                    <h5 class="text-lg font-semibold text-heading">Konfirmasi Hapus</h5>
-                    <button type="button" wire:click="closeDeleteModal" class="text-gray-400 hover:text-gray-600">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
-                    </button>
-                </div>
-                <p class="text-body mb-6">Apakah Anda yakin ingin menghapus data penjualan ini? Stok minuman akan dikembalikan.</p>
-                <div class="flex items-center justify-end gap-3">
-                    <button type="button" wire:click="closeDeleteModal" class="px-4 py-2 text-sm font-medium text-body bg-neutral-secondary-medium border border-default-medium rounded-md hover:bg-neutral-secondary-strong transition-colors">
-                        Batal
-                    </button>
-                    <button type="button" wire:click="deleteSale" class="px-4 py-2.5 text-white bg-red-600 hover:bg-red-700 rounded-md font-medium text-sm focus:outline-none">
-                        Hapus
-                    </button>
+    @if(auth()->check() && auth()->user()->role === 'admin')
+        @if ($showDeleteModal)
+            <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" wire:click.self="closeDeleteModal">
+                <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h5 class="text-lg font-semibold text-heading">Konfirmasi Hapus</h5>
+                        <button type="button" wire:click="closeDeleteModal" class="text-gray-400 hover:text-gray-600">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+                        </button>
+                    </div>
+                    <p class="text-body mb-6">Apakah Anda yakin ingin menghapus data penjualan ini? Stok minuman akan dikembalikan.</p>
+                    <div class="flex items-center justify-end gap-3">
+                        <button type="button" wire:click="closeDeleteModal" class="px-4 py-2 text-sm font-medium text-body bg-neutral-secondary-medium border border-default-medium rounded-md hover:bg-neutral-secondary-strong transition-colors">
+                            Batal
+                        </button>
+                        <button type="button" wire:click="deleteSale" class="px-4 py-2.5 text-white bg-red-600 hover:bg-red-700 rounded-md font-medium text-sm focus:outline-none">
+                            Hapus
+                        </button>
+                    </div>
                 </div>
             </div>
-        </div>
+        @endif
     @endif
 </div>

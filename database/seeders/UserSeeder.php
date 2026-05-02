@@ -3,12 +3,10 @@
 namespace Database\Seeders;
 
 use App\Models\User;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
-use Illuminate\Database\Seeder;
 use Faker\Factory as Faker;
+use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\DB;
 
 class UserSeeder extends Seeder
 {
@@ -39,7 +37,7 @@ class UserSeeder extends Seeder
             'is_active' => true,
             'email_verified_at' => now(),
         ]);
-        
+
         User::create([
             'name' => 'Dewi',
             'email' => 'dewi@gmail.com', // Email untuk login admin
@@ -76,7 +74,7 @@ class UserSeeder extends Seeder
 
         User::create([
             'name' => 'Coach Frans',
-            'email' => 'frans@gmail.com', 
+            'email' => 'frans@gmail.com',
             'password' => $password,
             'role' => 'pt',
             'occupation' => 'Personal Trainer',
@@ -92,7 +90,7 @@ class UserSeeder extends Seeder
 
         User::create([
             'name' => 'Coach Efdi',
-            'email' => 'efdi@gmail.com', 
+            'email' => 'efdi@gmail.com',
             'password' => $password,
             'role' => 'pt',
             'occupation' => 'Personal Trainer',
@@ -108,7 +106,7 @@ class UserSeeder extends Seeder
 
         User::create([
             'name' => 'Coach Yoyok',
-            'email' => 'yoyok@gmail.com', 
+            'email' => 'yoyok@gmail.com',
             'password' => $password,
             'role' => 'pt',
             'occupation' => 'Personal Trainer',
@@ -124,7 +122,7 @@ class UserSeeder extends Seeder
 
         User::create([
             'name' => 'Coach Tiwi',
-            'email' => 'tiwi@gmail.com', 
+            'email' => 'tiwi@gmail.com',
             'password' => $password,
             'role' => 'pt',
             'occupation' => 'Personal Trainer',
@@ -143,7 +141,7 @@ class UserSeeder extends Seeder
         // ==========================================
         // for ($i = 1; $i <= 20; $i++) {
         //     $gender = $faker->randomElement(['Laki-laki', 'Perempuan']);
-            
+
         //     User::create([
         //         'name' => $faker->name($gender == 'Laki-laki' ? 'male' : 'female'),
         //         'email' => 'member' . $i . '@gmail.com', // member1@gmail.com, dst

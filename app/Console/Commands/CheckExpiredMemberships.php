@@ -32,6 +32,7 @@ class CheckExpiredMemberships extends Command
         if ($memberships->isEmpty()) {
             $this->warn('Tidak ada membership aktif yang perlu dicek.');
             Log::info("[CheckExpiredMemberships] {$timestamp} - Tidak ada membership aktif.");
+
             return self::SUCCESS;
         }
 
@@ -47,7 +48,7 @@ class CheckExpiredMemberships extends Command
                 case 'visit':
                     if ($membership->membership_end_date && Carbon::parse($membership->membership_end_date)->startOfDay()->lt($now)) {
                         $shouldComplete = true;
-                        $reason = 'Membership end date expired (' . Carbon::parse($membership->membership_end_date)->format('d M Y') . ')';
+                        $reason = 'Membership end date expired ('.Carbon::parse($membership->membership_end_date)->format('d M Y').')';
                     }
                     break;
 
@@ -57,13 +58,13 @@ class CheckExpiredMemberships extends Command
 
                     if ($ptExpired && $noSessions) {
                         $shouldComplete = true;
-                        $reason = 'PT end date expired (' . Carbon::parse($membership->pt_end_date)->format('d M Y') . ') dan remaining sessions habis (' . $membership->remaining_sessions . ')';
+                        $reason = 'PT end date expired ('.Carbon::parse($membership->pt_end_date)->format('d M Y').') dan remaining sessions habis ('.$membership->remaining_sessions.')';
                     } elseif ($ptExpired) {
                         $shouldComplete = true;
-                        $reason = 'PT end date expired (' . Carbon::parse($membership->pt_end_date)->format('d M Y') . ')';
+                        $reason = 'PT end date expired ('.Carbon::parse($membership->pt_end_date)->format('d M Y').')';
                     } elseif ($noSessions) {
                         $shouldComplete = true;
-                        $reason = 'Remaining sessions habis (' . $membership->remaining_sessions . ')';
+                        $reason = 'Remaining sessions habis ('.$membership->remaining_sessions.')';
                     }
                     break;
 
@@ -74,16 +75,16 @@ class CheckExpiredMemberships extends Command
 
                     $reasons = [];
                     if ($gymExpired) {
-                        $reasons[] = 'Gym end date expired (' . Carbon::parse($membership->membership_end_date)->format('d M Y') . ')';
+                        $reasons[] = 'Gym end date expired ('.Carbon::parse($membership->membership_end_date)->format('d M Y').')';
                     }
                     if ($ptExpired) {
-                        $reasons[] = 'PT end date expired (' . Carbon::parse($membership->pt_end_date)->format('d M Y') . ')';
+                        $reasons[] = 'PT end date expired ('.Carbon::parse($membership->pt_end_date)->format('d M Y').')';
                     }
                     if ($noSessions) {
-                        $reasons[] = 'Remaining sessions habis (' . $membership->remaining_sessions . ')';
+                        $reasons[] = 'Remaining sessions habis ('.$membership->remaining_sessions.')';
                     }
 
-                    if (!empty($reasons)) {
+                    if (! empty($reasons)) {
                         $shouldComplete = true;
                         $reason = implode(' + ', $reasons);
                     }
@@ -144,11 +145,11 @@ class CheckExpiredMemberships extends Command
 
             Mail::to($recipient)->send($mail);
 
-            $this->info('Email notifikasi telah dikirim ke: ' . $recipient);
-            Log::info("[CheckExpiredMemberships] - Email notifikasi dikirim ke: " . $recipient);
+            $this->info('Email notifikasi telah dikirim ke: '.$recipient);
+            Log::info('[CheckExpiredMemberships] - Email notifikasi dikirim ke: '.$recipient);
         } catch (\Exception $e) {
-            Log::error("[CheckExpiredMemberships] - Gagal mengirim email: " . $e->getMessage());
-            $this->error('Gagal mengirim email notifikasi: ' . $e->getMessage());
+            Log::error('[CheckExpiredMemberships] - Gagal mengirim email: '.$e->getMessage());
+            $this->error('Gagal mengirim email notifikasi: '.$e->getMessage());
         }
     }
 }

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Beverage;
 use App\Models\BeverageSale;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Session;
 
@@ -18,7 +19,7 @@ class BeverageApiController extends Controller
         }
 
         $beverages = Beverage::where('stok_sekarang', '>', 0)
-            ->where('nama_produk', 'like', '%' . $q . '%')
+            ->where('nama_produk', 'like', '%'.$q.'%')
             ->orderBy('nama_produk')
             ->limit(10)
             ->get(['id', 'nama_produk', 'harga_jual', 'stok_sekarang']);
@@ -32,18 +33,20 @@ class BeverageApiController extends Controller
 
         if (empty($selectedProducts)) {
             Session::flash('error', 'Pilih produk terlebih dahulu.');
+
             return redirect()->back();
         }
 
         if ($request->keterangan_bayar === 'hutang' && empty($request->nama_penghutang)) {
             Session::flash('error', 'Nama penghutang harus diisi untuk transaksi hutang.');
+
             return redirect()->back();
         }
 
         $namaStaff = $request->nama_staff;
         $shift = $request->shift;
         $keteranganBayar = $request->keterangan_bayar;
-        $tanggal = $request->tanggal ? \Carbon\Carbon::parse($request->tanggal)->setTimezone('Asia/Jakarta') : now()->setTimezone('Asia/Jakarta');
+        $tanggal = $request->tanggal ? Carbon::parse($request->tanggal)->setTimezone('Asia/Jakarta') : now()->setTimezone('Asia/Jakarta');
         $isHutang = $keteranganBayar === 'hutang';
         $namaPenghutang = $isHutang ? $request->nama_penghutang : null;
         $isLunas = $isHutang ? false : true;
@@ -69,8 +72,8 @@ class BeverageApiController extends Controller
             ]);
         }
 
-        $total = collect($selectedProducts)->sum(fn($item) => $item['harga_satuan'] * $item['jumlah_beli']);
-        Session::flash('success', 'Transaksi berhasil disimpan! Total: Rp ' . number_format($total, 0, ',', '.'));
+        $total = collect($selectedProducts)->sum(fn ($item) => $item['harga_satuan'] * $item['jumlah_beli']);
+        Session::flash('success', 'Transaksi berhasil disimpan! Total: Rp '.number_format($total, 0, ',', '.'));
 
         return redirect()->back();
     }

@@ -13,14 +13,16 @@ class BeverageStokSnapshot extends Model
     protected $fillable = [
         'beverage_id',
         'tanggal',
-        'stok_akhir',
+        'tipe',
+        'jumlah',
     ];
 
     protected function casts(): array
     {
         return [
             'tanggal' => 'date',
-            'stok_akhir' => 'integer',
+            'tipe' => 'string',
+            'jumlah' => 'integer',
         ];
     }
 

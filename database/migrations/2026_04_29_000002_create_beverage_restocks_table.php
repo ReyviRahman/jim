@@ -14,7 +14,7 @@ return new class extends Migration
             $table->foreignId('beverage_id')->constrained('beverages')->onDelete('restrict');
             $table->date('tanggal');
             $table->integer('jumlah_tambah');
-            $table->string('keterangan')->nullable(); 
+            $table->string('keterangan')->nullable();
             $table->timestamps();
         });
     }

@@ -340,36 +340,38 @@ new #[Layout('layouts::admin')] class extends Component
                                     <td class="px-4 py-3 whitespace-nowrap text-xs">{{ $restock->keterangan ?? '-' }}</td>
                                 @endif
                                 <td class="px-4 py-3 text-center whitespace-nowrap">
-                                    @if ($restock->id === $this->editingId)
-                                        <div class="flex items-center justify-center gap-1">
-                                            <button type="button" wire:click="update" class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-white bg-emerald-600 border border-emerald-600 rounded-md hover:bg-emerald-700">
-                                                Simpan
-                                            </button>
-                                            <button type="button" wire:click="cancelEdit" class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200">
-                                                Batal
-                                            </button>
-                                        </div>
-                                    @elseif ($this->deleteId === $restock->id)
-                                        <div class="flex items-center justify-center gap-1">
-                                            <span class="text-xs text-red-600 font-medium">Hapus?</span>
-                                            <button type="button" wire:click="executeDelete" class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-white bg-red-600 border border-red-600 rounded-md hover:bg-red-700">
-                                                Ya
-                                            </button>
-                                            <button type="button" wire:click="cancelDelete" class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200">
-                                                Tidak
-                                            </button>
-                                        </div>
-                                    @else
-                                        <div class="flex items-center justify-center gap-1">
-                                            <button type="button" wire:click="edit({{ $restock->id }})" class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
-                                                Edit
-                                            </button>
-                                            <button type="button" wire:click="confirmDelete({{ $restock->id }})" class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-red-700 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 focus:ring-2 focus:ring-red-300 transition-colors">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
-                                                Hapus
-                                            </button>
-                                        </div>
+                                    @if(auth()->check() && auth()->user()->role === 'admin')
+                                        @if ($restock->id === $this->editingId)
+                                            <div class="flex items-center justify-center gap-1">
+                                                <button type="button" wire:click="update" class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-white bg-emerald-600 border border-emerald-600 rounded-md hover:bg-emerald-700">
+                                                    Simpan
+                                                </button>
+                                                <button type="button" wire:click="cancelEdit" class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200">
+                                                    Batal
+                                                </button>
+                                            </div>
+                                        @elseif ($this->deleteId === $restock->id)
+                                            <div class="flex items-center justify-center gap-1">
+                                                <span class="text-xs text-red-600 font-medium">Hapus?</span>
+                                                <button type="button" wire:click="executeDelete" class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-white bg-red-600 border border-red-600 rounded-md hover:bg-red-700">
+                                                    Ya
+                                                </button>
+                                                <button type="button" wire:click="cancelDelete" class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200">
+                                                    Tidak
+                                                </button>
+                                            </div>
+                                        @else
+                                            <div class="flex items-center justify-center gap-1">
+                                                <button type="button" wire:click="edit({{ $restock->id }})" class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                                                    Edit
+                                                </button>
+                                                <button type="button" wire:click="confirmDelete({{ $restock->id }})" class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-red-700 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 focus:ring-2 focus:ring-red-300 transition-colors">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                                                    Hapus
+                                                </button>
+                                            </div>
+                                        @endif
                                     @endif
                                 </td>
                             </tr>

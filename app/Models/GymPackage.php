@@ -20,9 +20,9 @@ class GymPackage extends Model
         'discount',
         'is_active',
     ];
-    
+
     public function memberships(): HasMany
     {
-        return $this->hasMany(Membership::class); 
+        return $this->hasMany(Membership::class);
     }
 }

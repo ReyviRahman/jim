@@ -2,27 +2,31 @@
 
 namespace App\Exports;
 
+use Carbon\Carbon;
 use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Events\AfterSheet;
-use PhpOffice\PhpSpreadsheet\Style\Fill;
-use PhpOffice\PhpSpreadsheet\Style\Color;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
-use Carbon\Carbon;
+use PhpOffice\PhpSpreadsheet\Style\Color;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
 
 class PenjualanExport implements WithEvents
 {
     protected $transactions;
+
     protected $summaryTotal;
-    protected $startDate; 
+
+    protected $startDate;
+
     protected $endDate;
-    protected $shift; 
+
+    protected $shift;
 
     public function __construct($transactions, $summaryTotal, $startDate, $endDate, $shift)
     {
         $this->transactions = $transactions;
         $this->summaryTotal = $summaryTotal;
-        $this->startDate = $startDate; 
+        $this->startDate = $startDate;
         $this->endDate = $endDate;
         $this->shift = $shift;
     }
@@ -32,11 +36,11 @@ class PenjualanExport implements WithEvents
         return [
             AfterSheet::class => function (AfterSheet $event) {
                 $sheet = $event->sheet->getDelegate();
-                
+
                 // ==========================================
                 // 1. PENGATURAN LEBAR KOLOM (A - K) -> Ditambah untuk Catatan & Follow Up
                 // ==========================================
-                $columns = ['A'=>25, 'B'=>15, 'C'=>20, 'D'=>20, 'E'=>20, 'F'=>25, 'G'=>25, 'H'=>15, 'I'=>15, 'J'=>18, 'K'=>18];
+                $columns = ['A' => 25, 'B' => 15, 'C' => 20, 'D' => 20, 'E' => 20, 'F' => 25, 'G' => 25, 'H' => 15, 'I' => 15, 'J' => 18, 'K' => 18];
                 foreach ($columns as $col => $width) {
                     $sheet->getColumnDimension($col)->setWidth($width);
                 }
@@ -55,13 +59,13 @@ class PenjualanExport implements WithEvents
                     // Jika rentang hari (misal: 01 Agustus 2026 - 15 Agustus 2026)
                     $awal = Carbon::parse($this->startDate)->translatedFormat('d M Y');
                     $akhir = Carbon::parse($this->endDate)->translatedFormat('d M Y');
-                    $tanggalFormat = $awal . ' - ' . $akhir;
+                    $tanggalFormat = $awal.' - '.$akhir;
                 }
 
-                $judulBesar = "PENJUALAN ADMIN " . $shiftText . " - " . strtoupper($tanggalFormat);
+                $judulBesar = 'PENJUALAN ADMIN '.$shiftText.' - '.strtoupper($tanggalFormat);
 
                 $sheet->setCellValue('A1', $judulBesar);
-                
+
                 $sheet->setCellValue('A1', $judulBesar);
                 $sheet->mergeCells('A1:K1'); // Merge diperlebar sampai K
                 $sheet->getStyle('A1:K1')->applyFromArray([
@@ -76,14 +80,14 @@ class PenjualanExport implements WithEvents
                 $headers = ['NAMA', 'TANGGAL BAYAR', 'TANGGAL MULAI AKTIF', 'TANGGAL BERAKHIR (MASA AKTIF)', 'STATUS', 'PAKET MEMBER', 'CATATAN', 'NOMINAL', 'METODE BAYAR', 'ADMIN FOLLOW UP', 'SALES FOLLOW UP'];
                 foreach (array_values($headers) as $index => $header) {
                     $col = chr(65 + $index);
-                    $sheet->setCellValue($col . '3', $header);
+                    $sheet->setCellValue($col.'3', $header);
                 }
 
                 $sheet->getStyle('A3:K3')->applyFromArray([ // Diperlebar sampai K
                     'font' => ['bold' => true, 'color' => ['argb' => Color::COLOR_WHITE]],
-                    'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FF1F2937']], 
+                    'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FF1F2937']],
                     'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER, 'wrapText' => true],
-                    'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['argb' => Color::COLOR_BLACK]]]
+                    'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['argb' => Color::COLOR_BLACK]]],
                 ]);
                 $sheet->getRowDimension(3)->setRowHeight(30);
 
@@ -102,12 +106,12 @@ class PenjualanExport implements WithEvents
                     $sheet->setCellValue('A'.$row, $nama);
                     $sheet->setCellValue('B'.$row, Carbon::parse($trx->payment_date)->format('d-M-Y'));
                     // Cek jika tipe transaksinya Pemasukan Lain, langsung jadikan strip '-', jika bukan cek tanggalnya.
-                    $tglMulai = ($trx->transaction_type === 'Pemasukan Lain') 
-                        ? '-' 
+                    $tglMulai = ($trx->transaction_type === 'Pemasukan Lain')
+                        ? '-'
                         : ($trx->start_date ? Carbon::parse($trx->start_date)->format('d/m/Y') : 'BELUM AKTIF');
 
-                    $tglAkhir = ($trx->transaction_type === 'Pemasukan Lain') 
-                        ? '-' 
+                    $tglAkhir = ($trx->transaction_type === 'Pemasukan Lain')
+                        ? '-'
                         : ($trx->end_date ? Carbon::parse($trx->end_date)->format('d/m/Y') : 'BELUM AKTIF');
 
                     $sheet->setCellValue('C'.$row, $tglMulai);
@@ -126,9 +130,9 @@ class PenjualanExport implements WithEvents
                 $lastDataRow = $row - 1;
                 if ($lastDataRow >= 4) {
                     $sheet->getStyle('A4:K'.$lastDataRow)->applyFromArray([ // Diperlebar sampai K
-                        'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFCCFFFF']], 
+                        'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFCCFFFF']],
                         'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
-                        'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER]
+                        'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
                     ]);
                     // Kolom nominal berubah dari G menjadi H
                     $sheet->getStyle('H4:H'.$lastDataRow)->getNumberFormat()->setFormatCode('_("Rp"* #,##0_);_("Rp"* \(#,##0\);_("Rp"* "-"??_);_(@_)');
@@ -139,12 +143,12 @@ class PenjualanExport implements WithEvents
                 // ==========================================
                 // Teks "GRAND TOTAL" diletakkan di bawah "Catatan" (G), angkanya di bawah "Nominal" (H)
                 $sheet->setCellValue('G'.$row, 'GRAND TOTAL');
-                $sheet->setCellValue('H'.$row, $this->summaryTotal['uang_total'] ?? 0); 
-                
+                $sheet->setCellValue('H'.$row, $this->summaryTotal['uang_total'] ?? 0);
+
                 $sheet->getStyle('G'.$row.':H'.$row)->applyFromArray([
                     'font' => ['bold' => true],
-                    'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFC6E0B4']], 
-                    'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]
+                    'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFC6E0B4']],
+                    'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
                 ]);
                 $sheet->getStyle('H'.$row)->getNumberFormat()->setFormatCode('_("Rp"* #,##0_);_("Rp"* \(#,##0\);_("Rp"* "-"??_);_(@_)');
 
@@ -152,14 +156,14 @@ class PenjualanExport implements WithEvents
                 // 6. KOTAK REKAPITULASI GRAND TOTAL BAWAH
                 // ==========================================
                 // Untuk kotak rincian di bawah tidak ada perubahan posisi, tetap pakai kolom A,B,C,D
-                $startRow = $row + 2; 
+                $startRow = $row + 2;
 
                 $sheet->setCellValue('A'.$startRow, 'GRAND TOTAL');
                 $sheet->mergeCells("A{$startRow}:D{$startRow}");
                 $sheet->getStyle("A{$startRow}:D{$startRow}")->applyFromArray([
-                    'font' => ['bold' => true, 'color' => ['argb' => Color::COLOR_WHITE]], 
+                    'font' => ['bold' => true, 'color' => ['argb' => Color::COLOR_WHITE]],
                     'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
-                    'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FF16A34A']] 
+                    'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FF16A34A']],
                 ]);
 
                 $rowsDataKiri = [
@@ -179,7 +183,7 @@ class PenjualanExport implements WithEvents
                     ['PERSONAL TRAINER:', $this->summaryTotal['uang_pt'] ?? 0],
                     ['NIMBANG:', $this->summaryTotal['uang_nimbang'] ?? 0],
                     ['BALANCE', $this->summaryTotal['uang_total'] ?? 0],
-                    ['CATATAN PENGELUARAN', ''] 
+                    ['CATATAN PENGELUARAN', ''],
                 ];
 
                 $pengeluaranList = [];
@@ -187,8 +191,8 @@ class PenjualanExport implements WithEvents
                     foreach ($this->summaryTotal['rincian_pengeluaran'] as $exp) {
                         $namaAdmin = $exp->admin->name ?? '-';
                         $pengeluaranList[] = [
-                            '- ' . $exp->description . ' [Admin: ' . $namaAdmin . ']', 
-                            $exp->amount
+                            '- '.$exp->description.' [Admin: '.$namaAdmin.']',
+                            $exp->amount,
                         ];
                     }
                 } else {
@@ -201,12 +205,12 @@ class PenjualanExport implements WithEvents
                 $endRow = $startRow + $jumlahBarisKotak;
 
                 $sheet->getStyle("A{$startRow}:D{$endRow}")->applyFromArray([
-                    'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]
+                    'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
                 ]);
 
                 $currentRow = $startRow + 1;
                 for ($i = 0; $i < $jumlahBarisKotak; $i++) {
-                    
+
                     // --- SISI KIRI (A & B) ---
                     if (isset($rowsDataKiri[$i])) {
                         $sheet->setCellValue('A'.$currentRow, $rowsDataKiri[$i][0]);
@@ -218,14 +222,14 @@ class PenjualanExport implements WithEvents
 
                         if ($i === 4) {
                             $sheet->getStyle("A{$currentRow}:B{$currentRow}")->applyFromArray([
-                                'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFFEE2E2']], 
-                                'font' => ['color' => ['argb' => 'FFB91C1C']] 
+                                'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFFEE2E2']],
+                                'font' => ['color' => ['argb' => 'FFB91C1C']],
                             ]);
                         }
                         if ($i === 7) {
                             $sheet->getStyle("A{$currentRow}:B{$currentRow}")->applyFromArray([
-                                'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFD1FAE5']], 
-                                'font' => ['color' => ['argb' => 'FF065F46']] 
+                                'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFD1FAE5']],
+                                'font' => ['color' => ['argb' => 'FF065F46']],
                             ]);
                         }
                     }
@@ -238,16 +242,16 @@ class PenjualanExport implements WithEvents
                         if ($i === 4) {
                             $sheet->getStyle("C{$currentRow}:D{$currentRow}")->getFont()->setBold(true);
                             $sheet->getStyle("C{$currentRow}:D{$currentRow}")->applyFromArray([
-                                'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFD1FAE5']], 
-                                'font' => ['color' => ['argb' => 'FF065F46']] 
+                                'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFD1FAE5']],
+                                'font' => ['color' => ['argb' => 'FF065F46']],
                             ]);
                         }
 
                         if ($i === 5) {
                             $sheet->mergeCells("C{$currentRow}:D{$currentRow}");
                             $sheet->getStyle("C{$currentRow}:D{$currentRow}")->applyFromArray([
-                                'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFF3F4F6']], 
-                                'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER]
+                                'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFF3F4F6']],
+                                'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
                             ]);
                         }
                     } else {
@@ -267,7 +271,7 @@ class PenjualanExport implements WithEvents
 
                 $sheet->getStyle("B{$startRow}:B{$endRow}")->getNumberFormat()->setFormatCode('_("Rp"* #,##0_);_("Rp"* \(#,##0\);_("Rp"* "-"??_);_(@_)');
                 $sheet->getStyle("D{$startRow}:D{$endRow}")->getNumberFormat()->setFormatCode('_("Rp"* #,##0_);_("Rp"* \(#,##0\);_("Rp"* "-"??_);_(@_)');
-            }
+            },
         ];
     }
 }
