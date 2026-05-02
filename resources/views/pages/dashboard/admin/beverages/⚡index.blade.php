@@ -27,6 +27,11 @@ new #[Layout('layouts::admin')] class extends Component
         $this->resetPage();
     }
 
+    public function getIsTodayProperty(): bool
+    {
+        return empty($this->start_date) || $this->start_date === date('Y-m-d');
+    }
+
     public function getBeveragesWithStockProperty()
     {
         $beverages = Beverage::withTrashed()
@@ -35,10 +40,10 @@ new #[Layout('layouts::admin')] class extends Component
             ->paginate(10);
 
         foreach ($beverages as $beverage) {
-            $beverage->stok_awal = BeverageRestock::where('beverage_id', $beverage->id)
+            $beverage->stok_awal = BeverageStokSnapshot::where('beverage_id', $beverage->id)
                 ->where('tipe', 'init')
                 ->when($this->start_date, fn($q) => $q->whereDate('tanggal', $this->start_date))
-                ->sum('jumlah_tambah');
+                ->sum('jumlah');
 
             $beverage->ditambahkan = BeverageRestock::where('beverage_id', $beverage->id)
                 ->where('tipe', 'restock')
@@ -50,9 +55,14 @@ new #[Layout('layouts::admin')] class extends Component
                 ->when($this->start_date, fn($q) => $q->whereDate('waktu_transaksi', $this->start_date))
                 ->sum('jumlah_beli');
 
-            $beverage->stok_akhir = BeverageStokSnapshot::where('beverage_id', $beverage->id)
-                ->when($this->start_date, fn($q) => $q->whereDate('tanggal', $this->start_date))
-                ->sum('stok_akhir');
+            if ($this->isToday) {
+                $beverage->stok_akhir = $beverage->stok_sekarang;
+            } else {
+                $beverage->stok_akhir = BeverageStokSnapshot::where('beverage_id', $beverage->id)
+                    ->where('tipe', 'last')
+                    ->when($this->start_date, fn($q) => $q->whereDate('tanggal', $this->start_date))
+                    ->sum('jumlah');
+            }
         }
 
         return $beverages;
@@ -72,8 +82,12 @@ new #[Layout('layouts::admin')] class extends Component
 
     public function forceDelete($id)
     {
-        Beverage::withTrashed()->find($id)->forceDelete();
-        session()->flash('success', 'Produk berhasil dihapus permanen.');
+        try {
+            Beverage::withTrashed()->find($id)->forceDelete();
+            session()->flash('success', 'Produk berhasil dihapus permanen.');
+        } catch (\Illuminate\Database\QueryException $e) {
+            session()->flash('error', 'Gagal menghapus permanen. Produk masih memiliki data transaksi terkait.');
+        }
     }
 
     public function syncStokAwal($id)
@@ -84,9 +98,9 @@ new #[Layout('layouts::admin')] class extends Component
             return;
         }
 
-        BeverageRestock::updateOrCreate(
+        BeverageStokSnapshot::updateOrCreate(
             ['beverage_id' => $id, 'tanggal' => $this->start_date, 'tipe' => 'init'],
-            ['jumlah_tambah' => $beverage->stok_sekarang, 'keterangan' => 'Sinkronisasi stok awal dari stok akhir']
+            ['jumlah' => $beverage->stok_sekarang]
         );
 
         session()->flash('success', 'Stok awal berhasil disinkronkan.');
@@ -101,8 +115,8 @@ new #[Layout('layouts::admin')] class extends Component
         }
 
         BeverageStokSnapshot::updateOrCreate(
-            ['beverage_id' => $id, 'tanggal' => $this->start_date],
-            ['stok_akhir' => $beverage->stok_sekarang]
+            ['beverage_id' => $id, 'tanggal' => $this->start_date, 'tipe' => 'last'],
+            ['jumlah' => $beverage->stok_sekarang]
         );
 
         session()->flash('success', 'Stok akhir berhasil disinkronkan.');
@@ -127,6 +141,12 @@ new #[Layout('layouts::admin')] class extends Component
     @if (session()->has('success'))
         <div class="p-4 mb-4 text-sm text-green-800 rounded-lg bg-green-50" role="alert">
             <span class="font-medium">Sukses!</span> {{ session('success') }}
+        </div>
+    @endif
+
+    @if (session()->has('error'))
+        <div class="p-4 mb-4 text-sm text-red-800 rounded-lg bg-red-50" role="alert">
+            <span class="font-medium">Error!</span> {{ session('error') }}
         </div>
     @endif
 
@@ -158,7 +178,6 @@ new #[Layout('layouts::admin')] class extends Component
                         <th scope="col" class="px-4 py-3 font-medium text-center">Ditambahkan</th>
                         <th scope="col" class="px-4 py-3 font-medium text-center">Terjual</th>
                         <th scope="col" class="px-4 py-3 font-medium text-center">Stok Akhir</th>
-                        <th scope="col" class="px-4 py-3 font-medium text-center">Real Stok</th>
                         <th scope="col" class="px-4 py-3 font-medium text-center">Aksi</th>
                     </tr>
                 </thead>
@@ -199,11 +218,6 @@ new #[Layout('layouts::admin')] class extends Component
                                 <button type="button" wire:click="syncStokAkhir({{ $beverage->id }})" wire:confirm="Yakin ingin menyinkronkan stok akhir?" class="ml-1 text-xs text-purple-600 hover:text-purple-800" title="Sinkronkan stok akhir">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"></path><path d="M16 16h5v5"></path></svg>
                                 </button>
-                            </td>
-                            <td class="px-4 py-3 text-center whitespace-nowrap">
-                                <span class="{{ $beverage->stok_sekarang <= 5 ? 'text-red-600 font-bold' : 'text-blue-600 font-semibold' }}">
-                                    {{ $beverage->stok_sekarang }}
-                                </span>
                             </td>
                             <td class="px-4 py-3 text-center whitespace-nowrap">
                                 <div class="flex items-center justify-center gap-2">

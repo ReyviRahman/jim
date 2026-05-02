@@ -3,7 +3,6 @@
 namespace App\Livewire\Pages\Dashboard\Admin\Beverages;
 
 use App\Models\Beverage;
-use App\Models\BeverageRestock;
 use App\Models\BeverageStokSnapshot;
 use Livewire\Component;
 use Livewire\Attributes\Validate;
@@ -35,17 +34,9 @@ new #[Layout('layouts::admin')] class extends Component
         ]);
 
         if ($this->stok_awal > 0) {
-            BeverageRestock::create([
-                'beverage_id' => $beverage->id,
-                'tanggal' => date('Y-m-d'),
-                'jumlah_tambah' => $this->stok_awal,
-                'tipe' => 'init',
-                'keterangan' => 'Stok awal saat membuat produk',
-            ]);
-
             BeverageStokSnapshot::updateOrCreate(
-                ['beverage_id' => $beverage->id, 'tanggal' => date('Y-m-d')],
-                ['stok_akhir' => $this->stok_awal]
+                ['beverage_id' => $beverage->id, 'tanggal' => date('Y-m-d'), 'tipe' => 'init'],
+                ['jumlah' => $this->stok_awal]
             );
         }
 
