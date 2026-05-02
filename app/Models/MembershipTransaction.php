@@ -8,14 +8,14 @@ class MembershipTransaction extends Model
 {
     protected $fillable = [
         'invoice_number',
-        'membership_id', 
+        'membership_id',
         'user_id',
         'admin_id',
         'follow_up_id',
         'follow_up_id_two',
         'transaction_type',
         'package_name',
-        'amount', 
+        'amount',
         'payment_method',
         'payment_date',
         'start_date',
@@ -49,5 +49,4 @@ class MembershipTransaction extends Model
     {
         return $this->belongsTo(Membership::class, 'membership_id');
     }
-    
 }

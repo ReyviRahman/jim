@@ -1,8 +1,7 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\BeverageApiController;
-use App\Http\Controllers\BeverageSaleController;
+use Illuminate\Support\Facades\Route;
 
 // --- HALAMAN PUBLIK (Bisa diakses siapa saja) ---
 Route::livewire('/', 'pages::index')
@@ -102,7 +101,6 @@ Route::middleware('auth')->group(function () {
 
         Route::livewire('/membership/renew/{id}', 'pages::dashboard.admin.renew.create')->name('admin.membership.renew');
 
-        
     });
 
     Route::middleware('role:admin,head_coach')->prefix('dashboard/admin')->group(function () {
@@ -143,7 +141,6 @@ Route::middleware('auth')->group(function () {
 
         Route::livewire('/membership/{id}/edit', 'pages::dashboard.admin.membership.edit')->name('admin.membership.edit');
 
-
         // --- Package Management ---
         // Saya kelompokkan lagi dengan prefix 'package' biar URL rapi
         Route::prefix('package')->group(function () {
@@ -158,7 +155,6 @@ Route::middleware('auth')->group(function () {
                 ->name('admin.packages.edit'); // Edit
         });
     });
-
 
     Route::middleware('role:admin,kasir_gym,kasir_minum')->prefix('dashboard/admin')->group(function () {
         Route::livewire('/beverages', 'pages::dashboard.admin.beverages.index')

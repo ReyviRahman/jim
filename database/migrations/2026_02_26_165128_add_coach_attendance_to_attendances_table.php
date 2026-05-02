@@ -11,7 +11,7 @@ return new class extends Migration
         Schema::table('attendances', function (Blueprint $table) {
             // 1. Ubah membership_id agar boleh kosong (null) untuk absen Coach
             $table->unsignedBigInteger('membership_id')->nullable()->change();
-            
+
             // 2. Update kolom enum 'type' dengan tambahan 'coach_attendance'
             $table->enum('type', ['gym', 'pt', 'visit', 'coach_attendance'])->default('gym')->change();
         });

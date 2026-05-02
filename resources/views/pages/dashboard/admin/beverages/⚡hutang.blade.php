@@ -99,6 +99,26 @@ new #[Layout('layouts::admin')] class extends Component
         session()->flash('success', 'Hutang berhasil dilunasi dengan metode ' . ($metodeBayar === 'deposit_hutang_cash' ? 'Deposit/Cash' : 'Deposit/TF BCA/QRIS') . '.');
     }
 
+    public function deleteHutang($id)
+    {
+        $sale = BeverageSale::find($id);
+        if (!$sale) {
+            session()->flash('error', 'Data hutang tidak ditemukan.');
+            return;
+        }
+
+        $beverage = \App\Models\Beverage::find($sale->beverage_id);
+        if ($beverage) {
+            $beverage->update([
+                'stok_sekarang' => $beverage->stok_sekarang + $sale->jumlah_beli,
+            ]);
+        }
+
+        $sale->delete();
+
+        session()->flash('success', 'Data hutang berhasil dihapus. Stok minuman dikembalikan.');
+    }
+
     public function with(): array
     {
         return [];
@@ -168,6 +188,12 @@ new #[Layout('layouts::admin')] class extends Component
                                     class="px-3 py-1 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold rounded-md transition-colors">
                                     Bayar Hutang
                                 </button>
+                                @if(auth()->check() && auth()->user()->role === 'admin')
+                                    <button type="button" wire:click="deleteHutang({{ $sale->id }})" wire:confirm="Apakah Anda yakin ingin menghapus hutang ini? Stok minuman akan dikembalikan."
+                                        class="px-3 py-1 bg-red-500 hover:bg-red-600 text-white text-xs font-semibold rounded-md transition-colors ml-2">
+                                        Hapus
+                                    </button>
+                                @endif
                             </td>
                         </tr>
                     @empty

@@ -3,15 +3,16 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
 class User extends Authenticatable
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
+    /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
 
     protected $fillable = [
@@ -42,7 +43,7 @@ class User extends Authenticatable
     public function memberships(): BelongsToMany
     {
         return $this->belongsToMany(Membership::class, 'membership_users', 'user_id', 'membership_id')
-                    ->withTimestamps();
+            ->withTimestamps();
     }
 
     /**
@@ -85,7 +86,7 @@ class User extends Authenticatable
     {
         return $this->hasMany(Membership::class, 'follow_up_id_two');
     }
-    
+
     public function activeMembership()
     {
         // Sekarang mengecek akses dari pivot table, bukan cuma yang dia beli

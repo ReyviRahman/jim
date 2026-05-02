@@ -14,8 +14,11 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 class RekapBonusExport implements FromView, ShouldAutoSize, WithStyles
 {
     public $staffUserId;
+
     public $search;
+
     public $startDate;
+
     public $endDate;
 
     public function __construct($staffUserId, $search, $startDate, $endDate)
@@ -29,30 +32,30 @@ class RekapBonusExport implements FromView, ShouldAutoSize, WithStyles
     public function view(): View
     {
         $staffUser = User::findOrFail($this->staffUserId);
-        
+
         // Tambahkan 'followUp', 'followUpTwo' di dalam array with()
         $memberships = Membership::with(['user', 'gymPackage', 'ptPackage', 'followUp', 'followUpTwo'])
             ->where(function ($query) {
                 $query->where('follow_up_id', $this->staffUserId)
-                      ->orWhere('follow_up_id_two', $this->staffUserId);
+                    ->orWhere('follow_up_id_two', $this->staffUserId);
             })
             ->where('type', '!=', 'visit')
             ->where('payment_status', 'paid')
             ->when($this->search, function ($query) {
                 $query->where(function ($q) {
                     $q->whereHas('members', function ($sub) {
-                        $sub->where('name', 'like', '%' . $this->search . '%');
+                        $sub->where('name', 'like', '%'.$this->search.'%');
                     })
-                    ->orWhereHas('user', function ($sub) {
-                        $sub->where('name', 'like', '%' . $this->search . '%');
-                    });
+                        ->orWhereHas('user', function ($sub) {
+                            $sub->where('name', 'like', '%'.$this->search.'%');
+                        });
                 });
             })
             ->when($this->startDate && $this->endDate, function ($query) {
                 $query->whereHas('transactions', function ($q) {
                     $q->whereBetween('payment_date', [
-                        $this->startDate . ' 00:00:00',
-                        $this->endDate . ' 23:59:59'
+                        $this->startDate.' 00:00:00',
+                        $this->endDate.' 23:59:59',
                     ]);
                 });
             })
@@ -64,18 +67,18 @@ class RekapBonusExport implements FromView, ShouldAutoSize, WithStyles
         if ($this->startDate && $this->endDate) {
             $start = Carbon::parse($this->startDate)->locale('id');
             $end = Carbon::parse($this->endDate)->locale('id');
-            
+
             if ($this->startDate === $this->endDate) {
                 $titleDate = strtoupper($start->translatedFormat('d F Y'));
             } else {
-                $titleDate = strtoupper($start->translatedFormat('d F')) . ' - ' . strtoupper($end->translatedFormat('d F'));
+                $titleDate = strtoupper($start->translatedFormat('d F')).' - '.strtoupper($end->translatedFormat('d F'));
             }
         }
 
         return view('exports.rekap-bonus', [
             'memberships' => $memberships,
             'staffUser' => $staffUser,
-            'titleDate' => $titleDate
+            'titleDate' => $titleDate,
         ]);
     }
 

@@ -153,18 +153,20 @@ new #[Layout('layouts::admin')] class extends Component
                                             </span>
                                         </td>
                                         <td class="px-4 py-3 text-center whitespace-nowrap" rowspan="{{ $itemCount }}">
-                                            <div class="flex items-center justify-center gap-1">
-                                                <a href="{{ route('admin.beverages.invoice.edit', $invoice->id) }}" wire:navigate
-                                                    class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
-                                                    Edit
-                                                </a>
-                                                <button type="button" wire:click="confirmDelete({{ $invoice->id }})"
-                                                    class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-red-700 bg-red-50 border border-red-200 rounded-md hover:bg-red-100">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
-                                                    Hapus
-                                                </button>
-                                            </div>
+                                            @if(auth()->check() && auth()->user()->role === 'admin')
+                                                <div class="flex items-center justify-center gap-1">
+                                                    <a href="{{ route('admin.beverages.invoice.edit', $invoice->id) }}" wire:navigate
+                                                        class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                                                        Edit
+                                                    </a>
+                                                    <button type="button" wire:click="confirmDelete({{ $invoice->id }})"
+                                                        class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-red-700 bg-red-50 border border-red-200 rounded-md hover:bg-red-100">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                                                        Hapus
+                                                    </button>
+                                                </div>
+                                            @endif
                                         </td>
                                     @endif
                                 </tr>
@@ -188,18 +190,20 @@ new #[Layout('layouts::admin')] class extends Component
                                     </span>
                                 </td>
                                 <td class="px-4 py-3 text-center whitespace-nowrap">
-                                    <div class="flex items-center justify-center gap-1">
-                                        <a href="{{ route('admin.beverages.invoice.edit', $invoice->id) }}" wire:navigate
-                                            class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
-                                            Edit
-                                        </a>
-                                        <button type="button" wire:click="confirmDelete({{ $invoice->id }})"
-                                            class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-red-700 bg-red-50 border border-red-200 rounded-md hover:bg-red-100">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
-                                            Hapus
-                                        </button>
-                                    </div>
+                                    @if(auth()->check() && auth()->user()->role === 'admin')
+                                        <div class="flex items-center justify-center gap-1">
+                                            <a href="{{ route('admin.beverages.invoice.edit', $invoice->id) }}" wire:navigate
+                                                class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                                                Edit
+                                            </a>
+                                            <button type="button" wire:click="confirmDelete({{ $invoice->id }})"
+                                                class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-red-700 bg-red-50 border border-red-200 rounded-md hover:bg-red-100">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                                                Hapus
+                                            </button>
+                                        </div>
+                                    @endif
                                 </td>
                             </tr>
                         @endif
@@ -222,25 +226,27 @@ new #[Layout('layouts::admin')] class extends Component
         </div>
     </div>
 
-    @if ($showDeleteModal)
-        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" wire:click.self="cancelDelete">
-            <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 p-6">
-                <div class="flex items-center justify-between mb-4">
-                    <h5 class="text-lg font-semibold text-heading">Konfirmasi Hapus</h5>
-                    <button type="button" wire:click="cancelDelete" class="text-gray-400 hover:text-gray-600">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-                    </button>
-                </div>
-                <p class="text-body mb-6">Apakah Anda yakin ingin menghapus invoice ini? Semua item terkait ikut terhapus.</p>
-                <div class="flex items-center justify-end gap-3">
-                    <button type="button" wire:click="cancelDelete" class="px-4 py-2 text-sm font-medium text-body bg-neutral-secondary-medium border border-default-medium rounded-md hover:bg-neutral-secondary-strong transition-colors">
-                        Batal
-                    </button>
-                    <button type="button" wire:click="deleteInvoice" class="px-4 py-2.5 text-white bg-red-600 hover:bg-red-700 rounded-md font-medium text-sm focus:outline-none">
-                        Hapus
-                    </button>
+    @if(auth()->check() && auth()->user()->role === 'admin')
+        @if ($showDeleteModal)
+            <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" wire:click.self="cancelDelete">
+                <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h5 class="text-lg font-semibold text-heading">Konfirmasi Hapus</h5>
+                        <button type="button" wire:click="cancelDelete" class="text-gray-400 hover:text-gray-600">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                        </button>
+                    </div>
+                    <p class="text-body mb-6">Apakah Anda yakin ingin menghapus invoice ini? Semua item terkait ikut terhapus.</p>
+                    <div class="flex items-center justify-end gap-3">
+                        <button type="button" wire:click="cancelDelete" class="px-4 py-2 text-sm font-medium text-body bg-neutral-secondary-medium border border-default-medium rounded-md hover:bg-neutral-secondary-strong transition-colors">
+                            Batal
+                        </button>
+                        <button type="button" wire:click="deleteInvoice" class="px-4 py-2.5 text-white bg-red-600 hover:bg-red-700 rounded-md font-medium text-sm focus:outline-none">
+                            Hapus
+                        </button>
+                    </div>
                 </div>
             </div>
-        </div>
+        @endif
     @endif
 </div>

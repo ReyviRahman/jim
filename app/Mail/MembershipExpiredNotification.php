@@ -14,6 +14,7 @@ class MembershipExpiredNotification extends Mailable implements ShouldQueue
     use Queueable, SerializesModels;
 
     public int $updatedCount;
+
     public array $details;
 
     public function __construct(int $updatedCount, array $details)
@@ -25,7 +26,7 @@ class MembershipExpiredNotification extends Mailable implements ShouldQueue
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Notifikasi: Membership Expired - ' . now()->format('d M Y'),
+            subject: 'Notifikasi: Membership Expired - '.now()->format('d M Y'),
         );
     }
 

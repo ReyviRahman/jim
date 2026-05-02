@@ -3,8 +3,8 @@
 namespace App\Exports;
 
 use App\Models\Membership;
-use Maatwebsite\Excel\Concerns\FromQuery;
 use Maatwebsite\Excel\Concerns\Exportable;
+use Maatwebsite\Excel\Concerns\FromQuery;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
 
@@ -13,12 +13,15 @@ class MembershipExport implements FromQuery, WithHeadings, WithMapping
     use Exportable;
 
     public $search;
+
     public $filterTime;
+
     public $dateStart;
+
     public $dateEnd;
-    
+
     // 1. Tambahkan variabel untuk menyimpan nomor urut
-    private $rowNumber = 0; 
+    private $rowNumber = 0;
 
     public function __construct($search, $filterTime, $dateStart, $dateEnd)
     {
@@ -32,12 +35,12 @@ class MembershipExport implements FromQuery, WithHeadings, WithMapping
     {
         $query = Membership::query()->with(['user', 'members', 'personalTrainer', 'gymPackage', 'ptPackage']);
 
-        if (!empty($this->search)) {
+        if (! empty($this->search)) {
             $query->where(function ($q) {
                 $q->whereHas('user', function ($subQ) {
-                    $subQ->where('name', 'like', '%' . $this->search . '%');
+                    $subQ->where('name', 'like', '%'.$this->search.'%');
                 })->orWhereHas('members', function ($subQ) {
-                    $subQ->where('name', 'like', '%' . $this->search . '%');
+                    $subQ->where('name', 'like', '%'.$this->search.'%');
                 });
             });
         }
@@ -51,8 +54,8 @@ class MembershipExport implements FromQuery, WithHeadings, WithMapping
                 ->whereYear('created_at', now()->year);
         } elseif ($this->filterTime === 'custom' && $this->dateStart && $this->dateEnd) {
             $query->whereBetween('created_at', [
-                $this->dateStart . ' 00:00:00', 
-                $this->dateEnd . ' 23:59:59'
+                $this->dateStart.' 00:00:00',
+                $this->dateEnd.' 23:59:59',
             ]);
         }
 
@@ -71,7 +74,7 @@ class MembershipExport implements FromQuery, WithHeadings, WithMapping
             'Total Sesi',
             'Total Bayar',
             'Status',
-            'Tanggal Daftar'
+            'Tanggal Daftar',
         ];
     }
 
