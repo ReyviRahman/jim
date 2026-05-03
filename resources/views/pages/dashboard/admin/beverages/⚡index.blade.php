@@ -145,13 +145,13 @@ new #[Layout('layouts::admin')] class extends Component
     public function restore($id)
     {
         Beverage::withTrashed()->find($id)->restore();
-        session()->flash('success', 'Produk berhasil dikembalikan.');
+        session()->flash('success', 'Produk berhasil diaktifkan.');
     }
 
     public function delete($id)
     {
         Beverage::withTrashed()->find($id)->delete();
-        session()->flash('success', 'Produk berhasil dihapus.');
+        session()->flash('success', 'Produk berhasil dinonaktifkan.');
     }
 
     public function forceDelete($id)
@@ -283,7 +283,7 @@ new #[Layout('layouts::admin')] class extends Component
                             <td class="px-4 py-3 font-medium text-heading whitespace-nowrap">
                                 {{ $beverage->nama_produk }}
                                 @if ($beverage->trashed())
-                                    <span class="ml-2 text-xs text-red-600 bg-red-100 px-2 py-0.5 rounded-full">Dihapus</span>
+                                    <span class="ml-2 text-xs text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">Nonaktif</span>
                                 @endif
                             </td>
                             @if($this->isAdmin)
@@ -342,18 +342,24 @@ new #[Layout('layouts::admin')] class extends Component
                             <td class="px-4 py-3 text-center whitespace-nowrap">
                                 <div class="flex items-center justify-center gap-2">
                                     @if(auth()->check() && auth()->user()->role === 'admin')
-                                        @if (!$beverage->trashed())
-                                            <button type="button" wire:click="delete({{ $beverage->id }})" wire:confirm="Apakah Anda yakin ingin menghapus produk ini?" class="inline-flex items-center gap-1 px-3 py-2 text-sm font-medium text-red-700 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 focus:ring-2 focus:ring-red-300 transition-colors">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path><line x1="10" x2="10" y1="11" y2="17"></line><line x1="14" x2="14" y1="11" y2="17"></line></svg>
-                                            </button>
-                                        @endif
+                                        {{-- Toggle Switch On/Off --}}
+                                        <button 
+                                            type="button" 
+                                            wire:click="{{ $beverage->trashed() ? 'restore('.$beverage->id.')' : 'delete('.$beverage->id.')' }}"
+                                            class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2 {{ $beverage->trashed() ? 'bg-gray-300' : 'bg-emerald-500' }}"
+                                            title="{{ $beverage->trashed() ? 'Produk tidak aktif - Klik untuk mengaktifkan' : 'Produk aktif - Klik untuk menonaktifkan' }}"
+                                        >
+                                            <span class="sr-only">Toggle status</span>
+                                            <span 
+                                                class="inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform {{ $beverage->trashed() ? 'translate-x-1' : 'translate-x-6' }}"
+                                            ></span>
+                                        </button>
+                                        
                                         <a href="{{ route('admin.beverages.edit', ['beverage' => $beverage->id]) }}" wire:navigate class="inline-flex items-center gap-1 px-3 py-2 text-sm font-medium text-yellow-700 bg-yellow-50 border border-yellow-200 rounded-md hover:bg-yellow-100 focus:ring-2 focus:ring-yellow-300 transition-colors">
                                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path></svg>
                                         </a>
+                                        
                                         @if ($beverage->trashed())
-                                            <button type="button" wire:click="restore({{ $beverage->id }})" wire:confirm="Apakah Anda yakin ingin mengembalikan produk ini?" class="inline-flex items-center gap-1 px-3 py-2 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 focus:ring-2 focus:ring-blue-300 transition-colors">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path><path d="M3 21v-5h5"></path></svg>
-                                            </button>
                                             <button type="button" wire:click="forceDelete({{ $beverage->id }})" wire:confirm="Apakah Anda yakin ingin menghapus permanen produk ini?" class="inline-flex items-center gap-1 px-3 py-2 text-sm font-medium text-red-700 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 focus:ring-2 focus:ring-red-300 transition-colors">
                                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
                                             </button>
