@@ -295,7 +295,8 @@ new #[Layout('layouts::admin')] class extends Component
                                 Rp {{ number_format($beverage->harga_jual, 0, ',', '.') }}
                             </td>
                             <td class="px-4 py-3 text-center whitespace-nowrap">
-                                @if(auth()->check() && auth()->user()->role === 'admin')
+                                <span>{{ $beverage->stok_awal }}</span>
+                                {{-- @if(auth()->check() && auth()->user()->role === 'admin')
                                     @if ($editingStokAwalId === $beverage->id)
                                         <div class="flex items-center justify-center gap-1">
                                             <input type="number" wire:model="editingStokAwalValue" min="0" class="w-16 px-1 py-0.5 text-sm text-center bg-white border border-default-medium rounded focus:ring-brand focus:border-brand" wire:keydown.enter="saveStokAwal({{ $beverage->id }})">
@@ -316,7 +317,7 @@ new #[Layout('layouts::admin')] class extends Component
                                     @endif
                                 @else
                                     <span>{{ $beverage->stok_awal }}</span>
-                                @endif
+                                @endif --}}
                             </td>
                             <td class="px-4 py-3 text-center whitespace-nowrap text-emerald-600 font-semibold">
                                 +{{ $beverage->ditambahkan }}
