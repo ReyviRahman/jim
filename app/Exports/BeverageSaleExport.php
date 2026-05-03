@@ -55,7 +55,7 @@ class BeverageSaleExport implements FromCollection, ShouldAutoSize, WithEvents
         'hutang' => 'Hutang',
     ];
 
-    public function __construct($searchProduct, $start_date, $end_date)
+    public function __construct($searchProduct, $start_date, $end_date = null)
     {
         $this->searchProduct = $searchProduct;
         $this->start_date = $start_date;
@@ -79,11 +79,12 @@ class BeverageSaleExport implements FromCollection, ShouldAutoSize, WithEvents
         }
 
         if (! empty($this->start_date)) {
-            $query->whereDate('waktu_transaksi', '>=', $this->start_date);
-        }
-
-        if (! empty($this->end_date)) {
-            $query->whereDate('waktu_transaksi', '<=', $this->end_date);
+            if (! empty($this->end_date)) {
+                $query->whereDate('waktu_transaksi', '>=', $this->start_date)
+                      ->whereDate('waktu_transaksi', '<=', $this->end_date);
+            } else {
+                $query->whereDate('waktu_transaksi', $this->start_date);
+            }
         }
 
         $sales = $query->get();

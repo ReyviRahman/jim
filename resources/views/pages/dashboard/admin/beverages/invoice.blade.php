@@ -11,20 +11,43 @@ new #[Layout('layouts::admin')] class extends Component
 {
     public $deleteId = null;
     public $showDeleteModal = false;
+    public $startDate = '';
+    public $endDate = '';
+
+    public function mount()
+    {
+        $this->startDate = now()->format('Y-m-d');
+        $this->endDate = now()->format('Y-m-d');
+    }
 
     public function getInvoicesProperty()
     {
-        return BeverageInvoice::with('items')->latest()->get();
+        $query = BeverageInvoice::with('items');
+
+        if ($this->startDate && $this->endDate) {
+            $query->whereDate('tanggal_order', '>=', $this->startDate)
+                  ->whereDate('tanggal_order', '<=', $this->endDate);
+        } elseif ($this->startDate) {
+            $query->whereDate('tanggal_order', '>=', $this->startDate);
+        } elseif ($this->endDate) {
+            $query->whereDate('tanggal_order', '<=', $this->endDate);
+        }
+
+        return $query->latest()->get();
     }
 
     public function getTotalSemuaProperty(): int
     {
-        return BeverageInvoiceItem::all()->sum('total');
+        return $this->invoices->sum(function ($invoice) {
+            return $invoice->items->sum('total');
+        });
     }
 
     public function getTotalPpnSemuaProperty(): int
     {
-        return BeverageInvoiceItem::all()->sum('biaya_ppn');
+        return $this->invoices->sum(function ($invoice) {
+            return $invoice->items->sum('biaya_ppn');
+        });
     }
 
     public function confirmDelete($id)
@@ -53,6 +76,19 @@ new #[Layout('layouts::admin')] class extends Component
         $this->cancelDelete();
     }
 
+    public function exportExcel()
+    {
+        $filename = 'invoice-pembelian-minuman';
+        if ($this->startDate || $this->endDate) {
+            $filename .= '-' . ($this->startDate ?: 'all') . '_sampai_' . ($this->endDate ?: 'all');
+        } else {
+            $filename .= '-' . now()->format('Y-m-d');
+        }
+        $filename .= '.xlsx';
+
+        return (new \App\Exports\BeverageInvoiceExport($this->startDate, $this->endDate))->download($filename);
+    }
+
     public function with(): array
     {
         return [];
@@ -61,13 +97,29 @@ new #[Layout('layouts::admin')] class extends Component
 ?>
 
 <div>
-    <div class="flex sm:flex-row flex-col justify-between items-center mb-6">
+    <div class="flex sm:flex-row flex-col justify-between items-start sm:items-center mb-6 gap-4">
         <h5 class="text-xl font-semibold text-heading">Invoice Pembelian Minuman</h5>
-        <a href="{{ route('admin.beverages.invoice.create') }}" wire:navigate
-            class="inline-flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium text-white bg-brand hover:bg-brand-strong rounded-md transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
-            Buat Invoice
-        </a>
+        <div class="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+            <div class="flex items-center gap-2">
+                <input type="date" wire:model.live="startDate" placeholder="Tanggal Mulai"
+                    class="px-3 py-2 text-sm border border-default-medium rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent">
+                <span class="text-sm text-body">sampai</span>
+                <input type="date" wire:model.live="endDate" placeholder="Tanggal Akhir"
+                    class="px-3 py-2 text-sm border border-default-medium rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent">
+            </div>
+            <div class="flex items-center gap-2">
+                <button type="button" wire:click="exportExcel"
+                    class="inline-flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-md transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M15 18a3 3 0 1 0-6 0"/><path d="M15 12a3 3 0 1 0-6 0"/><path d="M10.2 20.4 9 23l-1.2-2.6"/><path d="M6 20H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h10.586a2 2 0 0 1 1.414.586l3.414 3.414A2 2 0 0 1 20 8.414V18a2 2 0 0 1-2 2h-2"/></svg>
+                    Export Excel
+                </button>
+                <a href="{{ route('admin.beverages.invoice.create') }}" wire:navigate
+                    class="inline-flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium text-white bg-brand hover:bg-brand-strong rounded-md transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+                    Buat Invoice
+                </a>
+            </div>
+        </div>
     </div>
 
     @if (session()->has('success'))

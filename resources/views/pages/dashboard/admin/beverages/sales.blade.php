@@ -16,14 +16,12 @@ new #[Layout('layouts::admin')] class extends Component
 
     public $searchProduct = '';
     public $start_date = '';
-    public $end_date = '';
     public $showDeleteModal = false;
     public $selectedSaleId = null;
 
     public function mount()
     {
-        $this->start_date = date('Y-m-01');
-        $this->end_date = date('Y-m-d');
+        $this->start_date = date('Y-m-d');
     }
 
     public function getSalesProperty()
@@ -40,10 +38,7 @@ new #[Layout('layouts::admin')] class extends Component
             });
         })
         ->when($this->start_date, function ($query) {
-            $query->whereDate('waktu_transaksi', '>=', $this->start_date);
-        })
-        ->when($this->end_date, function ($query) {
-            $query->whereDate('waktu_transaksi', '<=', $this->end_date);
+            $query->whereDate('waktu_transaksi', $this->start_date);
         })
         ->latest()
         ->paginate(10);
@@ -56,8 +51,7 @@ new #[Layout('layouts::admin')] class extends Component
         return Excel::download(
             new BeverageSaleExport(
                 $this->searchProduct,
-                $this->start_date,
-                $this->end_date
+                $this->start_date
             ),
             $fileName
         );
@@ -70,8 +64,7 @@ new #[Layout('layouts::admin')] class extends Component
         return Excel::download(
             new BeverageSaleExportDetail(
                 $this->searchProduct,
-                $this->start_date,
-                $this->end_date
+                $this->start_date
             ),
             $fileName
         );
@@ -132,8 +125,6 @@ new #[Layout('layouts::admin')] class extends Component
                 <h6 class="text-lg font-semibold text-heading">Daftar Transaksi</h6>
                 <div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                     <input type="date" wire:model.live="start_date"
-                        class="px-2 py-1.5 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs">
-                    <input type="date" wire:model.live="end_date"
                         class="px-2 py-1.5 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs">
                     {{-- <button type="button" wire:click="exportExcel"
                         class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm rounded-base font-medium inline-flex items-center gap-1">
