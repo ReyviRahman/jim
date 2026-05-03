@@ -213,7 +213,15 @@ new #[Layout('layouts::admin')] class extends Component
             ]);
         }
 
-        return $query->latest()->paginate(10);
+        return $query->orderByRaw("
+            CASE
+                WHEN pt_end_date IS NOT NULL AND membership_end_date IS NOT NULL THEN
+                    CASE WHEN pt_end_date < membership_end_date THEN pt_end_date ELSE membership_end_date END
+                WHEN pt_end_date IS NOT NULL THEN pt_end_date
+                WHEN membership_end_date IS NOT NULL THEN membership_end_date
+                ELSE start_date
+            END ASC
+        ")->paginate(10);
     }
 
     public function exportExcel()
