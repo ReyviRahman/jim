@@ -36,7 +36,7 @@ class BeverageSaleExportDetail implements FromQuery, ShouldAutoSize, WithEvents,
 
     private $totalItem = 0;
 
-    public function __construct($searchProduct, $start_date, $end_date)
+    public function __construct($searchProduct, $start_date, $end_date = null)
     {
         $this->searchProduct = $searchProduct;
         $this->start_date = $start_date;
@@ -59,11 +59,12 @@ class BeverageSaleExportDetail implements FromQuery, ShouldAutoSize, WithEvents,
         }
 
         if (! empty($this->start_date)) {
-            $query->whereDate('waktu_transaksi', '>=', $this->start_date);
-        }
-
-        if (! empty($this->end_date)) {
-            $query->whereDate('waktu_transaksi', '<=', $this->end_date);
+            if (! empty($this->end_date)) {
+                $query->whereDate('waktu_transaksi', '>=', $this->start_date)
+                    ->whereDate('waktu_transaksi', '<=', $this->end_date);
+            } else {
+                $query->whereDate('waktu_transaksi', $this->start_date);
+            }
         }
 
         return $query->latest();
@@ -124,7 +125,7 @@ class BeverageSaleExportDetail implements FromQuery, ShouldAutoSize, WithEvents,
                 $sheet->insertNewRowBefore(1, 2);
 
                 $startDateFormatted = $this->start_date ? date('d M Y', strtotime($this->start_date)) : '-';
-                $endDateFormatted = $this->end_date ? date('d M Y', strtotime($this->end_date)) : '-';
+                $endDateFormatted = $this->end_date ? date('d M Y', strtotime($this->end_date)) : null;
 
                 $sheet->setCellValue('A1', 'LAPORAN PENJUALAN MINUMAN');
                 $sheet->mergeCells('A1:J1');
@@ -133,7 +134,10 @@ class BeverageSaleExportDetail implements FromQuery, ShouldAutoSize, WithEvents,
                     'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
                 ]);
 
-                $sheet->setCellValue('A2', 'Periode: '.$startDateFormatted.' s/d '.$endDateFormatted);
+                $periodeText = $endDateFormatted
+                    ? 'Periode: '.$startDateFormatted.' s/d '.$endDateFormatted
+                    : 'Periode: '.$startDateFormatted;
+                $sheet->setCellValue('A2', $periodeText);
                 $sheet->mergeCells('A2:J2');
                 $sheet->getStyle('A2:J2')->applyFromArray([
                     'font' => ['bold' => true, 'size' => 11, 'color' => ['argb' => 'FF000000']],
@@ -193,19 +197,23 @@ class BeverageSaleExportDetail implements FromQuery, ShouldAutoSize, WithEvents,
                     $terjual = BeverageSale::where('beverage_id', $beverage->id)
                         ->whereNotIn('keterangan_bayar', ['deposit_hutang_cash', 'deposit_hutang_qris', 'operasional', 'pengeluaran_umum'])
                         ->when($this->start_date, function ($query) {
-                            $query->whereDate('waktu_transaksi', '>=', $this->start_date);
-                        })
-                        ->when($this->end_date, function ($query) {
-                            $query->whereDate('waktu_transaksi', '<=', $this->end_date);
+                            if (! empty($this->end_date)) {
+                                $query->whereDate('waktu_transaksi', '>=', $this->start_date)
+                                    ->whereDate('waktu_transaksi', '<=', $this->end_date);
+                            } else {
+                                $query->whereDate('waktu_transaksi', $this->start_date);
+                            }
                         })
                         ->sum('jumlah_beli');
 
                     $ditambah = BeverageRestock::where('beverage_id', $beverage->id)
                         ->when($this->start_date, function ($query) {
-                            $query->whereDate('tanggal', '>=', $this->start_date);
-                        })
-                        ->when($this->end_date, function ($query) {
-                            $query->whereDate('tanggal', '<=', $this->end_date);
+                            if (! empty($this->end_date)) {
+                                $query->whereDate('tanggal', '>=', $this->start_date)
+                                    ->whereDate('tanggal', '<=', $this->end_date);
+                            } else {
+                                $query->whereDate('tanggal', $this->start_date);
+                            }
                         })
                         ->sum('jumlah_tambah');
 
@@ -258,18 +266,30 @@ class BeverageSaleExportDetail implements FromQuery, ShouldAutoSize, WithEvents,
                     $sheet->getStyle("H{$stockDataStartRow}:H{$lastDataRow}")->getNumberFormat()->setFormatCode($currencyFormat);
                 }
 
-                // === SECTION: SALES BY PAYMENT METHOD TABLES ===
+                // === SECTION: SALES BY PAYMENT METHOD TABLES (VERTICAL) ===
                 $nextTableRow = $lastDataRow + 3;
 
                 $paymentMethodConfigs = [
-                    'cash' => ['label' => 'CASH', 'show_customer' => false],
-                    'tf_bca_qris' => ['label' => 'TF BCA/QRIS', 'show_customer' => false],
-                    'operasional' => ['label' => 'OPERASIONAL', 'show_customer' => false],
-                    'pengeluaran_umum' => ['label' => 'PENGELUARAN UMUM', 'show_customer' => false],
-                    'deposit_hutang_cash' => ['label' => 'DEPOSIT/CASH', 'show_customer' => true],
-                    'deposit_hutang_qris' => ['label' => 'DEPOSIT/QRIS', 'show_customer' => true],
-                    'hutang' => ['label' => 'HUTANG', 'show_customer' => true],
+                    'cash' => ['label' => 'CASH', 'color' => 'FF22C55E'],
+                    'tf_bca_qris' => ['label' => 'TF BCA/QRIS', 'color' => 'FF3B82F6'],
+                    'operasional' => ['label' => 'OPERASIONAL', 'color' => 'FFF59E0B'],
+                    'pengeluaran_umum' => ['label' => 'PENGELUARAN UMUM', 'color' => 'FFEF4444'],
+                    'deposit_hutang_cash' => ['label' => 'DEPOSIT/CASH', 'color' => 'FFA855F7'],
+                    'deposit_hutang_qris' => ['label' => 'DEPOSIT/QRIS', 'color' => 'FFEC4899'],
+                    'hutang' => ['label' => 'HUTANG', 'color' => 'FF6366F1'],
                 ];
+
+                $methodHeaders = ['TANGGAL', 'STAFF', 'NAMA PELANGGAN', 'TOTAL'];
+                $currencyFormat = '_("Rp"* #,##0_);_("Rp"* \(#,##0\);_("Rp"* "-"??_);_(@_)';
+
+                $sheet->setCellValue('A'.$nextTableRow, 'PENJUALAN PER METODE PEMBAYARAN');
+                $sheet->mergeCells('A'.$nextTableRow.':D'.$nextTableRow);
+                $sheet->getStyle('A'.$nextTableRow.':D'.$nextTableRow)->applyFromArray([
+                    'font' => ['bold' => true, 'size' => 14, 'color' => ['argb' => 'FF000000']],
+                    'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FF16A34A']],
+                    'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
+                ]);
+                $nextTableRow++;
 
                 foreach ($paymentMethodConfigs as $methodKey => $config) {
                     $salesByMethod = BeverageSale::query()
@@ -283,60 +303,39 @@ class BeverageSaleExportDetail implements FromQuery, ShouldAutoSize, WithEvents,
                             });
                         })
                         ->when($this->start_date, function ($query) {
-                            $query->whereDate('waktu_transaksi', '>=', $this->start_date);
-                        })
-                        ->when($this->end_date, function ($query) {
-                            $query->whereDate('waktu_transaksi', '<=', $this->end_date);
+                            if (! empty($this->end_date)) {
+                                $query->whereDate('waktu_transaksi', '>=', $this->start_date)
+                                    ->whereDate('waktu_transaksi', '<=', $this->end_date);
+                            } else {
+                                $query->whereDate('waktu_transaksi', $this->start_date);
+                            }
                         })
                         ->orderBy('waktu_transaksi')
                         ->get();
 
-                    if ($salesByMethod->isEmpty()) {
-                        continue;
-                    }
-
-                    // Title row
-                    $sheet->setCellValue('A'.$nextTableRow, 'METODE PEMBAYARAN: '.$config['label']);
-                    $sheet->mergeCells('A'.$nextTableRow.':F'.$nextTableRow);
-                    $sheet->getStyle('A'.$nextTableRow.':F'.$nextTableRow)->applyFromArray([
-                        'font' => ['bold' => true, 'size' => 12, 'color' => ['argb' => 'FF000000']],
-                        'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FF16A34A']],
+                    // Label row
+                    $sheet->setCellValue('A'.$nextTableRow, $config['label']);
+                    $sheet->mergeCells('A'.$nextTableRow.':D'.$nextTableRow);
+                    $sheet->getStyle('A'.$nextTableRow.':D'.$nextTableRow)->applyFromArray([
+                        'font' => ['bold' => true, 'size' => 11, 'color' => ['argb' => 'FF000000']],
+                        'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => $config['color']]],
                         'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
                     ]);
                     $nextTableRow++;
 
-                    // Headers
+                    // Header row
                     $headerRow = $nextTableRow;
-                    $sheet->setCellValue('A'.$headerRow, 'TANGGAL');
-                    $sheet->setCellValue('B'.$headerRow, 'STAFF');
-                    $colIndex = 3;
-                    if ($config['show_customer']) {
-                        $colLetter = Coordinate::stringFromColumnIndex($colIndex);
-                        $sheet->setCellValue($colLetter.$headerRow, 'NAMA PELANGGAN');
-                        $colIndex++;
+                    foreach ($methodHeaders as $index => $header) {
+                        $colLetter = Coordinate::stringFromColumnIndex($index + 1);
+                        $sheet->setCellValue($colLetter.$headerRow, $header);
                     }
-                    $colLetter = Coordinate::stringFromColumnIndex($colIndex);
-                    $sheet->setCellValue($colLetter.$headerRow, 'PRODUK');
-                    $colIndex++;
-                    $colLetter = Coordinate::stringFromColumnIndex($colIndex);
-                    $sheet->setCellValue($colLetter.$headerRow, 'JUMLAH');
-                    $colIndex++;
-                    $colLetter = Coordinate::stringFromColumnIndex($colIndex);
-                    $sheet->setCellValue($colLetter.$headerRow, 'HARGA SATUAN');
-                    $colIndex++;
-                    $colLetter = Coordinate::stringFromColumnIndex($colIndex);
-                    $sheet->setCellValue($colLetter.$headerRow, 'TOTAL');
-                    $lastCol = $colIndex;
-                    $nextTableRow++;
-
-                    // Style header
-                    $lastColLetter = Coordinate::stringFromColumnIndex($lastCol);
-                    $sheet->getStyle("A{$headerRow}:{$lastColLetter}{$headerRow}")->applyFromArray([
+                    $sheet->getStyle('A'.$headerRow.':D'.$headerRow)->applyFromArray([
                         'font' => ['bold' => true, 'color' => ['argb' => 'FF000000']],
-                        'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FF22C55E']],
+                        'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => $config['color']]],
                         'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
                         'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
                     ]);
+                    $nextTableRow++;
 
                     // Data rows
                     $dataStartRow = $nextTableRow;
@@ -344,67 +343,42 @@ class BeverageSaleExportDetail implements FromQuery, ShouldAutoSize, WithEvents,
                     foreach ($salesByMethod as $sale) {
                         $sheet->setCellValue('A'.$nextTableRow, $sale->waktu_transaksi->format('d M Y H:i'));
                         $sheet->setCellValue('B'.$nextTableRow, $sale->nama_staff);
-                        $colIndex = 3;
-                        if ($config['show_customer']) {
-                            $colLetter = Coordinate::stringFromColumnIndex($colIndex);
-                            $sheet->setCellValue($colLetter.$nextTableRow, $sale->nama_penghutang ?? '-');
-                            $colIndex++;
-                        }
-                        $colLetter = Coordinate::stringFromColumnIndex($colIndex);
-                        $sheet->setCellValue($colLetter.$nextTableRow, $sale->nama_produk ?? '-');
-                        $colIndex++;
-                        $colLetter = Coordinate::stringFromColumnIndex($colIndex);
-                        $sheet->setCellValue($colLetter.$nextTableRow, $sale->jumlah_beli);
-                        $colIndex++;
-                        $colLetter = Coordinate::stringFromColumnIndex($colIndex);
-                        $sheet->setCellValue($colLetter.$nextTableRow, $sale->harga_satuan);
-                        $colIndex++;
-                        $colLetter = Coordinate::stringFromColumnIndex($colIndex);
-                        $sheet->setCellValue($colLetter.$nextTableRow, $sale->total_harga);
+                        $sheet->setCellValue('C'.$nextTableRow, $sale->nama_penghutang ?? '-');
+                        $sheet->setCellValue('D'.$nextTableRow, $sale->total_harga);
                         $methodTotal += $sale->total_harga;
-
                         $nextTableRow++;
                     }
 
-                    $lastDataRowMethod = $nextTableRow - 1;
-
-                    // Style data rows
-                    if ($lastDataRowMethod >= $dataStartRow) {
-                        $sheet->getStyle("A{$dataStartRow}:{$lastColLetter}{$lastDataRowMethod}")->applyFromArray([
+                    $lastDataRowForMethod = $nextTableRow - 1;
+                    if ($lastDataRowForMethod >= $dataStartRow) {
+                        $sheet->getStyle("A{$dataStartRow}:D{$lastDataRowForMethod}")->applyFromArray([
                             'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
                             'font' => ['color' => ['argb' => 'FF000000']],
                         ]);
 
-                        for ($row = $dataStartRow; $row <= $lastDataRowMethod; $row++) {
+                        for ($row = $dataStartRow; $row <= $lastDataRowForMethod; $row++) {
                             if ($row % 2 === 0) {
-                                $sheet->getStyle("A{$row}:{$lastColLetter}{$row}")->applyFromArray([
+                                $sheet->getStyle("A{$row}:D{$row}")->applyFromArray([
                                     'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFF9FAFB']],
                                 ]);
                             }
                         }
 
-                        // Currency format
-                        $totalCol = $lastCol;
-                        $hargaCol = $lastCol - 1;
-                        $hargaColLetter = Coordinate::stringFromColumnIndex($hargaCol);
-                        $totalColLetter = Coordinate::stringFromColumnIndex($totalCol);
-                        $sheet->getStyle("{$hargaColLetter}{$dataStartRow}:{$hargaColLetter}{$lastDataRowMethod}")->getNumberFormat()->setFormatCode($currencyFormat);
-                        $sheet->getStyle("{$totalColLetter}{$dataStartRow}:{$totalColLetter}{$lastDataRowMethod}")->getNumberFormat()->setFormatCode($currencyFormat);
+                        $sheet->getStyle("D{$dataStartRow}:D{$lastDataRowForMethod}")->getNumberFormat()->setFormatCode($currencyFormat);
                     }
 
                     // Total row
                     $totalRow = $nextTableRow;
                     $sheet->setCellValue('A'.$totalRow, 'TOTAL '.$config['label']);
-                    $totalColLetter = Coordinate::stringFromColumnIndex($lastCol);
-                    $sheet->setCellValue($totalColLetter.$totalRow, $methodTotal);
-                    $sheet->getStyle("A{$totalRow}:{$totalColLetter}{$totalRow}")->applyFromArray([
+                    $sheet->mergeCells('A'.$totalRow.':C'.$totalRow);
+                    $sheet->setCellValue('D'.$totalRow, $methodTotal);
+                    $sheet->getStyle("A{$totalRow}:D{$totalRow}")->applyFromArray([
                         'font' => ['bold' => true, 'color' => ['argb' => 'FF000000']],
-                        'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FF16A34A']],
+                        'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => $config['color']]],
                         'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
                         'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
                     ]);
-                    $sheet->getStyle($totalColLetter.$totalRow)->getNumberFormat()->setFormatCode($currencyFormat);
-
+                    $sheet->getStyle('D'.$totalRow)->getNumberFormat()->setFormatCode($currencyFormat);
                     $nextTableRow += 2;
                 }
             },
