@@ -21,6 +21,7 @@ class BeverageStockExport implements WithEvents
 
     public $search;
     public $startDate;
+    public $isAdmin;
 
     private $keteranganBayarList = [
         'cash',
@@ -41,10 +42,11 @@ class BeverageStockExport implements WithEvents
         'hutang' => 'Hutang',
     ];
 
-    public function __construct($search, $startDate)
+    public function __construct($search, $startDate, $isAdmin = false)
     {
         $this->search = $search;
         $this->startDate = $startDate;
+        $this->isAdmin = $isAdmin;
     }
 
     public function registerEvents(): array
@@ -212,9 +214,6 @@ class BeverageStockExport implements WithEvents
                     $currentGrandRow++;
                 }
 
-                $sheet->setCellValue('A' . ($grandTotalCashRow + 1), 'TOTAL PENJUALAN');
-                $sheet->setCellValue('B' . ($grandTotalCashRow + 1), $grandTotal);
-
                 // Style grand total header
                 $sheet->getStyle('A' . $grandTotalHeaderRow . ':B' . $grandTotalHeaderRow)->applyFromArray([
                     'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFF97316']],
@@ -244,17 +243,9 @@ class BeverageStockExport implements WithEvents
                     }
                 }
 
-                // Style total penjualan
-                $sheet->getStyle('A' . ($grandTotalCashRow + 1) . ':B' . ($grandTotalCashRow + 1))->applyFromArray([
-                    'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FF16A34A']],
-                    'font' => ['bold' => true, 'size' => 11, 'color' => ['argb' => 'FF000000']],
-                    'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
-                    'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
-                ]);
-
                 // Currency format for grand total
                 $currencyFormat = '_("Rp"* #,##0_);_("Rp"* \(#,##0\);_("Rp"* "-"??_);_(@_)';
-                for ($row = $grandTotalDataStartRow; $row <= $grandTotalCashRow + 1; $row++) {
+                for ($row = $grandTotalDataStartRow; $row <= $grandTotalCashRow; $row++) {
                     $sheet->getStyle('B' . $row)->getNumberFormat()->setFormatCode($currencyFormat);
                 }
 
@@ -337,7 +328,10 @@ class BeverageStockExport implements WithEvents
                     ->orderBy('nama_produk')
                     ->get();
 
-                $headers = ['Nama Produk', 'Harga Modal', 'Harga Jual', 'Stok Awal', 'Ditambahkan', 'Jumlah Stok', 'Terjual', 'Total Penjualan', 'Stok Akhir'];
+                $headers = ['Nama Produk', 'Harga Jual', 'Stok Awal', 'Ditambahkan', 'Jumlah Stok', 'Terjual', 'Total Penjualan', 'Stok Akhir'];
+                if ($this->isAdmin) {
+                    array_splice($headers, 1, 0, 'Harga Modal');
+                }
 
                 // Write headers
                 foreach ($headers as $index => $header) {
@@ -378,31 +372,42 @@ class BeverageStockExport implements WithEvents
                     }
 
                     $sheet->setCellValue('A' . $currentRow, $beverage->nama_produk . ($beverage->trashed() ? ' (Dihapus)' : ''));
-                    $sheet->setCellValue('B' . $currentRow, $beverage->harga_modal);
-                    $sheet->setCellValue('C' . $currentRow, $beverage->harga_jual);
-                    $sheet->setCellValue('D' . $currentRow, $stokAwal);
-                    $sheet->setCellValue('E' . $currentRow, $ditambahkan);
-                    $sheet->setCellValue('F' . $currentRow, $jumlahStok);
-                    $sheet->setCellValue('G' . $currentRow, $terjual);
-                    $sheet->setCellValue('H' . $currentRow, $totalPenjualan);
-                    $sheet->setCellValue('I' . $currentRow, $stokAkhir);
+                    $col = 2;
+                    if ($this->isAdmin) {
+                        $sheet->setCellValue(Coordinate::stringFromColumnIndex($col) . $currentRow, $beverage->harga_modal);
+                        $col++;
+                    }
+                    $sheet->setCellValue(Coordinate::stringFromColumnIndex($col) . $currentRow, $beverage->harga_jual);
+                    $col++;
+                    $sheet->setCellValue(Coordinate::stringFromColumnIndex($col) . $currentRow, $stokAwal);
+                    $col++;
+                    $sheet->setCellValue(Coordinate::stringFromColumnIndex($col) . $currentRow, $ditambahkan);
+                    $col++;
+                    $sheet->setCellValue(Coordinate::stringFromColumnIndex($col) . $currentRow, $jumlahStok);
+                    $col++;
+                    $sheet->setCellValue(Coordinate::stringFromColumnIndex($col) . $currentRow, $terjual);
+                    $col++;
+                    $sheet->setCellValue(Coordinate::stringFromColumnIndex($col) . $currentRow, $totalPenjualan);
+                    $col++;
+                    $sheet->setCellValue(Coordinate::stringFromColumnIndex($col) . $currentRow, $stokAkhir);
 
                     $currentRow++;
                 }
 
                 $lastDataRow = $currentRow - 1;
+                $lastCol = count($headers);
+                $lastColLetter = Coordinate::stringFromColumnIndex($lastCol);
 
                 // Style stock table header
-                $sheet->getStyle("A{$stockHeaderRow}:I{$stockHeaderRow}")->applyFromArray([
+                $sheet->getStyle("A{$stockHeaderRow}:{$lastColLetter}{$stockHeaderRow}")->applyFromArray([
                     'font' => ['bold' => true, 'color' => ['argb' => 'FF000000']],
-                    'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FF22C55E']],
                     'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
                     'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
                 ]);
 
                 // Style stock data rows
                 if ($lastDataRow >= $stockDataStartRow) {
-                    $sheet->getStyle("A{$stockDataStartRow}:I{$lastDataRow}")->applyFromArray([
+                    $sheet->getStyle("A{$stockDataStartRow}:{$lastColLetter}{$lastDataRow}")->applyFromArray([
                         'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
                         'font' => ['color' => ['argb' => 'FF000000']],
                     ]);
@@ -410,7 +415,7 @@ class BeverageStockExport implements WithEvents
                     // Alternating row colors
                     for ($row = $stockDataStartRow; $row <= $lastDataRow; $row++) {
                         if ($row % 2 === 0) {
-                            $sheet->getStyle("A{$row}:I{$row}")->applyFromArray([
+                            $sheet->getStyle("A{$row}:{$lastColLetter}{$row}")->applyFromArray([
                                 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFF9FAFB']],
                             ]);
                         }
@@ -420,22 +425,28 @@ class BeverageStockExport implements WithEvents
                 // Currency format for stock table
                 $currencyFormat = '_("Rp"* #,##0_);_("Rp"* \(#,##0\);_("Rp"* "-"??_);_(@_)';
                 if ($lastDataRow >= $stockDataStartRow) {
-                    $sheet->getStyle("B{$stockDataStartRow}:B{$lastDataRow}")->getNumberFormat()->setFormatCode($currencyFormat);
-                    $sheet->getStyle("C{$stockDataStartRow}:C{$lastDataRow}")->getNumberFormat()->setFormatCode($currencyFormat);
-                    $sheet->getStyle("H{$stockDataStartRow}:H{$lastDataRow}")->getNumberFormat()->setFormatCode($currencyFormat);
+                    $hargaJualCol = $this->isAdmin ? 3 : 2;
+                    $totalPenjualanCol = $this->isAdmin ? 8 : 7;
+                    $sheet->getStyle(Coordinate::stringFromColumnIndex($hargaJualCol) . "{$stockDataStartRow}:" . Coordinate::stringFromColumnIndex($hargaJualCol) . $lastDataRow)->getNumberFormat()->setFormatCode($currencyFormat);
+                    $sheet->getStyle(Coordinate::stringFromColumnIndex($totalPenjualanCol) . "{$stockDataStartRow}:" . Coordinate::stringFromColumnIndex($totalPenjualanCol) . $lastDataRow)->getNumberFormat()->setFormatCode($currencyFormat);
+                    if ($this->isAdmin) {
+                        $sheet->getStyle("B{$stockDataStartRow}:B{$lastDataRow}")->getNumberFormat()->setFormatCode($currencyFormat);
+                    }
                 }
 
                 // Set column widths for stock detail table
                 $sheet->getColumnDimension('A')->setWidth(35);
                 $sheet->getColumnDimension('B')->setWidth(15);
                 $sheet->getColumnDimension('C')->setWidth(15);
-                $sheet->getColumnDimension('D')->setWidth(25);
-                $sheet->getColumnDimension('E')->setWidth(12);
+                $sheet->getColumnDimension('D')->setWidth(12);
+                $sheet->getColumnDimension('E')->setWidth(14);
                 $sheet->getColumnDimension('F')->setWidth(14);
-                $sheet->getColumnDimension('G')->setWidth(14);
-                $sheet->getColumnDimension('H')->setWidth(10);
-                $sheet->getColumnDimension('I')->setWidth(18);
-                $sheet->getColumnDimension('J')->setWidth(12);
+                $sheet->getColumnDimension('G')->setWidth(10);
+                $sheet->getColumnDimension('H')->setWidth(18);
+                $sheet->getColumnDimension('I')->setWidth(12);
+                if (!$this->isAdmin) {
+                    $sheet->getColumnDimension('J')->setWidth(12);
+                }
 
                 // Set all text to black
                 $sheet->getStyle($sheet->calculateWorksheetDimension())->applyFromArray([

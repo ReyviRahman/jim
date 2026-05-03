@@ -20,10 +20,12 @@ new #[Layout('layouts::admin')] class extends Component
     public $start_date = '';
     public $editingStokAwalId = null;
     public $editingStokAwalValue = 0;
+    public $isAdmin = false;
 
     public function mount()
     {
         $this->start_date = date('Y-m-d');
+        $this->isAdmin = auth()->check() && auth()->user()->role === 'admin';
     }
 
     public function editStokAwal($id)
@@ -199,7 +201,7 @@ new #[Layout('layouts::admin')] class extends Component
         $fileName = 'stok-minuman-' . ($this->start_date ?: date('Y-m-d')) . '.xlsx';
 
         return Excel::download(
-            new BeverageStockExport($this->search, $this->start_date),
+            new BeverageStockExport($this->search, $this->start_date, $this->isAdmin),
             $fileName
         );
     }
@@ -259,7 +261,9 @@ new #[Layout('layouts::admin')] class extends Component
                     <tr>
                         <th scope="col" class="px-4 py-3 font-medium">No</th>
                         <th scope="col" class="px-4 py-3 font-medium">Produk</th>
-                        <th scope="col" class="px-4 py-3 font-medium text-right">Harga Modal</th>
+                        @if($this->isAdmin)
+                            <th scope="col" class="px-4 py-3 font-medium text-right">Harga Modal</th>
+                        @endif
                         <th scope="col" class="px-4 py-3 font-medium text-right">Harga Jual</th>
                         <th scope="col" class="px-4 py-3 font-medium text-center">Stok Awal</th>
                         <th scope="col" class="px-4 py-3 font-medium text-center">Ditambahkan</th>
@@ -282,9 +286,11 @@ new #[Layout('layouts::admin')] class extends Component
                                     <span class="ml-2 text-xs text-red-600 bg-red-100 px-2 py-0.5 rounded-full">Dihapus</span>
                                 @endif
                             </td>
+                            @if($this->isAdmin)
                             <td class="px-4 py-3 text-right whitespace-nowrap">
                                 Rp {{ number_format($beverage->harga_modal, 0, ',', '.') }}
                             </td>
+                            @endif
                             <td class="px-4 py-3 text-right whitespace-nowrap">
                                 Rp {{ number_format($beverage->harga_jual, 0, ',', '.') }}
                             </td>
@@ -357,7 +363,7 @@ new #[Layout('layouts::admin')] class extends Component
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="11" class="px-4 py-8 text-center text-gray-500">
+                            <td colspan="{{ $this->isAdmin ? 11 : 10 }}" class="px-4 py-8 text-center text-gray-500">
                                 Belum ada data minuman.
                             </td>
                         </tr>
