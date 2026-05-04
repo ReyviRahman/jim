@@ -203,18 +203,44 @@ new #[Layout('layouts::admin')] class extends Component
                                         placeholder="0">
                                 </td>
                                 <td class="px-4 py-2">
-                                    <input type="text" inputmode="numeric" pattern="[0-9]*"
-                                        wire:model.live="items.{{ $index }}.harga_perdus"
-                                        wire:keyup="recalculateTotal({{ $index }})"
-                                        class="block w-full px-2 py-2 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs text-right"
-                                        placeholder="Rp 0">
+                                    <div x-data="{
+                                        value: @entangle('items.' . $index . '.harga_perdus'),
+                                        formatted: '',
+                                        init() {
+                                            this.$watch('value', v => {
+                                                let num = parseInt(v) || 0;
+                                                this.formatted = num.toLocaleString('id-ID');
+                                                @this.call('recalculateTotal', {{ $index }});
+                                            });
+                                        }
+                                    }">
+                                        <input type="text"
+                                            x-model="formatted"
+                                            x-on:input="$el.value = $el.value.replace(/[^0-9]/g, ''); value = parseInt($el.value) || 0"
+                                            x-on:blur="value = parseInt($el.value.replace(/[^0-9]/g, '')) || 0; formatted = parseInt(value).toLocaleString('id-ID')"
+                                            class="block w-full px-2 py-2 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs text-right"
+                                            placeholder="Rp 0">
+                                    </div>
                                 </td>
                                 <td class="px-4 py-2">
-                                    <input type="text" inputmode="numeric" pattern="[0-9]*"
-                                        wire:model.live="items.{{ $index }}.biaya_ppn"
-                                        wire:keyup="recalculateTotal({{ $index }})"
-                                        class="block w-full px-2 py-2 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs text-right"
-                                        placeholder="Rp 0">
+                                    <div x-data="{
+                                        value: @entangle('items.' . $index . '.biaya_ppn'),
+                                        formatted: '',
+                                        init() {
+                                            this.$watch('value', v => {
+                                                let num = parseInt(v) || 0;
+                                                this.formatted = num.toLocaleString('id-ID');
+                                                @this.call('recalculateTotal', {{ $index }});
+                                            });
+                                        }
+                                    }">
+                                        <input type="text"
+                                            x-model="formatted"
+                                            x-on:input="$el.value = $el.value.replace(/[^0-9]/g, ''); value = parseInt($el.value) || 0"
+                                            x-on:blur="value = parseInt($el.value.replace(/[^0-9]/g, '')) || 0; formatted = parseInt(value).toLocaleString('id-ID')"
+                                            class="block w-full px-2 py-2 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs text-right"
+                                            placeholder="Rp 0">
+                                    </div>
                                 </td>
                                 <td class="px-4 py-2 text-right font-semibold text-heading">
                                     Rp {{ number_format($item['total'], 0, ',', '.') }}
