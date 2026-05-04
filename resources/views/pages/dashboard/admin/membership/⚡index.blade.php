@@ -221,7 +221,7 @@ new #[Layout('layouts::admin')] class extends Component
                 WHEN membership_end_date IS NOT NULL THEN membership_end_date
                 ELSE start_date
             END ASC
-        ")->paginate(10);
+        ")->paginate(12);
     }
 
     public function exportExcel()

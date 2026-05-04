@@ -19,7 +19,11 @@ class SyncBeverageStock extends Command
     {
         $type = $this->argument('type');
         $dryRun = $this->option('dry-run');
-        $today = date('Y-m-d');
+        
+        // Mengambil waktu saat ini (tanggal & waktu lengkap)
+        $now = now();
+        $today = $now->toDateString(); // Format: YYYY-MM-DD
+        $timestamp = $now->toDateTimeString(); // Format: YYYY-MM-DD HH:MM:SS
 
         if (! in_array($type, ['init', 'last', 'all'])) {
             $this->error('Tipe harus init, last, atau all');
@@ -29,8 +33,9 @@ class SyncBeverageStock extends Command
 
         $types = $type === 'all' ? ['init', 'last'] : [$type];
 
-        $this->info("Memulai sinkronisasi stok minuman... (Tanggal: {$today}, Tipe: {$type})");
-        Log::info("[SyncBeverageStock] Memulai sync {$type} untuk tanggal {$today}");
+        // Menambahkan timestamp pada output console dan log
+        $this->info("Memulai sinkronisasi stok minuman... (Waktu: {$timestamp}, Tipe: {$type})");
+        Log::info("[SyncBeverageStock] Memulai sync {$type} pada {$timestamp}");
 
         $beverages = Beverage::query()->get();
 
@@ -53,23 +58,27 @@ class SyncBeverageStock extends Command
                         ],
                         [
                             'jumlah' => $beverage->stok_sekarang,
+                            // Opsional: Buka komentar di bawah jika kamu punya kolom khusus untuk mencatat waktu eksekusi
+                            // 'waktu_eksekusi' => $timestamp, 
                         ]
                     );
                 }
 
                 $count++;
                 $actionText = $dryRun ? '[DRY-RUN] Would create/update' : 'Created/Updated';
-                Log::info("[SyncBeverageStock] {$actionText} snapshot #{$beverage->id} (tipe: {$t}, jumlah: {$beverage->stok_sekarang})");
+                Log::info("[SyncBeverageStock] {$actionText} snapshot #{$beverage->id} (tipe: {$t}, jumlah: {$beverage->stok_sekarang}, timestamp: {$timestamp})");
             }
         }
 
+        $finishTimestamp = now()->toDateTimeString();
+
         if ($dryRun) {
-            $this->warn("DRY RUN: {$count} record akan disinkronkan.");
+            $this->warn("DRY RUN: {$count} record akan disinkronkan. (Selesai: {$finishTimestamp})");
         } else {
-            $this->info("{$count} record berhasil disinkronkan untuk tanggal {$today}.");
+            $this->info("{$count} record berhasil disinkronkan pada {$finishTimestamp}.");
         }
 
-        Log::info("[SyncBeverageStock] Selesai. Total: {$count} record.");
+        Log::info("[SyncBeverageStock] Selesai pada {$finishTimestamp}. Total: {$count} record.");
 
         return self::SUCCESS;
     }
