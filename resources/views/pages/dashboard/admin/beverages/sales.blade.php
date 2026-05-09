@@ -6,6 +6,7 @@ use App\Exports\BeverageSaleExport;
 use App\Exports\BeverageSaleExportDetail;
 use App\Models\BeverageSale;
 use Livewire\Component;
+use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\WithPagination;
 use Maatwebsite\Excel\Facades\Excel;
@@ -16,6 +17,7 @@ new #[Layout('layouts::admin')] class extends Component
 
     public $searchProduct = '';
     public $start_date = '';
+    public $shift = '';
     public $showDeleteModal = false;
     public $selectedSaleId = null;
 
@@ -40,8 +42,68 @@ new #[Layout('layouts::admin')] class extends Component
         ->when($this->start_date, function ($query) {
             $query->whereDate('waktu_transaksi', $this->start_date);
         })
+        ->when($this->shift, function ($query) {
+            $query->where('shift', $this->shift);
+        })
         ->latest()
         ->paginate(10);
+    }
+
+    #[Computed]
+    public function summary()
+    {
+        $query = BeverageSale::query()
+            ->when($this->searchProduct, function ($query) {
+                $query->where(function ($q) {
+                    $q->whereHas('beverage', function ($q2) {
+                        $q2->where('nama_produk', 'like', '%' . $this->searchProduct . '%');
+                    })
+                    ->orWhere('nama_staff', 'like', '%' . $this->searchProduct . '%');
+                });
+            })
+            ->when($this->start_date, function ($query) {
+                $query->whereDate('waktu_transaksi', $this->start_date);
+            })
+            ->when($this->shift, function ($query) {
+                $query->where('shift', $this->shift);
+            });
+
+        $data = $query->get();
+
+        $cash = $data->where('keterangan_bayar', 'cash')->sum('total_harga');
+        $transfer = $data->where('keterangan_bayar', 'tf_bca_qris')->sum('total_harga');
+        $depositCash = $data->where('keterangan_bayar', 'deposit_hutang_cash')->sum('total_harga');
+        $depositQris = $data->where('keterangan_bayar', 'deposit_hutang_qris')->sum('total_harga');
+        $operasional = $data->where('keterangan_bayar', 'operasional')->sum('total_harga');
+        $pengeluaranUmum = $data->where('keterangan_bayar', 'pengeluaran_umum')->sum('total_harga');
+        $hutang = $data->where('keterangan_bayar', 'hutang')->sum('total_harga');
+
+        $totalCash = $cash + $depositCash;
+        $totalTransfer = $transfer + $depositQris;
+        $totalPengeluaran = $pengeluaranUmum;
+        $totalMasuk = $cash + $transfer + $depositCash + $depositQris;
+
+        $penjualan = $cash + $transfer;
+
+        $realCash = $totalCash - $totalPengeluaran;
+        $balanceHijau = $totalMasuk - $totalPengeluaran;
+
+        return [
+            'cash' => $cash,
+            'transfer' => $transfer,
+            'deposit_cash' => $depositCash,
+            'deposit_qris' => $depositQris,
+            'operasional' => $operasional,
+            'pengeluaran_umum' => $pengeluaranUmum,
+            'hutang' => $hutang,
+            'total_cash' => $totalCash,
+            'total_transfer' => $totalTransfer,
+            'total_pengeluaran' => $totalPengeluaran,
+            'total_masuk' => $totalMasuk,
+            'penjualan' => $penjualan,
+            'real_cash' => $realCash,
+            'balance_hijau' => $balanceHijau,
+        ];
     }
 
     public function exportExcel()
@@ -126,6 +188,12 @@ new #[Layout('layouts::admin')] class extends Component
                 <div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                     <input type="date" wire:model.live="start_date"
                         class="px-2 py-1.5 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs">
+                    <select wire:model.live="shift"
+                        class="pe-8 py-1.5 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs">
+                        <option value="">Semua Shift</option>
+                        <option value="pagi">Pagi</option>
+                        <option value="siang">Siang</option>
+                    </select>
                     {{-- <button type="button" wire:click="exportExcel"
                         class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm rounded-base font-medium inline-flex items-center gap-1">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -232,6 +300,93 @@ new #[Layout('layouts::admin')] class extends Component
         </div>
         <div class="mt-4 px-4">
             {{ $this->sales->links() }}
+        </div>
+    </div>
+
+    {{-- KOTAK GRAND TOTAL --}}
+    <div class="mt-6 mb-10 bg-white shadow-sm border border-gray-200 rounded-lg overflow-hidden">
+        <div class="bg-green-600 text-white font-bold px-4 py-3 text-lg flex justify-center items-center">
+            <span>GRAND TOTAL @if($shift) (SHIFT {{ strtoupper($shift) }}) @endif</span>
+        </div>
+        
+        <div class="p-0 overflow-x-auto">
+            <table class="w-full text-sm text-left text-gray-700">
+                <tbody>
+                    <tr class="border-b border-gray-100">
+                        <td class="px-4 py-3 font-medium">PENJUALAN CASH</td>
+                        <td class="px-4 py-3 text-right font-bold">Rp {{ number_format($this->summary['cash'], 0, ',', '.') }}</td>
+                        
+                        <td class="px-4 py-3 font-medium border-l border-gray-200">OPERASIONAL</td>
+                        <td class="px-4 py-3 text-right font-bold">Rp {{ number_format($this->summary['operasional'], 0, ',', '.') }}</td>
+                    </tr>
+                    <tr class="border-b border-gray-100">
+                        <td class="px-4 py-3 font-medium">PENJUALAN TF BCA/QRIS</td>
+                        <td class="px-4 py-3 text-right font-bold">Rp {{ number_format($this->summary['transfer'], 0, ',', '.') }}</td>
+                        
+                        <td class="px-4 py-3 font-medium border-l border-gray-200">PENGELUARAN</td>
+                        <td class="px-4 py-3 text-right font-bold text-red-600">- Rp {{ number_format($this->summary['total_pengeluaran'], 0, ',', '.') }}</td>
+                    </tr>
+                    <tr class="border-b border-gray-100">
+                        <td class="px-4 py-3 font-medium">PELUNASAN HUTANG (CASH)</td>
+                        <td class="px-4 py-3 text-right font-bold">Rp {{ number_format($this->summary['deposit_cash'], 0, ',', '.') }}</td>
+                        
+                        <td class="px-4 py-3 font-medium border-l border-gray-200">HUTANG</td>
+                        <td class="px-4 py-3 text-right font-bold">Rp {{ number_format($this->summary['hutang'], 0, ',', '.') }}</td>
+                    </tr>
+                    <tr class="border-b border-gray-100">
+                        <td class="px-4 py-3 font-medium">PELUNASAN HUTANG (QRIS)</td>
+                        <td class="px-4 py-3 text-right font-bold">Rp {{ number_format($this->summary['deposit_qris'], 0, ',', '.') }}</td>
+                        
+                        <td class="px-4 py-3 font-medium border-l border-gray-200"></td>
+                        <td class="px-4 py-3 text-right font-bold"></td>
+                    </tr>
+                    
+                    <tr class="border-b border-gray-100 bg-red-50 text-red-700">
+                        <td class=""></td>
+                        <td class=""></td>
+                        <td colspan="2" rowspan="4" class="bg-gray-50 border-l border-gray-200 align-top p-4">
+                            <div class="font-bold text-gray-700 mb-3 border-b border-gray-200 pb-2 text-sm uppercase tracking-wide">
+                                RINCIAN PENGELUARAN
+                            </div>
+                            
+                            @php
+                                $rincianPengeluaran = collect([
+                                    ['nama' => 'Pengeluaran Umum', 'jumlah' => $this->summary['pengeluaran_umum']],
+                                ])->filter(fn($item) => $item['jumlah'] > 0);
+                            @endphp
+                            
+                            @if(count($rincianPengeluaran) > 0)
+                                <ul class="space-y-2.5 text-xs text-gray-600">
+                                    @foreach($rincianPengeluaran as $exp)
+                                        <li class="flex justify-between items-start gap-3 border-b border-gray-100 pb-2 last:border-0 last:pb-0">
+                                            <span class="font-semibold text-gray-800">{{ $exp['nama'] }}</span>
+                                            <span class="font-bold text-red-600 whitespace-nowrap">- Rp {{ number_format($exp['jumlah'], 0, ',', '.') }}</span>
+                                        </li>
+                                    @endforeach
+                                </ul>
+                            @else
+                                <div class="text-center text-gray-400 text-xs italic mt-6">
+                                    Tidak ada pengeluaran.
+                                </div>
+                            @endif
+                        </td>
+                    </tr>
+                    
+                    <tr class="border-b border-gray-100 bg-white">
+                        <td class="px-4 py-3 font-medium">PENGELUARAN</td>
+                        <td class="px-4 py-3 text-right font-bold text-red-600">- Rp {{ number_format($this->summary['total_pengeluaran'], 0, ',', '.') }}</td>
+                    </tr>
+                    <tr class="border-b border-gray-100 bg-white">
+                        <td class="px-4 py-3 font-medium">REAL CASH</td>
+                        <td class="px-4 py-3 text-right font-bold">Rp {{ number_format($this->summary['real_cash'], 0, ',', '.') }}</td>
+                    </tr>
+                    
+                    <tr class="bg-emerald-100 text-emerald-800">
+                        <td class="px-4 py-4 font-bold uppercase tracking-wide text-lg">BALANCE</td>
+                        <td class="px-4 py-4 text-right font-black text-xl">Rp {{ number_format($this->summary['balance_hijau'], 0, ',', '.') }}</td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
     </div>
 
