@@ -78,6 +78,8 @@ new #[Layout('layouts::admin')] class extends Component
         $pengeluaranUmum = $data->where('keterangan_bayar', 'pengeluaran_umum')->sum('total_harga');
         $hutang = $data->where('keterangan_bayar', 'hutang')->sum('total_harga');
 
+        $rincianPengeluaran = $data->where('keterangan_bayar', 'pengeluaran_umum')->values();
+
         $totalCash = $cash + $depositCash;
         $totalTransfer = $transfer + $depositQris;
         $totalPengeluaran = $pengeluaranUmum;
@@ -103,6 +105,7 @@ new #[Layout('layouts::admin')] class extends Component
             'penjualan' => $penjualan,
             'real_cash' => $realCash,
             'balance_hijau' => $balanceHijau,
+            'rincian_pengeluaran' => $rincianPengeluaran,
         ];
     }
 
@@ -342,25 +345,22 @@ new #[Layout('layouts::admin')] class extends Component
                     </tr>
                     
                     <tr class="border-b border-gray-100 bg-red-50 text-red-700">
-                        <td class=""></td>
-                        <td class=""></td>
+                        <td class="px-4 py-3 font-bold uppercase tracking-wide">BALANCE</td>
+                        <td class="px-4 py-3 text-right font-bold text-base">Rp {{ number_format($this->summary['total_masuk'], 0, ',', '.') }}</td>
                         <td colspan="2" rowspan="4" class="bg-gray-50 border-l border-gray-200 align-top p-4">
                             <div class="font-bold text-gray-700 mb-3 border-b border-gray-200 pb-2 text-sm uppercase tracking-wide">
                                 RINCIAN PENGELUARAN
                             </div>
                             
-                            @php
-                                $rincianPengeluaran = collect([
-                                    ['nama' => 'Pengeluaran Umum', 'jumlah' => $this->summary['pengeluaran_umum']],
-                                ])->filter(fn($item) => $item['jumlah'] > 0);
-                            @endphp
-                            
-                            @if(count($rincianPengeluaran) > 0)
-                                <ul class="space-y-2.5 text-xs text-gray-600">
-                                    @foreach($rincianPengeluaran as $exp)
+                            @if(count($this->summary['rincian_pengeluaran']) > 0)
+                                <ul class="space-y-2.5 text-xs text-gray-600 max-h-48 overflow-y-auto pr-2">
+                                    @foreach($this->summary['rincian_pengeluaran'] as $exp)
                                         <li class="flex justify-between items-start gap-3 border-b border-gray-100 pb-2 last:border-0 last:pb-0">
-                                            <span class="font-semibold text-gray-800">{{ $exp['nama'] }}</span>
-                                            <span class="font-bold text-red-600 whitespace-nowrap">- Rp {{ number_format($exp['jumlah'], 0, ',', '.') }}</span>
+                                            <div class="flex-1">
+                                                <span class="block font-semibold text-gray-800">{{ $exp->nama_penghutang ?? 'Tidak ada nama' }}</span>
+                                                <span class="text-gray-500 text-[10px] mt-0.5 block">{{ $exp->waktu_transaksi->format('d M Y H:i') }}</span>
+                                            </div>
+                                            <span class="font-bold text-red-600 whitespace-nowrap">- Rp {{ number_format($exp->total_harga, 0, ',', '.') }}</span>
                                         </li>
                                     @endforeach
                                 </ul>
