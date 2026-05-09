@@ -313,14 +313,14 @@ new #[Layout('layouts::admin')] class extends Component
             <table class="w-full text-sm text-left text-gray-700">
                 <tbody>
                     <tr class="border-b border-gray-100">
-                        <td class="px-4 py-3 font-medium">PENJUALAN CASH</td>
+                        <td class="px-4 py-3 font-medium">PENJUALAN (CASH)</td>
                         <td class="px-4 py-3 text-right font-bold">Rp {{ number_format($this->summary['cash'], 0, ',', '.') }}</td>
                         
                         <td class="px-4 py-3 font-medium border-l border-gray-200">OPERASIONAL</td>
                         <td class="px-4 py-3 text-right font-bold">Rp {{ number_format($this->summary['operasional'], 0, ',', '.') }}</td>
                     </tr>
                     <tr class="border-b border-gray-100">
-                        <td class="px-4 py-3 font-medium">PENJUALAN TF BCA/QRIS</td>
+                        <td class="px-4 py-3 font-medium">PENJUALAN (TF BCA/QRIS)</td>
                         <td class="px-4 py-3 text-right font-bold">Rp {{ number_format($this->summary['transfer'], 0, ',', '.') }}</td>
                         
                         <td class="px-4 py-3 font-medium border-l border-gray-200">PENGELUARAN</td>
@@ -334,7 +334,7 @@ new #[Layout('layouts::admin')] class extends Component
                         <td class="px-4 py-3 text-right font-bold">Rp {{ number_format($this->summary['hutang'], 0, ',', '.') }}</td>
                     </tr>
                     <tr class="border-b border-gray-100">
-                        <td class="px-4 py-3 font-medium">PELUNASAN HUTANG (QRIS)</td>
+                        <td class="px-4 py-3 font-medium">PELUNASAN HUTANG (TF BCA/QRIS)</td>
                         <td class="px-4 py-3 text-right font-bold">Rp {{ number_format($this->summary['deposit_qris'], 0, ',', '.') }}</td>
                         
                         <td class="px-4 py-3 font-medium border-l border-gray-200"></td>
