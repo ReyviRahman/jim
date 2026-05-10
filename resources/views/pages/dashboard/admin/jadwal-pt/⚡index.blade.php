@@ -172,8 +172,12 @@ new #[Layout('layouts::admin')] class extends Component
     public function memberships()
     {
         $query = Membership::with(['user', 'members', 'personalTrainer', 'ptPackage', 'ptSchedule.days', 'ptSchedule.creator', 'ptSchedule.approver'])
+            ->leftJoin('pt_schedules', 'memberships.id', '=', 'pt_schedules.membership_id')
             ->whereNotNull('pt_package_id')
-            ->where('status', '!=', 'completed');
+            ->where('memberships.status', '!=', 'completed')
+            ->select('memberships.*')
+            ->orderByRaw("CASE WHEN pt_schedules.status = 'pending' THEN 0 ELSE 1 END")
+            ->orderBy('memberships.start_date', 'desc');
 
         if (! empty($this->search)) {
             $query->where(function ($q) {
@@ -188,10 +192,10 @@ new #[Layout('layouts::admin')] class extends Component
         }
 
         if (! empty($this->filterPt)) {
-            $query->where('pt_id', $this->filterPt);
+            $query->where('memberships.pt_id', $this->filterPt);
         }
 
-        return $query->latest('start_date')->paginate(20);
+        return $query->paginate(20);
     }
 }; ?>
 
@@ -266,13 +270,17 @@ new #[Layout('layouts::admin')] class extends Component
                         <td class="px-6 py-4 text-heading whitespace-nowrap">
                             {{ $membership->personalTrainer?->name ?? '-' }}
                         </td>
-                        <td class="px-6 py-4 font-medium text-heading">
+                        <td class="px-6 py-4 font-medium">
+                            @php
+                                $memberColors = ['text-blue-600', 'text-green-600', 'text-purple-600', 'text-orange-600', 'text-pink-600', 'text-teal-600', 'text-indigo-600', 'text-cyan-600', 'text-rose-600', 'text-amber-600'];
+                                $additionalMembers = $membership->members->filter(function($member) use ($membership) {
+                                    return $member->id !== $membership->user_id;
+                                });
+                            @endphp
                             <div class="flex flex-col gap-1.5">
-                                <div class="font-semibold">{{ $membership->user?->name ?? '-' }}</div>
-                                @forelse($membership->members as $member)
-                                    @if($member->id !== $membership->user_id)
-                                        <div class="text-body">{{ $member->name }}</div>
-                                    @endif
+                                <div class="font-semibold text-heading">{{ $membership->user?->name ?? '-' }}</div>
+                                @forelse($additionalMembers as $index => $member)
+                                    <div class="{{ $memberColors[$index % count($memberColors)] }}">{{ $member->name }}</div>
                                 @empty
                                 @endforelse
                             </div>
