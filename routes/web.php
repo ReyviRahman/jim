@@ -110,6 +110,9 @@ Route::middleware('auth')->group(function () {
         Route::livewire('/jadwal-pt', 'pages::dashboard.admin.jadwal-pt.index')
             ->name('admin.jadwalpt.index');
 
+        Route::livewire('/pt-booking', 'pages::dashboard.admin.pt-booking.index')
+            ->name('admin.pt-booking.index');
+
     });
 
     Route::middleware('role:admin,head_coach')->prefix('dashboard/admin')->group(function () {
@@ -197,5 +200,6 @@ Route::middleware('auth')->group(function () {
             ->name('admin.beverages.invoice.edit');
     });
 });
+
 
 

@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
     <head>
         <meta charset="utf-8">
@@ -74,13 +74,6 @@
                             class="{{ request()->routeIs('admin.akun.admin.*') ? 'text-[#34342F] bg-brand' : 'text-white' }} flex items-center px-2 py-1.5 rounded-md hover:bg-brand hover:text-[#34342F] group transition-colors">
                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="currentColor" d="M12 23C6.443 21.765 2 16.522 2 11V5l10-4l10 4v6c0 5.524-4.443 10.765-10 12M4 6v5a10.58 10.58 0 0 0 8 10a10.58 10.58 0 0 0 8-10V6l-8-3Z"/><circle cx="12" cy="8.5" r="2.5" fill="currentColor"/><path fill="currentColor" d="M7 15a5.78 5.78 0 0 0 5 3a5.78 5.78 0 0 0 5-3c-.025-1.896-3.342-3-5-3c-1.667 0-4.975 1.104-5 3"/></svg>
                             <span class="ms-3">Admin</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="{{ route('admin.jadwalpt.index') }}" wire:navigate
-                            class="{{ request()->routeIs('admin.jadwalpt.*') ? 'text-[#34342F] bg-brand' : 'text-white' }} flex items-center px-2 py-1.5 rounded-md hover:bg-brand hover:text-[#34342F] group transition-colors">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="currentColor" d="M19 4h-1V3c0-.6-.4-1-1-1s-1 .4-1 1v1H8V3c0-.6-.4-1-1-1s-1 .4-1 1v1H5C3.3 4 2 5.3 2 7v1h20V7c0-1.7-1.3-3-3-3M2 19c0 1.7 1.3 3 3 3h14c1.7 0 3-1.3 3-3v-9H2zm15-7c.6 0 1 .4 1 1s-.4 1-1 1s-1-.4-1-1s.4-1 1-1m0 4c.6 0 1 .4 1 1s-.4 1-1 1s-1-.4-1-1s.4-1 1-1m-5-4c.6 0 1 .4 1 1s-.4 1-1 1s-1-.4-1-1s.4-1 1-1m0 4c.6 0 1 .4 1 1s-.4 1-1 1s-1-.4-1-1s.4-1 1-1m-5-4c.6 0 1 .4 1 1s-.4 1-1 1s-1-.4-1-1s.4-1 1-1m0 4c.6 0 1 .4 1 1s-.4 1-1 1s-1-.4-1-1s.4-1 1-1"/></svg>
-                            <span class="ms-3">Jadwal PT</span>
                         </a>
                     </li>
                 </ul>
@@ -215,13 +208,6 @@
                     </a>
                 </li>
 
-                <li>
-                    <a href="{{ route('admin.jadwalpt.index') }}" wire:navigate
-                        class="{{ request()->routeIs('admin.jadwalpt.*') ? 'text-[#34342F] bg-brand' : 'text-white' }} flex items-center px-2 py-1.5 rounded-md hover:bg-brand hover:text-[#34342F] group transition-colors">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="currentColor" d="M19 4h-1V3c0-.6-.4-1-1-1s-1 .4-1 1v1H8V3c0-.6-.4-1-1-1s-1 .4-1 1v1H5C3.3 4 2 5.3 2 7v1h20V7c0-1.7-1.3-3-3-3M2 19c0 1.7 1.3 3 3 3h14c1.7 0 3-1.3 3-3v-9H2zm15-7c.6 0 1 .4 1 1s-.4 1-1 1s-1-.4-1-1s.4-1 1-1m0 4c.6 0 1 .4 1 1s-.4 1-1 1s-1-.4-1-1s.4-1 1-1m-5-4c.6 0 1 .4 1 1s-.4 1-1 1s-1-.4-1-1s.4-1 1-1m0 4c.6 0 1 .4 1 1s-.4 1-1 1s-1-.4-1-1s.4-1 1-1m-5-4c.6 0 1 .4 1 1s-.4 1-1 1s-1-.4-1-1s.4-1 1-1m0 4c.6 0 1 .4 1 1s-.4 1-1 1s-1-.4-1-1s.4-1 1-1"/></svg>
-                        <span class="ms-3">Jadwal PT</span>
-                    </a>
-                </li>
                 @endif
                 
                 @if($isAdmin || $isHeadCoach)
@@ -236,6 +222,36 @@
                 </li>
                 @endif
             </ul>
+
+            @if($isAdmin || $isKasir || $isHeadCoach)
+            <div class="bg-white px-4 py-1 my-2">
+                <h1 class="font-bold">PERSONAL TRAINER</h1>
+            </div>
+            <ul class="space-y-2 font-medium px-3">
+                <li>
+                    <a href="{{ route('admin.jadwalpt.index') }}" wire:navigate
+                        class="{{ request()->routeIs('admin.jadwalpt.*') ? 'text-[#34342F] bg-brand' : 'text-white' }} flex items-center px-2 py-1.5 rounded-md hover:bg-brand hover:text-[#34342F] group transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="currentColor" d="M19 4h-1V3c0-.6-.4-1-1-1s-1 .4-1 1v1H8V3c0-.6-.4-1-1-1s-1 .4-1 1v1H5C3.3 4 2 5.3 2 7v1h20V7c0-1.7-1.3-3-3-3M2 19c0 1.7 1.3 3 3 3h14c1.7 0 3-1.3 3-3v-9H2zm15-7c.6 0 1 .4 1 1s-.4 1-1 1s-1-.4-1-1s.4-1 1-1m0 4c.6 0 1 .4 1 1s-.4 1-1 1s-1-.4-1-1s.4-1 1-1m-5-4c.6 0 1 .4 1 1s-.4 1-1 1s-1-.4-1-1s.4-1 1-1m0 4c.6 0 1 .4 1 1s-.4 1-1 1s-1-.4-1-1s.4-1 1-1m-5-4c.6 0 1 .4 1 1s-.4 1-1 1s-1-.4-1-1s.4-1 1-1m0 4c.6 0 1 .4 1 1s-.4 1-1 1s-1-.4-1-1s.4-1 1-1"/></svg>
+                        <span class="ms-3">Jadwal PT</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="#" wire:navigate
+                        class=" flex items-center px-2 py-1.5 rounded-md hover:bg-brand hover:text-[#34342F] group transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 16 16"><path fill="currentColor" d="M15 8c0 .454-.044.906-.13 1.345a.5.5 0 1 1-.981-.192a6.1 6.1 0 0 0 0-2.304a.499.499 0 1 1 .981-.192c.086.438.13.891.13 1.344zm-3.777-5.062a6.1 6.1 0 0 1 1.823 1.814a.5.5 0 1 0 .839-.542a7.1 7.1 0 0 0-2.126-2.115a.5.5 0 0 0-.537.842zM8 2c.469 0 .935.054 1.385.161a.5.5 0 0 0 .231-.974A7 7 0 0 0 8.001 1c-3.859 0-7 3.14-7 7s3.141 7 7 7c.546 0 1.089-.063 1.615-.187a.5.5 0 1 0-.231-.974A6.006 6.006 0 0 1 2 8c0-3.309 2.691-6 6-6m5.747 9.08a.5.5 0 0 0-.69.151a6.1 6.1 0 0 1-1.826 1.826a.499.499 0 1 0 .54.841a7.05 7.05 0 0 0 2.129-2.129a.5.5 0 0 0-.151-.69z"/></svg>
+                        <span class="ms-3">Sesi PT</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ route('admin.pt-booking.index') }}" wire:navigate
+                        class="{{ request()->routeIs('admin.pt-booking.*') ? 'text-[#34342F] bg-brand' : 'text-white' }} flex items-center px-2 py-1.5 rounded-md hover:bg-brand hover:text-[#34342F] group transition-colors"
+                        >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="currentColor" d="M12 4a4 4 0 1 0 0 8a4 4 0 0 0 0-8M6 8a6 6 0 1 1 12 0A6 6 0 0 1 6 8m2 10a3 3 0 0 0-3 3v1h14v-1a3 3 0 0 0-3-3z"/></svg>
+                        <span class="ms-3">PT Booking</span>
+                    </a>
+                </li>
+            </ul>
+            @endif
         </div>
         </aside>
 
@@ -255,3 +271,4 @@
         @livewireScripts
     </body>
 </html>
+
