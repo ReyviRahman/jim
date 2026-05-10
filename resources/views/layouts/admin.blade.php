@@ -246,8 +246,16 @@
                     <a href="{{ route('admin.pt-booking.index') }}" wire:navigate
                         class="{{ request()->routeIs('admin.pt-booking.*') ? 'text-[#34342F] bg-brand' : 'text-white' }} flex items-center px-2 py-1.5 rounded-md hover:bg-brand hover:text-[#34342F] group transition-colors"
                         >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="currentColor" d="M12 4a4 4 0 1 0 0 8a4 4 0 0 0 0-8M6 8a6 6 0 1 1 12 0A6 6 0 0 1 6 8m2 10a3 3 0 0 0-3 3v1h14v-1a3 3 0 0 0-3-3z"/></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20h6m-3-6v6M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zm5 3h6"/></svg>
                         <span class="ms-3">PT Booking</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ route('admin.pt-berjalan.index') }}" wire:navigate
+                        class="{{ request()->routeIs('admin.pt-berjalan.*') ? 'text-[#34342F] bg-brand' : 'text-white' }} flex items-center px-2 py-1.5 rounded-md hover:bg-brand hover:text-[#34342F] group transition-colors"
+                        >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><g fill="currentColor"><path d="M13.75 6.5a2.25 2.25 0 1 0 0-4.5a2.25 2.25 0 0 0 0 4.5m.026 5.747l-.509 2.18l2.621 2.541l1.074 3.757a1 1 0 0 1-1.923.55l-.927-3.243l-4.647-4.505a1 1 0 0 1-.404-.876l.195-2.736c-.693.783-1.379 1.906-1.794 3.36a1 1 0 0 1-1.923-.55c.546-1.911 1.492-3.392 2.47-4.407a7 7 0 0 1 1.482-1.19c.461-.267.992-.478 1.51-.478q.075 0 .149.011q.1-.002.2.007a3.18 3.18 0 0 1 2.567 1.756q.034.046.062.1l1.23 2.264a2 2 0 0 0 1.365 1.007l1.122.225a1 1 0 1 1-.392 1.96l-1.122-.224a4 4 0 0 1-2.406-1.51"/><path d="m8.145 18.404l1.208-3.626l1.596 1.538l-.907 2.72a2 2 0 0 1-.648.93L7.125 21.78a1 1 0 1 1-1.25-1.562z"/></g></svg>
+                        <span class="ms-3">PT Berjalan</span>
                     </a>
                 </li>
             </ul>

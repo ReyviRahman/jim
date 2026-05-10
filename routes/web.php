@@ -75,6 +75,9 @@ Route::middleware('auth')->group(function () {
         Route::livewire('/membership', 'pages::dashboard.admin.membership')
             ->name('admin.membership.index');
 
+        Route::livewire('/pt-berjalan', 'pages::dashboard.admin.pt-berjalan')
+            ->name('admin.pt-berjalan.index');
+
         Route::livewire('/riwayat', 'pages::dashboard.admin.riwayat.index')
             ->name('admin.riwayat.index');
 
@@ -200,6 +203,7 @@ Route::middleware('auth')->group(function () {
             ->name('admin.beverages.invoice.edit');
     });
 });
+
 
 
 
