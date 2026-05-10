@@ -101,6 +101,9 @@ Route::middleware('auth')->group(function () {
 
         Route::livewire('/membership/renew/{id}', 'pages::dashboard.admin.renew.create')->name('admin.membership.renew');
 
+        Route::livewire('/jadwal-pt', 'pages::dashboard.admin.jadwal-pt.index')
+            ->name('admin.jadwalpt.index');
+
     });
 
     Route::middleware('role:admin,head_coach')->prefix('dashboard/admin')->group(function () {
