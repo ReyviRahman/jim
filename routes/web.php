@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 use App\Http\Controllers\BeverageApiController;
 use Illuminate\Support\Facades\Route;
@@ -40,6 +40,9 @@ Route::middleware('auth')->group(function () {
         Route::livewire('/membership', 'pages::dashboard.member.membership')
             ->name('member.membership.index');
 
+        Route::livewire('/jadwal-pt', 'pages::dashboard.member.jadwal-pt.index')
+            ->name('member.jadwal-pt.index');
+
         // Route::livewire('/paket', 'pages::dashboard.member.package')
         //     ->name('member.paket.index');
 
@@ -53,6 +56,9 @@ Route::middleware('auth')->group(function () {
 
         Route::livewire('/riwayat-kehadiran', 'pages::dashboard.pt.kehadiran')
             ->name('pt.kehadiran.index');
+
+        Route::livewire('/jadwal-pt', 'pages::dashboard.pt.jadwal-pt.index')
+            ->name('pt.jadwal-pt.index');
     });
 
     // GROUP 2: KHUSUS ADMIN
@@ -191,3 +197,5 @@ Route::middleware('auth')->group(function () {
             ->name('admin.beverages.invoice.edit');
     });
 });
+
+
