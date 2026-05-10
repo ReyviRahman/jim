@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
     <head>
         <meta charset="utf-8">
@@ -32,6 +32,12 @@
                     <span class="ms-3">Kehadiran</span>
                     </a>
                 </li>
+                <li>
+                    <a href="{{ route('pt.jadwal-pt.index') }}" wire:navigate class="{{ request()->routeIs('pt.jadwal-pt.index') ? 'text-[#34342F] bg-brand' : 'text-white' }} flex items-center px-2 py-1.5 rounded-md hover:bg-brand hover:text-[#34342F] group">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                    <span class="ms-3">Jadwal PT</span>
+                    </a>
+                </li>
             </ul>
         </div>
         </aside>
@@ -52,3 +58,5 @@
         @livewireScripts
     </body>
 </html>
+
+
