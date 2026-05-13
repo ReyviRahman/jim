@@ -16,19 +16,48 @@ new #[Layout('layouts::admin')] class extends Component
     use WithPagination;
 
     public $searchProduct = '';
-    public $start_date = '';
+    public $filterTime = 'today';
+    public $dateStart;
+    public $dateEnd;
     public $shift = '';
     public $showDeleteModal = false;
     public $selectedSaleId = null;
 
     public function mount()
     {
-        $this->start_date = date('Y-m-d');
+        $this->dateStart = now()->format('Y-m-d');
+        $this->dateEnd = now()->format('Y-m-d');
     }
 
-    public function getSalesProperty()
+    public function setFilterTime($val)
     {
-        return BeverageSale::with(['beverage' => function ($query) {
+        $this->filterTime = $val;
+        $this->resetPage();
+    }
+
+    public function setDateRange($dateStr)
+    {
+        if (empty($dateStr)) {
+            return;
+        }
+
+        $dates = explode(' to ', $dateStr);
+
+        if (count($dates) === 2) {
+            $this->dateStart = $dates[0];
+            $this->dateEnd = $dates[1];
+        } elseif (count($dates) === 1) {
+            $this->dateStart = $dates[0];
+            $this->dateEnd = $dates[0];
+        }
+
+        $this->filterTime = 'custom';
+        $this->resetPage();
+    }
+
+    private function getBaseQuery()
+    {
+        $query = BeverageSale::with(['beverage' => function ($query) {
             $query->withTrashed();
         }])
         ->when($this->searchProduct, function ($query) {
@@ -39,36 +68,43 @@ new #[Layout('layouts::admin')] class extends Component
                 ->orWhere('nama_staff', 'like', '%' . $this->searchProduct . '%');
             });
         })
-        ->when($this->start_date, function ($query) {
-            $query->whereDate('waktu_transaksi', $this->start_date);
-        })
         ->when($this->shift, function ($query) {
             $query->where('shift', $this->shift);
-        })
-        ->latest()
-        ->paginate(10);
+        });
+
+        // Filter Waktu
+        if ($this->filterTime === 'today') {
+            $this->dateStart = now()->format('Y-m-d');
+            $this->dateEnd = now()->format('Y-m-d');
+            $query->whereDate('waktu_transaksi', today());
+        } elseif ($this->filterTime === 'week') {
+            $this->dateStart = now()->startOfWeek()->format('Y-m-d');
+            $this->dateEnd = now()->endOfWeek()->format('Y-m-d');
+            $query->whereBetween('waktu_transaksi', [now()->startOfWeek(), now()->endOfWeek()]);
+        } elseif ($this->filterTime === 'month') {
+            $this->dateStart = now()->startOfMonth()->format('Y-m-d');
+            $this->dateEnd = now()->endOfMonth()->format('Y-m-d');
+            $query->whereMonth('waktu_transaksi', now()->month)
+                  ->whereYear('waktu_transaksi', now()->year);
+        } elseif ($this->filterTime === 'custom' && $this->dateStart && $this->dateEnd) {
+            $query->whereDate('waktu_transaksi', '>=', $this->dateStart)
+                  ->whereDate('waktu_transaksi', '<=', $this->dateEnd);
+        }
+
+        return $query;
+    }
+
+    public function getSalesProperty()
+    {
+        return $this->getBaseQuery()
+            ->latest()
+            ->paginate(10);
     }
 
     #[Computed]
     public function summary()
     {
-        $query = BeverageSale::query()
-            ->when($this->searchProduct, function ($query) {
-                $query->where(function ($q) {
-                    $q->whereHas('beverage', function ($q2) {
-                        $q2->where('nama_produk', 'like', '%' . $this->searchProduct . '%');
-                    })
-                    ->orWhere('nama_staff', 'like', '%' . $this->searchProduct . '%');
-                });
-            })
-            ->when($this->start_date, function ($query) {
-                $query->whereDate('waktu_transaksi', $this->start_date);
-            })
-            ->when($this->shift, function ($query) {
-                $query->where('shift', $this->shift);
-            });
-
-        $data = $query->get();
+        $data = $this->getBaseQuery()->get();
 
         $cash = $data->where('keterangan_bayar', 'cash')->sum('total_harga');
         $transfer = $data->where('keterangan_bayar', 'tf_bca_qris')->sum('total_harga');
@@ -116,7 +152,8 @@ new #[Layout('layouts::admin')] class extends Component
         return Excel::download(
             new BeverageSaleExport(
                 $this->searchProduct,
-                $this->start_date
+                $this->dateStart,
+                $this->dateEnd
             ),
             $fileName
         );
@@ -129,7 +166,8 @@ new #[Layout('layouts::admin')] class extends Component
         return Excel::download(
             new BeverageSaleExportDetail(
                 $this->searchProduct,
-                $this->start_date
+                $this->dateStart,
+                $this->dateEnd
             ),
             $fileName
         );
@@ -189,14 +227,40 @@ new #[Layout('layouts::admin')] class extends Component
             <div class="flex flex-col sm:flex-row justify-between items-center gap-4">
                 <h6 class="text-lg font-semibold text-heading">Daftar Transaksi</h6>
                 <div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                    <input type="date" wire:model.live="start_date"
-                        class="px-2 py-1.5 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs">
+                    {{-- Datepicker Custom --}}
+                    <div class="relative w-full sm:w-56" wire:ignore>
+                        <div class="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
+                            <svg class="w-4 h-4 text-body" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 10h16M8 14h8m-4-7V4M7 7V4m10 3V4M5 20h14a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1Z"/></svg>
+                        </div>
+                        <input type="text" x-data x-init="flatpickr($el, { mode: 'range', dateFormat: 'Y-m-d', placeholder: 'Pilih Tanggal', onClose: function(selectedDates, dateStr) { $wire.setDateRange(dateStr) } })" class="block w-full ps-9 pe-3 py-2.5 bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand shadow-xs" placeholder="Pilih Rentang Tanggal">
+                    </div>
+
                     <select wire:model.live="shift"
                         class="pe-8 py-1.5 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs">
                         <option value="">Semua Shift</option>
                         <option value="pagi">Pagi</option>
                         <option value="siang">Siang</option>
                     </select>
+
+                    {{-- Filter Presets --}}
+                    <div x-data="{ open: false }" class="relative">
+                        <button @click="open = !open" @click.outside="open = false" class="inline-flex items-center justify-center text-body bg-white border border-default-medium hover:bg-gray-50 focus:ring-4 focus:ring-gray-100 shadow-xs font-medium rounded-md text-sm px-3 py-2.5" type="button">
+                            <svg class="w-4 h-4 me-1.5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" stroke-linecap="round" stroke-width="2" d="M18.796 4H5.204a1 1 0 0 0-.753 1.659l5.302 6.058a1 1 0 0 1 .247.659v4.874a.5.5 0 0 0 .2.4l3 2.25a.5.5 0 0 0 .8-.4v-7.124a1 1 0 0 1 .247-.659l5.302-6.059c.566-.646.106-1.658-.753-1.658Z"/></svg>
+                            @if($filterTime === 'today') Hari Ini
+                            @elseif($filterTime === 'week') Minggu Ini
+                            @elseif($filterTime === 'month') Bulan Ini
+                            @elseif($filterTime === 'custom') Kustom @endif
+                            <svg class="w-4 h-4 ms-1.5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m19 9-7 7-7-7"/></svg>
+                        </button>
+
+                        <div x-show="open" style="display: none;" class="absolute right-0 z-50 mt-2 bg-white border border-gray-200 rounded-md shadow-lg w-40">
+                            <ul class="p-2 text-sm text-gray-700 font-medium">
+                                <li><button type="button" wire:click="setFilterTime('today')" @click="open = false" class="w-full text-left p-2 hover:bg-gray-100 rounded">Hari ini</button></li>
+                                <li><button type="button" wire:click="setFilterTime('week')" @click="open = false" class="w-full text-left p-2 hover:bg-gray-100 rounded">Minggu ini</button></li>
+                                <li><button type="button" wire:click="setFilterTime('month')" @click="open = false" class="w-full text-left p-2 hover:bg-gray-100 rounded">Bulan ini</button></li>
+                            </ul>
+                        </div>
+                    </div>
                     {{-- <button type="button" wire:click="exportExcel"
                         class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm rounded-base font-medium inline-flex items-center gap-1">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -309,7 +373,15 @@ new #[Layout('layouts::admin')] class extends Component
     {{-- KOTAK GRAND TOTAL --}}
     <div class="mt-6 mb-10 bg-white shadow-sm border border-gray-200 rounded-lg overflow-hidden">
         <div class="bg-green-600 text-white font-bold px-4 py-3 text-lg flex justify-center items-center">
-            <span>GRAND TOTAL @if($shift) (SHIFT {{ strtoupper($shift) }}) @endif</span>
+            <span>
+                GRAND TOTAL
+                @if($shift) (SHIFT {{ strtoupper($shift) }}) @endif
+                @if($dateStart && $dateEnd && $dateStart !== $dateEnd)
+                    ({{ \Carbon\Carbon::parse($dateStart)->format('d M Y') }} - {{ \Carbon\Carbon::parse($dateEnd)->format('d M Y') }})
+                @elseif($dateStart)
+                    ({{ \Carbon\Carbon::parse($dateStart)->format('d M Y') }})
+                @endif
+            </span>
         </div>
         
         <div class="p-0 overflow-x-auto">
