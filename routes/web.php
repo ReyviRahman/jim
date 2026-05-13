@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 
 use App\Http\Controllers\BeverageApiController;
 use Illuminate\Support\Facades\Route;
@@ -116,6 +116,9 @@ Route::middleware('auth')->group(function () {
         Route::livewire('/pt-booking', 'pages::dashboard.admin.pt-booking.index')
             ->name('admin.pt-booking.index');
 
+        Route::livewire('/sesi-pt', 'pages::dashboard.admin.sesi-pt.index')
+            ->name('admin.sesi-pt.index');
+
     });
 
     Route::middleware('role:admin,head_coach')->prefix('dashboard/admin')->group(function () {
@@ -203,7 +206,3 @@ Route::middleware('auth')->group(function () {
             ->name('admin.beverages.invoice.edit');
     });
 });
-
-
-
-
