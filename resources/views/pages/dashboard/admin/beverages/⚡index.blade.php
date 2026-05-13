@@ -21,6 +21,9 @@ new #[Layout('layouts::admin')] class extends Component
     public $editingStokAwalId = null;
     public $editingStokAwalValue = 0;
     public $isAdmin = false;
+    public $showExportModal = false;
+    public $exportStartDate = '';
+    public $exportEndDate = '';
 
     public function mount()
     {
@@ -90,6 +93,18 @@ new #[Layout('layouts::admin')] class extends Component
     {
         $this->editingStokAwalId = null;
         $this->editingStokAwalValue = 0;
+    }
+
+    public function openExportModal()
+    {
+        $this->exportStartDate = $this->start_date;
+        $this->exportEndDate = date('Y-m-d');
+        $this->showExportModal = true;
+    }
+
+    public function closeExportModal()
+    {
+        $this->showExportModal = false;
     }
 
     public function updatingSearch()
@@ -198,10 +213,15 @@ new #[Layout('layouts::admin')] class extends Component
 
     public function exportExcel()
     {
-        $fileName = 'stok-minuman-' . ($this->start_date ?: date('Y-m-d')) . '.xlsx';
+        $this->validate([
+            'exportStartDate' => 'required|date',
+            'exportEndDate' => 'required|date|after_or_equal:exportStartDate',
+        ]);
+
+        $fileName = 'stok-minuman-' . $this->exportStartDate . '-sampai-' . $this->exportEndDate . '.xlsx';
 
         return Excel::download(
-            new BeverageStockExport($this->search, $this->start_date, $this->isAdmin),
+            new BeverageStockExport($this->search, $this->exportStartDate, $this->exportEndDate, $this->isAdmin),
             $fileName
         );
     }
@@ -246,10 +266,9 @@ new #[Layout('layouts::admin')] class extends Component
                         <input type="date" wire:model.live="start_date"
                             class="block px-2 py-1.5 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs">
                     </div>
-                    <button type="button" wire:click="exportExcel" wire:loading.attr="disabled" class="inline-flex items-center justify-center text-white bg-emerald-600 border border-transparent hover:bg-emerald-700 focus:ring-4 focus:ring-emerald-300 shadow-xs font-medium rounded-md text-sm px-4 py-2.5 focus:outline-none disabled:opacity-50 h-[34px]">
+                    <button type="button" wire:click="openExportModal" class="inline-flex items-center justify-center text-white bg-emerald-600 border border-transparent hover:bg-emerald-700 focus:ring-4 focus:ring-emerald-300 shadow-xs font-medium rounded-md text-sm px-4 py-2.5 focus:outline-none h-[34px]">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
-                        <span wire:loading.remove wire:target="exportExcel">Export Excel</span>
-                        <span wire:loading wire:target="exportExcel">Memproses...</span>
+                        <span>Export Excel</span>
                     </button>
                 </div>
             </div>
@@ -382,4 +401,42 @@ new #[Layout('layouts::admin')] class extends Component
             {{ $this->beveragesWithStock->links() }}
         </div>
     </div>
+
+    {{-- Export Modal --}}
+    @if($showExportModal)
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" wire:click.self="closeExportModal">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 p-6" @click.stop>
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold text-gray-900">Export Excel</h3>
+                <button type="button" wire:click="closeExportModal" class="text-gray-400 hover:text-gray-600">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block mb-1 text-sm font-medium text-gray-700">Dari Tanggal</label>
+                    <input type="date" wire:model="exportStartDate" class="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-sm focus:ring-emerald-500 focus:border-emerald-500">
+                    @error('exportStartDate') <span class="text-sm text-red-600">{{ $message }}</span> @enderror
+                </div>
+
+                <div>
+                    <label class="block mb-1 text-sm font-medium text-gray-700">Sampai Tanggal</label>
+                    <input type="date" wire:model="exportEndDate" class="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-sm focus:ring-emerald-500 focus:border-emerald-500">
+                    @error('exportEndDate') <span class="text-sm text-red-600">{{ $message }}</span> @enderror
+                </div>
+            </div>
+
+            <div class="flex gap-3 mt-6">
+                <button type="button" wire:click="closeExportModal" class="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-400">
+                    Batal
+                </button>
+                <button type="button" wire:click="exportExcel" wire:loading.attr="disabled" class="flex-1 px-4 py-2 text-sm font-medium text-white bg-emerald-600 rounded-md hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50">
+                    <span wire:loading.remove wire:target="exportExcel">Export Excel</span>
+                    <span wire:loading wire:target="exportExcel">Memproses...</span>
+                </button>
+            </div>
+        </div>
+    </div>
+    @endif
 </div>
