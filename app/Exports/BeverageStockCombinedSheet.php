@@ -14,9 +14,11 @@ use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 
-class BeverageStockPerDateSheet implements WithEvents, WithTitle
+class BeverageStockCombinedSheet implements WithEvents, WithTitle
 {
-    private string $date;
+    private string $startDate;
+
+    private string $endDate;
 
     private ?string $search;
 
@@ -42,16 +44,17 @@ class BeverageStockPerDateSheet implements WithEvents, WithTitle
         'hutang' => 'Hutang',
     ];
 
-    public function __construct(string $date, ?string $search, bool $isAdmin = false)
+    public function __construct(string $startDate, string $endDate, ?string $search, bool $isAdmin = false)
     {
-        $this->date = $date;
+        $this->startDate = $startDate;
+        $this->endDate = $endDate;
         $this->search = $search;
         $this->isAdmin = $isAdmin;
     }
 
     public function title(): string
     {
-        return date('d-m-Y', strtotime($this->date));
+        return date('d-m-Y', strtotime($this->startDate)).'-sampai-'.date('d-m-Y', strtotime($this->endDate));
     }
 
     public function registerEvents(): array
@@ -59,18 +62,19 @@ class BeverageStockPerDateSheet implements WithEvents, WithTitle
         return [
             AfterSheet::class => function (AfterSheet $event) {
                 $sheet = $event->sheet->getDelegate();
-                $formattedDate = date('d/m/Y', strtotime($this->date));
+                $formattedStart = date('d/m/Y', strtotime($this->startDate));
+                $formattedEnd = date('d/m/Y', strtotime($this->endDate));
 
                 // === SECTION 1: TITLE ===
                 $titleRow = 1;
-                $sheet->setCellValue('A'.$titleRow, 'LAPORAN HASIL PENJUALAN '.$formattedDate);
+                $sheet->setCellValue('A'.$titleRow, 'LAPORAN HASIL PENJUALAN '.$formattedStart.' SAMPAI '.$formattedEnd);
                 $sheet->mergeCells('A1:J1');
                 $sheet->getStyle('A1:J1')->applyFromArray([
                     'font' => ['bold' => true, 'size' => 14, 'color' => ['rgb' => '000000']],
                     'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
                 ]);
 
-                // === SECTION 2: STAFF SUMMARIES ===
+                // === SECTION 2: STAFF SUMMARIES (AGGREGATE) ===
                 $groupedData = [];
                 $cashPerStaff = [];
                 $totalsPerKb = [];
@@ -82,7 +86,7 @@ class BeverageStockPerDateSheet implements WithEvents, WithTitle
                 }
 
                 $query = BeverageSale::query()
-                    ->whereDate('waktu_transaksi', $this->date);
+                    ->whereBetween('waktu_transaksi', [$this->startDate.' 00:00:00', $this->endDate.' 23:59:59']);
 
                 if (! empty($this->search)) {
                     $query->whereHas('beverage', function ($q) {
@@ -198,7 +202,7 @@ class BeverageStockPerDateSheet implements WithEvents, WithTitle
                     }
                 }
 
-                // === SECTION 3: GRAND TOTAL ===
+                // === SECTION 3: GRAND TOTAL (AGGREGATE) ===
                 $grandTotalHeaderRow = $numStaff > 0 ? $totalCashRow + 3 : 3;
                 $grandTotalSubHeaderRow = $grandTotalHeaderRow + 1;
                 $grandTotalDataStartRow = $grandTotalHeaderRow + 2;
@@ -251,7 +255,7 @@ class BeverageStockPerDateSheet implements WithEvents, WithTitle
                     $sheet->getStyle('B'.$row)->getNumberFormat()->setFormatCode($currencyFormat);
                 }
 
-                // === SECTION 3B: CASH PER STAFF (beside Grand Total) ===
+                // === SECTION 3B: CASH PER STAFF (AGGREGATE) ===
                 $cashStaffLabelCol = 'D';
                 $cashStaffValueCol = 'E';
 
@@ -320,11 +324,7 @@ class BeverageStockPerDateSheet implements WithEvents, WithTitle
                 $sheet->getColumnDimension('A')->setWidth(25);
                 $sheet->getColumnDimension('B')->setWidth(15);
 
-                // === SECTION 4: STOCK DETAIL TABLE ===
-                $stockHeaderRow = max($grandTotalCashRow + 1, $lastCashStaffRow) + 3;
-                $stockDataStartRow = $stockHeaderRow + 1;
-
-                // Get stock data
+                // === SECTION 4: STOCK DETAIL TABLES PER DATE ===
                 $beverages = Beverage::withTrashed()
                     ->when($this->search, fn ($q) => $q->where('nama_produk', 'like', '%'.$this->search.'%'))
                     ->orderBy('nama_produk')
@@ -335,107 +335,137 @@ class BeverageStockPerDateSheet implements WithEvents, WithTitle
                     array_splice($headers, 1, 0, 'Harga Modal');
                 }
 
-                // Write headers
-                foreach ($headers as $index => $header) {
-                    $col = $index + 1;
-                    $colLetter = Coordinate::stringFromColumnIndex($col);
-                    $sheet->setCellValue($colLetter.$stockHeaderRow, $header);
-                }
+                $stockSectionStartRow = max($grandTotalCashRow + 1, $lastCashStaffRow) + 3;
+                $currentRow = $stockSectionStartRow;
 
-                // Write data
-                $currentRow = $stockDataStartRow;
-                foreach ($beverages as $beverage) {
-                    $stokAwal = BeverageStokSnapshot::where('beverage_id', $beverage->id)
-                        ->where('tipe', 'init')
-                        ->whereDate('tanggal', $this->date)
-                        ->sum('jumlah');
+                $current = strtotime($this->startDate);
+                $end = strtotime($this->endDate);
 
-                    $ditambahkan = BeverageRestock::where('beverage_id', $beverage->id)
-                        ->where('tipe', 'restock')
-                        ->whereDate('tanggal', $this->date)
-                        ->sum('jumlah_tambah');
+                $isFirstTable = true;
 
-                    $terjual = BeverageSale::where('beverage_id', $beverage->id)
-                        ->whereNotIn('keterangan_bayar', ['deposit_hutang_cash', 'deposit_hutang_qris'])
-                        ->whereDate('waktu_transaksi', $this->date)
-                        ->sum('jumlah_beli');
+                while ($current <= $end) {
+                    $date = date('Y-m-d', $current);
+                    $formattedDate = date('d/m/Y', $current);
 
-                    $jumlahStok = $stokAwal + $ditambahkan;
-                    $totalPenjualan = $terjual * $beverage->harga_jual;
-
-                    $isToday = $this->date === date('Y-m-d');
-                    if ($isToday) {
-                        $stokAkhir = $beverage->stok_sekarang;
-                    } else {
-                        $stokAkhir = BeverageStokSnapshot::where('beverage_id', $beverage->id)
-                            ->where('tipe', 'last')
-                            ->whereDate('tanggal', $this->date)
-                            ->sum('jumlah');
+                    if (! $isFirstTable) {
+                        $currentRow += 1; // 1 baris kosong antar tabel
                     }
+                    $isFirstTable = false;
 
-                    $sheet->setCellValue('A'.$currentRow, $beverage->nama_produk.($beverage->trashed() ? ' (Dihapus)' : ''));
-                    $col = 2;
-                    if ($this->isAdmin) {
-                        $sheet->setCellValue(Coordinate::stringFromColumnIndex($col).$currentRow, $beverage->harga_modal);
-                        $col++;
-                    }
-                    $sheet->setCellValue(Coordinate::stringFromColumnIndex($col).$currentRow, $beverage->harga_jual);
-                    $col++;
-                    $sheet->setCellValue(Coordinate::stringFromColumnIndex($col).$currentRow, $stokAwal);
-                    $col++;
-                    $sheet->setCellValue(Coordinate::stringFromColumnIndex($col).$currentRow, $ditambahkan);
-                    $col++;
-                    $sheet->setCellValue(Coordinate::stringFromColumnIndex($col).$currentRow, $jumlahStok);
-                    $col++;
-                    $sheet->setCellValue(Coordinate::stringFromColumnIndex($col).$currentRow, $terjual);
-                    $col++;
-                    $sheet->setCellValue(Coordinate::stringFromColumnIndex($col).$currentRow, $totalPenjualan);
-                    $col++;
-                    $sheet->setCellValue(Coordinate::stringFromColumnIndex($col).$currentRow, $stokAkhir);
-
-                    $currentRow++;
-                }
-
-                $lastDataRow = $currentRow - 1;
-                $lastCol = count($headers);
-                $lastColLetter = Coordinate::stringFromColumnIndex($lastCol);
-
-                // Style stock table header
-                $sheet->getStyle("A{$stockHeaderRow}:{$lastColLetter}{$stockHeaderRow}")->applyFromArray([
-                    'font' => ['bold' => true, 'color' => ['argb' => 'FF000000']],
-                    'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
-                    'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
-                ]);
-
-                // Style stock data rows
-                if ($lastDataRow >= $stockDataStartRow) {
-                    $sheet->getStyle("A{$stockDataStartRow}:{$lastColLetter}{$lastDataRow}")->applyFromArray([
-                        'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
-                        'font' => ['color' => ['argb' => 'FF000000']],
+                    // Title tabel per tanggal
+                    $tableTitleRow = $currentRow;
+                    $sheet->setCellValue('A'.$tableTitleRow, 'STOCK DETAIL - '.$formattedDate);
+                    $lastCol = count($headers);
+                    $lastColLetter = Coordinate::stringFromColumnIndex($lastCol);
+                    $sheet->mergeCells('A'.$tableTitleRow.':'.$lastColLetter.$tableTitleRow);
+                    $sheet->getStyle('A'.$tableTitleRow.':'.$lastColLetter.$tableTitleRow)->applyFromArray([
+                        'font' => ['bold' => true, 'size' => 12, 'color' => ['rgb' => '000000']],
+                        'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
+                        'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFDBEAFE']],
                     ]);
 
-                    // Alternating row colors
-                    for ($row = $stockDataStartRow; $row <= $lastDataRow; $row++) {
-                        if ($row % 2 === 0) {
-                            $sheet->getStyle("A{$row}:{$lastColLetter}{$row}")->applyFromArray([
-                                'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFF9FAFB']],
-                            ]);
+                    // Header kolom
+                    $headerRow = $currentRow + 1;
+                    foreach ($headers as $index => $header) {
+                        $col = $index + 1;
+                        $colLetter = Coordinate::stringFromColumnIndex($col);
+                        $sheet->setCellValue($colLetter.$headerRow, $header);
+                    }
+                    $sheet->getStyle("A{$headerRow}:{$lastColLetter}{$headerRow}")->applyFromArray([
+                        'font' => ['bold' => true, 'color' => ['argb' => 'FF000000']],
+                        'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
+                        'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
+                    ]);
+
+                    // Data rows
+                    $dataStartRow = $headerRow + 1;
+                    $rowCursor = $dataStartRow;
+                    foreach ($beverages as $beverage) {
+                        $stokAwal = BeverageStokSnapshot::where('beverage_id', $beverage->id)
+                            ->where('tipe', 'init')
+                            ->whereDate('tanggal', $date)
+                            ->sum('jumlah');
+
+                        $ditambahkan = BeverageRestock::where('beverage_id', $beverage->id)
+                            ->where('tipe', 'restock')
+                            ->whereDate('tanggal', $date)
+                            ->sum('jumlah_tambah');
+
+                        $terjual = BeverageSale::where('beverage_id', $beverage->id)
+                            ->whereNotIn('keterangan_bayar', ['deposit_hutang_cash', 'deposit_hutang_qris'])
+                            ->whereDate('waktu_transaksi', $date)
+                            ->sum('jumlah_beli');
+
+                        $jumlahStok = $stokAwal + $ditambahkan;
+                        $totalPenjualan = $terjual * $beverage->harga_jual;
+
+                        $isToday = $date === date('Y-m-d');
+                        if ($isToday) {
+                            $stokAkhir = $beverage->stok_sekarang;
+                        } else {
+                            $stokAkhir = BeverageStokSnapshot::where('beverage_id', $beverage->id)
+                                ->where('tipe', 'last')
+                                ->whereDate('tanggal', $date)
+                                ->sum('jumlah');
+                        }
+
+                        $sheet->setCellValue('A'.$rowCursor, $beverage->nama_produk.($beverage->trashed() ? ' (Dihapus)' : ''));
+                        $col = 2;
+                        if ($this->isAdmin) {
+                            $sheet->setCellValue(Coordinate::stringFromColumnIndex($col).$rowCursor, $beverage->harga_modal);
+                            $col++;
+                        }
+                        $sheet->setCellValue(Coordinate::stringFromColumnIndex($col).$rowCursor, $beverage->harga_jual);
+                        $col++;
+                        $sheet->setCellValue(Coordinate::stringFromColumnIndex($col).$rowCursor, $stokAwal);
+                        $col++;
+                        $sheet->setCellValue(Coordinate::stringFromColumnIndex($col).$rowCursor, $ditambahkan);
+                        $col++;
+                        $sheet->setCellValue(Coordinate::stringFromColumnIndex($col).$rowCursor, $jumlahStok);
+                        $col++;
+                        $sheet->setCellValue(Coordinate::stringFromColumnIndex($col).$rowCursor, $terjual);
+                        $col++;
+                        $sheet->setCellValue(Coordinate::stringFromColumnIndex($col).$rowCursor, $totalPenjualan);
+                        $col++;
+                        $sheet->setCellValue(Coordinate::stringFromColumnIndex($col).$rowCursor, $stokAkhir);
+
+                        $rowCursor++;
+                    }
+
+                    $lastDataRow = $rowCursor - 1;
+
+                    // Style stock data rows
+                    if ($lastDataRow >= $dataStartRow) {
+                        $sheet->getStyle("A{$dataStartRow}:{$lastColLetter}{$lastDataRow}")->applyFromArray([
+                            'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
+                            'font' => ['color' => ['argb' => 'FF000000']],
+                        ]);
+
+                        for ($row = $dataStartRow; $row <= $lastDataRow; $row++) {
+                            if ($row % 2 === 0) {
+                                $sheet->getStyle("A{$row}:{$lastColLetter}{$row}")->applyFromArray([
+                                    'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFF9FAFB']],
+                                ]);
+                            }
                         }
                     }
-                }
 
-                // Currency format for stock table
-                if ($lastDataRow >= $stockDataStartRow) {
-                    $hargaJualCol = $this->isAdmin ? 3 : 2;
-                    $totalPenjualanCol = $this->isAdmin ? 8 : 7;
-                    $sheet->getStyle(Coordinate::stringFromColumnIndex($hargaJualCol)."{$stockDataStartRow}:".Coordinate::stringFromColumnIndex($hargaJualCol).$lastDataRow)->getNumberFormat()->setFormatCode($currencyFormat);
-                    $sheet->getStyle(Coordinate::stringFromColumnIndex($totalPenjualanCol)."{$stockDataStartRow}:".Coordinate::stringFromColumnIndex($totalPenjualanCol).$lastDataRow)->getNumberFormat()->setFormatCode($currencyFormat);
-                    if ($this->isAdmin) {
-                        $sheet->getStyle("B{$stockDataStartRow}:B{$lastDataRow}")->getNumberFormat()->setFormatCode($currencyFormat);
+                    // Currency format for stock table
+                    if ($lastDataRow >= $dataStartRow) {
+                        $hargaJualCol = $this->isAdmin ? 3 : 2;
+                        $totalPenjualanCol = $this->isAdmin ? 8 : 7;
+                        $sheet->getStyle(Coordinate::stringFromColumnIndex($hargaJualCol)."{$dataStartRow}:".Coordinate::stringFromColumnIndex($hargaJualCol).$lastDataRow)->getNumberFormat()->setFormatCode($currencyFormat);
+                        $sheet->getStyle(Coordinate::stringFromColumnIndex($totalPenjualanCol)."{$dataStartRow}:".Coordinate::stringFromColumnIndex($totalPenjualanCol).$lastDataRow)->getNumberFormat()->setFormatCode($currencyFormat);
+                        if ($this->isAdmin) {
+                            $sheet->getStyle("B{$dataStartRow}:B{$lastDataRow}")->getNumberFormat()->setFormatCode($currencyFormat);
+                        }
                     }
+
+                    $currentRow = $rowCursor;
+                    $current = strtotime('+1 day', $current);
                 }
 
-                // Set column widths for stock detail table
+                // Set column widths for stock detail tables
                 $sheet->getColumnDimension('A')->setWidth(35);
                 $sheet->getColumnDimension('B')->setWidth(15);
                 $sheet->getColumnDimension('C')->setWidth(15);

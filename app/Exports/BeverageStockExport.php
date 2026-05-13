@@ -3,44 +3,27 @@
 namespace App\Exports;
 
 use Maatwebsite\Excel\Concerns\Exportable;
-use Maatwebsite\Excel\Concerns\WithMultipleSheets;
+use Maatwebsite\Excel\Concerns\WithEvents;
+use Maatwebsite\Excel\Concerns\WithTitle;
 
-class BeverageStockExport implements WithMultipleSheets
+class BeverageStockExport implements WithEvents, WithTitle
 {
     use Exportable;
 
-    private ?string $search;
-
-    private string $startDate;
-
-    private string $endDate;
-
-    private bool $isAdmin;
+    private BeverageStockCombinedSheet $sheet;
 
     public function __construct(?string $search, string $startDate, string $endDate, bool $isAdmin = false)
     {
-        $this->search = $search;
-        $this->startDate = $startDate;
-        $this->endDate = $endDate;
-        $this->isAdmin = $isAdmin;
+        $this->sheet = new BeverageStockCombinedSheet($startDate, $endDate, $search, $isAdmin);
     }
 
-    public function sheets(): array
+    public function title(): string
     {
-        $sheets = [];
-        $current = strtotime($this->startDate);
-        $end = strtotime($this->endDate);
+        return $this->sheet->title();
+    }
 
-        while ($current <= $end) {
-            $date = date('Y-m-d', $current);
-            $sheets[] = new BeverageStockPerDateSheet(
-                $date,
-                $this->search,
-                $this->isAdmin
-            );
-            $current = strtotime('+1 day', $current);
-        }
-
-        return $sheets;
+    public function registerEvents(): array
+    {
+        return $this->sheet->registerEvents();
     }
 }
