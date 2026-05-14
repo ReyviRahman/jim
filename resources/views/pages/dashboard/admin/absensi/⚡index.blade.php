@@ -1,5 +1,5 @@
 <?php
-namespace App\Livewire\Admin; // Sesuaikan dengan namespace Anda
+namespace App\Livewire\Admin;
 
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
@@ -7,6 +7,7 @@ use Livewire\WithPagination;
 use Livewire\Attributes\Layout;
 use App\Models\Attendance;
 use App\Models\Membership;
+use App\Models\PtBooking;
 use App\Models\User;
 use Carbon\Carbon;
 
@@ -16,22 +17,20 @@ new #[Layout('layouts::admin')] class extends Component
 
     public $scannedCode = '';
 
-    public function processScan()
+public function processScan()
     {
-        // 1. Decode JSON dari QR Code (Format: {"user_id": 1, "membership_id": 2})
         $data = json_decode($this->scannedCode, true);
 
-        // Validasi format QR Code
         if (!$data || !isset($data['user_id'])) {
             session()->flash('error', 'Format QR Code tidak valid!');
-            $this->scannedCode = ''; 
+            $this->scannedCode = '';
             return;
         }
 
         $userId = $data['user_id'];
         $membershipId = $data['membership_id'] ?? null;
+        $bookingId = $data['booking_id'] ?? null;
 
-        // 2. Cari Data User
         $user = User::find($userId);
         if (!$user) {
             session()->flash('error', 'Data Member tidak ditemukan!');
@@ -39,7 +38,6 @@ new #[Layout('layouts::admin')] class extends Component
             return;
         }
 
-        // 3. Cegah double scan dalam waktu 1 menit terakhir untuk user yang sama
         $recentScan = Attendance::where('user_id', $userId)
             ->where('check_in_time', '>=', now()->subMinutes(1))
             ->first();
@@ -63,7 +61,62 @@ new #[Layout('layouts::admin')] class extends Component
             return;
         }
 
-        // 4. Cari Data Membership - gunakan membership_id dari QR jika ada
+        if ($bookingId && $membershipId) {
+            $booking = PtBooking::with('membership')->find($bookingId);
+
+            if (!$booking) {
+                session()->flash('error', "Booking tidak ditemukan!");
+                $this->scannedCode = '';
+                return;
+            }
+
+            if ($booking->status !== 'approved') {
+                session()->flash('error', "Booking tidak valid! Status: {$booking->status}");
+                $this->scannedCode = '';
+                return;
+            }
+
+            if ($booking->attendance === 'attended') {
+                session()->flash('error', "Booking sudah pernah di-check-in!");
+                $this->scannedCode = '';
+                return;
+            }
+
+            if ($booking->attendance === 'noshow') {
+                session()->flash('error', "Booking ini sudah hangus!");
+                $this->scannedCode = '';
+                return;
+            }
+
+            if ($booking->attendance === 'not_yet') {
+                $membership = $booking->membership;
+
+                if (!$membership || $membership->remaining_sessions <= 0) {
+                    session()->flash('error', 'Sesi Personal Trainer Anda sudah habis.');
+                    $this->scannedCode = '';
+                    return;
+                }
+
+                $booking->update(['attendance' => 'attended']);
+                $membership->decrement('remaining_sessions');
+
+                if ($membership->remaining_sessions == 0) {
+                    $membership->update(['status' => 'completed']);
+                }
+
+                Attendance::create([
+                    'user_id' => $user->id,
+                    'membership_id' => $membership->id,
+                    'type' => 'pt',
+                    'check_in_time' => now(),
+                ]);
+
+                session()->flash('success', "Berhasil Check-In: {$user->name}. Sesi PT - Sisa: {$membership->remaining_sessions} sesi.");
+                $this->scannedCode = '';
+                return;
+            }
+        }
+
         $membershipQuery = Membership::where(function ($query) use ($userId) {
                 $query->where('user_id', $userId)
                     ->orWhereExists(function ($subQuery) use ($userId) {
@@ -93,7 +146,6 @@ new #[Layout('layouts::admin')] class extends Component
             return;
         }
 
-        // 5. Validasi Kedaluwarsa Tanggal
         $latestEndDate = null;
         if (in_array($membership->type, ['membership', 'bundle_pt_membership', 'visit'])) {
             $latestEndDate = Carbon::parse($membership->membership_end_date);
@@ -103,73 +155,39 @@ new #[Layout('layouts::admin')] class extends Component
 
         if ($latestEndDate && now() > $latestEndDate->endOfDay()) {
             if ($membership->status !== 'completed') {
-                $membership->update(['status' => 'completed']); 
+                $membership->update(['status' => 'completed']);
             }
             session()->flash('error', 'Gagal! Masa aktif paket sudah berakhir.');
             $this->scannedCode = '';
             return;
         }
 
-        // 6. Tentukan Tipe Absensi dan Logika Pemotongan Sesi
-        $attendanceType = 'gym'; 
+        $attendanceType = 'gym';
         $infoSesi = "";
 
         if ($membership->type === 'pt') {
-            
-            $attendanceType = 'pt';
-
-            // Cek apakah paket PT ini sudah dipakai/dipotong sesinya pada HARI INI
-            $isSessionUsedToday = Attendance::where('membership_id', $membership->id)
-                ->where('type', 'pt')
-                ->where('check_in_time', '>=', today()->startOfDay())
-                ->where('check_in_time', '<=', today()->endOfDay())
-                ->exists();
-
-            if (!$isSessionUsedToday) {
-                // ORANG PERTAMA (Belum ada yang absen hari ini)
-                
-                // Pastikan untuk orang pertama, paket belum completed dan sesi masih ada
-                if ($membership->status === 'completed' || $membership->remaining_sessions <= 0) {
-                    session()->flash('error', 'Gagal! Sesi Personal Trainer Anda sudah habis.');
-                    $this->scannedCode = '';
-                    return;
-                }
-
-                // Potong Sesi
-                $membership->decrement('remaining_sessions');
-                
-                // Jika ini sesi terakhir, jadikan paket expired (completed)
-                if ($membership->remaining_sessions == 0) {
-                    $membership->update(['status' => 'completed']);
-                }
-                $infoSesi = "[Sesi PT Dipotong] Sisa: {$membership->remaining_sessions} sesi.";
-
-            } else {
-                // ORANG KEDUA / PARTNER (Sudah ada partner yang potong sesi hari ini)
-                // Walaupun status paket ini baru saja jadi "completed" dan sesinya "0" karena orang pertama, 
-                // orang kedua tetap diperbolehkan masuk tanpa memotong sesi lagi.
-                $infoSesi = "[Join Sesi Gabungan] Sesi hari ini sudah dipotong partner Anda. Sisa: {$membership->remaining_sessions} sesi.";
-            }
+            session()->flash('error', "PT harus melalui booking! Gunakan QR dari halaman member.");
+            $this->scannedCode = '';
+            return;
 
         } elseif ($membership->type === 'visit') {
-            
+
             $attendanceType = 'visit';
             $membership->update(['status' => 'completed']);
             $infoSesi = "Akses Visit Harian (Tiket telah digunakan).";
 
         } elseif ($membership->type === 'bundle_pt_membership') {
-            
+
             $attendanceType = 'gym';
             $infoSesi = "Akses Gym (Bundle). Sisa PT: {$membership->remaining_sessions} (Sesi PT tidak dipotong otomatis via scanner).";
 
         } else {
-            
+
             $attendanceType = 'gym';
             $infoSesi = "Akses Gym Mandiri (Berlaku s/d " . $latestEndDate->format('d M Y') . ")";
-            
+
         }
 
-        // 7. Catat Absensi ke Database
         Attendance::create([
             'user_id' => $user->id,
             'membership_id' => $membership->id,
@@ -177,8 +195,8 @@ new #[Layout('layouts::admin')] class extends Component
             'check_in_time' => now(),
         ]);
 
-        session()->flash('success', "Berhasil Check-In: {$user->name}. {$infoSesi}");
-        $this->scannedCode = ''; // Bersihkan input
+session()->flash('success', "Berhasil Check-In: {$user->name}. {$infoSesi}");
+        $this->scannedCode = '';
     }
 
     public function with(): array

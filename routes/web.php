@@ -43,6 +43,9 @@ Route::middleware('auth')->group(function () {
         Route::livewire('/jadwal-pt', 'pages::dashboard.member.jadwal-pt.index')
             ->name('member.jadwal-pt.index');
 
+        Route::livewire('/booking-jadwal', 'pages::dashboard.member.booking-jadwal')
+            ->name('member.booking-jadwal.index');
+
         // Route::livewire('/paket', 'pages::dashboard.member.package')
         //     ->name('member.paket.index');
 
@@ -59,6 +62,9 @@ Route::middleware('auth')->group(function () {
 
         Route::livewire('/jadwal-pt', 'pages::dashboard.pt.jadwal-pt.index')
             ->name('pt.jadwal-pt.index');
+
+        Route::livewire('/booking-jadwal', 'pages::dashboard.pt.booking-jadwal.index')
+            ->name('pt.booking-jadwal.index');
     });
 
     // GROUP 2: KHUSUS ADMIN
@@ -122,6 +128,9 @@ Route::middleware('auth')->group(function () {
     });
 
     Route::middleware('role:admin,head_coach')->prefix('dashboard/admin')->group(function () {
+        Route::livewire('/booking-jadwal', 'pages::dashboard.admin.booking-jadwal.index')
+            ->name('admin.booking-jadwal.index');
+
         Route::livewire('/pengeluaran/{expense}/edit', 'pages::dashboard.admin.pengeluaran.edit')->name('admin.pengeluaran.edit');
 
         Route::livewire('/akun/admin', 'pages::dashboard.admin.akun.admin.index')

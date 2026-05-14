@@ -101,4 +101,14 @@ class User extends Authenticatable
             ->where('status', 'pending')
             ->first();
     }
+
+    public function ptBookingsAsMember(): HasMany
+    {
+        return $this->hasMany(PtBooking::class, 'member_id');
+    }
+
+    public function ptBookingsAsPt(): HasMany
+    {
+        return $this->hasMany(PtBooking::class, 'pt_id');
+    }
 }

@@ -113,6 +113,11 @@ class Membership extends Model
         return $this->hasOne(PtSchedule::class);
     }
 
+    public function ptBookings(): HasMany
+    {
+        return $this->hasMany(PtBooking::class)->orderBy('booking_date')->orderBy('booking_time');
+    }
+
     protected static function boot()
     {
         parent::boot();

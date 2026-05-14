@@ -251,6 +251,14 @@
                     </a>
                 </li>
                 <li>
+                    <a href="{{ route('admin.booking-jadwal.index') }}" wire:navigate
+                        class="{{ request()->routeIs('admin.booking-jadwal.*') ? 'text-[#34342F] bg-brand' : 'text-white' }} flex items-center px-2 py-1.5 rounded-md hover:bg-brand hover:text-[#34342F] group transition-colors"
+                        >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                        <span class="ms-3">Booking Jadwal</span>
+                    </a>
+                </li>
+                <li>
                     <a href="{{ route('admin.pt-berjalan.index') }}" wire:navigate
                         class="{{ request()->routeIs('admin.pt-berjalan.*') ? 'text-[#34342F] bg-brand' : 'text-white' }} flex items-center px-2 py-1.5 rounded-md hover:bg-brand hover:text-[#34342F] group transition-colors"
                         >

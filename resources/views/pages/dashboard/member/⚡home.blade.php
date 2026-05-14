@@ -7,8 +7,9 @@ use SimpleSoftwareIO\QrCode\Facades\QrCode;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB; // WAJIB DI-IMPORT UNTUK QUERY OPTIMASI
 use Livewire\Attributes\Layout;
-use App\Models\Membership; 
-use App\Models\Attendance; 
+use App\Models\Membership;
+use App\Models\Attendance;
+use App\Models\PtBooking;
 use Carbon\Carbon;
 
 new #[Layout('layouts::member')] class extends Component
@@ -16,6 +17,7 @@ new #[Layout('layouts::member')] class extends Component
     // --- TAMBAHAN UNTUK POLLING ---
     public $hasCheckedIn = false;
     public $selectedMembershipId = null;
+    public $selectedBookingId = null;
 
 public function mount()
     {
@@ -85,6 +87,32 @@ public function mount()
     public function selectMembership($membershipId)
     {
         $this->selectedMembershipId = $membershipId;
+        $this->selectedBookingId = null;
+    }
+
+    public function selectBooking($bookingId)
+    {
+        $this->selectedBookingId = $bookingId;
+    }
+
+    public function getEligibleBookingsProperty()
+    {
+        if (!$this->selectedMembershipId) {
+            return collect();
+        }
+
+        $membership = Membership::with(['ptPackage'])->find($this->selectedMembershipId);
+        if (!$membership || $membership->type !== 'pt') {
+            return collect();
+        }
+
+        return PtBooking::where('membership_id', $this->selectedMembershipId)
+            ->where('member_id', Auth::id())
+            ->where('status', 'approved')
+            ->where('attendance', 'not_yet')
+            ->whereNull('cancellation_requested_at')
+            ->orderBy('booking_date', 'asc')
+            ->get();
     }
 
     public function checkAttendance()
@@ -166,25 +194,39 @@ public function mount()
 
         $hasActivePackage = $activeMemberships->isNotEmpty();
         $qrCode = null;
-
-        // Hanya generate QR Code jika punya minimal 1 paket yang valid
-        if ($hasActivePackage && $this->selectedMembershipId) {
-            $qrData = json_encode([
-                'user_id' => $user->id,
-                'membership_id' => $this->selectedMembershipId
-            ]);
-            $qrCode = QrCode::size(220)->margin(1)->generate($qrData);
-        }
-
         $selectedMembership = $activeMemberships->firstWhere('id', $this->selectedMembershipId);
+        $eligibleBookings = $this->getEligibleBookingsProperty();
+
+        // QR Code generation based on membership type
+        if ($hasActivePackage && $this->selectedMembershipId && $selectedMembership) {
+            if ($selectedMembership->type === 'pt' && $this->selectedBookingId) {
+                $booking = $eligibleBookings->firstWhere('id', $this->selectedBookingId);
+                if ($booking) {
+                    $qrData = json_encode([
+                        'booking_id' => $booking->id,
+                        'user_id' => $user->id,
+                        'membership_id' => $this->selectedMembershipId
+                    ]);
+                    $qrCode = QrCode::size(220)->margin(1)->generate($qrData);
+                }
+            } elseif ($selectedMembership->type !== 'pt') {
+                $qrData = json_encode([
+                    'user_id' => $user->id,
+                    'membership_id' => $this->selectedMembershipId
+                ]);
+                $qrCode = QrCode::size(220)->margin(1)->generate($qrData);
+            }
+        }
 
         return [
             'user' => $user,
-            'activeMemberships' => $activeMemberships, 
+            'activeMemberships' => $activeMemberships,
             'hasActivePackage' => $hasActivePackage,
             'qrCode' => $qrCode,
             'selectedMembershipId' => $this->selectedMembershipId,
             'selectedMembership' => $selectedMembership,
+            'eligibleBookings' => $eligibleBookings,
+            'selectedBookingId' => $this->selectedBookingId,
         ];
     }
 };
@@ -224,10 +266,10 @@ public function mount()
                 
 <div class="py-4 text-center bg-white border-b border-gray-100">
                     <p class="text-gray-500 text-sm mb-6 font-medium">Scan QR Code ini pada scanner admin untuk Check-in</p>
-                    
+
                     @if($activeMemberships->count() > 1)
                         <div class="mb-4 px-4">
-                            <select wire:model="selectedMembershipId" class="w-full sm:w-auto text-sm border-gray-200 rounded-xl py-2 px-3 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <select wire:model.live="selectedMembershipId" class="w-full sm:w-auto text-sm border-gray-200 rounded-xl py-2 px-3 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                                 @foreach($activeMemberships as $membership)
                                     <option value="{{ $membership->id }}">
                                         @if($membership->type === 'pt' && $membership->ptPackage)
@@ -254,10 +296,47 @@ public function mount()
                             </span>
                         </div>
                     @endif
-                     
+
+                    @if($selectedMembership && $selectedMembership->type === 'pt')
+                        @if($eligibleBookings->count() > 0)
+                            <div class="mb-4 px-4">
+                                <select wire:model.live="selectedBookingId" class="w-full sm:w-auto text-sm border-gray-200 rounded-xl py-2 px-3 bg-purple-50 focus:ring-2 focus:ring-purple-500 focus:border-purple-500">
+                                    <option value="">-- Pilih Jadwal Booking --</option>
+                                    @foreach($eligibleBookings as $booking)
+                                        <option value="{{ $booking->id }}">
+                                            {{ $booking->booking_date->locale('id')->isoFormat('dddd, D MMM YYYY') }} - {{ $booking->booking_time->format('H:i') }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            @if($selectedBookingId)
+                                <div class="mb-2">
+                                    <span class="inline-flex items-center px-2.5 py-1 rounded-full bg-green-100 text-green-700 text-xs font-medium">
+                                        Booking Selected
+                                    </span>
+                                </div>
+                            @endif
+                        @else
+                            <div class="mb-4 px-4">
+                                <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-700">
+                                    Tidak ada booking yang eligible untuk check-in.silakan buat booking terlebih dahulu.
+                                </div>
+                            </div>
+                        @endif
+                    @endif
+
+                    @if($qrCode)
                     <div class="inline-block p-4 bg-white rounded-2xl shadow-sm border border-gray-200 transition-transform hover:scale-105 duration-300 mb-6">
                         {!! $qrCode !!}
                     </div>
+                    @elseif($selectedMembership && $selectedMembership->type === 'pt' && !$selectedBookingId)
+                    <div class="inline-block p-6 bg-gray-100 rounded-2xl mb-6">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-gray-400 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h2M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+                        </svg>
+                        <p class="text-sm text-gray-500">Pilih jadwal booking terlebih dahulu</p>
+                    </div>
+                    @endif
 
                     <div>
                         <h3 class="text-gray-800 text-2xl font-bold tracking-tight">{{ $user->name }}</h3>
@@ -356,9 +435,21 @@ public function mount()
 
             <div class="mt-6 text-center">
                 <p class="text-xs text-gray-400 mb-2">Manual Input Data (Untuk Admin)</p>
-                <div class="inline-block bg-gray-100 border border-gray-200 rounded-lg py-2 px-4 text-xs text-gray-600 font-mono select-all cursor-text">
-                    {"user_id": {{ $user->id }}, "membership_id": {{ $selectedMembershipId }}}
-                </div>
+                @if($selectedMembership && $selectedMembership->type === 'pt')
+                    @if($selectedBookingId)
+                        <div class="inline-block bg-gray-100 border border-gray-200 rounded-lg py-2 px-4 text-xs text-gray-600 font-mono select-all cursor-text">
+                            {"user_id": {{ $user->id }}, "membership_id": {{ $selectedMembershipId }}, "booking_id": {{ $selectedBookingId }}}
+                        </div>
+                    @else
+                        <div class="inline-block bg-yellow-50 border border-yellow-200 rounded-lg py-2 px-4 text-xs text-yellow-700 font-mono">
+                            Pilih jadwal booking terlebih dahulu untuk menampilkan data manual input PT
+                        </div>
+                    @endif
+                @else
+                    <div class="inline-block bg-gray-100 border border-gray-200 rounded-lg py-2 px-4 text-xs text-gray-600 font-mono select-all cursor-text">
+                        {"user_id": {{ $user->id }}, "membership_id": {{ $selectedMembershipId }}}
+                    </div>
+                @endif
             </div>
         @endif
         
