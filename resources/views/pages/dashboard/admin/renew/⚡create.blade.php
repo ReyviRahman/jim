@@ -334,9 +334,19 @@ new #[Layout('layouts::admin')] class extends Component
             DB::beginTransaction();
 
             // 1. BUAT KONTRAK MEMBERSHIP BARU (BUKAN UPDATE YANG LAMA)
-            $totalSessionsNew = in_array($this->registration_type, ['pt', 'bundle_pt_membership']) 
-                ? ($this->calculated_total_sessions + $remainingSessionsFromOld)
-                : null;
+            if ($this->registration_type === 'pt') {
+                $totalSessionsNew = $remainingSessionsFromOld;
+                $remainingSessionsNew = $remainingSessionsFromOld + $this->calculated_total_sessions;
+                $sesiDitambahkan = $this->calculated_total_sessions;
+            } elseif ($this->registration_type === 'bundle_pt_membership') {
+                $totalSessionsNew = $this->calculated_total_sessions + $remainingSessionsFromOld;
+                $remainingSessionsNew = $totalSessionsNew;
+                $sesiDitambahkan = null;
+            } else {
+                $totalSessionsNew = null;
+                $remainingSessionsNew = null;
+                $sesiDitambahkan = null;
+            }
             
             $newMembership = MembershipModel::create([
                 'user_id' => $this->mainUser->id, 
@@ -359,7 +369,8 @@ new #[Layout('layouts::admin')] class extends Component
                 'unrecommended_price' => $pkt?->unrecommended_price,
                 
                 'total_sessions' => $totalSessionsNew,
-                'remaining_sessions' => $totalSessionsNew,
+                'remaining_sessions' => $remainingSessionsNew,
+                'sesi_ditambahkan' => $sesiDitambahkan,
                 
                 'start_date' => $this->start_date,
                 'membership_end_date' => in_array($this->registration_type, ['membership', 'bundle_pt_membership', 'visit']) ? $this->membership_end_date : null,
@@ -375,7 +386,13 @@ new #[Layout('layouts::admin')] class extends Component
             $newMembership->members()->attach($this->selectedUsers->pluck('id')->toArray());
 
             // 2. UPDATE STATUS MEMBERSHIP LAMA MENJADI COMPLETED
-            $this->oldMembership->update(['status' => 'completed']);
+            // Untuk PT, simpan sisa sesi lama ke sesi_hangus dan set remaining_sessions jadi 0
+            $oldMembershipUpdate = ['status' => 'completed'];
+            if ($this->registration_type === 'pt') {
+                $oldMembershipUpdate['sesi_hangus'] = $this->oldMembership->remaining_sessions;
+                $oldMembershipUpdate['remaining_sessions'] = 0;
+            }
+            $this->oldMembership->update($oldMembershipUpdate);
 
             MembershipTransaction::create([
                 'invoice_number' => 'INV-' . date('Ymd') . '-' . strtoupper(uniqid()),

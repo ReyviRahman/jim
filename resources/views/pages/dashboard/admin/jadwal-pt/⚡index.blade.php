@@ -5,7 +5,6 @@ namespace App\Livewire\Admin;
 use App\Models\Membership;
 use App\Models\PtSchedule;
 use App\Models\PtScheduleDay;
-use App\Models\PtBooking;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Computed;
@@ -23,10 +22,6 @@ use Livewire\WithPagination;
 
     public $filterPt = '';
 
-    public $bookingSearch = '';
-    public $bookingFilter = '';
-    public $bookingFilterPt = '';
-
     public $showScheduleModal = false;
 
     public $scheduleMembershipId = null;
@@ -43,21 +38,6 @@ use Livewire\WithPagination;
     }
 
     public function updatingFilterPt()
-    {
-        $this->resetPage();
-    }
-
-    public function updatingBookingSearch()
-    {
-        $this->resetPage();
-    }
-
-    public function updatingBookingFilter()
-    {
-        $this->resetPage();
-    }
-
-    public function updatingBookingFilterPt()
     {
         $this->resetPage();
     }
@@ -226,69 +206,6 @@ use Livewire\WithPagination;
             ->download('jadwal-pt-'.now()->format('Y-m-d-His').'.xlsx');
     }
 
-    public function adminCompleteBooking($bookingId)
-    {
-        $booking = PtBooking::find($bookingId);
-
-        if (! $booking || $booking->status !== 'approved') {
-            session()->flash('error', 'Booking tidak ditemukan.');
-            return;
-        }
-
-        $booking->update(['status' => 'completed']);
-
-        $membership = $booking->membership;
-        if ($membership && $membership->remaining_sessions > 0) {
-            $membership->decrement('remaining_sessions');
-        }
-
-        session()->flash('success', 'Booking berhasil diselesaikan. Sisa sesi berkurang.');
-    }
-
-    public function adminCancelBooking($bookingId)
-    {
-        $booking = PtBooking::find($bookingId);
-
-        if (! $booking || $booking->status !== 'approved') {
-            session()->flash('error', 'Booking tidak ditemukan.');
-            return;
-        }
-
-        $booking->update([
-            'status' => 'cancelled',
-            'cancelled_by' => Auth::id(),
-            'cancelled_at' => now(),
-        ]);
-
-        session()->flash('success', 'Booking berhasil dibatalkan.');
-    }
-
-    #[Computed]
-    public function allBookings()
-    {
-        $query = PtBooking::with(['member', 'pt', 'membership.ptPackage'])
-            ->whereHas('membership', function ($q) {
-                $q->where('status', '!=', 'completed');
-            })
-            ->orderBy('booking_date', 'desc')
-            ->orderBy('booking_time', 'desc');
-
-        if (! empty($this->bookingSearch)) {
-            $query->whereHas('member', function ($q) {
-                $q->where('name', 'like', '%'.$this->bookingSearch.'%');
-            });
-        }
-
-        if (! empty($this->bookingFilter)) {
-            $query->where('status', $this->bookingFilter);
-        }
-
-        if (! empty($this->bookingFilterPt)) {
-            $query->where('pt_id', $this->bookingFilterPt);
-        }
-
-        return $query->paginate(20, ['*'], 'bookingsPage');
-    }
 }; ?>
 
 <div>
@@ -463,115 +380,6 @@ use Livewire\WithPagination;
 
     <div class="mt-4">
         {{ $this->memberships->links() }}
-    </div>
-
-    {{-- Daftar Booking --}}
-    <div class="mt-10">
-        <div class="flex sm:flex-row flex-col justify-between items-center mb-6">
-            <h5 class="text-xl font-semibold text-heading">Booking Sesi PT</h5>
-        </div>
-
-        <div class="relative overflow-x-auto bg-neutral-primary-soft shadow-xs rounded-md border border-default">
-            <div class="p-4 flex flex-col md:flex-row items-center justify-between gap-4">
-                <div class="relative w-full md:w-auto md:flex-1">
-                    <div class="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
-                        <svg class="w-4 h-4 text-body" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" stroke-linecap="round" stroke-width="2" d="m21 21-3.5-3.5M17 10a7 7 0 1 1-14 0 7 7 0 0 1 14 0Z"/></svg>
-                    </div>
-                    <input type="text" wire:model.live.debounce.300ms="bookingSearch" class="block w-full max-w-sm ps-9 pe-3 py-2.5 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs placeholder:text-body" placeholder="Cari nama member...">
-                </div>
-                
-                <div class="flex items-center gap-3 w-full md:w-auto">
-                    <select wire:model.live="bookingFilter" class="bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs block w-full md:w-40 ps-3 pe-8 py-2.5">
-                        <option value="">Semua Status</option>
-                        <option value="approved">Approved</option>
-                        <option value="completed">Completed</option>
-                        <option value="cancelled">Cancelled</option>
-                    </select>
-                    <select wire:model.live="bookingFilterPt" class="bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs block w-full md:w-48 ps-3 pe-8 py-2.5">
-                        <option value="">Semua PT</option>
-                        @foreach($this->ptList as $pt)
-                            <option value="{{ $pt->id }}">{{ $pt->name }}</option>
-                        @endforeach
-                    </select>
-                </div>
-            </div>
-
-            <table class="w-full text-sm text-left rtl:text-right text-body">
-                <thead class="text-sm text-body bg-neutral-secondary-medium border-b border-default-medium">
-                    <tr>
-                        <th scope="col" class="px-6 py-3 font-medium">No</th>
-                        <th scope="col" class="px-6 py-3 font-medium">Member</th>
-                        <th scope="col" class="px-6 py-3 font-medium">Coach</th>
-                        <th scope="col" class="px-6 py-3 font-medium">Paket</th>
-                        <th scope="col" class="px-6 py-3 font-medium">Tanggal</th>
-                        <th scope="col" class="px-6 py-3 font-medium">Waktu</th>
-                        <th scope="col" class="px-6 py-3 font-medium">Catatan</th>
-                        <th scope="col" class="px-6 py-3 font-medium">Status</th>
-                        <th scope="col" class="px-6 py-3 font-medium">Aksi</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse($this->allBookings as $booking)
-                        <tr wire:key="booking-{{ $booking->id }}" class="bg-neutral-primary-soft border-b border-default hover:bg-neutral-secondary-medium">
-                            <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
-                                {{ $loop->iteration + ($this->allBookings->currentPage() - 1) * $this->allBookings->perPage() }}
-                            </td>
-                            <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
-                                {{ $booking->member?->name ?? '-' }}
-                            </td>
-                            <td class="px-6 py-4 text-heading whitespace-nowrap">
-                                {{ $booking->pt?->name ?? '-' }}
-                            </td>
-                            <td class="px-6 py-4 text-heading whitespace-nowrap">
-                                {{ $booking->membership?->ptPackage?->name ?? '-' }}
-                            </td>
-                            <td class="px-6 py-4 text-heading whitespace-nowrap">
-                                {{ $booking->booking_date->locale('id')->isoFormat('D MMM YYYY') }}
-                            </td>
-                            <td class="px-6 py-4 text-heading whitespace-nowrap">
-                                {{ $booking->booking_time->format('H:i') }}
-                            </td>
-                            <td class="px-6 py-4 text-heading">
-                                <span class="text-xs text-body line-clamp-2 max-w-xs">{{ $booking->notes ?? '-' }}</span>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium capitalize
-                                    @if($booking->status === 'approved') bg-green-100 text-green-800
-                                    @elseif($booking->status === 'completed') bg-blue-100 text-blue-800
-                                    @elseif($booking->status === 'cancelled') bg-gray-100 text-gray-600
-                                    @endif">
-                                    {{ $booking->status }}
-                                </span>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                @if($booking->status === 'approved')
-                                    <div class="flex items-center gap-2">
-                                        <button wire:click="adminCompleteBooking({{ $booking->id }})" wire:confirm="Tandai booking ini sebagai selesai?" class="inline-flex items-center px-2 py-1 text-xs font-medium text-white bg-green-600 rounded hover:bg-green-700 transition-colors" title="Selesai">
-                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                                        </button>
-                                        <button wire:click="adminCancelBooking({{ $booking->id }})" wire:confirm="Yakin ingin membatalkan booking ini?" class="inline-flex items-center px-2 py-1 text-xs font-medium text-white bg-red-600 rounded hover:bg-red-700 transition-colors" title="Batal">
-                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                                        </button>
-                                    </div>
-                                @else
-                                    <span class="text-xs text-gray-400">-</span>
-                                @endif
-                            </td>
-                        </tr>
-                    @empty
-                        <tr>
-                            <td colspan="9" class="px-6 py-8 text-center text-gray-500">
-                                Tidak ada booking sesi PT yang ditemukan.
-                            </td>
-                        </tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
-
-        <div class="mt-4">
-            {{ $this->allBookings->links() }}
-        </div>
     </div>
 
     @if($showScheduleModal)

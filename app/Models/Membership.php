@@ -38,6 +38,8 @@ class Membership extends Model
         'notes',
         'transaction_type',
         'package_name',
+        'sesi_ditambahkan',
+        'sesi_hangus',
     ];
 
     protected $casts = [
@@ -47,6 +49,8 @@ class Membership extends Model
         'price_paid' => 'decimal:0',
         'total_sessions' => 'integer',
         'remaining_sessions' => 'integer',
+        'sesi_ditambahkan' => 'integer',
+        'sesi_hangus' => 'integer',
         'is_active' => 'boolean',
     ];
 
