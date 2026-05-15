@@ -1,7 +1,7 @@
 <table>
     {{-- BARIS 1: JUDUL BESAR --}}
     <tr>
-        <td colspan="8" style="text-align: center; border: 2px solid #000000; font-size: 14px;">
+        <td colspan="9" style="text-align: center; border: 2px solid #000000; font-size: 14px;">
             PERHITUNGAN BONUS TARGET {{ $titleDate }}
         </td>
     </tr>
@@ -10,6 +10,7 @@
     <tr>
         <td style="text-align: center; background-color: #fce4d6; border: 2px solid #000000;">TGL MULAI</td>
         <td style="text-align: center; background-color: #fce4d6; border: 2px solid #000000;">TGL SELESAI</td>
+        <td rowspan="3" style="text-align: center; vertical-align: middle; background-color: #fce4d6; border: 2px solid #000000;">TGL BAYAR</td>
         <td rowspan="3" style="text-align: center; vertical-align: middle; background-color: #fce4d6; border: 2px solid #000000;">PAKET MEMBERSHIP</td>
         <td rowspan="3" style="text-align: center; vertical-align: middle; background-color: #fce4d6; border: 2px solid #000000;">NAMA SESUAI KTP</td>
         <td rowspan="3" style="text-align: center; vertical-align: middle; background-color: #fce4d6; border: 2px solid #000000;">NOMINAL</td>
@@ -58,6 +59,7 @@
             $tglMulai = $membership->start_date ? \Carbon\Carbon::parse($membership->start_date)->locale('id')->translatedFormat('l, F d, Y') : 'BELUM AKTIF';
             $endDate = $membership->type === 'pt' ? $membership->pt_end_date : $membership->membership_end_date;
             $tglSelesai = $endDate ? \Carbon\Carbon::parse($endDate)->locale('id')->translatedFormat('l, F d, Y') : 'BELUM AKTIF';
+            $tglBayar = $membership->transactions->sortByDesc('payment_date')->first()?->payment_date?->locale('id')->translatedFormat('l, F d, Y') ?? '-';
         @endphp
         
         <tr>
@@ -66,6 +68,9 @@
             </td>
             <td style="background-color: {{ $bgColor }}; border: 1px solid #000000;">
                 {{ $tglSelesai }}
+            </td>
+            <td style="background-color: {{ $bgColor }}; border: 1px solid #000000; text-align: center;">
+                {{ $tglBayar }}
             </td>
             <td style="background-color: {{ $bgColor }}; border: 1px solid #000000; text-align: center;">
                 {{ strtoupper($packageName) }}
@@ -93,8 +98,8 @@
     {{-- TAMBAHAN BARU: BARIS TOTAL --}}
     @if($memberships->count() > 0)
         <tr>
-            {{-- Menggabungkan 5 kolom pertama untuk teks "TOTAL" --}}
-            <td colspan="5" style="text-align: right; font-weight: bold; background-color: #fce4d6; border: 2px solid #000000;">
+            {{-- Menggabungkan 6 kolom pertama untuk teks "TOTAL" --}}
+            <td colspan="6" style="text-align: right; font-weight: bold; background-color: #fce4d6; border: 2px solid #000000;">
                 TOTAL KESELURUHAN NOMINAL AKHIR:
             </td>
             {{-- Menampilkan angka total tepat di bawah kolom "NOMINAL AKHIR" --}}

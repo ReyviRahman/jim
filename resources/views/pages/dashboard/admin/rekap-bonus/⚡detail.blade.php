@@ -109,8 +109,9 @@ new #[Layout('layouts::admin')] class extends Component
     public function memberships()
     {
         return $this->getBaseQuery()
-            ->with(['user', 'followUp', 'followUpTwo', 'gymPackage', 'ptPackage'])
-            ->latest('start_date')
+            ->with(['user', 'followUp', 'followUpTwo', 'gymPackage', 'ptPackage', 'transactions'])
+            ->withMax('transactions', 'payment_date')
+            ->orderByDesc('transactions_max_payment_date')
             ->paginate(500);
     }
 
@@ -225,6 +226,7 @@ new #[Layout('layouts::admin')] class extends Component
                     <th rowspan="3" class="px-6 py-3 font-medium align-middle border border-default-medium">No</th>
                     <th class="px-6 py-3 font-medium text-center border border-default-medium">Tgl Mulai</th>
                     <th class="px-6 py-3 font-medium text-center border border-default-medium">Tgl Selesai</th>
+                    <th rowspan="3" class="px-6 py-3 font-medium align-middle border border-default-medium">Tgl Bayar</th>
                     <th rowspan="3" class="px-6 py-3 font-medium align-middle border border-default-medium">Paket Membership</th>
                     <th rowspan="3" class="px-6 py-3 font-medium align-middle border border-default-medium">Nama Member</th>
                     <th rowspan="3" class="px-6 py-3 font-medium text-right align-middle border border-default-medium">Nominal</th>
@@ -273,6 +275,10 @@ new #[Layout('layouts::admin')] class extends Component
                             {{ $endDate ? \Carbon\Carbon::parse($endDate)->translatedFormat('l, d F Y') : 'BELUM AKTIF' }}
                         </td>
                         
+                        <td class="px-6 py-4 whitespace-nowrap text-yellow-500 font-semibold">
+                            {{ $membership->transactions->sortByDesc('payment_date')->first()?->payment_date?->translatedFormat('d F Y') ?? '-' }}
+                        </td>
+                        
                         <td class="px-6 py-4 font-medium text-gray-700 whitespace-nowrap">
                             <span class="px-2 py-0.5 text-xs rounded border border-gray-200 bg-gray-50 shadow-xs uppercase">
                                 {{ $packageName }}
@@ -300,7 +306,7 @@ new #[Layout('layouts::admin')] class extends Component
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="9" class="px-6 py-8 text-center text-gray-500">
+                        <td colspan="10" class="px-6 py-8 text-center text-gray-500">
                             Belum ada riwayat bonus untuk rentang waktu ini.
                         </td>
                     </tr>
@@ -309,7 +315,7 @@ new #[Layout('layouts::admin')] class extends Component
             @if($this->memberships->count() > 0)
                 <tfoot class="bg-gray-100 font-semibold text-gray-900 border-t-2 border-gray-300">
                     <tr>
-                        <td colspan="6" class="px-6 py-4 text-right">
+                        <td colspan="7" class="px-6 py-4 text-right">
                             Total Keseluruhan:
                         </td>
                         <td class="px-6 py-4 text-right text-emerald-700 whitespace-nowrap">

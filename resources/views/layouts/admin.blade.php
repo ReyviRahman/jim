@@ -208,9 +208,6 @@
                     </a>
                 </li>
 
-                @endif
-                
-                @if($isAdmin || $isHeadCoach)
                 <li>
                     <a href="{{ route('admin.rekap-bonus.index') }}" wire:navigate 
                         class="{{ request()->routeIs('admin.rekap-bonus.*') ? 'text-[#34342F] bg-brand' : 'text-white' }} flex items-center px-2 py-1.5 rounded-md hover:bg-brand hover:text-[#34342F] group transition-colors">
@@ -220,7 +217,9 @@
                         <span class="ms-3">Rekap Bonus</span>
                     </a>
                 </li>
+
                 @endif
+                
             </ul>
 
             @if($isAdmin || $isKasir || $isHeadCoach)

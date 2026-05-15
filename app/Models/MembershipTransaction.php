@@ -23,6 +23,13 @@ class MembershipTransaction extends Model
         'notes',
     ];
 
+    protected $casts = [
+        'payment_date' => 'date',
+        'start_date' => 'date',
+        'end_date' => 'date',
+        'amount' => 'decimal:0',
+    ];
+
     // Relasi ke User (Member yang bayar)
     public function user()
     {

@@ -34,7 +34,7 @@ class RekapBonusExport implements FromView, ShouldAutoSize, WithStyles
         $staffUser = User::findOrFail($this->staffUserId);
 
         // Tambahkan 'followUp', 'followUpTwo' di dalam array with()
-        $memberships = Membership::with(['user', 'gymPackage', 'ptPackage', 'followUp', 'followUpTwo'])
+        $memberships = Membership::with(['user', 'gymPackage', 'ptPackage', 'followUp', 'followUpTwo', 'transactions'])
             ->where(function ($query) {
                 $query->where('follow_up_id', $this->staffUserId)
                     ->orWhere('follow_up_id_two', $this->staffUserId);
@@ -59,7 +59,8 @@ class RekapBonusExport implements FromView, ShouldAutoSize, WithStyles
                     ]);
                 });
             })
-            ->latest('start_date')
+            ->withMax('transactions', 'payment_date')
+            ->orderByDesc('transactions_max_payment_date')
             ->get();
 
         // Membuat Format Judul (Contoh: 16 JANUARI - 15 FEBRUARI)
