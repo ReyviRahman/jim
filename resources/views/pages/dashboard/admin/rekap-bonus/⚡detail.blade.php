@@ -233,6 +233,7 @@ new #[Layout('layouts::admin')] class extends Component
                     <th rowspan="3" class="px-6 py-3 font-medium text-right align-middle border border-default-medium">Nominal Akhir</th>
                     <th rowspan="3" class="px-6 py-3 font-medium align-middle border border-default-medium">Follow Up 1</th>
                     <th rowspan="3" class="px-6 py-3 font-medium align-middle border border-default-medium">Follow Up 2</th>
+                    <th rowspan="3" class="px-6 py-3 font-medium align-middle border border-default-medium">Aksi</th>
                 </tr>
                 <tr>
                     <th colspan="2" class="px-6 py-3 font-medium text-center border border-default-medium">MEMBERSHIP</th>
@@ -303,10 +304,18 @@ new #[Layout('layouts::admin')] class extends Component
                         <td class="px-6 py-4 whitespace-nowrap">
                             {{ $membership->followUpTwo->name ?? '-' }}
                         </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            @if(auth()->user()->role === 'admin')
+                                <a href="{{ route('admin.membership.edit', $membership->id) }}?redirect_to={{ urlencode('admin.rekap-bonus.detail') }}&redirect_id={{ $staffUser->id }}" class="inline-flex items-center text-brand hover:text-brand-dark font-medium text-sm">
+                                    <svg class="w-4 h-4 me-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10"></path></svg>
+                                    Edit
+                                </a>
+                            @endif
+                        </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="10" class="px-6 py-8 text-center text-gray-500">
+                        <td colspan="11" class="px-6 py-8 text-center text-gray-500">
                             Belum ada riwayat bonus untuk rentang waktu ini.
                         </td>
                     </tr>
@@ -321,7 +330,7 @@ new #[Layout('layouts::admin')] class extends Component
                         <td class="px-6 py-4 text-right text-emerald-700 whitespace-nowrap">
                             Rp {{ number_format($this->totalNominalAkhir, 0, ',', '.') }}
                         </td>
-                        <td colspan="2" class="px-6 py-4"></td>
+                        <td colspan="3" class="px-6 py-4"></td>
                     </tr>
                 </tfoot>
             @endif
