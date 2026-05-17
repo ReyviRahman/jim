@@ -123,26 +123,19 @@ Route::middleware('auth')->group(function () {
         Route::livewire('/pt-booking', 'pages::dashboard.admin.pt-booking.index')
             ->name('admin.pt-booking.index');
 
-        Route::livewire('/sesi-pt', 'pages::dashboard.admin.sesi-pt.index')
-            ->name('admin.sesi-pt.index');
-
-        Route::livewire('/sesi-pt/{user}/detail', 'pages::dashboard.admin.sesi-pt.detail')
-            ->name('admin.sesi-pt.detail');
-
-        Route::get('/sesi-pt/{user}/slip-print', [SesiPtSlipController::class, 'print'])
-            ->name('admin.sesi-pt.slip-print');
-
         Route::livewire('/rekap-bonus', 'pages::dashboard.admin.rekap-bonus.index')
             ->name('admin.rekap-bonus.index');
 
         Route::livewire('/rekap-bonus/{user}/detail', 'pages::dashboard.admin.rekap-bonus.detail')
             ->name('admin.rekap-bonus.detail');
 
+        Route::livewire('/booking-jadwal', 'pages::dashboard.admin.booking-jadwal.index')
+            ->name('admin.booking-jadwal.index');
+
     });
 
     Route::middleware('role:admin,head_coach')->prefix('dashboard/admin')->group(function () {
-        Route::livewire('/booking-jadwal', 'pages::dashboard.admin.booking-jadwal.index')
-            ->name('admin.booking-jadwal.index');
+        
 
         Route::livewire('/pengeluaran/{expense}/edit', 'pages::dashboard.admin.pengeluaran.edit')->name('admin.pengeluaran.edit');
 
@@ -188,6 +181,15 @@ Route::middleware('auth')->group(function () {
             Route::livewire('/{package}/edit', 'pages::dashboard.admin.package.edit')
                 ->name('admin.packages.edit'); // Edit
         });
+
+        Route::livewire('/sesi-pt', 'pages::dashboard.admin.sesi-pt.index')
+            ->name('admin.sesi-pt.index');
+
+        Route::livewire('/sesi-pt/{user}/detail', 'pages::dashboard.admin.sesi-pt.detail')
+            ->name('admin.sesi-pt.detail');
+
+        Route::get('/sesi-pt/{user}/slip-print', [SesiPtSlipController::class, 'print'])
+            ->name('admin.sesi-pt.slip-print');
     });
 
     Route::middleware('role:admin,kasir_gym,kasir_minum')->prefix('dashboard/admin')->group(function () {
