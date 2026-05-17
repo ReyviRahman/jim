@@ -40,13 +40,20 @@ new #[Layout('layouts::admin')] class extends Component
         $this->resetPage();
     }
 
-    public function updatingDateFrom()
+    public function setDateRange($rangeStr)
     {
-        $this->resetPage();
-    }
+        if (str_contains($rangeStr, ' to ')) {
+            $dates = explode(' to ', $rangeStr);
+            $this->dateFrom = $dates[0];
+            $this->dateTo = $dates[1];
+        } elseif ($rangeStr) {
+            $this->dateFrom = $rangeStr;
+            $this->dateTo = $rangeStr;
+        } else {
+            $this->dateFrom = '';
+            $this->dateTo = '';
+        }
 
-    public function updatingDateTo()
-    {
         $this->resetPage();
     }
 
@@ -305,10 +312,21 @@ new #[Layout('layouts::admin')] class extends Component
 
         <div class="p-4 border-t border-default-medium flex flex-col md:flex-row items-center gap-4">
             <span class="text-sm text-body font-medium">Filter Tanggal Sesi:</span>
-            <div class="flex items-center gap-2">
-                <input type="date" wire:model.live="dateFrom" class="bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs px-3 py-2">
-                <span class="text-body">s/d</span>
-                <input type="date" wire:model.live="dateTo" class="bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs px-3 py-2">
+            <div class="relative w-full md:w-56" wire:ignore>
+                <div class="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
+                    <svg class="w-4 h-4 text-body" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 10h16M8 14h8m-4-7V4M7 7V4m10 3V4M5 20h14a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1Z"/></svg>
+                </div>
+                <input type="text" x-data
+                    x-init="flatpickr($el, {
+                        mode: 'range',
+                        dateFormat: 'Y-m-d',
+                        placeholder: 'Pilih Tanggal',
+                        onClose: function(selectedDates, dateStr, instance) {
+                            @this.call('setDateRange', dateStr)
+                        }
+                    })"
+                    class="block w-full ps-9 pe-3 py-2 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs placeholder:text-body"
+                    placeholder="Pilih Rentang Tanggal">
             </div>
         </div>
 

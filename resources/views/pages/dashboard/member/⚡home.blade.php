@@ -319,7 +319,7 @@ public function mount()
                         @else
                             <div class="mb-4 px-4">
                                 <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-700">
-                                    Tidak ada booking yang eligible untuk check-in.silakan buat booking terlebih dahulu.
+                                    Silakan Booking Jadwal terlebih dahulu
                                 </div>
                             </div>
                         @endif

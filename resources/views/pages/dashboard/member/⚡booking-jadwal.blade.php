@@ -240,6 +240,9 @@ new #[Layout('layouts::member')] class extends Component
             })
             ->where('remaining_sessions', '>', 0)
             ->whereNotNull('pt_id')
+            ->whereHas('ptSchedule', function ($q) {
+                $q->where('status', 'approved');
+            })
             ->orderBy('start_date', 'desc')
             ->get();
 
@@ -270,13 +273,11 @@ new #[Layout('layouts::member')] class extends Component
         </div>
 
         <div class="flex items-center gap-3">
-            @if($availableMemberships->count() > 0)
-                <button type="button" wire:click="openBookingModal"
-                    class="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-sm">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
-                    Booking Baru
-                </button>
-            @endif
+            <button type="button" wire:click="openBookingModal"
+                class="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-sm">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+                Booking Baru
+            </button>
             <div class="relative w-72">
                 <div class="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
                     <svg class="w-4 h-4 text-gray-400" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 20">

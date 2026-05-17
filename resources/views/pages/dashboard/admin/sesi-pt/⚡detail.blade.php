@@ -3,6 +3,7 @@
 namespace App\Livewire\Pages\Dashboard\Admin\SesiPt;
 
 use App\Models\Membership;
+use App\Models\PtSessionCategory;
 use App\Models\User;
 use Carbon\Carbon;
 use Livewire\Component;
@@ -15,6 +16,13 @@ new #[Layout('layouts::admin')] class extends Component
 
     public $dateStart = null;
     public $dateEnd = null;
+
+    public bool $showModal = false;
+    public ?int $editingId = null;
+
+    public string $category = '';
+    public string $amount = '';
+    public string $description = '';
 
     public function mount(User $user)
     {
@@ -46,7 +54,7 @@ new #[Layout('layouts::admin')] class extends Component
                 $query->whereDate('start_date', '<=', $this->dateEnd)
                     ->whereDate('pt_end_date', '>=', $this->dateStart);
             })
-            ->with(['user', 'ptPackage', 'gymPackage'])
+            ->with(['user', 'ptPackage', 'gymPackage', 'followUp', 'followUpTwo'])
             ->withCount([
                 'ptBookings as berjalan' => function ($q) {
                     $q->where('attendance', 'attended');
@@ -74,6 +82,76 @@ new #[Layout('layouts::admin')] class extends Component
             ])
             ->orderBy('created_at', 'desc')
             ->get();
+    }
+
+    #[Computed]
+    public function ptSessionCategories()
+    {
+        return PtSessionCategory::where('pt_id', $this->user->id)
+            ->latest()
+            ->get();
+    }
+
+    public function openModal(): void
+    {
+        $this->resetForm();
+        $this->showModal = true;
+    }
+
+    public function closeModal(): void
+    {
+        $this->showModal = false;
+        $this->resetForm();
+    }
+
+    public function resetForm(): void
+    {
+        $this->editingId = null;
+        $this->category = '';
+        $this->amount = '';
+        $this->description = '';
+    }
+
+    public function save(): void
+    {
+        $validated = $this->validate([
+            'category' => 'required|string|max:255',
+            'amount' => 'required|numeric|min:0',
+            'description' => 'nullable|string|max:1000',
+        ]);
+
+        if ($this->editingId) {
+            $ptSessionCategory = PtSessionCategory::findOrFail($this->editingId);
+            $ptSessionCategory->update($validated);
+            session()->flash('success', 'Kategori sesi PT berhasil diperbarui.');
+        } else {
+            PtSessionCategory::create([
+                'pt_id' => $this->user->id,
+                'category' => $validated['category'],
+                'amount' => $validated['amount'],
+                'description' => $validated['description'],
+            ]);
+            session()->flash('success', 'Kategori sesi PT berhasil ditambahkan.');
+        }
+
+        $this->closeModal();
+    }
+
+    public function edit(int $id): void
+    {
+        $ptSessionCategory = PtSessionCategory::findOrFail($id);
+
+        $this->editingId = $ptSessionCategory->id;
+        $this->category = $ptSessionCategory->category;
+        $this->amount = (string) $ptSessionCategory->amount;
+        $this->description = $ptSessionCategory->description ?? '';
+        $this->showModal = true;
+    }
+
+    public function delete(int $id): void
+    {
+        PtSessionCategory::findOrFail($id)->delete();
+        session()->flash('success', 'Kategori sesi PT berhasil dihapus.');
     }
 };
 ?>
@@ -134,9 +212,10 @@ new #[Layout('layouts::admin')] class extends Component
                     <tr>
                         <th scope="col" class="px-6 py-3 font-medium">No</th>
                         <th scope="col" class="px-6 py-3 font-medium">Nama Member</th>
+                        <th scope="col" class="px-6 py-3 font-medium">Admin Follow Up</th>
+                        <th scope="col" class="px-6 py-3 font-medium">Sales Follow Up</th>
                         <th scope="col" class="px-6 py-3 font-medium">Harga</th>
-                        <th scope="col" class="px-6 py-3 font-medium">Kategori</th>
-                        <th scope="col" class="px-6 py-3 font-medium">SPR</th>
+                        <th scope="col" class="px-6 py-3 font-medium text-center" colspan="2">Kategori</th>
                         <th scope="col" class="px-6 py-3 font-medium text-center">Sesi Awal</th>
                         <th scope="col" class="px-6 py-3 font-medium text-center">Sesi Ditambahkan</th>
                         <th scope="col" class="px-6 py-3 font-medium text-center">Total Sesi</th>
@@ -165,6 +244,47 @@ new #[Layout('layouts::admin')] class extends Component
                             $totalSessions = $sesiAwal + $sesiDitambahkan;
                             $hangus = ($membership->hangus ?? 0) + ($membership->sesi_hangus ?? 0);
                             $sisaSesi = $sesiAwal + $sesiDitambahkan - $membership->berjalan - $hangus;
+
+                            $priceLabel = null;
+                            $labelColor = '';
+                            $pricePaid = $membership->price_paid;
+                            $normalPrice = $membership->normal_price;
+                            $basePrice = $membership->base_price;
+                            $netPrice = $membership->net_price;
+                            $unrecommendedPrice = $membership->unrecommended_price;
+
+                            if ($netPrice !== null) {
+                                if ($pricePaid > $netPrice) {
+                                    $priceLabel = 'Harga Normal';
+                                    $labelColor = 'bg-blue-100 text-blue-800';
+                                } else {
+                                    if ($unrecommendedPrice !== null) {
+                                        if ($pricePaid > $unrecommendedPrice) {
+                                            $priceLabel = 'Harga Net';
+                                            $labelColor = 'bg-emerald-100 text-emerald-800';
+                                        } else {
+                                            $priceLabel = 'Harga Tidak Disarankan';
+                                            $labelColor = 'bg-red-100 text-red-800';
+                                        }
+                                    } else {
+                                        $priceLabel = 'Harga Net';
+                                        $labelColor = 'bg-emerald-100 text-emerald-800';
+                                    }
+                                }
+                            } elseif ($unrecommendedPrice !== null) {
+                                if ($pricePaid > $unrecommendedPrice) {
+                                    $priceLabel = 'Harga Normal';
+                                    $labelColor = 'bg-blue-100 text-blue-800';
+                                } else {
+                                    $priceLabel = 'Harga Tidak Disarankan';
+                                    $labelColor = 'bg-red-100 text-red-800';
+                                }
+                            } else {
+                                if (($normalPrice !== null && $pricePaid >= $normalPrice) || ($basePrice !== null && $pricePaid >= $basePrice)) {
+                                    $priceLabel = 'Harga Normal';
+                                    $labelColor = 'bg-blue-100 text-blue-800';
+                                }
+                            }
                         @endphp
                         <tr wire:key="pt-membership-{{ $membership->id }}" class="bg-neutral-primary-soft border-b border-default hover:bg-neutral-secondary-medium">
                             <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
@@ -174,7 +294,20 @@ new #[Layout('layouts::admin')] class extends Component
                                 {{ $membership->user->name ?? '-' }}
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
-                                Rp {{ number_format($membership->price_paid ?? 0, 0, ',', '.') }}
+                                {{ $membership->followUp->name ?? '-' }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                {{ $membership->followUpTwo->name ?? '-' }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div>Rp {{ number_format($membership->price_paid ?? 0, 0, ',', '.') }}</div>
+                                @if($priceLabel)
+                                    <div class="mt-1">
+                                        <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full {{ $labelColor }}">
+                                            {{ $priceLabel }}
+                                        </span>
+                                    </div>
+                                @endif
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap capitalize">
                                 {{ $category }}
@@ -209,7 +342,7 @@ new #[Layout('layouts::admin')] class extends Component
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="13" class="px-6 py-8 text-center text-gray-500">
+                            <td colspan="15" class="px-6 py-8 text-center text-gray-500">
                                 Belum ada data membership untuk PT ini.
                             </td>
                         </tr>
@@ -218,4 +351,127 @@ new #[Layout('layouts::admin')] class extends Component
             </table>
         </div>
     </div>
+
+    {{-- Tabel Kategori Sesi PT --}}
+    <div class="mt-8">
+        <div class="flex sm:flex-row flex-col justify-between items-center mb-6">
+            <h5 class="text-xl font-semibold text-heading">Kategori Sesi PT</h5>
+            <button type="button" wire:click="openModal" class="text-white bg-brand box-border border border-transparent hover:bg-brand-strong focus:ring-4 focus:ring-brand-medium shadow-xs font-medium leading-5 rounded-md text-sm px-4 py-2.5 focus:outline-none">
+                + Tambah Kategori
+            </button>
+        </div>
+
+        @if (session()->has('success'))
+            <div x-data="{ show: true }" x-show="show" x-transition.duration.300ms class="mb-6 flex items-center justify-between p-4 text-sm text-emerald-800 border border-emerald-200 rounded-md bg-emerald-50 shadow-xs">
+                <div class="flex items-center gap-2">
+                    <svg class="w-5 h-5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                    <span class="font-medium">{{ session('success') }}</span>
+                </div>
+                <button @click="show = false" type="button" class="text-emerald-600 hover:text-emerald-900 focus:outline-none">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+        @endif
+
+        <div class="bg-neutral-primary-soft shadow-xs rounded-md border border-default">
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm text-left rtl:text-right text-body">
+                    <thead class="text-sm text-body bg-neutral-secondary-medium border-b border-default-medium">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 font-medium">No</th>
+                            <th scope="col" class="px-6 py-3 font-medium">Kategori</th>
+                            <th scope="col" class="px-6 py-3 font-medium text-right">Nominal</th>
+                            <th scope="col" class="px-6 py-3 font-medium">Keterangan</th>
+                            <th scope="col" class="px-6 py-3 font-medium text-center">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse ($this->ptSessionCategories as $ptSessionCategory)
+                            <tr wire:key="pt-session-category-{{ $ptSessionCategory->id }}" class="bg-neutral-primary-soft border-b border-default hover:bg-neutral-secondary-medium">
+                                <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
+                                    {{ $loop->iteration }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    {{ $ptSessionCategory->category }}
+                                </td>
+                                <td class="px-6 py-4 text-right whitespace-nowrap font-medium text-heading">
+                                    Rp {{ number_format($ptSessionCategory->amount, 0, ',', '.') }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    {{ $ptSessionCategory->description ?? '-' }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-center">
+                                    <div class="flex items-center justify-center gap-3">
+                                        <button type="button" wire:click="edit({{ $ptSessionCategory->id }})" class="text-blue-600 hover:text-blue-800 font-medium text-sm">
+                                            Edit
+                                        </button>
+                                        <button type="button"
+                                            wire:click="delete({{ $ptSessionCategory->id }})"
+                                            wire:confirm="Apakah Anda yakin ingin menghapus kategori ini?"
+                                            class="text-red-600 hover:text-red-800 font-medium text-sm">
+                                            Hapus
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="5" class="px-6 py-8 text-center text-gray-500">
+                                    Belum ada data kategori sesi PT.
+                                </td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    @if ($showModal)
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" wire:click.self="closeModal">
+            <div class="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4">
+                <div class="p-6 border-b border-default-medium flex items-center justify-between">
+                    <h3 class="text-lg font-semibold text-heading">
+                        {{ $editingId ? 'Edit Kategori Sesi PT' : 'Tambah Kategori Sesi PT' }}
+                    </h3>
+                    <button type="button" wire:click="closeModal" class="text-body hover:text-heading">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="p-6 space-y-4">
+                    <div>
+                        <label for="category" class="block text-sm font-medium text-heading">Kategori</label>
+                        <input type="text" wire:model="category" id="category" class="mt-1 block w-full rounded-md border-default-medium shadow-sm focus:border-brand focus:ring-brand sm:text-sm bg-neutral-secondary-medium px-3 py-2" placeholder="Masukkan kategori">
+                        @error('category') <span class="text-red-500 text-xs mt-1">{{ $message }}</span> @enderror
+                    </div>
+
+                    <div>
+                        <label for="amount" class="block text-sm font-medium text-heading">Nominal</label>
+                        <input type="number" wire:model="amount" id="amount" class="mt-1 block w-full rounded-md border-default-medium shadow-sm focus:border-brand focus:ring-brand sm:text-sm bg-neutral-secondary-medium px-3 py-2" placeholder="Masukkan nominal">
+                        @error('amount') <span class="text-red-500 text-xs mt-1">{{ $message }}</span> @enderror
+                    </div>
+
+                    <div>
+                        <label for="description" class="block text-sm font-medium text-heading">Keterangan</label>
+                        <textarea wire:model="description" id="description" rows="3" class="mt-1 block w-full rounded-md border-default-medium shadow-sm focus:border-brand focus:ring-brand sm:text-sm bg-neutral-secondary-medium px-3 py-2" placeholder="Masukkan keterangan (opsional)"></textarea>
+                        @error('description') <span class="text-red-500 text-xs mt-1">{{ $message }}</span> @enderror
+                    </div>
+                </div>
+
+                <div class="p-6 border-t border-default-medium flex gap-3 justify-end">
+                    <button type="button" wire:click="closeModal"
+                        class="px-4 py-2 text-heading bg-neutral-secondary-medium border border-default-medium rounded-md hover:bg-neutral-secondary-strong font-medium text-sm">
+                        Batal
+                    </button>
+                    <button type="button" wire:click="save"
+                        class="px-4 py-2 text-white bg-brand hover:bg-brand-strong rounded-md font-medium text-sm">
+                        Simpan
+                    </button>
+                </div>
+            </div>
+        </div>
+    @endif
 </div>

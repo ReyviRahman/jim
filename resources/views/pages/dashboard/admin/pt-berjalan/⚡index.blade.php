@@ -176,7 +176,7 @@ new #[Layout('layouts::admin')] class extends Component
                     </div>
 
                     @php
-                        $totalSessions = $membership->total_sessions ?? 0;
+                        $totalSessions = ($membership->total_sessions ?? 0) + ($membership->sesi_ditambahkan ?? 0);
                         $remainingSessions = $membership->remaining_sessions ?? 0;
                         $usedSessions = $totalSessions - $remainingSessions;
                         $progressPercent = $totalSessions > 0 ? ($remainingSessions / $totalSessions) * 100 : 0;
@@ -338,8 +338,13 @@ new #[Layout('layouts::admin')] class extends Component
                         <p class="font-medium text-heading text-sm">{{ $this->selectedMembership->ptPackage->name ?? '-' }}</p>
                         @if($this->selectedMembership->total_sessions)
                             <p class="text-xs text-gray-400 mt-1">
-                                Total Sesi: {{ $this->selectedMembership->total_sessions }}
+                                Total Sesi: {{ ($this->selectedMembership->total_sessions ?? 0) + ($this->selectedMembership->sesi_ditambahkan ?? 0) }}
                             </p>
+                            @if($this->selectedMembership->sesi_ditambahkan > 0)
+                                <p class="text-xs text-emerald-500 mt-1">
+                                    (+{{ $this->selectedMembership->sesi_ditambahkan }} sesi ditambahkan)
+                                </p>
+                            @endif
                             <p class="text-xs text-gray-400 mt-1">
                                 Sisa Sesi: {{ $this->selectedMembership->remaining_sessions }}
                             </p>

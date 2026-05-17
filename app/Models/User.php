@@ -111,4 +111,9 @@ class User extends Authenticatable
     {
         return $this->hasMany(PtBooking::class, 'pt_id');
     }
+
+    public function ptSessionCategories(): HasMany
+    {
+        return $this->hasMany(PtSessionCategory::class, 'pt_id');
+    }
 }
