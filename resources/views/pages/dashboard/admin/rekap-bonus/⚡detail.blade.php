@@ -105,6 +105,34 @@ new #[Layout('layouts::admin')] class extends Component
             });
     }
 
+    private function calculateNominalAkhir(Membership $membership): float
+    {
+        $nominal = $membership->total_paid ?? 0;
+
+        $pricePaid = $membership->price_paid;
+        $netPrice = $membership->net_price;
+        $unrecommendedPrice = $membership->unrecommended_price;
+
+        $isUnrecommended = false;
+        if ($netPrice !== null) {
+            if ($pricePaid <= $netPrice && $unrecommendedPrice !== null && $pricePaid <= $unrecommendedPrice) {
+                $isUnrecommended = true;
+            }
+        } elseif ($unrecommendedPrice !== null && $pricePaid <= $unrecommendedPrice) {
+            $isUnrecommended = true;
+        }
+
+        if ($isUnrecommended) {
+            return $nominal / 2;
+        }
+
+        if ($membership->follow_up_id && $membership->follow_up_id_two && ($membership->follow_up_id !== $membership->follow_up_id_two)) {
+            return $nominal / 2;
+        }
+
+        return $nominal;
+    }
+
     #[Computed]
     public function memberships()
     {
@@ -118,21 +146,11 @@ new #[Layout('layouts::admin')] class extends Component
     #[Computed]
     public function totalNominalAkhir()
     {
-        // Tambahkan 'follow_up_id' ke dalam select agar bisa dibandingkan
-        $memberships = $this->getBaseQuery()->get(['total_paid', 'follow_up_id', 'follow_up_id_two']);
+        $memberships = $this->getBaseQuery()->get(['total_paid', 'follow_up_id', 'follow_up_id_two', 'price_paid', 'net_price', 'unrecommended_price']);
         
         $total = 0;
         foreach ($memberships as $membership) {
-            $nominal = $membership->total_paid ?? 0;
-            
-            // Logika Pembagian: Bagi 2 HANYA JIKA kedua form terisi dengan orang yang BERBEDA
-            if ($membership->follow_up_id && $membership->follow_up_id_two && ($membership->follow_up_id !== $membership->follow_up_id_two)) {
-                $nominalAkhir = $nominal / 2;
-            } else {
-                $nominalAkhir = $nominal; // Jika hanya 1 yang diisi atau keduanya orang yang SAMA, dapat FULL
-            }
-            
-            $total += $nominalAkhir;
+            $total += $this->calculateNominalAkhir($membership);
         }
 
         return $total;
@@ -248,16 +266,9 @@ new #[Layout('layouts::admin')] class extends Component
                     @php
                         // Menentukan nama paket (transaction_type + package_name)
                         $packageName = trim(($membership->transaction_type ?? '') . ' ' . ($membership->package_name ?? ''));
-                        
-                        // Menentukan Nominal Akhir
+
                         $nominal = $membership->total_paid ?? 0;
-                        
-                        // Logika Pembagian yang sama dengan yang di atas
-                        if ($membership->follow_up_id && $membership->follow_up_id_two && ($membership->follow_up_id !== $membership->follow_up_id_two)) {
-                            $nominalAkhir = $nominal / 2;
-                        } else {
-                            $nominalAkhir = $nominal;
-                        }
+                        $nominalAkhir = $this->calculateNominalAkhir($membership);
                     @endphp
                     
                     <tr wire:key="{{ $membership->id }}" class="bg-white border-b border-gray-100 hover:bg-gray-50">
@@ -290,7 +301,61 @@ new #[Layout('layouts::admin')] class extends Component
                         </td>
                         
                         <td class="px-6 py-4 text-right whitespace-nowrap text-gray-600">
-                            Rp {{ number_format($nominal, 0, ',', '.') }}
+                            <div>Rp {{ number_format($nominal, 0, ',', '.') }}</div>
+
+                            @if(auth()->check() && auth()->user()->role === 'admin')
+                                @php
+                                    $priceLabel = null;
+                                    $labelColor = '';
+
+                                    $pricePaid = $membership->price_paid;
+                                    $normalPrice = $membership->normal_price;
+                                    $basePrice = $membership->base_price;
+                                    $netPrice = $membership->net_price;
+                                    $unrecommendedPrice = $membership->unrecommended_price;
+
+                                    if ($netPrice !== null) {
+                                        if ($pricePaid > $netPrice) {
+                                            $priceLabel = 'Harga Normal';
+                                            $labelColor = 'bg-blue-100 text-blue-800';
+                                        } else {
+                                            if ($unrecommendedPrice !== null) {
+                                                if ($pricePaid > $unrecommendedPrice) {
+                                                    $priceLabel = 'Harga Net';
+                                                    $labelColor = 'bg-emerald-100 text-emerald-800';
+                                                } else {
+                                                    $priceLabel = 'Harga Tidak Disarankan';
+                                                    $labelColor = 'bg-red-100 text-red-800';
+                                                }
+                                            } else {
+                                                $priceLabel = 'Harga Net';
+                                                $labelColor = 'bg-emerald-100 text-emerald-800';
+                                            }
+                                        }
+                                    } elseif ($unrecommendedPrice !== null) {
+                                        if ($pricePaid > $unrecommendedPrice) {
+                                            $priceLabel = 'Harga Normal';
+                                            $labelColor = 'bg-blue-100 text-blue-800';
+                                        } else {
+                                            $priceLabel = 'Harga Tidak Disarankan';
+                                            $labelColor = 'bg-red-100 text-red-800';
+                                        }
+                                    } else {
+                                        if (($normalPrice !== null && $pricePaid >= $normalPrice) || ($basePrice !== null && $pricePaid >= $basePrice)) {
+                                            $priceLabel = 'Harga Normal';
+                                            $labelColor = 'bg-blue-100 text-blue-800';
+                                        }
+                                    }
+                                @endphp
+
+                                @if($priceLabel)
+                                    <div class="mt-1 flex justify-end">
+                                        <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full {{ $labelColor }}">
+                                            {{ $priceLabel }}
+                                        </span>
+                                    </div>
+                                @endif
+                            @endif
                         </td>
                         
                         <td class="px-6 py-4 text-right font-bold text-emerald-600 whitespace-nowrap">
