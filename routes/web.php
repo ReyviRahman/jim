@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\SesiPtSlipController;
 use App\Http\Controllers\BeverageApiController;
 use Illuminate\Support\Facades\Route;
 
@@ -127,6 +128,9 @@ Route::middleware('auth')->group(function () {
 
         Route::livewire('/sesi-pt/{user}/detail', 'pages::dashboard.admin.sesi-pt.detail')
             ->name('admin.sesi-pt.detail');
+
+        Route::get('/sesi-pt/{user}/slip-print', [SesiPtSlipController::class, 'print'])
+            ->name('admin.sesi-pt.slip-print');
 
         Route::livewire('/rekap-bonus', 'pages::dashboard.admin.rekap-bonus.index')
             ->name('admin.rekap-bonus.index');

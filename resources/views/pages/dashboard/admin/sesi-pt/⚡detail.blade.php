@@ -18,6 +18,7 @@ new #[Layout('layouts::admin')] class extends Component
     public $dateEnd = null;
 
     public bool $showModal = false;
+    public bool $showSlipModal = false;
     public ?int $editingId = null;
 
     public string $category = '';
@@ -92,6 +93,101 @@ new #[Layout('layouts::admin')] class extends Component
             ->get();
     }
 
+    #[Computed]
+    public function slipData()
+    {
+        $categories = $this->ptSessionCategories;
+        $memberships = $this->ptMemberships;
+        $rows = [];
+        $grandTotalJumlah = 0;
+        $grandTotal = 0;
+
+        foreach ($categories as $category) {
+            $jumlah = 0;
+            $total = 0;
+
+            foreach ($memberships as $membership) {
+                if ($this->getPtCategoryLabel($membership) === $category->category) {
+                    $jumlah += $membership->berjalan;
+                    $total += $membership->berjalan * $category->amount;
+                }
+            }
+
+            $rows[] = [
+                'jenis' => $category->category,
+                'jumlah' => $jumlah,
+                'total' => $total,
+            ];
+
+            $grandTotalJumlah += $jumlah;
+            $grandTotal += $total;
+        }
+
+        return [
+            'rows' => $rows,
+            'grandTotalJumlah' => $grandTotalJumlah,
+            'grandTotal' => $grandTotal,
+        ];
+    }
+
+    private function terbilang(int $number): string
+    {
+        $angka = [
+            0 => 'nol',
+            1 => 'satu', 2 => 'dua', 3 => 'tiga', 4 => 'empat',
+            5 => 'lima', 6 => 'enam', 7 => 'tujuh', 8 => 'delapan', 9 => 'sembilan',
+            10 => 'sepuluh', 11 => 'sebelas', 12 => 'dua belas',
+            13 => 'tiga belas', 14 => 'empat belas', 15 => 'lima belas',
+            16 => 'enam belas', 17 => 'tujuh belas', 18 => 'delapan belas', 19 => 'sembilan belas',
+            20 => 'dua puluh', 30 => 'tiga puluh', 40 => 'empat puluh',
+            50 => 'lima puluh', 60 => 'enam puluh', 70 => 'tujuh puluh',
+            80 => 'delapan puluh', 90 => 'sembilan puluh',
+        ];
+
+        if ($number < 0) {
+            return 'minus ' . $this->terbilang(-$number);
+        }
+
+        if ($number < 21) {
+            return $angka[$number];
+        }
+
+        if ($number < 100) {
+            $puluh = floor($number / 10) * 10;
+            $sisa = $number % 10;
+
+            return $angka[$puluh] . ($sisa > 0 ? ' ' . $angka[$sisa] : '');
+        }
+
+        if ($number < 1000) {
+            $ratus = floor($number / 100);
+            $sisa = $number % 100;
+            $prefix = $ratus === 1 ? 'seratus' : $angka[$ratus] . ' ratus';
+
+            return $prefix . ($sisa > 0 ? ' ' . $this->terbilang($sisa) : '');
+        }
+
+        if ($number < 1000000) {
+            $ribu = floor($number / 1000);
+            $sisa = $number % 1000;
+            $prefix = $ribu === 1 ? 'seribu' : $this->terbilang($ribu) . ' ribu';
+
+            return $prefix . ($sisa > 0 ? ' ' . $this->terbilang($sisa) : '');
+        }
+
+        if ($number < 1000000000) {
+            $juta = floor($number / 1000000);
+            $sisa = $number % 1000000;
+
+            return $this->terbilang($juta) . ' juta' . ($sisa > 0 ? ' ' . $this->terbilang($sisa) : '');
+        }
+
+        $miliar = floor($number / 1000000000);
+        $sisa = $number % 1000000000;
+
+        return $this->terbilang($miliar) . ' miliar' . ($sisa > 0 ? ' ' . $this->terbilang($sisa) : '');
+    }
+
     public function openModal(): void
     {
         $this->resetForm();
@@ -102,6 +198,16 @@ new #[Layout('layouts::admin')] class extends Component
     {
         $this->showModal = false;
         $this->resetForm();
+    }
+
+    public function openSlipModal(): void
+    {
+        $this->showSlipModal = true;
+    }
+
+    public function closeSlipModal(): void
+    {
+        $this->showSlipModal = false;
     }
 
     public function resetForm(): void
@@ -153,6 +259,38 @@ new #[Layout('layouts::admin')] class extends Component
         PtSessionCategory::findOrFail($id)->delete();
         session()->flash('success', 'Kategori sesi PT berhasil dihapus.');
     }
+
+    private function getPtCategoryLabel(Membership $membership): string
+    {
+        $followUpRole = $membership->followUp?->role;
+        $followUpTwoRole = $membership->followUpTwo?->role;
+
+        if (($followUpRole !== null && $followUpRole !== 'pt') || ($followUpTwoRole !== null && $followUpTwoRole !== 'pt')) {
+            return 'SLS';
+        }
+
+        $pricePaid = $membership->price_paid;
+        $netPrice = $membership->net_price;
+        $unrecommendedPrice = $membership->unrecommended_price;
+
+        if ($netPrice !== null) {
+            if ($pricePaid > $netPrice) {
+                return 'SDR';
+            }
+
+            if ($unrecommendedPrice !== null) {
+                return $pricePaid > $unrecommendedPrice ? 'IR' : 'SPR';
+            }
+
+            return 'IR';
+        }
+
+        if ($unrecommendedPrice !== null) {
+            return $pricePaid > $unrecommendedPrice ? 'SDR' : 'SPR';
+        }
+
+        return 'SDR';
+    }
 };
 ?>
 
@@ -202,8 +340,10 @@ new #[Layout('layouts::admin')] class extends Component
                     @endif
                 </div>
 
-
             </div>
+            <button type="button" wire:click="openSlipModal" class="text-white bg-emerald-600 box-border border border-transparent hover:bg-emerald-700 focus:ring-4 focus:ring-emerald-300 shadow-xs font-medium leading-5 rounded-md text-sm px-4 py-2.5 focus:outline-none">
+                Slip
+            </button>
         </div>
 
         <div class="overflow-x-auto">
@@ -285,6 +425,11 @@ new #[Layout('layouts::admin')] class extends Component
                                     $labelColor = 'bg-blue-100 text-blue-800';
                                 }
                             }
+
+                            $categoryLabel = $this->getPtCategoryLabel($membership);
+                            $ptSessionCategory = $this->ptSessionCategories->firstWhere('category', $categoryLabel);
+                            $categoryNominal = $ptSessionCategory?->amount ?? 0;
+                            $categoryTotal = $membership->berjalan * $categoryNominal;
                         @endphp
                         <tr wire:key="pt-membership-{{ $membership->id }}" class="bg-neutral-primary-soft border-b border-default hover:bg-neutral-secondary-medium">
                             <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
@@ -312,8 +457,8 @@ new #[Layout('layouts::admin')] class extends Component
                             <td class="px-6 py-4 whitespace-nowrap capitalize">
                                 {{ $category }}
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                -
+                            <td class="px-6 py-4 whitespace-nowrap font-semibold text-heading">
+                                {{ $categoryLabel }}
                             </td>
                             <td class="px-6 py-4 text-center whitespace-nowrap">
                                 {{ $sesiAwal }}
@@ -334,10 +479,10 @@ new #[Layout('layouts::admin')] class extends Component
                                 {{ $sisaSesi }}
                             </td>
                             <td class="px-6 py-4 text-right whitespace-nowrap">
-                                Rp {{ number_format($membership->price_paid ?? 0, 0, ',', '.') }}
+                                Rp {{ number_format($categoryNominal, 0, ',', '.') }}
                             </td>
                             <td class="px-6 py-4 text-right whitespace-nowrap">
-                                Rp {{ number_format($membership->total_paid ?? 0, 0, ',', '.') }}
+                                Rp {{ number_format($categoryTotal, 0, ',', '.') }}
                             </td>
                         </tr>
                     @empty
@@ -469,6 +614,91 @@ new #[Layout('layouts::admin')] class extends Component
                     <button type="button" wire:click="save"
                         class="px-4 py-2 text-white bg-brand hover:bg-brand-strong rounded-md font-medium text-sm">
                         Simpan
+                    </button>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    @if ($showSlipModal)
+        @php
+            $slip = $this->slipData;
+        @endphp
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm overflow-y-auto py-10" wire:click.self="closeSlipModal">
+            <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4">
+                {{-- Header --}}
+                <div class="flex items-center justify-between p-6 border-b-2 border-gray-300">
+                    <div class="flex items-center gap-4 w-full">
+                        <img src="{{ asset('icon.png') }}" alt="Icon" class="h-12 w-auto">
+                        <h2 class="text-2xl font-bold text-heading text-center flex-1">SLIP SESI PT</h2>
+                    </div>
+                    <button type="button" wire:click="closeSlipModal" class="text-body hover:text-heading ml-4">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+
+                {{-- Body --}}
+                <div class="p-6 space-y-4">
+                    <div class="text-sm text-body">
+                        @if($dateStart && $dateEnd)
+                            <p class="font-medium">
+                                @if($dateStart === $dateEnd)
+                                    {{ \Carbon\Carbon::parse($dateStart)->translatedFormat('d F Y') }}
+                                @else
+                                    {{ \Carbon\Carbon::parse($dateStart)->translatedFormat('d F Y') }} - {{ \Carbon\Carbon::parse($dateEnd)->translatedFormat('d F Y') }}
+                                @endif
+                            </p>
+                        @endif
+                        <p class="mt-1"><span class="font-semibold text-heading">NAMA:</span> {{ $user->name }}</p>
+                    </div>
+
+                    <table class="w-full text-sm text-left text-body border border-default-medium">
+                        <thead class="text-sm text-body bg-neutral-secondary-medium border-b border-default-medium">
+                            <tr>
+                                <th scope="col" class="px-4 py-3 font-medium">JENIS</th>
+                                <th scope="col" class="px-4 py-3 font-medium text-center">JUMLAH</th>
+                                <th scope="col" class="px-4 py-3 font-medium text-right">TOTAL</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse ($slip['rows'] as $row)
+                                <tr class="bg-white border-b border-default-medium">
+                                    <td class="px-4 py-3 whitespace-nowrap">{{ $row['jenis'] }}</td>
+                                    <td class="px-4 py-3 text-center whitespace-nowrap">{{ $row['jumlah'] }}</td>
+                                    <td class="px-4 py-3 text-right whitespace-nowrap">Rp {{ number_format($row['total'], 0, ',', '.') }}</td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="3" class="px-4 py-6 text-center text-gray-500">Belum ada data.</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                        <tfoot class="bg-neutral-secondary-medium font-semibold text-heading border-t-2 border-default-medium">
+                            <tr>
+                                <td class="px-4 py-3">TOTAL</td>
+                                <td class="px-4 py-3 text-center">{{ $slip['grandTotalJumlah'] }}</td>
+                                <td class="px-4 py-3 text-right">Rp {{ number_format($slip['grandTotal'], 0, ',', '.') }}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+
+                    <div class="mt-4 space-y-1 text-sm">
+                        <p class="font-bold text-heading text-base">BERSIH DITERIMA: Rp {{ number_format($slip['grandTotal'], 0, ',', '.') }}</p>
+                        <p class="text-body italic">Terbilang: {{ $this->terbilang($slip['grandTotal']) }} rupiah</p>
+                    </div>
+                </div>
+
+                {{-- Footer Actions --}}
+                <div class="p-6 border-t border-default-medium flex gap-3 justify-end">
+                    <a href="{{ route('admin.sesi-pt.slip-print', $user->id) }}?date_start={{ $dateStart }}&date_end={{ $dateEnd }}"
+                        class="px-4 py-2 text-white bg-emerald-600 hover:bg-emerald-700 rounded-md font-medium text-sm">
+                        Download PDF
+                    </a>
+                    <button type="button" wire:click="closeSlipModal"
+                        class="px-4 py-2 text-heading bg-neutral-secondary-medium border border-default-medium rounded-md hover:bg-neutral-secondary-strong font-medium text-sm">
+                        Tutup
                     </button>
                 </div>
             </div>
