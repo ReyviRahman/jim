@@ -367,6 +367,9 @@ new #[Layout('layouts::admin')] class extends Component
                     </tr>
                 </thead>
                 <tbody>
+                    @php
+                        $totalCategoryTotal = 0;
+                    @endphp
                     @forelse ($this->ptMemberships as $membership)
                         @php
                             $category = $membership->ptPackage->category ?? $membership->gymPackage->category ?? '-';
@@ -430,6 +433,8 @@ new #[Layout('layouts::admin')] class extends Component
                             $ptSessionCategory = $this->ptSessionCategories->firstWhere('category', $categoryLabel);
                             $categoryNominal = $ptSessionCategory?->amount ?? 0;
                             $categoryTotal = $membership->berjalan * $categoryNominal;
+
+                            $totalCategoryTotal += $categoryTotal;
                         @endphp
                         <tr wire:key="pt-membership-{{ $membership->id }}" class="bg-neutral-primary-soft border-b border-default hover:bg-neutral-secondary-medium">
                             <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
@@ -493,6 +498,14 @@ new #[Layout('layouts::admin')] class extends Component
                         </tr>
                     @endforelse
                 </tbody>
+                @if ($this->ptMemberships->count() > 0)
+                    <tfoot class="bg-neutral-secondary-medium font-semibold text-heading border-t-2 border-default-medium">
+                        <tr>
+                            <td colspan="14" class="px-6 py-4 text-right">Sub Total</td>
+                            <td class="px-6 py-4 text-right whitespace-nowrap">Rp {{ number_format($totalCategoryTotal, 0, ',', '.') }}</td>
+                        </tr>
+                    </tfoot>
+                @endif
             </table>
         </div>
     </div>
