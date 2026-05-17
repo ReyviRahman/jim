@@ -125,6 +125,8 @@ Route::middleware('auth')->group(function () {
         Route::livewire('/sesi-pt', 'pages::dashboard.admin.sesi-pt.index')
             ->name('admin.sesi-pt.index');
 
+        Route::livewire('/sesi-pt/{user}/detail', 'pages::dashboard.admin.sesi-pt.detail')
+            ->name('admin.sesi-pt.detail');
 
         Route::livewire('/rekap-bonus', 'pages::dashboard.admin.rekap-bonus.index')
             ->name('admin.rekap-bonus.index');
@@ -166,8 +168,6 @@ Route::middleware('auth')->group(function () {
 
         Route::livewire('/akun/sales/{user}/edit', 'pages::dashboard.admin.akun.sales.edit')
             ->name('admin.akun.sales.edit');
-
-        
 
         Route::livewire('/membership/{id}/edit', 'pages::dashboard.admin.membership.edit')->name('admin.membership.edit');
 

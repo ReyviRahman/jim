@@ -46,6 +46,14 @@ new #[Layout('layouts::admin')] class extends Component
 
     public $calculated_total_sessions = 0;
 
+    public $total_sessions = 0;
+
+    public $remaining_sessions = 0;
+
+    public $sesi_ditambahkan = 0;
+
+    public $sesi_hangus = 0;
+
     public $payment_type = 'paid';
 
     public $amount_paid = 0;
@@ -132,6 +140,10 @@ new #[Layout('layouts::admin')] class extends Component
 
         $this->manual_discount = max(0, $this->membership->discount_applied - ($gymDiscount + $ptDiscount));
         $this->calculated_total_sessions = $this->membership->total_sessions ?? 0;
+        $this->total_sessions = $this->membership->total_sessions ?? 0;
+        $this->remaining_sessions = $this->membership->remaining_sessions ?? 0;
+        $this->sesi_ditambahkan = $this->membership->sesi_ditambahkan ?? 0;
+        $this->sesi_hangus = $this->membership->sesi_hangus ?? 0;
 
         $this->payment_type = $this->membership->payment_status;
         $this->amount_paid = $this->membership->total_paid;
@@ -486,8 +498,10 @@ new #[Layout('layouts::admin')] class extends Component
                 'net_price' => $pkt?->net_price,
                 'unrecommended_price' => $pkt?->unrecommended_price,
                 'price_paid' => $this->price_paid,
-                'total_sessions' => in_array($this->registration_type, ['pt', 'bundle_pt_membership']) ? $this->calculated_total_sessions : null,
-                'remaining_sessions' => in_array($this->registration_type, ['pt', 'bundle_pt_membership']) ? $this->calculated_total_sessions : null,
+                'total_sessions' => in_array($this->registration_type, ['pt', 'bundle_pt_membership']) ? $this->total_sessions : null,
+                'remaining_sessions' => in_array($this->registration_type, ['pt', 'bundle_pt_membership']) ? $this->remaining_sessions : null,
+                'sesi_ditambahkan' => in_array($this->registration_type, ['pt', 'bundle_pt_membership']) ? $this->sesi_ditambahkan : null,
+                'sesi_hangus' => in_array($this->registration_type, ['pt', 'bundle_pt_membership']) ? $this->sesi_hangus : null,
                 'start_date' => $this->start_date ?: null,
                 'membership_end_date' => in_array($this->registration_type, ['membership', 'bundle_pt_membership', 'visit']) ? ($this->membership_end_date ?: null) : null,
                 'pt_end_date' => in_array($this->registration_type, ['pt', 'bundle_pt_membership']) ? ($this->pt_end_date ?: null) : null,
@@ -710,7 +724,7 @@ new #[Layout('layouts::admin')] class extends Component
                         <div class="md:col-span-2 mt-2 p-4 bg-blue-50 rounded-md border border-blue-100">
                             <h6 class="text-sm font-semibold text-blue-800 mb-4 border-b border-blue-200 pb-2">Detail Personal Trainer (PT)</h6>
                             <div class="grid gap-6 md:grid-cols-2">
-                                <div class="md:col-span-2">
+                                <div class="md:col-span-1">
                                     <label for="pt_package_id" class="block mb-2.5 text-sm font-medium text-heading">Pilih Paket Layanan PT</label>
                                     <select id="pt_package_id" wire:model.live="pt_package_id" class="bg-white border border-blue-300 text-blue-900 text-sm rounded-md focus:ring-blue-500 focus:border-blue-500 block w-full px-3 py-2.5 shadow-xs">
                                         <option value="">-- Pilih Paket PT --</option>
@@ -721,6 +735,29 @@ new #[Layout('layouts::admin')] class extends Component
                                         @endforeach
                                     </select>
                                     @error('pt_package_id') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                                </div>
+
+                                <div class="md:col-span-1 grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label for="total_sessions" class="block mb-2 text-sm font-medium text-heading">Sesi Awal</label>
+                                        <input type="number" id="total_sessions" wire:model="total_sessions" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs">
+                                        @error('total_sessions') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                                    </div>
+                                    <div>
+                                        <label for="remaining_sessions" class="block mb-2 text-sm font-medium text-heading">Sisa Sesi</label>
+                                        <input type="number" id="remaining_sessions" wire:model="remaining_sessions" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs">
+                                        @error('remaining_sessions') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                                    </div>
+                                    <div>
+                                        <label for="sesi_ditambahkan" class="block mb-2 text-sm font-medium text-heading">Sesi Ditambahkan</label>
+                                        <input type="number" id="sesi_ditambahkan" wire:model="sesi_ditambahkan" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs">
+                                        @error('sesi_ditambahkan') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                                    </div>
+                                    <div>
+                                        <label for="sesi_hangus" class="block mb-2 text-sm font-medium text-heading">Sesi Hangus</label>
+                                        <input type="number" id="sesi_hangus" wire:model="sesi_hangus" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs">
+                                        @error('sesi_hangus') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                                    </div>
                                 </div>
 
                                 <div class="md:col-span-2">

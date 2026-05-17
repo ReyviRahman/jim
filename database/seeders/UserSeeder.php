@@ -39,6 +39,23 @@ class UserSeeder extends Seeder
         ]);
 
         User::create([
+            'name' => 'Head Coach',
+            'email' => 'HeadcoachFG@gmail.com', // Email untuk login admin
+            'password' => Hash::make('zavier123'),
+            'role' => 'head_coach',
+            'shift' => 'Siang',
+            'occupation' => 'Gym Manager',
+            'age' => 30,
+            'gender' => 'Laki-laki',
+            'phone' => '081200001333',
+            'medical_history' => null,
+            'address' => 'Jl. Admin Pusat No. 1, Jakarta',
+            'joined_at' => Carbon::now()->subYears(2),
+            'is_active' => true,
+            'email_verified_at' => now(),
+        ]);
+
+        User::create([
             'name' => 'Dewi',
             'email' => 'dewi@gmail.com', // Email untuk login admin
             'password' => $password,
