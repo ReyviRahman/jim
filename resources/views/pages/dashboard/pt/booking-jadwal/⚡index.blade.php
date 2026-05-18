@@ -147,7 +147,6 @@ new #[Layout('layouts::pt')] class extends Component
                 class="block w-full sm:w-40 px-3 py-2.5 bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 shadow-sm">
                 <option value="">Semua Status</option>
                 <option value="approved">Approved</option>
-                <option value="completed">Completed</option>
                 <option value="cancelled">Cancelled</option>
             </select>
             <div class="relative w-full sm:w-72">
@@ -217,7 +216,6 @@ new #[Layout('layouts::pt')] class extends Component
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium capitalize
                                     @if($booking->status === 'approved') bg-green-100 text-green-800
-                                    @elseif($booking->status === 'completed') bg-blue-100 text-blue-800
                                     @elseif($booking->status === 'cancelled') bg-gray-100 text-gray-600
                                     @else bg-gray-100 text-gray-800
                                     @endif">

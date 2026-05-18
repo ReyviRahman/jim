@@ -352,7 +352,6 @@ new #[Layout('layouts::member')] class extends Component
                                 @else
                                     <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium capitalize
                                         @if($booking->status === 'approved') bg-green-100 text-green-800
-                                        @elseif($booking->status === 'completed') bg-blue-100 text-blue-800
                                         @elseif($booking->status === 'cancelled') bg-gray-100 text-gray-600
                                         @else bg-gray-100 text-gray-800
                                         @endif">

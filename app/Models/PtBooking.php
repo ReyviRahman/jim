@@ -59,11 +59,6 @@ class PtBooking extends Model
         return $this->status === 'cancelled';
     }
 
-    public function isCompleted(): bool
-    {
-        return $this->status === 'completed';
-    }
-
     public function isCancellationPending(): bool
     {
         return $this->cancellation_requested_at !== null && $this->status === 'approved';
