@@ -101,8 +101,10 @@ new #[Layout('layouts::member')] class extends Component
             $rules['selectedScheduleDayId'] = 'required|exists:pt_schedule_days,id';
             $messages['selectedScheduleDayId.required'] = 'Pilih jadwal hari terlebih dahulu.';
         } else {
-            $rules['bookingTime'] = 'required';
+            $rules['bookingTime'] = 'required|date_format:H:i|after_or_equal:07:00|before_or_equal:23:00';
             $messages['bookingTime.required'] = 'Waktu booking wajib diisi.';
+            $messages['bookingTime.after_or_equal'] = 'Waktu booking minimal pukul 07:00.';
+            $messages['bookingTime.before_or_equal'] = 'Waktu booking maksimal pukul 23:00.';
         }
 
         $this->validate($rules, $messages);
@@ -490,8 +492,9 @@ new #[Layout('layouts::member')] class extends Component
                     @else
                         <div>
                             <label for="bookingTime" class="block text-sm font-medium text-gray-700 mb-1">Waktu <span class="text-red-500">*</span></label>
-                            <input type="time" id="bookingTime" wire:model="bookingTime"
+                            <input type="time" id="bookingTime" wire:model="bookingTime" min="07:00" max="23:00"
                                 class="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500">
+                            <p class="mt-1 text-xs text-gray-500">Jam operasional: 07:00 - 23:00</p>
                             @error('bookingTime') <span class="text-sm text-red-600">{{ $message }}</span> @enderror
                         </div>
                     @endif
