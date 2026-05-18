@@ -6,6 +6,7 @@ use Livewire\Attributes\Computed;
 use Livewire\WithPagination;
 use App\Models\User;
 use App\Models\Membership;
+use App\Models\SalesKonsultan;
 use Carbon\Carbon;
 use App\Exports\RekapBonusExport;
 use Maatwebsite\Excel\Facades\Excel;
@@ -149,13 +150,39 @@ new #[Layout('layouts::admin')] class extends Component
     public function totalNominalAkhir()
     {
         $memberships = $this->getBaseQuery()->get(['total_paid', 'follow_up_id', 'follow_up_id_two', 'price_paid', 'net_price', 'unrecommended_price']);
-        
+
         $total = 0;
         foreach ($memberships as $membership) {
             $total += $this->calculateNominalAkhir($membership);
         }
 
         return $total;
+    }
+
+    #[Computed]
+    public function bonusInfo(): array
+    {
+        $total = $this->totalNominalAkhir;
+        $range = SalesKonsultan::findByNominal($total);
+
+        if (! $range) {
+            return [
+                'rentang_satu' => null,
+                'rentang_dua' => null,
+                'persen' => 0,
+                'total_bonus' => 0,
+            ];
+        }
+
+        $persen = (float) $range->persen;
+        $totalBonus = $total * ($persen / 100);
+
+        return [
+            'rentang_satu' => $range->rentang_satu,
+            'rentang_dua' => $range->rentang_dua,
+            'persen' => $persen,
+            'total_bonus' => $totalBonus,
+        ];
     }
 
     public function exportExcel()
@@ -376,6 +403,42 @@ new #[Layout('layouts::admin')] class extends Component
                         </td>
                         <td colspan="3" class="px-6 py-4"></td>
                     </tr>
+                    @if(in_array(auth()->user()->role, ['admin', 'head_coach']))
+                        @php
+                            $bonus = $this->bonusInfo;
+                        @endphp
+                        @if($bonus['persen'] > 0)
+                            <tr class="border-t border-gray-200">
+                                <td colspan="7" class="px-6 py-4 text-right text-gray-600">
+                                    Bonus ({{ $bonus['persen'] }}%)
+                                    <span class="text-xs text-gray-400 block">
+                                        Rentang:
+                                        @if(strtolower($bonus['rentang_satu']) === 'min')
+                                            ≤ Rp {{ number_format((float) $bonus['rentang_dua'], 0, ',', '.') }}
+                                        @elseif(strtolower($bonus['rentang_dua']) === 'plus')
+                                            ≥ Rp {{ number_format((float) $bonus['rentang_satu'], 0, ',', '.') }}
+                                        @else
+                                            Rp {{ number_format((float) $bonus['rentang_satu'], 0, ',', '.') }} - Rp {{ number_format((float) $bonus['rentang_dua'], 0, ',', '.') }}
+                                        @endif
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 text-right text-blue-700 whitespace-nowrap">
+                                    Rp {{ number_format($bonus['total_bonus'], 0, ',', '.') }}
+                                </td>
+                                <td colspan="3" class="px-6 py-4"></td>
+                            </tr>
+                        @else
+                            <tr class="border-t border-gray-200">
+                                <td colspan="7" class="px-6 py-4 text-right text-gray-500">
+                                    Tidak ada rentang bonus yang cocok
+                                </td>
+                                <td class="px-6 py-4 text-right text-gray-400 whitespace-nowrap">
+                                    Rp 0
+                                </td>
+                                <td colspan="3" class="px-6 py-4"></td>
+                            </tr>
+                        @endif
+                    @endif
                 </tfoot>
             @endif
         </table>

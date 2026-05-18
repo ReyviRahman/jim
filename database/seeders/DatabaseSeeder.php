@@ -20,6 +20,7 @@ class DatabaseSeeder extends Seeder
             UserSeeder::class,
             GymPackageSeeder::class,
             BeverageSeeder::class,
+            SalesKonsultanSeeder::class,
         ]);
         // User::factory()->create([
         //     'name' => 'Test User',
