@@ -1,7 +1,11 @@
 <table>
+    @php
+        $canSeeAdminColumns = in_array(auth()->user()->role, ['admin', 'head_coach']);
+    @endphp
+
     {{-- BARIS 1: JUDUL BESAR --}}
     <tr>
-        <td colspan="10" style="text-align: center; border: 2px solid #000000; font-size: 14px;">
+        <td colspan="{{ $canSeeAdminColumns ? 10 : 9 }}" style="text-align: center; border: 2px solid #000000; font-size: 14px;">
             PERHITUNGAN BONUS TARGET {{ $titleDate }}
         </td>
     </tr>
@@ -15,7 +19,9 @@
         <td rowspan="3" style="text-align: center; vertical-align: middle; background-color: #fce4d6; border: 2px solid #000000;">NAMA SESUAI KTP</td>
         <td rowspan="3" style="text-align: center; vertical-align: middle; background-color: #fce4d6; border: 2px solid #000000;">NOMINAL</td>
         <td rowspan="3" style="text-align: center; vertical-align: middle; background-color: #fce4d6; border: 2px solid #000000;">NOMINAL AKHIR</td>
-        <td rowspan="3" style="text-align: center; vertical-align: middle; background-color: #fce4d6; border: 2px solid #000000;">KATEGORI HARGA</td>
+        @if($canSeeAdminColumns)
+            <td rowspan="3" style="text-align: center; vertical-align: middle; background-color: #fce4d6; border: 2px solid #000000;">KATEGORI HARGA</td>
+        @endif
         <td rowspan="3" style="text-align: center; vertical-align: middle; background-color: #fce4d6; border: 2px solid #000000;">FOLLOW UP 1</td>
         <td rowspan="3" style="text-align: center; vertical-align: middle; background-color: #fce4d6; border: 2px solid #000000;">FOLLOW UP 2</td>
     </tr>
@@ -31,27 +37,21 @@
         <td style="text-align: center; background-color: #ffffff; border: 2px solid #000000;">{{ strtoupper($staffUser->name) }}</td>
     </tr>
 
-    {{-- INISIALISASI VARIABEL TOTAL --}}
-    @php
-        $totalNominalBagiDua = 0;
-    @endphp
-
     {{-- BARIS DATA --}}
     @foreach($memberships as $membership)
         @php
             $packageName = trim(($membership->transaction_type ?? '') . ' ' . ($membership->package_name ?? ''));
-            
-            // Logika Nominal
             $nominal = $membership->total_paid ?? 0;
-            
+            $nominalAkhir = $membership->calculateNominalAkhir();
+
             // Logika Kategori Harga & Tidak Disarankan
             $pricePaid = $membership->price_paid;
             $normalPrice = $membership->normal_price;
             $netPrice = $membership->net_price;
             $basePrice = $membership->base_price;
 
-            $isUnrecommended = false;
             $kategoriHarga = '-';
+            $isUnrecommended = false;
 
             if (($normalPrice !== null && $pricePaid >= $normalPrice) || ($basePrice !== null && $pricePaid >= $basePrice)) {
                 $kategoriHarga = 'Harga Normal';
@@ -62,25 +62,9 @@
                 $isUnrecommended = true;
             }
 
-            // Cek apakah ada Follow Up 2 DAN orangnya BERBEDA dengan Follow Up 1
             $isBagiDua = $membership->follow_up_id && $membership->follow_up_id_two && ($membership->follow_up_id !== $membership->follow_up_id_two);
-            
-            if ($isUnrecommended) {
-                $nominalAkhir = $nominal / 2;
-            } elseif ($isBagiDua) {
-                $nominalAkhir = $nominal / 2;
-            } else {
-                $nominalAkhir = $nominal;
-            }
-
-            // Tambahkan ke Total Keseluruhan
-            $totalNominalBagiDua += $nominalAkhir;
-
-            // Logika Warna Background 
-            // (Menggunakan #FF0000 / merah muda agar teks tetap terbaca, putih jika full)
             $bgColor = ($isUnrecommended || $isBagiDua) ? '#FF0000' : '#ffffff';
 
-            // Logika Format Tanggal (Contoh: Jumat, Januari 16, 2026)
             $tglMulai = $membership->start_date ? \Carbon\Carbon::parse($membership->start_date)->locale('id')->translatedFormat('l, F d, Y') : 'BELUM AKTIF';
             $endDate = $membership->type === 'pt' ? $membership->pt_end_date : $membership->membership_end_date;
             $tglSelesai = $endDate ? \Carbon\Carbon::parse($endDate)->locale('id')->translatedFormat('l, F d, Y') : 'BELUM AKTIF';
@@ -110,9 +94,11 @@
             <td style="background-color: {{ $bgColor }}; border: 1px solid #000000; text-align: right;">
                 Rp{{ number_format($nominalAkhir, 0, ',', '.') }}
             </td>
-            <td style="background-color: {{ $bgColor }}; border: 1px solid #000000; text-align: center;">
-                {{ strtoupper($kategoriHarga) }}
-            </td>
+            @if($canSeeAdminColumns)
+                <td style="background-color: {{ $bgColor }}; border: 1px solid #000000; text-align: center;">
+                    {{ strtoupper($kategoriHarga) }}
+                </td>
+            @endif
             <td style="background-color: {{ $bgColor }}; border: 1px solid #000000; text-align: center;">
                 {{ strtoupper($membership->followUp->name ?? '-') }}
             </td>
@@ -122,19 +108,50 @@
         </tr>
     @endforeach
 
-    {{-- TAMBAHAN BARU: BARIS TOTAL --}}
+    {{-- BARIS TOTAL --}}
     @if($memberships->count() > 0)
         <tr>
-            {{-- Menggabungkan 6 kolom pertama untuk teks "TOTAL" --}}
             <td colspan="6" style="text-align: right; font-weight: bold; background-color: #fce4d6; border: 2px solid #000000;">
                 TOTAL KESELURUHAN NOMINAL AKHIR:
             </td>
-            {{-- Menampilkan angka total tepat di bawah kolom "NOMINAL AKHIR" --}}
             <td style="text-align: right; font-weight: bold; background-color: #fce4d6; border: 2px solid #000000;">
-                Rp{{ number_format($totalNominalBagiDua, 0, ',', '.') }}
+                Rp{{ number_format($totalNominalAkhir, 0, ',', '.') }}
             </td>
-            {{-- Sisanya kosong --}}
-            <td colspan="3" style="background-color: #fce4d6; border: 2px solid #000000;"></td>
+            <td colspan="{{ $canSeeAdminColumns ? 3 : 2 }}" style="background-color: #fce4d6; border: 2px solid #000000;"></td>
         </tr>
+
+        @if($canSeeAdminColumns)
+            @if($bonusInfo['persen'] > 0)
+                <tr>
+                    <td colspan="6" style="text-align: right; font-weight: bold; background-color: #d9edf7; border: 2px solid #000000;">
+                        BONUS ({{ $bonusInfo['persen'] }}%)
+                        <span style="font-size: 10px; color: #555; display: block;">
+                            Rentang:
+                            @if(strtolower($bonusInfo['rentang_satu']) === 'min')
+                                ≤ Rp {{ number_format((float) $bonusInfo['rentang_dua'], 0, ',', '.') }}
+                            @elseif(strtolower($bonusInfo['rentang_dua']) === 'plus')
+                                ≥ Rp {{ number_format((float) $bonusInfo['rentang_satu'], 0, ',', '.') }}
+                            @else
+                                Rp {{ number_format((float) $bonusInfo['rentang_satu'], 0, ',', '.') }} - Rp {{ number_format((float) $bonusInfo['rentang_dua'], 0, ',', '.') }}
+                            @endif
+                        </span>
+                    </td>
+                    <td style="text-align: right; font-weight: bold; background-color: #d9edf7; border: 2px solid #000000;">
+                        Rp {{ number_format($bonusInfo['total_bonus'], 0, ',', '.') }}
+                    </td>
+                    <td colspan="3" style="background-color: #d9edf7; border: 2px solid #000000;"></td>
+                </tr>
+            @else
+                <tr>
+                    <td colspan="6" style="text-align: right; font-weight: bold; background-color: #d9edf7; border: 2px solid #000000;">
+                        TIDAK ADA RENTANG BONUS YANG COCOK
+                    </td>
+                    <td style="text-align: right; font-weight: bold; background-color: #d9edf7; border: 2px solid #000000;">
+                        Rp 0
+                    </td>
+                    <td colspan="3" style="background-color: #d9edf7; border: 2px solid #000000;"></td>
+                </tr>
+            @endif
+        @endif
     @endif
 </table>

@@ -106,36 +106,6 @@ new #[Layout('layouts::admin')] class extends Component
             });
     }
 
-    private function calculateNominalAkhir(Membership $membership): float
-    {
-        $nominal = $membership->total_paid ?? 0;
-
-        $pricePaid = $membership->price_paid;
-        $normalPrice = $membership->normal_price;
-        $netPrice = $membership->net_price;
-        $basePrice = $membership->base_price;
-
-        $isUnrecommended = false;
-
-        if (($normalPrice !== null && $pricePaid >= $normalPrice) || ($basePrice !== null && $pricePaid >= $basePrice)) {
-            $isUnrecommended = false;
-        } elseif ($netPrice !== null && $pricePaid >= $netPrice) {
-            $isUnrecommended = false;
-        } elseif ($pricePaid > 0) {
-            $isUnrecommended = true;
-        }
-
-        if ($isUnrecommended) {
-            return $nominal / 2;
-        }
-
-        if ($membership->follow_up_id && $membership->follow_up_id_two && ($membership->follow_up_id !== $membership->follow_up_id_two)) {
-            return $nominal / 2;
-        }
-
-        return $nominal;
-    }
-
     #[Computed]
     public function memberships()
     {
@@ -153,7 +123,7 @@ new #[Layout('layouts::admin')] class extends Component
 
         $total = 0;
         foreach ($memberships as $membership) {
-            $total += $this->calculateNominalAkhir($membership);
+            $total += $membership->calculateNominalAkhir();
         }
 
         return $total;
@@ -297,7 +267,7 @@ new #[Layout('layouts::admin')] class extends Component
                         $packageName = trim(($membership->transaction_type ?? '') . ' ' . ($membership->package_name ?? ''));
 
                         $nominal = $membership->total_paid ?? 0;
-                        $nominalAkhir = $this->calculateNominalAkhir($membership);
+                        $nominalAkhir = $membership->calculateNominalAkhir();
                     @endphp
                     
                     <tr wire:key="{{ $membership->id }}" class="bg-white border-b border-gray-100 hover:bg-gray-50">

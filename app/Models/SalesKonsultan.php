@@ -29,14 +29,14 @@ class SalesKonsultan extends Model
             $dua = strtolower($row->rentang_dua);
 
             if ($satu === 'min') {
-                return $nominal < (float) $row->rentang_dua;
+                return $nominal <= (float) $row->rentang_dua;
             }
 
             if ($dua === 'plus') {
                 return $nominal >= (float) $row->rentang_satu;
             }
 
-            return $nominal >= (float) $row->rentang_satu && $nominal < (float) $row->rentang_dua;
+            return $nominal >= (float) $row->rentang_satu && $nominal <= (float) $row->rentang_dua;
         });
     }
 }

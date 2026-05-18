@@ -3,6 +3,7 @@
 namespace App\Exports;
 
 use App\Models\Membership;
+use App\Models\SalesKonsultan;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Contracts\View\View;
@@ -63,6 +64,30 @@ class RekapBonusExport implements FromView, ShouldAutoSize, WithStyles
             ->orderByDesc('transactions_max_payment_date')
             ->get();
 
+        $totalNominalAkhir = 0;
+        foreach ($memberships as $membership) {
+            $totalNominalAkhir += $membership->calculateNominalAkhir();
+        }
+
+        $range = SalesKonsultan::findByNominal($totalNominalAkhir);
+
+        $bonusInfo = [
+            'rentang_satu' => null,
+            'rentang_dua' => null,
+            'persen' => 0,
+            'total_bonus' => 0,
+        ];
+
+        if ($range) {
+            $persen = (float) $range->persen;
+            $bonusInfo = [
+                'rentang_satu' => $range->rentang_satu,
+                'rentang_dua' => $range->rentang_dua,
+                'persen' => $persen,
+                'total_bonus' => $totalNominalAkhir * ($persen / 100),
+            ];
+        }
+
         // Membuat Format Judul (Contoh: 16 JANUARI - 15 FEBRUARI)
         $titleDate = '';
         if ($this->startDate && $this->endDate) {
@@ -80,6 +105,8 @@ class RekapBonusExport implements FromView, ShouldAutoSize, WithStyles
             'memberships' => $memberships,
             'staffUser' => $staffUser,
             'titleDate' => $titleDate,
+            'totalNominalAkhir' => $totalNominalAkhir,
+            'bonusInfo' => $bonusInfo,
         ]);
     }
 

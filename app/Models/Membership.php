@@ -122,6 +122,36 @@ class Membership extends Model
         return $this->hasMany(PtBooking::class)->orderBy('booking_date')->orderBy('booking_time');
     }
 
+    public function calculateNominalAkhir(): float
+    {
+        $nominal = $this->total_paid ?? 0;
+
+        $pricePaid = $this->price_paid;
+        $normalPrice = $this->normal_price;
+        $netPrice = $this->net_price;
+        $basePrice = $this->base_price;
+
+        $isUnrecommended = false;
+
+        if (($normalPrice !== null && $pricePaid >= $normalPrice) || ($basePrice !== null && $pricePaid >= $basePrice)) {
+            $isUnrecommended = false;
+        } elseif ($netPrice !== null && $pricePaid >= $netPrice) {
+            $isUnrecommended = false;
+        } elseif ($pricePaid > 0) {
+            $isUnrecommended = true;
+        }
+
+        if ($isUnrecommended) {
+            return $nominal / 2;
+        }
+
+        if ($this->follow_up_id && $this->follow_up_id_two && ($this->follow_up_id !== $this->follow_up_id_two)) {
+            return $nominal / 2;
+        }
+
+        return $nominal;
+    }
+
     protected static function boot()
     {
         parent::boot();
