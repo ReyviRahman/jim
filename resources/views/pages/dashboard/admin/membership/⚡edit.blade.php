@@ -44,6 +44,12 @@ new #[Layout('layouts::admin')] class extends Component
 
     public $price_paid = 0;
 
+    public $normal_price_ref = 0;
+
+    public $net_price_ref = 0;
+
+    public $unrecommended_price_ref = 0;
+
     public $calculated_total_sessions = 0;
 
     public $total_sessions = 0;
@@ -117,6 +123,9 @@ new #[Layout('layouts::admin')] class extends Component
         $this->base_price = $this->membership->base_price;
         $this->discount_applied = $this->membership->discount_applied;
         $this->price_paid = $this->membership->price_paid;
+        $this->normal_price_ref = $this->membership->normal_price ?? 0;
+        $this->net_price_ref = $this->membership->net_price ?? 0;
+        $this->unrecommended_price_ref = $this->membership->unrecommended_price ?? 0;
 
         // Hitung diskon manual dari data lama (total diskon - diskon paket)
         $gymDiscount = 0;
@@ -247,6 +256,29 @@ new #[Layout('layouts::admin')] class extends Component
     }
 
     #[Computed]
+    public function priceCategory()
+    {
+        $pricePaid = (float) $this->price_paid;
+        $normalPrice = (float) $this->normal_price_ref;
+        $netPrice = (float) $this->net_price_ref;
+        $basePrice = (float) $this->base_price;
+
+        if (($normalPrice > 0 && $pricePaid >= $normalPrice) || ($basePrice > 0 && $pricePaid >= $basePrice)) {
+            return ['label' => 'Harga Normal', 'class' => 'bg-blue-100 text-blue-800 border-blue-200'];
+        }
+
+        if ($netPrice > 0 && $pricePaid >= $netPrice) {
+            return ['label' => 'Harga Net', 'class' => 'bg-emerald-100 text-emerald-800 border-emerald-200'];
+        }
+
+        if ($pricePaid > 0) {
+            return ['label' => 'Harga Tidak Disarankan', 'class' => 'bg-red-100 text-red-800 border-red-200'];
+        }
+
+        return null;
+    }
+
+    #[Computed]
     public function programDuration()
     {
         if (! $this->start_date) {
@@ -350,6 +382,7 @@ new #[Layout('layouts::admin')] class extends Component
         $this->calculated_total_sessions = 0;
         $jumlahUser = $this->selectedUsers->count();
 
+        $pkt = null;
         $isGymActive = in_array($this->registration_type, ['membership', 'bundle_pt_membership', 'visit']);
         if ($isGymActive && $this->gym_package_id) {
             $package = GymPackage::find($this->gym_package_id);
@@ -357,6 +390,7 @@ new #[Layout('layouts::admin')] class extends Component
                 $multiplier = ($this->registration_type === 'visit') ? $jumlahUser : 1;
                 $hargaGym = $package->price * $multiplier;
                 $diskonGym = ($package->discount ?? 0) * $multiplier;
+                $pkt = $package;
             }
         }
 
@@ -367,6 +401,9 @@ new #[Layout('layouts::admin')] class extends Component
                 $hargaPt = $ptPackage->price;
                 $diskonPt = $ptPackage->discount ?? 0;
                 $this->calculated_total_sessions = $ptPackage->pt_sessions;
+                if (! $pkt) {
+                    $pkt = $ptPackage;
+                }
             }
         }
 
@@ -377,6 +414,12 @@ new #[Layout('layouts::admin')] class extends Component
         $this->price_paid = $this->base_price - $this->discount_applied;
         if ($this->price_paid < 0) {
             $this->price_paid = 0;
+        }
+
+        if ($pkt) {
+            $this->normal_price_ref = $pkt->normal_price ?? 0;
+            $this->net_price_ref = $pkt->net_price ?? 0;
+            $this->unrecommended_price_ref = $pkt->unrecommended_price ?? 0;
         }
 
         $this->calculateTotalPaid();
@@ -816,6 +859,30 @@ new #[Layout('layouts::admin')] class extends Component
 
                         <div class="md:col-span-2 mt-2 p-4 bg-white shadow-xs rounded-md border border-default">
                             <h6 class="text-sm font-semibold text-heading mb-3 pb-2 border-b border-default-medium">Informasi Membership</h6>
+
+                            <div class="grid gap-3 md:grid-cols-3 mb-4">
+                                <div class="p-3 rounded-md border bg-blue-50 border-blue-200">
+                                    <div class="text-xs font-medium text-blue-700 mb-1">Harga Normal</div>
+                                    <div class="text-sm font-bold text-blue-900">
+                                        Rp {{ number_format($this->normal_price_ref, 0, ',', '.') }}
+                                    </div>
+                                </div>
+
+                                <div class="p-3 rounded-md border bg-emerald-50 border-emerald-200">
+                                    <div class="text-xs font-medium text-emerald-700 mb-1">Harga Net</div>
+                                    <div class="text-sm font-bold text-emerald-900">
+                                        Rp {{ number_format($this->net_price_ref, 0, ',', '.') }}
+                                    </div>
+                                </div>
+
+                                <div class="p-3 rounded-md border bg-red-50 border-red-200">
+                                    <div class="text-xs font-medium text-red-700 mb-1">Harga Tidak Disarankan</div>
+                                    <div class="text-sm font-bold text-red-900">
+                                        Rp {{ number_format($this->unrecommended_price_ref, 0, ',', '.') }}
+                                    </div>
+                                </div>
+                            </div>
+
                             <div class="grid gap-4 md:grid-cols-3">
                                 <div>
                                     <label class="block mb-1 text-sm font-medium text-heading">Status Pembayaran</label>
@@ -863,6 +930,13 @@ new #[Layout('layouts::admin')] class extends Component
                                         x-effect="$el.value = fmt($wire.price_paid)"
                                         class="bg-gray-100 border border-default-medium text-heading text-sm rounded-md block w-full px-3 py-2 shadow-xs cursor-not-allowed"
                                     >
+                                    @if($this->priceCategory)
+                                        <div class="mt-1.5">
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold border {{ $this->priceCategory['class'] }}">
+                                                {{ $this->priceCategory['label'] }}
+                                            </span>
+                                        </div>
+                                    @endif
                                 </div>
 
                                 <div>

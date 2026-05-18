@@ -1,7 +1,7 @@
 <table>
     {{-- BARIS 1: JUDUL BESAR --}}
     <tr>
-        <td colspan="9" style="text-align: center; border: 2px solid #000000; font-size: 14px;">
+        <td colspan="10" style="text-align: center; border: 2px solid #000000; font-size: 14px;">
             PERHITUNGAN BONUS TARGET {{ $titleDate }}
         </td>
     </tr>
@@ -15,6 +15,7 @@
         <td rowspan="3" style="text-align: center; vertical-align: middle; background-color: #fce4d6; border: 2px solid #000000;">NAMA SESUAI KTP</td>
         <td rowspan="3" style="text-align: center; vertical-align: middle; background-color: #fce4d6; border: 2px solid #000000;">NOMINAL</td>
         <td rowspan="3" style="text-align: center; vertical-align: middle; background-color: #fce4d6; border: 2px solid #000000;">NOMINAL AKHIR</td>
+        <td rowspan="3" style="text-align: center; vertical-align: middle; background-color: #fce4d6; border: 2px solid #000000;">KATEGORI HARGA</td>
         <td rowspan="3" style="text-align: center; vertical-align: middle; background-color: #fce4d6; border: 2px solid #000000;">FOLLOW UP 1</td>
         <td rowspan="3" style="text-align: center; vertical-align: middle; background-color: #fce4d6; border: 2px solid #000000;">FOLLOW UP 2</td>
     </tr>
@@ -43,17 +44,21 @@
             // Logika Nominal
             $nominal = $membership->total_paid ?? 0;
             
-            // Cek apakah harga masuk kategori Tidak Disarankan
-            $isUnrecommended = false;
+            // Logika Kategori Harga & Tidak Disarankan
             $pricePaid = $membership->price_paid;
+            $normalPrice = $membership->normal_price;
             $netPrice = $membership->net_price;
-            $unrecommendedPrice = $membership->unrecommended_price;
+            $basePrice = $membership->base_price;
 
-            if ($netPrice !== null) {
-                if ($pricePaid <= $netPrice && $unrecommendedPrice !== null && $pricePaid <= $unrecommendedPrice) {
-                    $isUnrecommended = true;
-                }
-            } elseif ($unrecommendedPrice !== null && $pricePaid <= $unrecommendedPrice) {
+            $isUnrecommended = false;
+            $kategoriHarga = '-';
+
+            if (($normalPrice !== null && $pricePaid >= $normalPrice) || ($basePrice !== null && $pricePaid >= $basePrice)) {
+                $kategoriHarga = 'Harga Normal';
+            } elseif ($netPrice !== null && $pricePaid >= $netPrice) {
+                $kategoriHarga = 'Harga Net';
+            } elseif ($pricePaid > 0) {
+                $kategoriHarga = 'Harga Tidak Disarankan';
                 $isUnrecommended = true;
             }
 
@@ -105,7 +110,9 @@
             <td style="background-color: {{ $bgColor }}; border: 1px solid #000000; text-align: right;">
                 Rp{{ number_format($nominalAkhir, 0, ',', '.') }}
             </td>
-            
+            <td style="background-color: {{ $bgColor }}; border: 1px solid #000000; text-align: center;">
+                {{ strtoupper($kategoriHarga) }}
+            </td>
             <td style="background-color: {{ $bgColor }}; border: 1px solid #000000; text-align: center;">
                 {{ strtoupper($membership->followUp->name ?? '-') }}
             </td>
@@ -127,7 +134,7 @@
                 Rp{{ number_format($totalNominalBagiDua, 0, ',', '.') }}
             </td>
             {{-- Sisanya kosong --}}
-            <td colspan="2" style="background-color: #fce4d6; border: 2px solid #000000;"></td>
+            <td colspan="3" style="background-color: #fce4d6; border: 2px solid #000000;"></td>
         </tr>
     @endif
 </table>

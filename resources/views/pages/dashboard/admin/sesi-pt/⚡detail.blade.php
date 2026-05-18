@@ -270,23 +270,21 @@ new #[Layout('layouts::admin')] class extends Component
         }
 
         $pricePaid = $membership->price_paid;
+        $normalPrice = $membership->normal_price;
+        $basePrice = $membership->base_price;
         $netPrice = $membership->net_price;
         $unrecommendedPrice = $membership->unrecommended_price;
 
-        if ($netPrice !== null) {
-            if ($pricePaid > $netPrice) {
-                return 'SDR';
-            }
-
-            if ($unrecommendedPrice !== null) {
-                return $pricePaid > $unrecommendedPrice ? 'IR' : 'SPR';
-            }
-
-            return 'IR';
+        if ($unrecommendedPrice !== null && $pricePaid < $unrecommendedPrice) {
+            return 'SPR';
         }
 
-        if ($unrecommendedPrice !== null) {
-            return $pricePaid > $unrecommendedPrice ? 'SDR' : 'SPR';
+        if ($netPrice !== null && $pricePaid < $netPrice) {
+            return 'SPR';
+        }
+
+        if (($normalPrice !== null && $pricePaid < $normalPrice) || ($basePrice !== null && $pricePaid < $basePrice)) {
+            return 'IR';
         }
 
         return 'SDR';
@@ -396,37 +394,18 @@ new #[Layout('layouts::admin')] class extends Component
                             $netPrice = $membership->net_price;
                             $unrecommendedPrice = $membership->unrecommended_price;
 
-                            if ($netPrice !== null) {
-                                if ($pricePaid > $netPrice) {
-                                    $priceLabel = 'Harga Normal';
-                                    $labelColor = 'bg-blue-100 text-blue-800';
-                                } else {
-                                    if ($unrecommendedPrice !== null) {
-                                        if ($pricePaid > $unrecommendedPrice) {
-                                            $priceLabel = 'Harga Net';
-                                            $labelColor = 'bg-emerald-100 text-emerald-800';
-                                        } else {
-                                            $priceLabel = 'Harga Tidak Disarankan';
-                                            $labelColor = 'bg-red-100 text-red-800';
-                                        }
-                                    } else {
-                                        $priceLabel = 'Harga Net';
-                                        $labelColor = 'bg-emerald-100 text-emerald-800';
-                                    }
-                                }
-                            } elseif ($unrecommendedPrice !== null) {
-                                if ($pricePaid > $unrecommendedPrice) {
-                                    $priceLabel = 'Harga Normal';
-                                    $labelColor = 'bg-blue-100 text-blue-800';
-                                } else {
-                                    $priceLabel = 'Harga Tidak Disarankan';
-                                    $labelColor = 'bg-red-100 text-red-800';
-                                }
+                            if ($unrecommendedPrice !== null && $pricePaid < $unrecommendedPrice) {
+                                $priceLabel = 'Harga Tidak Disarankan';
+                                $labelColor = 'bg-red-100 text-red-800';
+                            } elseif ($netPrice !== null && $pricePaid < $netPrice) {
+                                $priceLabel = 'Harga Tidak Disarankan';
+                                $labelColor = 'bg-red-100 text-red-800';
+                            } elseif (($normalPrice !== null && $pricePaid < $normalPrice) || ($basePrice !== null && $pricePaid < $basePrice)) {
+                                $priceLabel = 'Harga Net';
+                                $labelColor = 'bg-emerald-100 text-emerald-800';
                             } else {
-                                if (($normalPrice !== null && $pricePaid >= $normalPrice) || ($basePrice !== null && $pricePaid >= $basePrice)) {
-                                    $priceLabel = 'Harga Normal';
-                                    $labelColor = 'bg-blue-100 text-blue-800';
-                                }
+                                $priceLabel = 'Harga Normal';
+                                $labelColor = 'bg-blue-100 text-blue-800';
                             }
 
                             $categoryLabel = $this->getPtCategoryLabel($membership);

@@ -110,15 +110,17 @@ new #[Layout('layouts::admin')] class extends Component
         $nominal = $membership->total_paid ?? 0;
 
         $pricePaid = $membership->price_paid;
+        $normalPrice = $membership->normal_price;
         $netPrice = $membership->net_price;
-        $unrecommendedPrice = $membership->unrecommended_price;
+        $basePrice = $membership->base_price;
 
         $isUnrecommended = false;
-        if ($netPrice !== null) {
-            if ($pricePaid <= $netPrice && $unrecommendedPrice !== null && $pricePaid <= $unrecommendedPrice) {
-                $isUnrecommended = true;
-            }
-        } elseif ($unrecommendedPrice !== null && $pricePaid <= $unrecommendedPrice) {
+
+        if (($normalPrice !== null && $pricePaid >= $normalPrice) || ($basePrice !== null && $pricePaid >= $basePrice)) {
+            $isUnrecommended = false;
+        } elseif ($netPrice !== null && $pricePaid >= $netPrice) {
+            $isUnrecommended = false;
+        } elseif ($pricePaid > 0) {
             $isUnrecommended = true;
         }
 
@@ -312,39 +314,16 @@ new #[Layout('layouts::admin')] class extends Component
                                     $normalPrice = $membership->normal_price;
                                     $basePrice = $membership->base_price;
                                     $netPrice = $membership->net_price;
-                                    $unrecommendedPrice = $membership->unrecommended_price;
 
-                                    if ($netPrice !== null) {
-                                        if ($pricePaid > $netPrice) {
-                                            $priceLabel = 'Harga Normal';
-                                            $labelColor = 'bg-blue-100 text-blue-800';
-                                        } else {
-                                            if ($unrecommendedPrice !== null) {
-                                                if ($pricePaid > $unrecommendedPrice) {
-                                                    $priceLabel = 'Harga Net';
-                                                    $labelColor = 'bg-emerald-100 text-emerald-800';
-                                                } else {
-                                                    $priceLabel = 'Harga Tidak Disarankan';
-                                                    $labelColor = 'bg-red-100 text-red-800';
-                                                }
-                                            } else {
-                                                $priceLabel = 'Harga Net';
-                                                $labelColor = 'bg-emerald-100 text-emerald-800';
-                                            }
-                                        }
-                                    } elseif ($unrecommendedPrice !== null) {
-                                        if ($pricePaid > $unrecommendedPrice) {
-                                            $priceLabel = 'Harga Normal';
-                                            $labelColor = 'bg-blue-100 text-blue-800';
-                                        } else {
-                                            $priceLabel = 'Harga Tidak Disarankan';
-                                            $labelColor = 'bg-red-100 text-red-800';
-                                        }
-                                    } else {
-                                        if (($normalPrice !== null && $pricePaid >= $normalPrice) || ($basePrice !== null && $pricePaid >= $basePrice)) {
-                                            $priceLabel = 'Harga Normal';
-                                            $labelColor = 'bg-blue-100 text-blue-800';
-                                        }
+                                    if (($normalPrice !== null && $pricePaid >= $normalPrice) || ($basePrice !== null && $pricePaid >= $basePrice)) {
+                                        $priceLabel = 'Harga Normal';
+                                        $labelColor = 'bg-blue-100 text-blue-800';
+                                    } elseif ($netPrice !== null && $pricePaid >= $netPrice) {
+                                        $priceLabel = 'Harga Net';
+                                        $labelColor = 'bg-emerald-100 text-emerald-800';
+                                    } elseif ($pricePaid > 0) {
+                                        $priceLabel = 'Harga Tidak Disarankan';
+                                        $labelColor = 'bg-red-100 text-red-800';
                                     }
                                 @endphp
 
