@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Admin;
 
+use App\Models\Membership;
 use App\Models\PtBooking;
 use App\Models\User;
 use Carbon\Carbon;
@@ -22,8 +23,24 @@ new #[Layout('layouts::admin')] class extends Component
     public $cancelBookingId = null;
     public $cancelReason = '';
 
+    public $showRejectModal = false;
+    public $rejectBookingId = null;
+    public $rejectReason = '';
+
     public $showDetailModal = false;
     public $selectedBookingId = null;
+
+    public $showInsertModal = false;
+    public $insertMembershipId = null;
+    public $insertMembershipSearch = '';
+    public $insertType = 'fleksibel';
+    public $insertDate = '';
+    public $insertTime = '';
+
+    public function canManageApprovals(): bool
+    {
+        return in_array(Auth::user()->role, ['admin', 'head_coach']);
+    }
 
     public function mount()
     {
@@ -191,6 +208,11 @@ new #[Layout('layouts::admin')] class extends Component
 
     public function approveCancellation($bookingId)
     {
+        if (! $this->canManageApprovals()) {
+            session()->flash('error', 'Anda tidak memiliki izin untuk melakukan tindakan ini.');
+            return;
+        }
+
         $booking = PtBooking::find($bookingId);
 
         if (! $booking || ! $booking->isCancellationPending()) {
@@ -208,6 +230,11 @@ new #[Layout('layouts::admin')] class extends Component
 
     public function rejectCancellation($bookingId)
     {
+        if (! $this->canManageApprovals()) {
+            session()->flash('error', 'Anda tidak memiliki izin untuk melakukan tindakan ini.');
+            return;
+        }
+
         $booking = PtBooking::find($bookingId);
 
         if (! $booking || ! $booking->isCancellationPending()) {
@@ -233,6 +260,7 @@ new #[Layout('layouts::admin')] class extends Component
     {
         $this->cancelBookingId = $bookingId;
         $this->cancelReason = '';
+        $this->showDetailModal = false;
         $this->showCancelModal = true;
     }
 
@@ -270,6 +298,55 @@ new #[Layout('layouts::admin')] class extends Component
 
         $this->closeCancelModal();
         session()->flash('success', 'Booking berhasil dibatalkan.');
+    }
+
+    public function openRejectModal($bookingId)
+    {
+        $this->rejectBookingId = $bookingId;
+        $this->rejectReason = '';
+        $this->showDetailModal = false;
+        $this->showRejectModal = true;
+    }
+
+    public function closeRejectModal()
+    {
+        $this->showRejectModal = false;
+        $this->rejectBookingId = null;
+        $this->rejectReason = '';
+    }
+
+    public function submitRejectBooking()
+    {
+        if (! $this->canManageApprovals()) {
+            session()->flash('error', 'Anda tidak memiliki izin untuk melakukan tindakan ini.');
+            $this->closeRejectModal();
+            return;
+        }
+
+        $this->validate([
+            'rejectReason' => 'required|string|min:5|max:500',
+        ], [
+            'rejectReason.required' => 'Alasan reject wajib diisi.',
+            'rejectReason.min' => 'Alasan reject minimal 5 karakter.',
+            'rejectReason.max' => 'Alasan reject maksimal 500 karakter.',
+        ]);
+
+        $booking = PtBooking::find($this->rejectBookingId);
+
+        if (! $booking || ! $booking->isPending()) {
+            session()->flash('error', 'Booking tidak ditemukan atau status tidak valid.');
+            $this->closeRejectModal();
+            return;
+        }
+
+        $booking->update([
+            'status' => 'rejected',
+            'rejected_at' => now(),
+            'rejection_reason' => $this->rejectReason,
+        ]);
+
+        $this->closeRejectModal();
+        session()->flash('success', 'Booking berhasil di-reject.');
     }
 
     public function markAsNoshow($bookingId)
@@ -325,6 +402,151 @@ new #[Layout('layouts::admin')] class extends Component
         $this->ptFilter = '';
         $this->thisWeek();
     }
+
+    public function updatedInsertMembershipId()
+    {
+        $this->resetErrorBag();
+    }
+
+    public function openInsertModal($dayKey, $hour)
+    {
+        $dayOffset = array_search($dayKey, array_keys($this->daysOfWeek()));
+        $date = $this->getWeekStart()->copy()->addDays($dayOffset);
+
+        $this->insertDate = $date->format('Y-m-d');
+        $this->insertTime = str_pad((string) $hour, 2, '0', STR_PAD_LEFT) . ':00:00';
+        $this->insertMembershipId = null;
+        $this->insertMembershipSearch = '';
+        $this->insertType = 'fleksibel';
+        $this->resetErrorBag();
+        $this->showInsertModal = true;
+    }
+
+    public function closeInsertModal()
+    {
+        $this->showInsertModal = false;
+        $this->insertMembershipId = null;
+        $this->insertMembershipSearch = '';
+        $this->insertType = 'fleksibel';
+        $this->insertDate = '';
+        $this->insertTime = '';
+    }
+
+    public function getMembershipSessionNumber(int $membershipId): int
+    {
+        $countBefore = PtBooking::where('membership_id', $membershipId)
+            ->where(function ($query) {
+                $query->where('booking_date', '<', $this->insertDate)
+                      ->orWhere(function ($q) {
+                          $q->where('booking_date', $this->insertDate)
+                            ->where('booking_time', '<', $this->insertTime);
+                      });
+            })
+            ->count();
+
+        return $countBefore + 1;
+    }
+
+    public function approveBooking($bookingId)
+    {
+        if (! $this->canManageApprovals()) {
+            session()->flash('error', 'Anda tidak memiliki izin untuk melakukan tindakan ini.');
+            return;
+        }
+
+        $booking = PtBooking::find($bookingId);
+
+        if (! $booking || ! $booking->isPending()) {
+            session()->flash('error', 'Booking tidak ditemukan atau status tidak valid.');
+            return;
+        }
+
+        $booking->update(['status' => 'approved']);
+        $this->showDetailModal = false;
+        session()->flash('success', 'Booking berhasil di-approve.');
+    }
+
+    public function deleteBooking($bookingId)
+    {
+        $booking = PtBooking::find($bookingId);
+
+        if (! $booking) {
+            session()->flash('error', 'Booking tidak ditemukan.');
+            return;
+        }
+
+        $booking->delete();
+        $this->closeDetailModal();
+        session()->flash('success', 'Booking berhasil dihapus.');
+    }
+
+    public function selectMembership($id)
+    {
+        $this->insertMembershipId = $id;
+        $this->insertMembershipSearch = '';
+
+        $membership = Membership::find($id);
+        $sessionNumber = $this->getMembershipSessionNumber($id);
+
+        if ($membership && $sessionNumber == $membership->remaining_sessions) {
+            $this->insertType = 'fleksibel';
+        } else {
+            $this->insertType = 'keep';
+        }
+
+        $this->resetErrorBag();
+    }
+
+    #[Computed]
+    public function filteredMemberships()
+    {
+        $query = Membership::with(['user', 'ptPackage', 'personalTrainer'])
+            ->where('status', 'active')
+            ->where('remaining_sessions', '>', 0)
+            ->whereNotNull('pt_id')
+            ->whereNotNull('pt_package_id');
+
+        if (! empty($this->insertMembershipSearch)) {
+            $search = '%'.$this->insertMembershipSearch.'%';
+            $query->where(function ($q) use ($search) {
+                $q->whereHas('user', fn ($sub) => $sub->where('name', 'like', $search))
+                    ->orWhereHas('personalTrainer', fn ($sub) => $sub->where('name', 'like', $search));
+            });
+        }
+
+        return $query->orderBy('start_date', 'desc')
+            ->limit(50)
+            ->get();
+    }
+
+    public function saveInsertBooking()
+    {
+        $this->validate([
+            'insertMembershipId' => 'required|exists:memberships,id',
+        ], [
+            'insertMembershipId.required' => 'Pilih membership terlebih dahulu.',
+        ]);
+
+        $membership = Membership::find($this->insertMembershipId);
+
+        if (! $membership || $membership->remaining_sessions <= 0) {
+            $this->addError('insertBooking', 'Membership tidak valid atau sisa sesi sudah habis.');
+            return;
+        }
+
+        PtBooking::create([
+            'membership_id' => $membership->id,
+            'member_id' => $membership->user_id,
+            'pt_id' => $membership->pt_id,
+            'booking_date' => $this->insertDate,
+            'booking_time' => $this->insertTime,
+            'status' => Auth::user()->role === 'head_coach' ? 'approved' : 'pending',
+            'attendance' => 'not_yet',
+        ]);
+
+        $this->closeInsertModal();
+        session()->flash('success', 'Booking berhasil ditambahkan.');
+    }
 }; ?>
 
 <div>
@@ -355,8 +577,10 @@ new #[Layout('layouts::admin')] class extends Component
             <div class="flex items-center gap-3 w-full md:w-auto flex-wrap">
                 <select wire:model.live="statusFilter" class="bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs block w-full md:w-40 ps-3 pe-8 py-2.5">
                     <option value="">Semua Status</option>
+                    <option value="pending">Pending</option>
                     <option value="approved">Approved</option>
                     <option value="cancelled">Cancelled</option>
+                    <option value="rejected">Rejected</option>
                     <option value="pending_cancel">Pending Cancel</option>
                 </select>
 
@@ -431,13 +655,15 @@ new #[Layout('layouts::admin')] class extends Component
                                             <div wire:click="openDetailModal({{ $booking->id }})"
                                                 class="cursor-pointer p-2 rounded border text-xs transition-colors
                                                 @if($booking->status === 'cancelled') bg-gray-50 border-gray-200 opacity-60
+                                                @elseif($booking->isRejected()) bg-red-50 border-red-200
+                                                @elseif($booking->isPending()) bg-orange-50 border-orange-200
                                                 @elseif($booking->isCancellationPending()) bg-yellow-50 border-yellow-200
                                                 @else bg-green-50 border-green-200
                                                 @endif">
                                                 <div class="font-semibold text-heading truncate">{{ $booking->member?->name ?? '-' }}</div>
                                                 @if($booking->membership && $booking->membership->members)
                                                     @foreach($booking->membership->members->where('id', '!=', $booking->member_id) as $member)
-                                                        <div class="text-body truncate">{{ $member->name }}</div>
+                                                        <div class="font-semibold text-heading truncate">{{ $member->name }}</div>
                                                     @endforeach
                                                 @endif
                                                 <div class="text-body mt-0.5 truncate">{{ $booking->pt?->name ?? '-' }}</div>
@@ -446,8 +672,10 @@ new #[Layout('layouts::admin')] class extends Component
                                                         <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-yellow-100 text-yellow-800">Pending Cancel</span>
                                                     @else
                                                         <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium capitalize
-                                                            @if($booking->status === 'approved') bg-green-100 text-green-800
+                                                            @if($booking->status === 'pending') bg-orange-100 text-orange-800
+                                                            @elseif($booking->status === 'approved') bg-green-100 text-green-800
                                                             @elseif($booking->status === 'cancelled') bg-gray-100 text-gray-600
+                                                            @elseif($booking->status === 'rejected') bg-red-100 text-red-800
                                                             @else bg-gray-100 text-gray-800
                                                             @endif">
                                                             {{ $booking->status }}
@@ -468,6 +696,12 @@ new #[Layout('layouts::admin')] class extends Component
                                                 </div>
                                             </div>
                                         @endforeach
+
+                                        <div wire:click="openInsertModal('{{ $dayKey }}', {{ $slot['hour'] }})"
+                                            class="cursor-pointer hover:bg-brand/10 rounded flex items-center justify-center transition-colors
+                                            @if($slotBookings->isEmpty()) min-h-[60px] bg-brand/5 @else py-1 border border-dashed border-brand/30 @endif">
+                                            <svg class="w-5 h-5 text-brand" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+                                        </div>
                                     </div>
                                 </td>
                             @endforeach
@@ -531,6 +765,53 @@ new #[Layout('layouts::admin')] class extends Component
         </div>
     @endif
 
+    @if($showRejectModal)
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" wire:click.self="closeRejectModal">
+            <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 p-6" @click.stop>
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold text-gray-900">Alasan Reject</h3>
+                    <button type="button" wire:click="closeRejectModal" class="text-gray-400 hover:text-gray-600">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                </div>
+
+                @if($errors->any())
+                    <div class="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded text-sm">
+                        <ul class="list-disc list-inside">
+                            @foreach($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+
+                <form wire:submit.prevent="submitRejectBooking" class="space-y-4">
+                    <div>
+                        <label for="rejectReason" class="block text-sm font-medium text-gray-700 mb-1">
+                            Alasan Reject <span class="text-red-500">*</span>
+                        </label>
+                        <textarea id="rejectReason" wire:model="rejectReason" rows="4"
+                            class="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="Silakan isi alasan mengapa booking ini di-reject..."></textarea>
+                        @error('rejectReason') <span class="text-sm text-red-600">{{ $message }}</span> @enderror
+                    </div>
+
+                    <div class="flex gap-3 pt-2">
+                        <button type="button" wire:click="closeRejectModal"
+                            class="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200">
+                            Batal
+                        </button>
+                        <button type="submit" wire:loading.attr="disabled"
+                            class="flex-1 px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 disabled:opacity-50">
+                            <span wire:loading.remove wire:target="submitRejectBooking">Reject Booking</span>
+                            <span wire:loading wire:target="submitRejectBooking">Menyimpan...</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    @endif
+
     @if($showDetailModal && $this->selectedBooking)
         @php $booking = $this->selectedBooking; @endphp
         <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" wire:click.self="closeDetailModal">
@@ -571,8 +852,10 @@ new #[Layout('layouts::admin')] class extends Component
                                     <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">Pending Cancel</span>
                                 @else
                                     <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium capitalize
-                                        @if($booking->status === 'approved') bg-green-100 text-green-800
+                                        @if($booking->status === 'pending') bg-orange-100 text-orange-800
+                                        @elseif($booking->status === 'approved') bg-green-100 text-green-800
                                         @elseif($booking->status === 'cancelled') bg-gray-100 text-gray-600
+                                        @elseif($booking->status === 'rejected') bg-red-100 text-red-800
                                         @else bg-gray-100 text-gray-800
                                         @endif">
                                         {{ $booking->status }}
@@ -594,6 +877,8 @@ new #[Layout('layouts::admin')] class extends Component
                                         @else Belum Absen
                                         @endif
                                     </span>
+                                @elseif($booking->status === 'pending')
+                                    <span class="text-xs text-orange-500">Menunggu Approval</span>
                                 @else
                                     <span class="text-xs text-gray-400">-</span>
                                 @endif
@@ -632,22 +917,49 @@ new #[Layout('layouts::admin')] class extends Component
                                 <div class="text-gray-500 mt-1 italic text-xs">"{{ $booking->cancellation_reason }}"</div>
                             @endif
                         </div>
+                    @elseif($booking->status === 'rejected')
+                        <div class="border-t border-gray-100 pt-3">
+                            <span class="text-red-600 font-medium text-sm">Booking Ditolak</span>
+                            <div class="text-xs text-body mt-1">
+                                {{ $booking->rejected_at?->locale('id')->isoFormat('D MMM YYYY HH:mm') ?? '-' }}
+                            </div>
+                            @if($booking->rejection_reason)
+                                <div class="text-red-500 mt-1 italic text-xs">"{{ $booking->rejection_reason }}"</div>
+                            @endif
+                        </div>
                     @endif
 
                     <div class="border-t border-gray-100 pt-4 flex flex-wrap gap-2">
                         @if($booking->isCancellationPending())
-                            <button wire:click="approveCancellation({{ $booking->id }})" wire:confirm="Setujui request pembatalan ini?"
-                                class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white bg-green-600 rounded hover:bg-green-700 transition-colors">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                                Approve Cancel
-                            </button>
-                            @if($booking->isAttendanceNotYet())
-                                <button wire:click="rejectCancellation({{ $booking->id }})" wire:confirm="Tolak request pembatalan ini?"
-                                    class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white bg-gray-500 rounded hover:bg-gray-600 transition-colors">
+                            @if($this->canManageApprovals())
+                                <button wire:click="approveCancellation({{ $booking->id }})" wire:confirm="Setujui request pembatalan ini?"
+                                    class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white bg-green-600 rounded hover:bg-green-700 transition-colors">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                    Approve Cancel
+                                </button>
+                                @if($booking->isAttendanceNotYet())
+                                    <button wire:click="rejectCancellation({{ $booking->id }})" wire:confirm="Tolak request pembatalan ini?"
+                                        class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white bg-gray-500 rounded hover:bg-gray-600 transition-colors">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                                        Reject Cancel
+                                    </button>
+                                @endif
+                            @endif
+                        @elseif($booking->status === 'pending')
+                            @if($this->canManageApprovals())
+                                <button wire:click="approveBooking({{ $booking->id }})" wire:confirm="Approve booking ini?"
+                                    class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white bg-green-600 rounded hover:bg-green-700 transition-colors">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                    Approve
+                                </button>
+                                <button wire:click="openRejectModal({{ $booking->id }})"
+                                    class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white bg-red-600 rounded hover:bg-red-700 transition-colors">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                                    Reject Cancel
+                                    Reject
                                 </button>
                             @endif
+                        @elseif($booking->status === 'rejected')
+                            <span class="text-xs text-red-500">Booking ditolak</span>
                         @elseif($booking->status === 'approved')
                             @if($booking->attendance === 'not_yet')
                                 <button wire:click="openCancelModal({{ $booking->id }})"
@@ -668,8 +980,110 @@ new #[Layout('layouts::admin')] class extends Component
                                 </button>
                             @endif
                         @endif
+
+                        @if(! in_array($booking->attendance, ['attended', 'noshow']))
+                            <button wire:click="deleteBooking({{ $booking->id }})" wire:confirm="Hapus booking ini? Data tidak bisa dikembalikan."
+                                class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white bg-gray-600 rounded hover:bg-gray-700 transition-colors ml-auto">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                                Hapus
+                            </button>
+                        @endif
                     </div>
                 </div>
+            </div>
+        </div>
+    @endif
+
+    @if($showInsertModal)
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" wire:click.self="closeInsertModal">
+            <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 p-6" @click.stop>
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold text-gray-900">Tambah Booking</h3>
+                    <button type="button" wire:click="closeInsertModal" class="text-gray-400 hover:text-gray-600">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                </div>
+
+                @if($errors->has('insertBooking'))
+                    <div class="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded text-sm">
+                        {{ $errors->first('insertBooking') }}
+                    </div>
+                @endif
+
+                <form wire:submit.prevent="saveInsertBooking" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            Membership <span class="text-red-500">*</span>
+                        </label>
+
+                        @if($insertMembershipId)
+                            @php $selectedMembership = \App\Models\Membership::with(['user', 'personalTrainer'])->find($insertMembershipId); @endphp
+                            @if($selectedMembership)
+                                <div class="mb-2 p-2 bg-blue-50 border border-blue-200 rounded-md text-sm text-blue-800 flex justify-between items-center">
+                                    <span>{{ $selectedMembership->user?->name ?? '-' }} — {{ $selectedMembership->personalTrainer?->name ?? '-' }} (Sisa: {{ $selectedMembership->remaining_sessions }})</span>
+                                    <button type="button" wire:click="$set('insertMembershipId', null)" class="text-blue-600 hover:text-blue-800 text-xs underline">Ganti</button>
+                                </div>
+                                @php $sessionNumber = $this->getMembershipSessionNumber($insertMembershipId); @endphp
+                                <div class="mt-1.5 text-xs text-gray-600">
+                                    Booking ini akan menjadi <span class="font-semibold text-gray-900">Sesi ke-{{ $sessionNumber }}</span>
+                                </div>
+                            @endif
+                        @endif
+
+                        @if(!$insertMembershipId)
+                            <input type="text" wire:model.live.debounce.300ms="insertMembershipSearch"
+                                class="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
+                                placeholder="Cari member atau coach...">
+
+                            <div class="mt-1 border border-gray-200 rounded-md max-h-48 overflow-y-auto">
+                                @forelse($this->filteredMemberships as $membership)
+                                    <div wire:click="selectMembership({{ $membership->id }})"
+                                        class="cursor-pointer px-3 py-2 text-sm hover:bg-gray-100 transition-colors border-b border-gray-100 last:border-0">
+                                        {{ $membership->user?->name ?? '-' }} — {{ $membership->personalTrainer?->name ?? '-' }} (Sisa: {{ $membership->remaining_sessions }})
+                                    </div>
+                                @empty
+                                    <div class="px-3 py-2 text-sm text-gray-500">Tidak ada membership ditemukan.</div>
+                                @endforelse
+                            </div>
+                        @endif
+
+                        @error('insertMembershipId') <span class="text-sm text-red-600">{{ $message }}</span> @enderror
+                    </div>
+
+                    <div>
+                        <label for="insertType" class="block text-sm font-medium text-gray-700 mb-1">Tipe Booking <span class="text-red-500">*</span></label>
+                        <select id="insertType" wire:model="insertType"
+                            class="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500">
+                            <option value="fleksibel">Fleksibel</option>
+                            <option value="keep">Keep</option>
+                        </select>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Tanggal</label>
+                            <input type="text" readonly value="{{ \Carbon\Carbon::parse($insertDate)->locale('id')->isoFormat('dddd, D MMM YYYY') }}"
+                                class="block w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-md text-sm text-gray-700">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Waktu</label>
+                            <input type="text" readonly value="{{ \Carbon\Carbon::parse($insertTime)->format('H:i') }}"
+                                class="block w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-md text-sm text-gray-700">
+                        </div>
+                    </div>
+
+                    <div class="flex gap-3 pt-2">
+                        <button type="button" wire:click="closeInsertModal"
+                            class="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200">
+                            Batal
+                        </button>
+                        <button type="submit" wire:loading.attr="disabled"
+                            class="flex-1 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50">
+                            <span wire:loading.remove wire:target="saveInsertBooking">Simpan Booking</span>
+                            <span wire:loading wire:target="saveInsertBooking">Menyimpan...</span>
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     @endif

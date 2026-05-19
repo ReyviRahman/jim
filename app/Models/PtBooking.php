@@ -14,12 +14,15 @@ class PtBooking extends Model
         'booking_date',
         'booking_time',
         'status',
+        'type',
         'attendance',
         'notes',
         'cancelled_by',
         'cancelled_at',
         'cancellation_reason',
         'cancellation_requested_at',
+        'rejected_at',
+        'rejection_reason',
     ];
 
     protected $casts = [
@@ -27,6 +30,7 @@ class PtBooking extends Model
         'booking_time' => 'datetime',
         'cancelled_at' => 'datetime',
         'cancellation_requested_at' => 'datetime',
+        'rejected_at' => 'datetime',
     ];
 
     public function membership(): BelongsTo
@@ -52,6 +56,16 @@ class PtBooking extends Model
     public function isApproved(): bool
     {
         return $this->status === 'approved';
+    }
+
+    public function isPending(): bool
+    {
+        return $this->status === 'pending';
+    }
+
+    public function isRejected(): bool
+    {
+        return $this->status === 'rejected';
     }
 
     public function isCancelled(): bool

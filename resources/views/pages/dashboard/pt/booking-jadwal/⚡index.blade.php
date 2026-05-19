@@ -146,8 +146,10 @@ new #[Layout('layouts::pt')] class extends Component
             <select wire:model.live="statusFilter"
                 class="block w-full sm:w-40 px-3 py-2.5 bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 shadow-sm">
                 <option value="">Semua Status</option>
+                <option value="pending">Pending</option>
                 <option value="approved">Approved</option>
                 <option value="cancelled">Cancelled</option>
+                <option value="rejected">Rejected</option>
             </select>
             <div class="relative w-full sm:w-72">
                 <div class="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
@@ -209,14 +211,20 @@ new #[Layout('layouts::pt')] class extends Component
                                         @else Belum Absen
                                         @endif
                                     </span>
+                                @elseif($booking->status === 'pending')
+                                    <span class="text-xs text-orange-500">Menunggu Approval</span>
+                                @elseif($booking->status === 'rejected')
+                                    <span class="text-xs text-red-500">Ditolak</span>
                                 @else
                                     <span class="text-xs text-gray-400">-</span>
                                 @endif
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium capitalize
-                                    @if($booking->status === 'approved') bg-green-100 text-green-800
+                                    @if($booking->status === 'pending') bg-orange-100 text-orange-800
+                                    @elseif($booking->status === 'approved') bg-green-100 text-green-800
                                     @elseif($booking->status === 'cancelled') bg-gray-100 text-gray-600
+                                    @elseif($booking->status === 'rejected') bg-red-100 text-red-800
                                     @else bg-gray-100 text-gray-800
                                     @endif">
                                     {{ $booking->status }}

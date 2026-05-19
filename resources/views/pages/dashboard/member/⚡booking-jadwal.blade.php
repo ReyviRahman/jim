@@ -150,7 +150,8 @@ new #[Layout('layouts::member')] class extends Component
             'pt_id' => $membership->pt_id,
             'booking_date' => $this->bookingDate,
             'booking_time' => $this->bookingTime,
-            'status' => 'approved',
+            'status' => 'pending',
+            'type' => $isKeep ? 'keep' : 'fleksibel',
         ]);
 
         session()->flash('success', 'Booking sesi PT berhasil!');
@@ -275,11 +276,11 @@ new #[Layout('layouts::member')] class extends Component
         </div>
 
         <div class="flex items-center gap-3">
-            <button type="button" wire:click="openBookingModal"
+            {{-- <button type="button" wire:click="openBookingModal"
                 class="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-sm">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
                 Booking Baru
-            </button>
+            </button> --}}
             <div class="relative w-72">
                 <div class="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
                     <svg class="w-4 h-4 text-gray-400" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 20">
@@ -342,6 +343,10 @@ new #[Layout('layouts::member')] class extends Component
                                         @else Belum Absen
                                         @endif
                                     </span>
+                                @elseif($booking->status === 'pending')
+                                    <span class="text-xs text-orange-500">Menunggu Approval</span>
+                                @elseif($booking->status === 'rejected')
+                                    <span class="text-xs text-red-500">Ditolak</span>
                                 @else
                                     <span class="text-xs text-gray-400">-</span>
                                 @endif
@@ -353,8 +358,10 @@ new #[Layout('layouts::member')] class extends Component
                                     </span>
                                 @else
                                     <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium capitalize
-                                        @if($booking->status === 'approved') bg-green-100 text-green-800
+                                        @if($booking->status === 'pending') bg-orange-100 text-orange-800
+                                        @elseif($booking->status === 'approved') bg-green-100 text-green-800
                                         @elseif($booking->status === 'cancelled') bg-gray-100 text-gray-600
+                                        @elseif($booking->status === 'rejected') bg-red-100 text-red-800
                                         @else bg-gray-100 text-gray-800
                                         @endif">
                                         {{ $booking->status }}
