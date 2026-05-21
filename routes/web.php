@@ -188,6 +188,9 @@ Route::middleware('auth')->group(function () {
         Route::livewire('/sesi-pt/{user}/detail', 'pages::dashboard.admin.sesi-pt.detail')
             ->name('admin.sesi-pt.detail');
 
+        Route::livewire('/sesi-pt/membership/{membership}/detail', 'pages::dashboard.admin.sesi-pt.membership-detail')
+            ->name('admin.sesi-pt.membership-detail');
+
         Route::get('/sesi-pt/{user}/slip-print', [SesiPtSlipController::class, 'print'])
             ->name('admin.sesi-pt.slip-print');
     });

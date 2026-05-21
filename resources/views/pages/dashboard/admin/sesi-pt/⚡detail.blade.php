@@ -362,6 +362,7 @@ new #[Layout('layouts::admin')] class extends Component
                         <th scope="col" class="px-6 py-3 font-medium text-center">Sisa Sesi</th>
                         <th scope="col" class="px-6 py-3 font-medium text-right">Nominal</th>
                         <th scope="col" class="px-6 py-3 font-medium text-right">Total</th>
+                        <th scope="col" class="px-6 py-3 font-medium text-center">Aksi</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -468,10 +469,15 @@ new #[Layout('layouts::admin')] class extends Component
                             <td class="px-6 py-4 text-right whitespace-nowrap">
                                 Rp {{ number_format($categoryTotal, 0, ',', '.') }}
                             </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-center">
+                                <a href="{{ route('admin.sesi-pt.membership-detail', $membership->id) }}" wire:navigate class="inline-flex items-center px-2.5 py-1.5 text-xs font-medium text-white bg-brand rounded hover:bg-brand-strong transition-colors">
+                                    Detail
+                                </a>
+                            </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="15" class="px-6 py-8 text-center text-gray-500">
+                            <td colspan="16" class="px-6 py-8 text-center text-gray-500">
                                 Belum ada data membership untuk PT ini.
                             </td>
                         </tr>
@@ -480,7 +486,7 @@ new #[Layout('layouts::admin')] class extends Component
                 @if ($this->ptMemberships->count() > 0)
                     <tfoot class="bg-neutral-secondary-medium font-semibold text-heading border-t-2 border-default-medium">
                         <tr>
-                            <td colspan="14" class="px-6 py-4 text-right">Sub Total</td>
+                            <td colspan="15" class="px-6 py-4 text-right">Sub Total</td>
                             <td class="px-6 py-4 text-right whitespace-nowrap">Rp {{ number_format($totalCategoryTotal, 0, ',', '.') }}</td>
                         </tr>
                     </tfoot>
