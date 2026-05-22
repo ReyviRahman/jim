@@ -36,6 +36,11 @@ new #[Layout('layouts::admin')] class extends Component
     public $insertType = 'fleksibel';
     public $insertDate = '';
     public $insertTime = '';
+    public $insertPtId = '';
+
+    public $showChangeCoachModal = false;
+    public $changeCoachBookingId = null;
+    public $newCoachId = '';
 
     public function canManageApprovals(): bool
     {
@@ -418,6 +423,7 @@ new #[Layout('layouts::admin')] class extends Component
         $this->insertMembershipId = null;
         $this->insertMembershipSearch = '';
         $this->insertType = 'fleksibel';
+        $this->insertPtId = '';
         $this->resetErrorBag();
         $this->showInsertModal = true;
     }
@@ -430,6 +436,7 @@ new #[Layout('layouts::admin')] class extends Component
         $this->insertType = 'fleksibel';
         $this->insertDate = '';
         $this->insertTime = '';
+        $this->insertPtId = '';
     }
 
     public function getMembershipSessionNumber(int $membershipId): int
@@ -494,6 +501,10 @@ new #[Layout('layouts::admin')] class extends Component
             $this->insertType = 'keep';
         }
 
+        if ($membership && $membership->pt_id) {
+            $this->insertPtId = $membership->pt_id;
+        }
+
         $this->resetErrorBag();
     }
 
@@ -523,8 +534,10 @@ new #[Layout('layouts::admin')] class extends Component
     {
         $this->validate([
             'insertMembershipId' => 'required|exists:memberships,id',
+            'insertPtId' => 'required|exists:users,id',
         ], [
             'insertMembershipId.required' => 'Pilih membership terlebih dahulu.',
+            'insertPtId.required' => 'Pilih coach terlebih dahulu.',
         ]);
 
         $membership = Membership::find($this->insertMembershipId);
@@ -537,7 +550,7 @@ new #[Layout('layouts::admin')] class extends Component
         PtBooking::create([
             'membership_id' => $membership->id,
             'member_id' => $membership->user_id,
-            'pt_id' => $membership->pt_id,
+            'pt_id' => $this->insertPtId,
             'booking_date' => $this->insertDate,
             'booking_time' => $this->insertTime,
             'status' => Auth::user()->role === 'head_coach' ? 'approved' : 'pending',
@@ -546,6 +559,53 @@ new #[Layout('layouts::admin')] class extends Component
 
         $this->closeInsertModal();
         session()->flash('success', 'Booking berhasil ditambahkan.');
+    }
+
+    public function openChangeCoachModal($bookingId)
+    {
+        $booking = PtBooking::find($bookingId);
+
+        if (! $booking) {
+            session()->flash('error', 'Booking tidak ditemukan.');
+            return;
+        }
+
+        $this->changeCoachBookingId = $bookingId;
+        $this->newCoachId = $booking->pt_id ?? '';
+        $this->resetErrorBag();
+        $this->showChangeCoachModal = true;
+    }
+
+    public function closeChangeCoachModal()
+    {
+        $this->showChangeCoachModal = false;
+        $this->changeCoachBookingId = null;
+        $this->newCoachId = '';
+    }
+
+    public function saveChangeCoach()
+    {
+        $this->validate([
+            'newCoachId' => 'required|exists:users,id',
+        ], [
+            'newCoachId.required' => 'Pilih coach baru terlebih dahulu.',
+        ]);
+
+        $booking = PtBooking::find($this->changeCoachBookingId);
+
+        if (! $booking) {
+            session()->flash('error', 'Booking tidak ditemukan.');
+            $this->closeChangeCoachModal();
+            return;
+        }
+
+        $oldCoachName = $booking->pt?->name ?? '-';
+        $newCoach = User::find($this->newCoachId);
+
+        $booking->update(['pt_id' => $this->newCoachId]);
+
+        $this->closeChangeCoachModal();
+        session()->flash('success', 'Coach berhasil diganti dari '.$oldCoachName.' ke '.$newCoach?->name.'.');
     }
 }; ?>
 
@@ -575,14 +635,14 @@ new #[Layout('layouts::admin')] class extends Component
             </div>
 
             <div class="flex items-center gap-3 w-full md:w-auto flex-wrap">
-                <select wire:model.live="statusFilter" class="bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs block w-full md:w-40 ps-3 pe-8 py-2.5">
+                {{-- <select wire:model.live="statusFilter" class="bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs block w-full md:w-40 ps-3 pe-8 py-2.5">
                     <option value="">Semua Status</option>
                     <option value="pending">Pending</option>
                     <option value="approved">Approved</option>
                     <option value="cancelled">Cancelled</option>
                     <option value="rejected">Rejected</option>
                     <option value="pending_cancel">Pending Cancel</option>
-                </select>
+                </select> --}}
 
                 <select wire:model.live="ptFilter" class="bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs block w-full md:w-48 ps-3 pe-8 py-2.5">
                     <option value="">Semua PT</option>
@@ -981,6 +1041,14 @@ new #[Layout('layouts::admin')] class extends Component
                             @endif
                         @endif
 
+                        @if(in_array($booking->status, ['approved', 'pending']))
+                            <button wire:click="openChangeCoachModal({{ $booking->id }})"
+                                class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white bg-indigo-600 rounded hover:bg-indigo-700 transition-colors">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                                Ganti Coach
+                            </button>
+                        @endif
+
                         @if(! in_array($booking->attendance, ['attended', 'noshow']))
                             <button wire:click="deleteBooking({{ $booking->id }})" wire:confirm="Hapus booking ini? Data tidak bisa dikembalikan."
                                 class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white bg-gray-600 rounded hover:bg-gray-700 transition-colors ml-auto">
@@ -990,6 +1058,72 @@ new #[Layout('layouts::admin')] class extends Component
                         @endif
                     </div>
                 </div>
+            </div>
+        </div>
+    @endif
+
+    @if($showChangeCoachModal)
+        <div class="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm" wire:click.self="closeChangeCoachModal">
+            <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 p-6" @click.stop>
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold text-gray-900">Ganti Coach</h3>
+                    <button type="button" wire:click="closeChangeCoachModal" class="text-gray-400 hover:text-gray-600">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                </div>
+
+                @php
+                    $changeBooking = \App\Models\PtBooking::with(['member', 'pt'])->find($changeCoachBookingId);
+                @endphp
+
+                @if($changeBooking)
+                    <div class="mb-4 p-3 bg-gray-50 border border-gray-200 rounded-md text-sm">
+                        <div class="flex justify-between mb-1">
+                            <span class="text-gray-600">Member:</span>
+                            <span class="font-medium text-gray-900">{{ $changeBooking->member?->name ?? '-' }}</span>
+                        </div>
+                        <div class="flex justify-between mb-1">
+                            <span class="text-gray-600">Tanggal:</span>
+                            <span class="font-medium text-gray-900">{{ $changeBooking->booking_date->locale('id')->isoFormat('dddd, D MMM YYYY') }}</span>
+                        </div>
+                        <div class="flex justify-between mb-1">
+                            <span class="text-gray-600">Waktu:</span>
+                            <span class="font-medium text-gray-900">{{ $changeBooking->booking_time->format('H:i') }}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Coach Saat Ini:</span>
+                            <span class="font-medium text-gray-900">{{ $changeBooking->pt?->name ?? '-' }}</span>
+                        </div>
+                    </div>
+                @endif
+
+                <form wire:submit.prevent="saveChangeCoach" class="space-y-4">
+                    <div>
+                        <label for="newCoachId" class="block text-sm font-medium text-gray-700 mb-1">
+                            Coach Baru <span class="text-red-500">*</span>
+                        </label>
+                        <select id="newCoachId" wire:model="newCoachId"
+                            class="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500">
+                            <option value="">Pilih Coach</option>
+                            @foreach($this->ptList as $pt)
+                                <option value="{{ $pt->id }}">{{ $pt->name }}</option>
+                            @endforeach
+                        </select>
+                        @error('newCoachId') <span class="text-sm text-red-600">{{ $message }}</span> @enderror
+                    </div>
+
+                    <div class="flex gap-3 pt-2">
+                        <button type="button" wire:click="closeChangeCoachModal"
+                            class="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200">
+                            Batal
+                        </button>
+                        <button type="submit" wire:loading.attr="disabled"
+                            class="flex-1 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:opacity-50">
+                            <span wire:loading.remove wire:target="saveChangeCoach">Simpan Perubahan</span>
+                            <span wire:loading wire:target="saveChangeCoach">Menyimpan...</span>
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     @endif
@@ -1048,6 +1182,20 @@ new #[Layout('layouts::admin')] class extends Component
                         @endif
 
                         @error('insertMembershipId') <span class="text-sm text-red-600">{{ $message }}</span> @enderror
+                    </div>
+
+                    <div>
+                        <label for="insertPtId" class="block text-sm font-medium text-gray-700 mb-1">
+                            Coach <span class="text-red-500">*</span>
+                        </label>
+                        <select id="insertPtId" wire:model.live="insertPtId"
+                            class="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500">
+                            <option value="">Pilih Coach</option>
+                            @foreach($this->ptList as $pt)
+                                <option value="{{ $pt->id }}">{{ $pt->name }}</option>
+                            @endforeach
+                        </select>
+                        @error('insertPtId') <span class="text-sm text-red-600">{{ $message }}</span> @enderror
                     </div>
 
                     <div>

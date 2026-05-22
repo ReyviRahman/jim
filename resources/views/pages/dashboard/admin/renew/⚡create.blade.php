@@ -74,6 +74,7 @@ new #[Layout('layouts::admin')] class extends Component
         $this->gym_package_id = $this->oldMembership->gym_package_id;
         $this->pt_package_id = $this->oldMembership->pt_package_id;
         $this->pt_id = $this->oldMembership->pt_id;
+        $this->follow_up_id = $this->oldMembership->pt_id;
 
         // 4. Set tanggal baru (30 hari kaku dengan addMonthsNoOverflow)
         $this->start_date = now()->format('Y-m-d');
@@ -335,13 +336,13 @@ new #[Layout('layouts::admin')] class extends Component
 
             // 1. BUAT KONTRAK MEMBERSHIP BARU (BUKAN UPDATE YANG LAMA)
             if ($this->registration_type === 'pt') {
-                $totalSessionsNew = $remainingSessionsFromOld;
-                $remainingSessionsNew = $remainingSessionsFromOld + $this->calculated_total_sessions;
-                $sesiDitambahkan = $this->calculated_total_sessions;
+                $totalSessionsNew = $this->calculated_total_sessions;
+                $remainingSessionsNew = $this->calculated_total_sessions;
+                $sesiDitambahkan = 0;
             } elseif ($this->registration_type === 'bundle_pt_membership') {
-                $totalSessionsNew = $this->calculated_total_sessions + $remainingSessionsFromOld;
-                $remainingSessionsNew = $totalSessionsNew;
-                $sesiDitambahkan = null;
+                $totalSessionsNew = $this->calculated_total_sessions;
+                $remainingSessionsNew = $this->calculated_total_sessions;
+                $sesiDitambahkan = 0;
             } else {
                 $totalSessionsNew = null;
                 $remainingSessionsNew = null;
@@ -385,15 +386,6 @@ new #[Layout('layouts::admin')] class extends Component
 
             $newMembership->members()->attach($this->selectedUsers->pluck('id')->toArray());
 
-            // 2. UPDATE STATUS MEMBERSHIP LAMA MENJADI COMPLETED
-            // Untuk PT, simpan sisa sesi lama ke sesi_hangus dan set remaining_sessions jadi 0
-            $oldMembershipUpdate = ['status' => 'completed'];
-            if ($this->registration_type === 'pt') {
-                $oldMembershipUpdate['sesi_hangus'] = $this->oldMembership->remaining_sessions;
-                $oldMembershipUpdate['remaining_sessions'] = 0;
-            }
-            $this->oldMembership->update($oldMembershipUpdate);
-
             MembershipTransaction::create([
                 'invoice_number' => 'INV-' . date('Ymd') . '-' . strtoupper(uniqid()),
                 'membership_id' => $newMembership->id,
@@ -413,7 +405,7 @@ new #[Layout('layouts::admin')] class extends Component
 
             DB::commit();
 
-            session()->flash('success', 'Paket berhasil diperpanjang! Transaksi sudah dicatat.' . ($remainingSessionsFromOld > 0 ? " ({$remainingSessionsFromOld} sesi lama dipindahkan)" : ''));
+            session()->flash('success', 'Paket berhasil diperpanjang! Transaksi sudah dicatat.');
             return $this->redirectRoute('admin.membership.index', navigate: true); 
 
         } catch (\Exception $e) {
