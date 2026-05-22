@@ -17,6 +17,7 @@ new #[Layout('layouts::admin')] class extends Component
     public string $bookingDate = '';
     public string $bookingTime = '';
     public string $bookingAttendance = 'attended';
+    public int $bookingQuantity = 1;
     public string $bookingError = '';
 
     public function mount(Membership $membership): void
@@ -75,6 +76,7 @@ new #[Layout('layouts::admin')] class extends Component
         $this->bookingDate = '';
         $this->bookingTime = '';
         $this->bookingAttendance = 'attended';
+        $this->bookingQuantity = 1;
         $this->bookingError = '';
         $this->resetErrorBag();
     }
@@ -85,37 +87,45 @@ new #[Layout('layouts::admin')] class extends Component
             'bookingDate' => 'required|date',
             'bookingTime' => 'required',
             'bookingAttendance' => 'required|in:attended,noshow',
+            'bookingQuantity' => 'required|integer|min:1',
         ], [
             'bookingDate.required' => 'Tanggal booking wajib diisi.',
             'bookingTime.required' => 'Waktu booking wajib diisi.',
             'bookingAttendance.required' => 'Absensi wajib dipilih.',
+            'bookingQuantity.required' => 'Jumlah booking wajib diisi.',
+            'bookingQuantity.min' => 'Jumlah booking minimal 1.',
         ]);
 
-        if ($this->membership->remaining_sessions <= 0) {
-            $this->addError('booking', 'Sisa sesi membership sudah habis.');
+        if ($this->membership->remaining_sessions < $validated['bookingQuantity']) {
+            $this->addError('booking', 'Sisa sesi membership tidak mencukupi untuk jumlah booking yang diminta.');
             return;
         }
 
-        $booking = PtBooking::create([
-            'membership_id' => $this->membership->id,
-            'member_id' => $this->membership->user_id,
-            'pt_id' => $this->membership->pt_id,
-            'booking_date' => $validated['bookingDate'],
-            'booking_time' => $validated['bookingTime'],
-            'status' => 'approved',
-            'attendance' => $validated['bookingAttendance'],
-        ]);
+        for ($i = 0; $i < $validated['bookingQuantity']; $i++) {
+            PtBooking::create([
+                'membership_id' => $this->membership->id,
+                'member_id' => $this->membership->user_id,
+                'pt_id' => $this->membership->pt_id,
+                'booking_date' => $validated['bookingDate'],
+                'booking_time' => $validated['bookingTime'],
+                'status' => 'approved',
+                'attendance' => $validated['bookingAttendance'],
+            ]);
+        }
 
-        $membership = $booking->membership;
+        $membership = $this->membership->fresh();
         if ($membership && $membership->remaining_sessions > 0) {
-            $membership->decrement('remaining_sessions');
-            if ($membership->remaining_sessions == 0) {
+            $membership->decrement('remaining_sessions', $validated['bookingQuantity']);
+            if ($membership->remaining_sessions <= 0) {
                 $membership->update(['status' => 'completed']);
             }
         }
 
         $this->membership->refresh();
-        session()->flash('success', 'Booking berhasil ditambahkan.');
+        $message = $validated['bookingQuantity'] > 1
+            ? "{$validated['bookingQuantity']} booking berhasil ditambahkan."
+            : 'Booking berhasil ditambahkan.';
+        session()->flash('success', $message);
         $this->closeBookingModal();
     }
 
@@ -337,6 +347,12 @@ new #[Layout('layouts::admin')] class extends Component
                             <option value="noshow">Hangus</option>
                         </select>
                         @error('bookingAttendance') <span class="text-red-500 text-xs mt-1">{{ $message }}</span> @enderror
+                    </div>
+
+                    <div>
+                        <label for="bookingQuantity" class="block text-sm font-medium text-heading">Jumlah Booking</label>
+                        <input type="number" wire:model="bookingQuantity" id="bookingQuantity" min="1" class="mt-1 block w-full rounded-md border-default-medium shadow-sm focus:border-brand focus:ring-brand sm:text-sm bg-neutral-secondary-medium px-3 py-2">
+                        @error('bookingQuantity') <span class="text-red-500 text-xs mt-1">{{ $message }}</span> @enderror
                     </div>
                 </div>
 
