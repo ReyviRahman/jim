@@ -386,6 +386,13 @@ new #[Layout('layouts::admin')] class extends Component
 
             $newMembership->members()->attach($this->selectedUsers->pluck('id')->toArray());
 
+            // Jika paket lama adalah PT, update pt_end_date paket lama agar mengikuti nilai pt_end_date yang dipilih
+            if ($this->oldMembership->type === 'pt') {
+                $this->oldMembership->update([
+                    'pt_end_date' => $this->pt_end_date,
+                ]);
+            }
+
             MembershipTransaction::create([
                 'invoice_number' => 'INV-' . date('Ymd') . '-' . strtoupper(uniqid()),
                 'membership_id' => $newMembership->id,
