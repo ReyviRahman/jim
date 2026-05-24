@@ -18,8 +18,8 @@ new class extends Component {
     <div class="max-w-7xl w-full flex flex-wrap items-center mx-auto p-4">
         
         <a href="/" class="flex items-center space-x-3 rtl:space-x-reverse">
-            <img src="{{ asset('icon.png') }}" class="h-7" alt="Frans GYM Logo" />
-            <span class="self-center text-xl text-brand font-semibold whitespace-nowrap">Frans GYM</span>
+            <img src="{{ asset('icon.png') }}" class="h-7" alt="FRANS GYM Logo" />
+            <span class="self-center text-xl text-brand font-semibold whitespace-nowrap">FRANS GYM</span>
         </a>
         
         <div class="flex items-center md:order-2 space-x-3 md:space-x-0 rtl:space-x-reverse ms-auto md:ms-6">

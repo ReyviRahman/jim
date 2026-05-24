@@ -4,7 +4,7 @@ use Livewire\Component;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Layout;
 
-new #[Layout('layouts::app')] #[Title('Frans GYM | Pendaftaran Member')] class extends Component 
+new #[Layout('layouts::app')] #[Title('FRANS GYM | Pendaftaran Member')] class extends Component 
 {};
 ?>
 

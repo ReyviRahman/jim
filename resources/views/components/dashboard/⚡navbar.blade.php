@@ -26,8 +26,8 @@ new class extends Component {
                     </svg>
                 </button>
                 <a href="/" class="flex ms-2 md:me-24" wire:navigate>
-                    <img src="{{ asset('icon.png') }}" class="h-6 me-3" alt="Frans GYM Logo" />
-                    <span class="self-center text-lg font-semibold whitespace-nowrap text-brand">Frans GYM</span>
+                    <img src="{{ asset('icon.png') }}" class="h-6 me-3" alt="FRANS GYM Logo" />
+                    <span class="self-center text-lg font-semibold whitespace-nowrap text-brand">FRANS GYM</span>
                 </a>
             </div>
             <div class="flex items-center">

@@ -6,7 +6,7 @@ use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Livewire\WithPagination;
 
-new #[Layout('layouts::empty')] #[Title('Frans GYM | Pusat Kebugaran Terbaik di Jambi')] class extends Component 
+new #[Layout('layouts::empty')] #[Title('FRANS GYM | Pusat Kebugaran Terbaik di Jambi')] class extends Component 
 {
     use WithPagination;
 
@@ -56,8 +56,8 @@ new #[Layout('layouts::empty')] #[Title('Frans GYM | Pusat Kebugaran Terbaik di 
         <div class="max-w-7xl w-full flex flex-wrap items-center mx-auto p-4">
             
             <a href="/" class="flex items-center space-x-3 rtl:space-x-reverse">
-                <img src="{{ asset('icon.png') }}" class="h-7" alt="Frans GYM Logo" />
-                <span class="self-center text-xl text-brand font-semibold whitespace-nowrap">Frans GYM</span>
+                <img src="{{ asset('icon.png') }}" class="h-7" alt="FRANS GYM Logo" />
+                <span class="self-center text-xl text-brand font-semibold whitespace-nowrap">FRANS GYM</span>
             </a>
             
             <div class="flex items-center md:order-2 space-x-3 md:space-x-0 rtl:space-x-reverse ms-auto md:ms-6">
@@ -165,7 +165,7 @@ new #[Layout('layouts::empty')] #[Title('Frans GYM | Pusat Kebugaran Terbaik di 
         
         <div class="relative max-w-7xl mx-auto py-24 px-4 sm:py-32 sm:px-6 lg:px-8 flex flex-col items-start text-left">
             <h1 class="text-4xl font-extrabold tracking-tight text-white sm:text-5xl lg:text-6xl md:w-3/4 lg:w-2/3">
-                Bentuk Tubuh Idealmu Bersama <span class="text-brand">Frans GYM</span>
+                Bentuk Tubuh Idealmu Bersama <span class="text-brand">FRANS GYM</span>
             </h1>
             <p class="mt-6 max-w-2xl text-xl text-gray-300">
                 Pusat kebugaran terlengkap di Jambi dengan peralatan modern, lingkungan yang suportif, dan Personal Trainer profesional yang siap membantu mencapai target fitnesmu.
@@ -184,8 +184,8 @@ new #[Layout('layouts::empty')] #[Title('Frans GYM | Pusat Kebugaran Terbaik di 
                 
                 <div class="mb-10 lg:mb-0 relative">
                     <div class="relative rounded-2xl overflow-hidden shadow-xl aspect-w-4 aspect-h-3 sm:aspect-w-16 sm:aspect-h-9 lg:aspect-none lg:h-full">
-                        <img class="w-full h-full object-cover rounded-2xl lg:h-[500px]" 
-                            src="{{ asset('ruangan.png') }}" 
+                        <img class="w-full h-full  rounded-2xl lg:h-[500px]" 
+                            src="{{ asset('parkiran.jpg') }}" 
                             alt="Fasilitas dan Komunitas Frans Gym">
                     </div>
                     <div class="hidden lg:block absolute -bottom-6 -right-6 w-32 h-32 bg-brand rounded-full opacity-20 -z-10"></div>
@@ -215,7 +215,7 @@ new #[Layout('layouts::empty')] #[Title('Frans GYM | Pusat Kebugaran Terbaik di 
             <div class="text-center max-w-3xl mx-auto mb-12">
                 <h2 class="text-base font-semibold text-brand tracking-wide uppercase">Fasilitas Kami</h2>
                 <p class="mt-2 text-3xl leading-8 font-extrabold tracking-tight text-gray-900 sm:text-4xl">
-                    Fasilitas FransGYM Fitness
+                    Fasilitas FRANS GYM Fitness
                 </p>
                 <p class="mt-4 text-lg text-gray-600">
                     Kami menyediakan lingkungan latihan terbaik dengan peralatan modern dan fasilitas yang menjamin kenyamanan Anda.
@@ -234,30 +234,19 @@ new #[Layout('layouts::empty')] #[Title('Frans GYM | Pusat Kebugaran Terbaik di 
                     <ul class="space-y-3">
                         <li class="flex items-start">
                             <svg class="w-5 h-5 text-brand mr-3 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                            <span class="text-sm text-white">Cardio & Strength Equipment</span>
+                            <span class="text-sm text-white">Cardio & Strength Equipment Lengkap</span>
                         </li>
                         <li class="flex items-start">
                             <svg class="w-5 h-5 text-brand mr-3 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                            <span class="text-sm text-white">50+ Alat Fitness Import Modern</span>
-                        </li>
-                    </ul>
-                </div>
-
-                <div class="bg-secondary p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-                    <div class="flex items-center mb-6">
-                        <div class="w-12 h-12 bg-neutral-secondary-soft text-brand rounded-xl flex items-center justify-center mr-4 flex-shrink-0">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
-                        </div>
-                        <h3 class="text-xl font-bold text-brand">Area Latihan Luas & Nyaman</h3>
-                    </div>
-                    <ul class="space-y-3">
-                        <li class="flex items-start">
-                            <svg class="w-5 h-5 text-brand mr-3 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                            <span class="text-sm text-white">4 Ruko (Ruang Lega & Tidak Sesak)</span>
+                            <span class="text-sm text-white">50+ Alat Fitness Modern Berkualitas</span>
                         </li>
                         <li class="flex items-start">
                             <svg class="w-5 h-5 text-brand mr-3 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                            <span class="text-sm text-white">Akses Area LH1 & ER2</span>
+                            <span class="text-sm text-white">Area Latihan Luas, Nyaman & Tidak Sesak</span>
+                        </li>
+                        <li class="flex items-start">
+                            <svg class="w-5 h-5 text-brand mr-3 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            <span class="text-sm text-white">Tersedia Area Functional Training</span>
                         </li>
                     </ul>
                 </div>
@@ -280,7 +269,11 @@ new #[Layout('layouts::empty')] #[Title('Frans GYM | Pusat Kebugaran Terbaik di 
                         </li>
                         <li class="flex items-start">
                             <svg class="w-5 h-5 text-brand mr-3 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                            <span class="text-sm text-white">Handuk Khusus Member PT</span>
+                            <span class="text-sm text-white">Handuk Khusus Member Personal Training</span>
+                        </li>
+                        <li class="flex items-start">
+                            <svg class="w-5 h-5 text-brand mr-3 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            <span class="text-sm text-white">Area Istirahat Member</span>
                         </li>
                     </ul>
                 </div>
@@ -301,6 +294,10 @@ new #[Layout('layouts::empty')] #[Title('Frans GYM | Pusat Kebugaran Terbaik di 
                             <svg class="w-5 h-5 text-brand mr-3 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
                             <span class="text-sm text-white">Musik & Suasana GYM Nyaman</span>
                         </li>
+                        <li class="flex items-start">
+                            <svg class="w-5 h-5 text-brand mr-3 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            <span class="text-sm text-white">Kebersihan Area Gym Terjaga</span>
+                        </li>
                     </ul>
                 </div>
 
@@ -309,16 +306,43 @@ new #[Layout('layouts::empty')] #[Title('Frans GYM | Pusat Kebugaran Terbaik di 
                         <div class="w-12 h-12 bg-neutral-secondary-soft text-brand rounded-xl flex items-center justify-center mr-4 flex-shrink-0">
                             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
                         </div>
-                        <h3 class="text-xl font-bold text-brand">Sistem Modern</h3>
+                        <h3 class="text-xl font-bold text-brand">Sistem Membership Modern</h3>
                     </div>
                     <ul class="space-y-3">
                         <li class="flex items-start">
                             <svg class="w-5 h-5 text-brand mr-3 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                            <span class="text-sm text-white">Absensi Scan Barcode</span>
+                            <span class="text-sm text-white">Absensi Menggunakan Scan Barcode / QR</span>
                         </li>
                         <li class="flex items-start">
                             <svg class="w-5 h-5 text-brand mr-3 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                            <span class="text-sm text-white">Wajib Membawa Handphone</span>
+                            <span class="text-sm text-white">Member Wajib Membawa Handphone Saat Check-in</span>
+                        </li>
+                        <li class="flex items-start">
+                            <svg class="w-5 h-5 text-brand mr-3 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            <span class="text-sm text-white">Sistem Data Member Terintegrasi</span>
+                        </li>
+                        <li class="flex items-start">
+                            <svg class="w-5 h-5 text-brand mr-3 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            <span class="text-sm text-white">Jam Operasional Mengikuti Ketentuan Membership</span>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="bg-secondary p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+                    <div class="flex items-center mb-6">
+                        <div class="w-12 h-12 bg-neutral-secondary-soft text-brand rounded-xl flex items-center justify-center mr-4 flex-shrink-0">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
+                        </div>
+                        <h3 class="text-xl font-bold text-brand">Akses Area</h3>
+                    </div>
+                    <ul class="space-y-3">
+                        <li class="flex items-start">
+                            <svg class="w-5 h-5 text-brand mr-3 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            <span class="text-sm text-white">Akses Area Gym Utama</span>
+                        </li>
+                        <li class="flex items-start">
+                            <svg class="w-5 h-5 text-brand mr-3 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            <span class="text-sm text-white">Akses Area Latihan Tertentu Sesuai Membership</span>
                         </li>
                     </ul>
                 </div>
@@ -331,12 +355,22 @@ new #[Layout('layouts::empty')] #[Title('Frans GYM | Pusat Kebugaran Terbaik di 
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             
             <div class="text-center max-w-3xl mx-auto mb-16">
-                <h2 class="text-base font-semibold text-brand tracking-wide uppercase">Tim Pelatih Kami</h2>
-                <p class="mt-2 text-3xl leading-8 font-extrabold tracking-tight text-heading sm:text-4xl">
-                    Kenalan dengan Personal Trainer Profesional
+                <h2 class="text-base font-semibold text-brand tracking-wide uppercase">TIM PELATIH PROFESIONAL</h2>
+                <div class="flex justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 128 128"><path fill="#FDD835" d="m68.05 7.23l13.46 30.7a7.05 7.05 0 0 0 5.82 4.19l32.79 2.94c3.71.54 5.19 5.09 2.5 7.71l-24.7 20.75c-2 1.68-2.91 4.32-2.36 6.87l7.18 33.61c.63 3.69-3.24 6.51-6.56 4.76L67.56 102a7.03 7.03 0 0 0-7.12 0l-28.62 16.75c-3.31 1.74-7.19-1.07-6.56-4.76l7.18-33.61c.54-2.55-.36-5.19-2.36-6.87L5.37 52.78c-2.68-2.61-1.2-7.17 2.5-7.71l32.79-2.94a7.05 7.05 0 0 0 5.82-4.19l13.46-30.7c1.67-3.36 6.45-3.36 8.11-.01"/><path fill="#FFFF8D" d="m67.07 39.77l-2.28-22.62c-.09-1.26-.35-3.42 1.67-3.42c1.6 0 2.47 3.33 2.47 3.33l6.84 18.16c2.58 6.91 1.52 9.28-.97 10.68c-2.86 1.6-7.08.35-7.73-6.13"/><path fill="#F4B400" d="M95.28 71.51L114.9 56.2c.97-.81 2.72-2.1 1.32-3.57c-1.11-1.16-4.11.51-4.11.51l-17.17 6.71c-5.12 1.77-8.52 4.39-8.82 7.69c-.39 4.4 3.56 7.79 9.16 3.97"/></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 128 128"><path fill="#FDD835" d="m68.05 7.23l13.46 30.7a7.05 7.05 0 0 0 5.82 4.19l32.79 2.94c3.71.54 5.19 5.09 2.5 7.71l-24.7 20.75c-2 1.68-2.91 4.32-2.36 6.87l7.18 33.61c.63 3.69-3.24 6.51-6.56 4.76L67.56 102a7.03 7.03 0 0 0-7.12 0l-28.62 16.75c-3.31 1.74-7.19-1.07-6.56-4.76l7.18-33.61c.54-2.55-.36-5.19-2.36-6.87L5.37 52.78c-2.68-2.61-1.2-7.17 2.5-7.71l32.79-2.94a7.05 7.05 0 0 0 5.82-4.19l13.46-30.7c1.67-3.36 6.45-3.36 8.11-.01"/><path fill="#FFFF8D" d="m67.07 39.77l-2.28-22.62c-.09-1.26-.35-3.42 1.67-3.42c1.6 0 2.47 3.33 2.47 3.33l6.84 18.16c2.58 6.91 1.52 9.28-.97 10.68c-2.86 1.6-7.08.35-7.73-6.13"/><path fill="#F4B400" d="M95.28 71.51L114.9 56.2c.97-.81 2.72-2.1 1.32-3.57c-1.11-1.16-4.11.51-4.11.51l-17.17 6.71c-5.12 1.77-8.52 4.39-8.82 7.69c-.39 4.4 3.56 7.79 9.16 3.97"/></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 128 128"><path fill="#FDD835" d="m68.05 7.23l13.46 30.7a7.05 7.05 0 0 0 5.82 4.19l32.79 2.94c3.71.54 5.19 5.09 2.5 7.71l-24.7 20.75c-2 1.68-2.91 4.32-2.36 6.87l7.18 33.61c.63 3.69-3.24 6.51-6.56 4.76L67.56 102a7.03 7.03 0 0 0-7.12 0l-28.62 16.75c-3.31 1.74-7.19-1.07-6.56-4.76l7.18-33.61c.54-2.55-.36-5.19-2.36-6.87L5.37 52.78c-2.68-2.61-1.2-7.17 2.5-7.71l32.79-2.94a7.05 7.05 0 0 0 5.82-4.19l13.46-30.7c1.67-3.36 6.45-3.36 8.11-.01"/><path fill="#FFFF8D" d="m67.07 39.77l-2.28-22.62c-.09-1.26-.35-3.42 1.67-3.42c1.6 0 2.47 3.33 2.47 3.33l6.84 18.16c2.58 6.91 1.52 9.28-.97 10.68c-2.86 1.6-7.08.35-7.73-6.13"/><path fill="#F4B400" d="M95.28 71.51L114.9 56.2c.97-.81 2.72-2.1 1.32-3.57c-1.11-1.16-4.11.51-4.11.51l-17.17 6.71c-5.12 1.77-8.52 4.39-8.82 7.69c-.39 4.4 3.56 7.79 9.16 3.97"/></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 128 128"><path fill="#FDD835" d="m68.05 7.23l13.46 30.7a7.05 7.05 0 0 0 5.82 4.19l32.79 2.94c3.71.54 5.19 5.09 2.5 7.71l-24.7 20.75c-2 1.68-2.91 4.32-2.36 6.87l7.18 33.61c.63 3.69-3.24 6.51-6.56 4.76L67.56 102a7.03 7.03 0 0 0-7.12 0l-28.62 16.75c-3.31 1.74-7.19-1.07-6.56-4.76l7.18-33.61c.54-2.55-.36-5.19-2.36-6.87L5.37 52.78c-2.68-2.61-1.2-7.17 2.5-7.71l32.79-2.94a7.05 7.05 0 0 0 5.82-4.19l13.46-30.7c1.67-3.36 6.45-3.36 8.11-.01"/><path fill="#FFFF8D" d="m67.07 39.77l-2.28-22.62c-.09-1.26-.35-3.42 1.67-3.42c1.6 0 2.47 3.33 2.47 3.33l6.84 18.16c2.58 6.91 1.52 9.28-.97 10.68c-2.86 1.6-7.08.35-7.73-6.13"/><path fill="#F4B400" d="M95.28 71.51L114.9 56.2c.97-.81 2.72-2.1 1.32-3.57c-1.11-1.16-4.11.51-4.11.51l-17.17 6.71c-5.12 1.77-8.52 4.39-8.82 7.69c-.39 4.4 3.56 7.79 9.16 3.97"/></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 128 128"><path fill="#FDD835" d="m68.05 7.23l13.46 30.7a7.05 7.05 0 0 0 5.82 4.19l32.79 2.94c3.71.54 5.19 5.09 2.5 7.71l-24.7 20.75c-2 1.68-2.91 4.32-2.36 6.87l7.18 33.61c.63 3.69-3.24 6.51-6.56 4.76L67.56 102a7.03 7.03 0 0 0-7.12 0l-28.62 16.75c-3.31 1.74-7.19-1.07-6.56-4.76l7.18-33.61c.54-2.55-.36-5.19-2.36-6.87L5.37 52.78c-2.68-2.61-1.2-7.17 2.5-7.71l32.79-2.94a7.05 7.05 0 0 0 5.82-4.19l13.46-30.7c1.67-3.36 6.45-3.36 8.11-.01"/><path fill="#FFFF8D" d="m67.07 39.77l-2.28-22.62c-.09-1.26-.35-3.42 1.67-3.42c1.6 0 2.47 3.33 2.47 3.33l6.84 18.16c2.58 6.91 1.52 9.28-.97 10.68c-2.86 1.6-7.08.35-7.73-6.13"/><path fill="#F4B400" d="M95.28 71.51L114.9 56.2c.97-.81 2.72-2.1 1.32-3.57c-1.11-1.16-4.11.51-4.11.51l-17.17 6.71c-5.12 1.77-8.52 4.39-8.82 7.69c-.39 4.4 3.56 7.79 9.16 3.97"/></svg>
+                </div>
+                <p class="mt-2 text-3xl leading-10 font-extrabold tracking-tight text-heading sm:text-4xl">
+                    Dipercaya Member dengan Pelayanan & Pendampingan Berkualitas Premium
                 </p>
                 <p class="mt-4 text-lg text-body">
-                    Capai target fitnesmu lebih cepat dan aman dengan bimbingan langsung dari ahli yang berpengalaman.
+                    Capai target fitness Anda lebih cepat, aman, dan terarah bersama Personal Trainer berpengalaman dari FRANSGYM.
+                </p>
+                <p class="mt-4 text-lg text-body">
+                    Mulai dari fat loss, muscle building, strength training, hingga pembentukan body goals dengan program latihan yang profesional dan terukur.
                 </p>
             </div>
 
@@ -443,7 +477,7 @@ new #[Layout('layouts::empty')] #[Title('Frans GYM | Pusat Kebugaran Terbaik di 
                 
                 <div class="md:col-span-1">
                     <div class="flex items-center space-x-3 mb-6">
-                        <img src="{{ asset('icon.png') }}" class="h-8" alt="Frans GYM Logo" />
+                        <img src="{{ asset('icon.png') }}" class="h-8" alt="FRANS GYM Logo" />
                         <span class="text-2xl font-bold text-white tracking-wider">PT FransGym</span>
                     </div>
                     <p class="text-gray-400 text-sm leading-relaxed mb-6">
