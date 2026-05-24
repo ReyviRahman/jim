@@ -79,7 +79,8 @@ new #[Layout('layouts::admin')] class extends Component
                     }
                 },
                 'ptBookings as bookings_before' => function ($q) {
-                    $q->where('attendance', 'attended');
+                    $q->whereIn('attendance', ['attended', 'noshow'])
+                      ->where('is_free', false);
                     if ($this->dateStart) {
                         $q->whereDate('booking_date', '<', $this->dateStart);
                     }
