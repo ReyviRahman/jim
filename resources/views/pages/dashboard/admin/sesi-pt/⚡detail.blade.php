@@ -6,6 +6,7 @@ use App\Models\Membership;
 use App\Models\PtSessionCategory;
 use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 use Livewire\Component;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Computed;
@@ -47,10 +48,9 @@ new #[Layout('layouts::admin')] class extends Component
         }
     }
 
-    #[Computed]
-    public function ptMemberships()
+    private function getMembershipQuery()
     {
-        return Membership::where('pt_id', $this->user->id)
+        return Membership::query()
             ->when($this->dateStart && $this->dateEnd, function ($query) {
                 $query->whereDate('start_date', '<=', $this->dateEnd)
                     ->whereDate('pt_end_date', '>=', $this->dateStart);
@@ -58,7 +58,9 @@ new #[Layout('layouts::admin')] class extends Component
             ->with(['user', 'ptPackage', 'gymPackage', 'followUp', 'followUpTwo'])
             ->withCount([
                 'ptBookings as berjalan' => function ($q) {
-                    $q->where('attendance', 'attended');
+                    $q->where('attendance', 'attended')
+                      ->where('is_free', false)
+                      ->where('pt_id', $this->user->id);
                     if ($this->dateStart && $this->dateEnd) {
                         $q->whereBetween('booking_date', [
                             $this->dateStart . ' 00:00:00',
@@ -67,7 +69,8 @@ new #[Layout('layouts::admin')] class extends Component
                     }
                 },
                 'ptBookings as hangus' => function ($q) {
-                    $q->where('attendance', 'noshow');
+                    $q->where('attendance', 'noshow')
+                      ->where('pt_id', $this->user->id);
                     if ($this->dateStart && $this->dateEnd) {
                         $q->whereBetween('booking_date', [
                             $this->dateStart . ' 00:00:00',
@@ -80,7 +83,49 @@ new #[Layout('layouts::admin')] class extends Component
                         $q->whereDate('booking_date', '<', $this->dateStart);
                     }
                 },
-            ])
+                'ptBookings as free_total' => function ($q) {
+                    $q->where('is_free', true)
+                      ->where('pt_id', $this->user->id);
+                },
+                'ptBookings as free_berjalan' => function ($q) {
+                    $q->where('is_free', true)
+                      ->where('attendance', 'attended')
+                      ->where('pt_id', $this->user->id);
+                },
+                'ptBookings as sesi_digantikan' => function ($q) {
+                    $q->where('attendance', 'attended')
+                      ->where('is_free', false)
+                      ->where('pt_id', '!=', $this->user->id);
+                    if ($this->dateStart && $this->dateEnd) {
+                        $q->whereBetween('booking_date', [
+                            $this->dateStart . ' 00:00:00',
+                            $this->dateEnd . ' 23:59:59',
+                        ]);
+                    }
+                },
+            ]);
+    }
+
+    #[Computed]
+    public function ptMembershipsDirect()
+    {
+        return $this->getMembershipQuery()
+            ->where('pt_id', $this->user->id)
+            ->orderBy('created_at', 'desc')
+            ->get();
+    }
+
+    #[Computed]
+    public function ptMembershipsBookingOnly()
+    {
+        return $this->getMembershipQuery()
+            ->where('pt_id', '!=', $this->user->id)
+            ->whereExists(function ($subQuery) {
+                $subQuery->select(DB::raw(1))
+                    ->from('pt_bookings')
+                    ->whereColumn('pt_bookings.membership_id', 'memberships.id')
+                    ->where('pt_bookings.pt_id', $this->user->id);
+            })
             ->orderBy('created_at', 'desc')
             ->get();
     }
@@ -93,11 +138,9 @@ new #[Layout('layouts::admin')] class extends Component
             ->get();
     }
 
-    #[Computed]
-    public function slipData()
+    private function calculateSlipRows($memberships)
     {
         $categories = $this->ptSessionCategories;
-        $memberships = $this->ptMemberships;
         $rows = [];
         $grandTotalJumlah = 0;
         $grandTotal = 0;
@@ -113,20 +156,39 @@ new #[Layout('layouts::admin')] class extends Component
                 }
             }
 
-            $rows[] = [
-                'jenis' => $category->category,
-                'jumlah' => $jumlah,
-                'total' => $total,
-            ];
+            if ($jumlah > 0) {
+                $rows[] = [
+                    'jenis' => $category->category,
+                    'jumlah' => $jumlah,
+                    'total' => $total,
+                ];
 
-            $grandTotalJumlah += $jumlah;
-            $grandTotal += $total;
+                $grandTotalJumlah += $jumlah;
+                $grandTotal += $total;
+            }
         }
 
         return [
             'rows' => $rows,
             'grandTotalJumlah' => $grandTotalJumlah,
             'grandTotal' => $grandTotal,
+        ];
+    }
+
+    #[Computed]
+    public function slipData()
+    {
+        $directMemberships = $this->ptMembershipsDirect;
+        $bookingOnlyMemberships = $this->ptMembershipsBookingOnly;
+
+        $directData = $this->calculateSlipRows($directMemberships);
+        $bookingOnlyData = $this->calculateSlipRows($bookingOnlyMemberships);
+
+        return [
+            'direct' => $directData,
+            'bookingOnly' => $bookingOnlyData,
+            'grandTotalJumlah' => $directData['grandTotalJumlah'] + $bookingOnlyData['grandTotalJumlah'],
+            'grandTotal' => $directData['grandTotal'] + $bookingOnlyData['grandTotal'],
         ];
     }
 
@@ -359,131 +421,277 @@ new #[Layout('layouts::admin')] class extends Component
                         <th scope="col" class="px-6 py-3 font-medium text-center">Total Sesi</th>
                         <th scope="col" class="px-6 py-3 font-medium text-center">Berjalan</th>
                         <th scope="col" class="px-6 py-3 font-medium text-center">Hangus</th>
+                        <th scope="col" class="px-6 py-3 font-medium text-center">Sesi Digantikan</th>
                         <th scope="col" class="px-6 py-3 font-medium text-center">Sisa Sesi</th>
                         <th scope="col" class="px-6 py-3 font-medium text-right">Nominal</th>
                         <th scope="col" class="px-6 py-3 font-medium text-right">Total</th>
+                        <th scope="col" class="px-6 py-3 font-medium text-center">Free</th>
+                        <th scope="col" class="px-6 py-3 font-medium text-center">Free Berjalan</th>
                         <th scope="col" class="px-6 py-3 font-medium text-center">Aksi</th>
                     </tr>
                 </thead>
                 <tbody>
                     @php
                         $totalCategoryTotal = 0;
+                        $rowNumber = 1;
+                        $bookingOnlyWithSessions = $this->ptMembershipsBookingOnly->filter(function($m) {
+                            return $m->berjalan > 0;
+                        });
                     @endphp
-                    @forelse ($this->ptMemberships as $membership)
-                        @php
-                            $category = $membership->ptPackage->category ?? $membership->gymPackage->category ?? '-';
-                            $bookingsBefore = $membership->bookings_before ?? 0;
-                            $totalFromTable = ($membership->total_sessions ?? 0) + ($membership->sesi_ditambahkan ?? 0);
 
-                            if ($bookingsBefore == 0) {
-                                $sesiAwal = $membership->total_sessions ?? 0;
-                                $sesiDitambahkan = $membership->sesi_ditambahkan ?? 0;
-                            } else {
-                                $sesiAwal = $totalFromTable - $bookingsBefore;
-                                $sesiDitambahkan = 0;
-                            }
-
-                            $totalSessions = $sesiAwal + $sesiDitambahkan;
-                            $hangus = ($membership->hangus ?? 0) + ($membership->sesi_hangus ?? 0);
-                            $sisaSesi = $sesiAwal + $sesiDitambahkan - $membership->berjalan - $hangus;
-
-                            $priceLabel = null;
-                            $labelColor = '';
-                            $pricePaid = $membership->price_paid;
-                            $normalPrice = $membership->normal_price;
-                            $basePrice = $membership->base_price;
-                            $netPrice = $membership->net_price;
-                            $unrecommendedPrice = $membership->unrecommended_price;
-
-                            if ($unrecommendedPrice !== null && $pricePaid < $unrecommendedPrice) {
-                                $priceLabel = 'Harga Tidak Disarankan';
-                                $labelColor = 'bg-red-100 text-red-800';
-                            } elseif ($netPrice !== null && $pricePaid < $netPrice) {
-                                $priceLabel = 'Harga Tidak Disarankan';
-                                $labelColor = 'bg-red-100 text-red-800';
-                            } elseif (($normalPrice !== null && $pricePaid < $normalPrice) || ($basePrice !== null && $pricePaid < $basePrice)) {
-                                $priceLabel = 'Harga Net';
-                                $labelColor = 'bg-emerald-100 text-emerald-800';
-                            } else {
-                                $priceLabel = 'Harga Normal';
-                                $labelColor = 'bg-blue-100 text-blue-800';
-                            }
-
-                            $categoryLabel = $this->getPtCategoryLabel($membership);
-                            $ptSessionCategory = $this->ptSessionCategories->firstWhere('category', $categoryLabel);
-                            $categoryNominal = $ptSessionCategory?->amount ?? 0;
-                            $categoryTotal = $membership->berjalan * $categoryNominal;
-
-                            $totalCategoryTotal += $categoryTotal;
-                        @endphp
-                        <tr wire:key="pt-membership-{{ $membership->id }}" class="bg-neutral-primary-soft border-b border-default hover:bg-neutral-secondary-medium">
-                            <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
-                                {{ $loop->iteration }}
-                            </td>
-                            <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
-                                {{ $membership->user->name ?? '-' }}
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                {{ $membership->followUp->name ?? '-' }}
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                {{ $membership->followUpTwo->name ?? '-' }}
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <div>Rp {{ number_format($membership->price_paid ?? 0, 0, ',', '.') }}</div>
-                                @if($priceLabel)
-                                    <div class="mt-1">
-                                        <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full {{ $labelColor }}">
-                                            {{ $priceLabel }}
-                                        </span>
-                                    </div>
-                                @endif
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap capitalize">
-                                {{ $category }}
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap font-semibold text-heading">
-                                {{ $categoryLabel }}
-                            </td>
-                            <td class="px-6 py-4 text-center whitespace-nowrap">
-                                {{ $sesiAwal }}
-                            </td>
-                            <td class="px-6 py-4 text-center whitespace-nowrap">
-                                {{ $sesiDitambahkan }}
-                            </td>
-                            <td class="px-6 py-4 text-center whitespace-nowrap">
-                                {{ $totalSessions }}
-                            </td>
-                            <td class="px-6 py-4 text-center whitespace-nowrap">
-                                {{ $membership->berjalan }}
-                            </td>
-                            <td class="px-6 py-4 text-center whitespace-nowrap">
-                                {{ $hangus }}
-                            </td>
-                            <td class="px-6 py-4 text-center whitespace-nowrap">
-                                {{ $sisaSesi }}
-                            </td>
-                            <td class="px-6 py-4 text-right whitespace-nowrap">
-                                Rp {{ number_format($categoryNominal, 0, ',', '.') }}
-                            </td>
-                            <td class="px-6 py-4 text-right whitespace-nowrap">
-                                Rp {{ number_format($categoryTotal, 0, ',', '.') }}
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-center">
-                                <a href="{{ route('admin.sesi-pt.membership-detail', $membership->id) }}" wire:navigate class="inline-flex items-center px-2.5 py-1.5 text-xs font-medium text-white bg-brand rounded hover:bg-brand-strong transition-colors">
-                                    Detail
-                                </a>
+                    {{-- Section 1: Direct PT Memberships --}}
+                    @if($this->ptMembershipsDirect->count() > 0)
+                        <tr class="bg-blue-50 border-b border-blue-200">
+                            <td colspan="19" class="px-6 py-3 font-semibold text-blue-800 text-sm">
+                                <div class="flex items-center gap-2">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                                    Membership Langsung (PT Utama)
+                                </div>
                             </td>
                         </tr>
-                    @empty
+                        @foreach($this->ptMembershipsDirect as $membership)
+                            @php
+                                $category = $membership->ptPackage->category ?? $membership->gymPackage->category ?? '-';
+                                $bookingsBefore = $membership->bookings_before ?? 0;
+                                $totalFromTable = ($membership->total_sessions ?? 0) + ($membership->sesi_ditambahkan ?? 0);
+
+                                if ($bookingsBefore == 0) {
+                                    $sesiAwal = ($membership->total_sessions ?? 0);
+                                    $sesiDitambahkan = $membership->sesi_ditambahkan ?? 0;
+                                } else {
+                                    $sesiAwal = $totalFromTable - $bookingsBefore;
+                                    $sesiDitambahkan = 0;
+                                }
+
+                                $totalSessions = $sesiAwal + $sesiDitambahkan;
+                                $hangus = ($membership->hangus ?? 0) + ($membership->sesi_hangus ?? 0);
+                                $sisaSesi = $sesiAwal + $sesiDitambahkan - $membership->berjalan - $hangus - $membership->sesi_digantikan;
+
+                                $priceLabel = null;
+                                $labelColor = '';
+                                $pricePaid = $membership->price_paid;
+                                $normalPrice = $membership->normal_price;
+                                $basePrice = $membership->base_price;
+                                $netPrice = $membership->net_price;
+                                $unrecommendedPrice = $membership->unrecommended_price;
+
+                                if ($unrecommendedPrice !== null && $pricePaid < $unrecommendedPrice) {
+                                    $priceLabel = 'Harga Tidak Disarankan';
+                                    $labelColor = 'bg-red-100 text-red-800';
+                                } elseif ($netPrice !== null && $pricePaid < $netPrice) {
+                                    $priceLabel = 'Harga Tidak Disarankan';
+                                    $labelColor = 'bg-red-100 text-red-800';
+                                } elseif (($normalPrice !== null && $pricePaid < $normalPrice) || ($basePrice !== null && $pricePaid < $basePrice)) {
+                                    $priceLabel = 'Harga Net';
+                                    $labelColor = 'bg-emerald-100 text-emerald-800';
+                                } else {
+                                    $priceLabel = 'Harga Normal';
+                                    $labelColor = 'bg-blue-100 text-blue-800';
+                                }
+
+                                $categoryLabel = $this->getPtCategoryLabel($membership);
+                                $ptSessionCategory = $this->ptSessionCategories->firstWhere('category', $categoryLabel);
+                                $categoryNominal = $ptSessionCategory?->amount ?? 0;
+                                $categoryTotal = $membership->berjalan * $categoryNominal;
+
+                                $totalCategoryTotal += $categoryTotal;
+                            @endphp
+                            <tr wire:key="pt-membership-direct-{{ $membership->id }}" class="bg-neutral-primary-soft border-b border-default hover:bg-neutral-secondary-medium">
+                                <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
+                                    {{ $rowNumber++ }}
+                                </td>
+                                <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
+                                    {{ $membership->user->name ?? '-' }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    {{ $membership->followUp->name ?? '-' }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    {{ $membership->followUpTwo->name ?? '-' }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div>Rp {{ number_format($membership->price_paid ?? 0, 0, ',', '.') }}</div>
+                                    @if($priceLabel)
+                                        <div class="mt-1">
+                                            <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full {{ $labelColor }}">
+                                                {{ $priceLabel }}
+                                            </span>
+                                        </div>
+                                    @endif
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap capitalize">
+                                    {{ $category }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap font-semibold text-heading">
+                                    {{ $categoryLabel }}
+                                </td>
+                                <td class="px-6 py-4 text-center whitespace-nowrap">
+                                    {{ $sesiAwal }}
+                                </td>
+                                <td class="px-6 py-4 text-center whitespace-nowrap">
+                                    {{ $sesiDitambahkan }}
+                                </td>
+                                <td class="px-6 py-4 text-center whitespace-nowrap">
+                                    {{ $totalSessions }}
+                                </td>
+                                <td class="px-6 py-4 text-center whitespace-nowrap">
+                                    {{ $membership->berjalan }}
+                                </td>
+                                <td class="px-6 py-4 text-center whitespace-nowrap">
+                                    {{ $hangus }}
+                                </td>
+                                <td class="px-6 py-4 text-center whitespace-nowrap">
+                                    {{ $membership->sesi_digantikan }}
+                                </td>
+                                <td class="px-6 py-4 text-center whitespace-nowrap">
+                                    {{ $sisaSesi }}
+                                </td>
+                                <td class="px-6 py-4 text-right whitespace-nowrap">
+                                    Rp {{ number_format($categoryNominal, 0, ',', '.') }}
+                                </td>
+                                <td class="px-6 py-4 text-right whitespace-nowrap">
+                                    Rp {{ number_format($categoryTotal, 0, ',', '.') }}
+                                </td>
+                                <td class="px-6 py-4 text-center whitespace-nowrap">
+                                    {{ $membership->free_total }}
+                                </td>
+                                <td class="px-6 py-4 text-center whitespace-nowrap">
+                                    {{ $membership->free_berjalan }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-center">
+                                    <a href="{{ route('admin.sesi-pt.membership-detail', $membership->id) }}" wire:navigate class="inline-flex items-center px-2.5 py-1.5 text-xs font-medium text-white bg-brand rounded hover:bg-brand-strong transition-colors">
+                                        Detail
+                                    </a>
+                                </td>
+                            </tr>
+                        @endforeach
+                    @endif
+
+                    {{-- Section 2: Booking-Only Memberships --}}
+                    @if($bookingOnlyWithSessions->count() > 0)
+                        <tr class="bg-amber-50 border-b border-amber-200">
+                            <td colspan="19" class="px-6 py-3 font-semibold text-amber-800 text-sm">
+                                <div class="flex items-center gap-2">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+                                    Membership Booking Saja (PT Pengganti/Cadangan)
+                                </div>
+                            </td>
+                        </tr>
+                        @foreach($bookingOnlyWithSessions as $membership)
+                            @php
+                                $category = $membership->ptPackage->category ?? $membership->gymPackage->category ?? '-';
+                                $bookingsBefore = $membership->bookings_before ?? 0;
+                                $totalFromTable = ($membership->total_sessions ?? 0) + ($membership->sesi_ditambahkan ?? 0);
+
+                                if ($bookingsBefore == 0) {
+                                    $sesiAwal = $membership->total_sessions ?? 0;
+                                    $sesiDitambahkan = $membership->sesi_ditambahkan ?? 0;
+                                } else {
+                                    $sesiAwal = $totalFromTable - $bookingsBefore;
+                                    $sesiDitambahkan = 0;
+                                }
+
+                                $totalSessions = $sesiAwal + $sesiDitambahkan;
+                                $hangus = ($membership->hangus ?? 0) + ($membership->sesi_hangus ?? 0);
+                                $sisaSesi = $sesiAwal + $sesiDitambahkan - $membership->berjalan - $hangus;
+
+                                $priceLabel = null;
+                                $labelColor = '';
+                                $pricePaid = $membership->price_paid;
+                                $normalPrice = $membership->normal_price;
+                                $basePrice = $membership->base_price;
+                                $netPrice = $membership->net_price;
+                                $unrecommendedPrice = $membership->unrecommended_price;
+
+                                if ($unrecommendedPrice !== null && $pricePaid < $unrecommendedPrice) {
+                                    $priceLabel = 'Harga Tidak Disarankan';
+                                    $labelColor = 'bg-red-100 text-red-800';
+                                } elseif ($netPrice !== null && $pricePaid < $netPrice) {
+                                    $priceLabel = 'Harga Tidak Disarankan';
+                                    $labelColor = 'bg-red-100 text-red-800';
+                                } elseif (($normalPrice !== null && $pricePaid < $normalPrice) || ($basePrice !== null && $pricePaid < $basePrice)) {
+                                    $priceLabel = 'Harga Net';
+                                    $labelColor = 'bg-emerald-100 text-emerald-800';
+                                } else {
+                                    $priceLabel = 'Harga Normal';
+                                    $labelColor = 'bg-blue-100 text-blue-800';
+                                }
+
+                                $categoryLabel = $this->getPtCategoryLabel($membership);
+                                $ptSessionCategory = $this->ptSessionCategories->firstWhere('category', $categoryLabel);
+                                $categoryNominal = $ptSessionCategory?->amount ?? 0;
+                                $categoryTotal = $membership->berjalan * $categoryNominal;
+
+                                $totalCategoryTotal += $categoryTotal;
+                            @endphp
+                            <tr wire:key="pt-membership-booking-{{ $membership->id }}" class="bg-neutral-primary-soft border-b border-default hover:bg-neutral-secondary-medium">
+                                <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
+                                    {{ $rowNumber++ }}
+                                </td>
+                                <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
+                                    {{ $membership->user->name ?? '-' }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    {{ $membership->followUp->name ?? '-' }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    {{ $membership->followUpTwo->name ?? '-' }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div>Rp {{ number_format($membership->price_paid ?? 0, 0, ',', '.') }}</div>
+                                    @if($priceLabel)
+                                        <div class="mt-1">
+                                            <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full {{ $labelColor }}">
+                                                {{ $priceLabel }}
+                                            </span>
+                                        </div>
+                                    @endif
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap capitalize">
+                                    {{ $category }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap font-semibold text-heading">
+                                    {{ $categoryLabel }}
+                                </td>
+                                <td class="px-6 py-4 text-center whitespace-nowrap text-gray-400">-</td>
+                                <td class="px-6 py-4 text-center whitespace-nowrap text-gray-400">-</td>
+                                <td class="px-6 py-4 text-center whitespace-nowrap text-gray-400">-</td>
+                                <td class="px-6 py-4 text-center whitespace-nowrap">
+                                    {{ $membership->berjalan }}
+                                </td>
+                                <td class="px-6 py-4 text-center whitespace-nowrap text-gray-400">-</td>
+                                <td class="px-6 py-4 text-center whitespace-nowrap text-gray-400">-</td>
+                                <td class="px-6 py-4 text-center whitespace-nowrap text-gray-400">-</td>
+                                <td class="px-6 py-4 text-right whitespace-nowrap">
+                                    Rp {{ number_format($categoryNominal, 0, ',', '.') }}
+                                </td>
+                                <td class="px-6 py-4 text-right whitespace-nowrap">
+                                    Rp {{ number_format($categoryTotal, 0, ',', '.') }}
+                                </td>
+                                <td class="px-6 py-4 text-center whitespace-nowrap">
+                                    {{ $membership->free_total }}
+                                </td>
+                                <td class="px-6 py-4 text-center whitespace-nowrap">
+                                    {{ $membership->free_berjalan }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-center">
+                                    <a href="{{ route('admin.sesi-pt.membership-detail', $membership->id) }}" wire:navigate class="inline-flex items-center px-2.5 py-1.5 text-xs font-medium text-white bg-brand rounded hover:bg-brand-strong transition-colors">
+                                        Detail
+                                    </a>
+                                </td>
+                            </tr>
+                        @endforeach
+                    @endif
+
+                    @if($this->ptMembershipsDirect->count() == 0 && $bookingOnlyWithSessions->count() == 0)
                         <tr>
-                            <td colspan="16" class="px-6 py-8 text-center text-gray-500">
+                            <td colspan="19" class="px-6 py-8 text-center text-gray-500">
                                 Belum ada data membership untuk PT ini.
                             </td>
                         </tr>
-                    @endforelse
+                    @endif
                 </tbody>
-                @if ($this->ptMemberships->count() > 0)
+                @if ($this->ptMembershipsDirect->count() > 0 || $bookingOnlyWithSessions->count() > 0)
                     <tfoot class="bg-neutral-secondary-medium font-semibold text-heading border-t-2 border-default-medium">
                         <tr>
                             <td colspan="15" class="px-6 py-4 text-right">Sub Total</td>
@@ -652,35 +860,78 @@ new #[Layout('layouts::admin')] class extends Component
                         <p class="mt-1"><span class="font-semibold text-heading">NAMA:</span> {{ $user->name }}</p>
                     </div>
 
-                    <table class="w-full text-sm text-left text-body border border-default-medium">
-                        <thead class="text-sm text-body bg-neutral-secondary-medium border-b border-default-medium">
-                            <tr>
-                                <th scope="col" class="px-4 py-3 font-medium">JENIS</th>
-                                <th scope="col" class="px-4 py-3 font-medium text-center">JUMLAH</th>
-                                <th scope="col" class="px-4 py-3 font-medium text-right">TOTAL</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse ($slip['rows'] as $row)
-                                <tr class="bg-white border-b border-default-medium">
-                                    <td class="px-4 py-3 whitespace-nowrap">{{ $row['jenis'] }}</td>
-                                    <td class="px-4 py-3 text-center whitespace-nowrap">{{ $row['jumlah'] }}</td>
-                                    <td class="px-4 py-3 text-right whitespace-nowrap">Rp {{ number_format($row['total'], 0, ',', '.') }}</td>
-                                </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="3" class="px-4 py-6 text-center text-gray-500">Belum ada data.</td>
-                                </tr>
-                            @endforelse
-                        </tbody>
-                        <tfoot class="bg-neutral-secondary-medium font-semibold text-heading border-t-2 border-default-medium">
-                            <tr>
-                                <td class="px-4 py-3">TOTAL</td>
-                                <td class="px-4 py-3 text-center">{{ $slip['grandTotalJumlah'] }}</td>
-                                <td class="px-4 py-3 text-right">Rp {{ number_format($slip['grandTotal'], 0, ',', '.') }}</td>
-                            </tr>
-                        </tfoot>
-                    </table>
+                    @if(count($slip['direct']['rows']) > 0)
+                        <div class="mb-4">
+                            <p class="font-semibold text-heading text-sm mb-2">PT Utama (Membership Langsung)</p>
+                            <table class="w-full text-sm text-left text-body border border-default-medium">
+                                <thead class="text-sm text-body bg-blue-50 border-b border-blue-200">
+                                    <tr>
+                                        <th scope="col" class="px-4 py-3 font-medium">JENIS</th>
+                                        <th scope="col" class="px-4 py-3 font-medium text-center">JUMLAH</th>
+                                        <th scope="col" class="px-4 py-3 font-medium text-right">TOTAL</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach ($slip['direct']['rows'] as $row)
+                                        <tr class="bg-white border-b border-default-medium">
+                                            <td class="px-4 py-3 whitespace-nowrap">{{ $row['jenis'] }}</td>
+                                            <td class="px-4 py-3 text-center whitespace-nowrap">{{ $row['jumlah'] }}</td>
+                                            <td class="px-4 py-3 text-right whitespace-nowrap">Rp {{ number_format($row['total'], 0, ',', '.') }}</td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                                <tfoot class="bg-blue-50 font-semibold text-heading border-t border-blue-200">
+                                    <tr>
+                                        <td class="px-4 py-3">Subtotal PT Utama</td>
+                                        <td class="px-4 py-3 text-center">{{ $slip['direct']['grandTotalJumlah'] }}</td>
+                                        <td class="px-4 py-3 text-right">Rp {{ number_format($slip['direct']['grandTotal'], 0, ',', '.') }}</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    @endif
+
+                    @if(count($slip['bookingOnly']['rows']) > 0)
+                        <div class="mb-4">
+                            <p class="font-semibold text-heading text-sm mb-2">PT Pengganti (Booking Saja)</p>
+                            <table class="w-full text-sm text-left text-body border border-default-medium">
+                                <thead class="text-sm text-body bg-amber-50 border-b border-amber-200">
+                                    <tr>
+                                        <th scope="col" class="px-4 py-3 font-medium">JENIS</th>
+                                        <th scope="col" class="px-4 py-3 font-medium text-center">JUMLAH</th>
+                                        <th scope="col" class="px-4 py-3 font-medium text-right">TOTAL</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach ($slip['bookingOnly']['rows'] as $row)
+                                        <tr class="bg-white border-b border-default-medium">
+                                            <td class="px-4 py-3 whitespace-nowrap">{{ $row['jenis'] }}</td>
+                                            <td class="px-4 py-3 text-center whitespace-nowrap">{{ $row['jumlah'] }}</td>
+                                            <td class="px-4 py-3 text-right whitespace-nowrap">Rp {{ number_format($row['total'], 0, ',', '.') }}</td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                                <tfoot class="bg-amber-50 font-semibold text-heading border-t border-amber-200">
+                                    <tr>
+                                        <td class="px-4 py-3">Subtotal PT Pengganti</td>
+                                        <td class="px-4 py-3 text-center">{{ $slip['bookingOnly']['grandTotalJumlah'] }}</td>
+                                        <td class="px-4 py-3 text-right">Rp {{ number_format($slip['bookingOnly']['grandTotal'], 0, ',', '.') }}</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    @endif
+
+                    @if(count($slip['direct']['rows']) == 0 && count($slip['bookingOnly']['rows']) == 0)
+                        <p class="text-gray-500 text-center py-6">Belum ada data.</p>
+                    @endif
+
+                    <div class="border-t-2 border-default-medium pt-4 mt-4">
+                        <div class="flex justify-between items-center font-bold text-heading">
+                            <span>TOTAL KESELURUHAN</span>
+                            <span>Rp {{ number_format($slip['grandTotal'], 0, ',', '.') }}</span>
+                        </div>
+                    </div>
 
                     <div class="mt-4 space-y-1 text-sm">
                         <p class="font-bold text-heading text-base">BERSIH DITERIMA: Rp {{ number_format($slip['grandTotal'], 0, ',', '.') }}</p>

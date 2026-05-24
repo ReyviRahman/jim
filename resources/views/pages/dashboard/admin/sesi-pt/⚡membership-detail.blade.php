@@ -4,6 +4,7 @@ namespace App\Livewire\Pages\Dashboard\Admin\SesiPt;
 
 use App\Models\Membership;
 use App\Models\PtBooking;
+use App\Models\User;
 use Carbon\Carbon;
 use Livewire\Component;
 use Livewire\Attributes\Layout;
@@ -19,6 +20,8 @@ new #[Layout('layouts::admin')] class extends Component
     public string $bookingAttendance = 'attended';
     public int $bookingQuantity = 1;
     public string $bookingError = '';
+    public string $bookingPtId = '';
+    public bool $bookingIsFree = false;
 
     public function mount(Membership $membership): void
     {
@@ -53,9 +56,18 @@ new #[Layout('layouts::admin')] class extends Component
             ->count();
     }
 
+    #[Computed]
+    public function ptList()
+    {
+        return User::where('role', 'pt')
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
+    }
+
     public function openCreateBookingModal(): void
     {
-        if ($this->membership->remaining_sessions <= 0) {
+        if ($this->membership->remaining_sessions <= 0 && !$this->bookingIsFree) {
             $this->bookingError = 'Tidak bisa menambah booking. Sisa sesi membership sudah habis.';
             return;
         }
@@ -78,6 +90,8 @@ new #[Layout('layouts::admin')] class extends Component
         $this->bookingAttendance = 'attended';
         $this->bookingQuantity = 1;
         $this->bookingError = '';
+        $this->bookingPtId = $this->membership->pt_id ?? '';
+        $this->bookingIsFree = false;
         $this->resetErrorBag();
     }
 
@@ -88,15 +102,18 @@ new #[Layout('layouts::admin')] class extends Component
             'bookingTime' => 'required',
             'bookingAttendance' => 'required|in:attended,noshow',
             'bookingQuantity' => 'required|integer|min:1',
+            'bookingPtId' => 'required|exists:users,id',
         ], [
             'bookingDate.required' => 'Tanggal booking wajib diisi.',
             'bookingTime.required' => 'Waktu booking wajib diisi.',
             'bookingAttendance.required' => 'Absensi wajib dipilih.',
             'bookingQuantity.required' => 'Jumlah booking wajib diisi.',
             'bookingQuantity.min' => 'Jumlah booking minimal 1.',
+            'bookingPtId.required' => 'Coach wajib dipilih.',
+            'bookingPtId.exists' => 'Coach tidak valid.',
         ]);
 
-        if ($this->membership->remaining_sessions < $validated['bookingQuantity']) {
+        if (! $this->bookingIsFree && $this->membership->remaining_sessions < $validated['bookingQuantity']) {
             $this->addError('booking', 'Sisa sesi membership tidak mencukupi untuk jumlah booking yang diminta.');
             return;
         }
@@ -105,19 +122,22 @@ new #[Layout('layouts::admin')] class extends Component
             PtBooking::create([
                 'membership_id' => $this->membership->id,
                 'member_id' => $this->membership->user_id,
-                'pt_id' => $this->membership->pt_id,
+                'pt_id' => $validated['bookingPtId'],
                 'booking_date' => $validated['bookingDate'],
                 'booking_time' => $validated['bookingTime'],
                 'status' => 'approved',
                 'attendance' => $validated['bookingAttendance'],
+                'is_free' => $this->bookingIsFree,
             ]);
         }
 
-        $membership = $this->membership->fresh();
-        if ($membership && $membership->remaining_sessions > 0) {
-            $membership->decrement('remaining_sessions', $validated['bookingQuantity']);
-            if ($membership->remaining_sessions <= 0) {
-                $membership->update(['status' => 'completed']);
+        if (! $this->bookingIsFree) {
+            $membership = $this->membership->fresh();
+            if ($membership && $membership->remaining_sessions > 0) {
+                $membership->decrement('remaining_sessions', $validated['bookingQuantity']);
+                if ($membership->remaining_sessions <= 0) {
+                    $membership->update(['status' => 'completed']);
+                }
             }
         }
 
@@ -134,7 +154,7 @@ new #[Layout('layouts::admin')] class extends Component
         $booking = PtBooking::findOrFail($id);
         $membership = $booking->membership;
 
-        if (in_array($booking->attendance, ['attended', 'noshow']) && $membership) {
+        if (! $booking->is_free && in_array($booking->attendance, ['attended', 'noshow']) && $membership) {
             $membership->increment('remaining_sessions');
             if ($membership->status === 'completed') {
                 $membership->update(['status' => 'active']);
@@ -254,19 +274,24 @@ new #[Layout('layouts::admin')] class extends Component
                                 {{ $booking->pt?->name ?? '-' }}
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-center">
-                                @if($booking->isCancellationPending())
-                                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">Pending Cancel</span>
-                                @else
-                                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium capitalize
-                                        @if($booking->status === 'pending') bg-orange-100 text-orange-800
-                                        @elseif($booking->status === 'approved') bg-green-100 text-green-800
-                                        @elseif($booking->status === 'cancelled') bg-gray-100 text-gray-600
-                                        @elseif($booking->status === 'rejected') bg-red-100 text-red-800
-                                        @else bg-gray-100 text-gray-800
-                                        @endif">
-                                        {{ $booking->status }}
-                                    </span>
-                                @endif
+                                <div class="flex items-center justify-center gap-1 flex-wrap">
+                                    @if($booking->isCancellationPending())
+                                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">Pending Cancel</span>
+                                    @else
+                                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium capitalize
+                                            @if($booking->status === 'pending') bg-orange-100 text-orange-800
+                                            @elseif($booking->status === 'approved') bg-green-100 text-green-800
+                                            @elseif($booking->status === 'cancelled') bg-gray-100 text-gray-600
+                                            @elseif($booking->status === 'rejected') bg-red-100 text-red-800
+                                            @else bg-gray-100 text-gray-800
+                                            @endif">
+                                            {{ $booking->status }}
+                                        </span>
+                                    @endif
+                                    @if($booking->is_free)
+                                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">Free</span>
+                                    @endif
+                                </div>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-center">
                                 @if($booking->status === 'approved')
@@ -347,6 +372,22 @@ new #[Layout('layouts::admin')] class extends Component
                             <option value="noshow">Hangus</option>
                         </select>
                         @error('bookingAttendance') <span class="text-red-500 text-xs mt-1">{{ $message }}</span> @enderror
+                    </div>
+
+                    <div>
+                        <label for="bookingPtId" class="block text-sm font-medium text-heading">Coach</label>
+                        <select wire:model="bookingPtId" id="bookingPtId" class="mt-1 block w-full rounded-md border-default-medium shadow-sm focus:border-brand focus:ring-brand sm:text-sm bg-neutral-secondary-medium px-3 py-2">
+                            <option value="">Pilih Coach</option>
+                            @foreach($this->ptList as $pt)
+                                <option value="{{ $pt->id }}">{{ $pt->name }}</option>
+                            @endforeach
+                        </select>
+                        @error('bookingPtId') <span class="text-red-500 text-xs mt-1">{{ $message }}</span> @enderror
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <input type="checkbox" wire:model="bookingIsFree" id="bookingIsFree" class="w-4 h-4 text-brand border-default-medium rounded focus:ring-brand">
+                        <label for="bookingIsFree" class="text-sm font-medium text-heading">Sesi Free (tidak memotong sisa sesi)</label>
                     </div>
 
                     <div>

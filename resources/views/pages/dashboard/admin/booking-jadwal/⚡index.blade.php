@@ -445,6 +445,7 @@ new #[Layout('layouts::admin')] class extends Component
     public function getMembershipSessionNumber(int $membershipId): int
     {
         $countBefore = PtBooking::where('membership_id', $membershipId)
+            ->where('is_free', false)
             ->where(function ($query) {
                 $query->where('booking_date', '<', $this->insertDate)
                       ->orWhere(function ($q) {
