@@ -37,10 +37,12 @@ new #[Layout('layouts::admin')] class extends Component
     public $insertDate = '';
     public $insertTime = '';
     public $insertPtId = '';
+    public $insertIsFree = false;
 
     public $showChangeCoachModal = false;
     public $changeCoachBookingId = null;
     public $newCoachId = '';
+    public $newIsFree = false;
 
     public function canManageApprovals(): bool
     {
@@ -437,6 +439,7 @@ new #[Layout('layouts::admin')] class extends Component
         $this->insertDate = '';
         $this->insertTime = '';
         $this->insertPtId = '';
+        $this->insertIsFree = false;
     }
 
     public function getMembershipSessionNumber(int $membershipId): int
@@ -555,6 +558,7 @@ new #[Layout('layouts::admin')] class extends Component
             'booking_time' => $this->insertTime,
             'status' => Auth::user()->role === 'head_coach' ? 'approved' : 'pending',
             'attendance' => 'not_yet',
+            'is_free' => $this->insertIsFree,
         ]);
 
         $this->closeInsertModal();
@@ -572,6 +576,7 @@ new #[Layout('layouts::admin')] class extends Component
 
         $this->changeCoachBookingId = $bookingId;
         $this->newCoachId = $booking->pt_id ?? '';
+        $this->newIsFree = $booking->is_free ?? false;
         $this->resetErrorBag();
         $this->showChangeCoachModal = true;
     }
@@ -581,6 +586,7 @@ new #[Layout('layouts::admin')] class extends Component
         $this->showChangeCoachModal = false;
         $this->changeCoachBookingId = null;
         $this->newCoachId = '';
+        $this->newIsFree = false;
     }
 
     public function saveChangeCoach()
@@ -602,10 +608,13 @@ new #[Layout('layouts::admin')] class extends Component
         $oldCoachName = $booking->pt?->name ?? '-';
         $newCoach = User::find($this->newCoachId);
 
-        $booking->update(['pt_id' => $this->newCoachId]);
+        $booking->update([
+            'pt_id' => $this->newCoachId,
+            'is_free' => $this->newIsFree,
+        ]);
 
         $this->closeChangeCoachModal();
-        session()->flash('success', 'Coach berhasil diganti dari '.$oldCoachName.' ke '.$newCoach?->name.'.');
+        session()->flash('success', 'Booking berhasil diperbarui. Coach: '.$oldCoachName.' → '.$newCoach?->name.'.');
     }
 }; ?>
 
@@ -740,6 +749,9 @@ new #[Layout('layouts::admin')] class extends Component
                                                             @endif">
                                                             {{ $booking->status }}
                                                         </span>
+                                                    @endif
+                                                    @if($booking->is_free)
+                                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-100 text-purple-800">Free</span>
                                                     @endif
                                                     @if($booking->status === 'approved')
                                                         <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium capitalize
@@ -944,6 +956,13 @@ new #[Layout('layouts::admin')] class extends Component
                                 @endif
                             </div>
                         </div>
+                        <div>
+                            <div class="mt-1">
+                                @if($booking->is_free)
+                                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">Free</span>
+                                @endif
+                            </div>
+                        </div>
                     </div>
 
                     @if($booking->membership && $booking->membership->members && $booking->membership->members->count() > 1)
@@ -1044,8 +1063,8 @@ new #[Layout('layouts::admin')] class extends Component
                         @if(in_array($booking->status, ['approved', 'pending']))
                             <button wire:click="openChangeCoachModal({{ $booking->id }})"
                                 class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white bg-indigo-600 rounded hover:bg-indigo-700 transition-colors">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                                Ganti Coach
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                                Edit
                             </button>
                         @endif
 
@@ -1066,7 +1085,7 @@ new #[Layout('layouts::admin')] class extends Component
         <div class="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm" wire:click.self="closeChangeCoachModal">
             <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 p-6" @click.stop>
                 <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-lg font-semibold text-gray-900">Ganti Coach</h3>
+                    <h3 class="text-lg font-semibold text-gray-900">Edit Booking</h3>
                     <button type="button" wire:click="closeChangeCoachModal" class="text-gray-400 hover:text-gray-600">
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                     </button>
@@ -1100,7 +1119,7 @@ new #[Layout('layouts::admin')] class extends Component
                 <form wire:submit.prevent="saveChangeCoach" class="space-y-4">
                     <div>
                         <label for="newCoachId" class="block text-sm font-medium text-gray-700 mb-1">
-                            Coach Baru <span class="text-red-500">*</span>
+                            Coach <span class="text-red-500">*</span>
                         </label>
                         <select id="newCoachId" wire:model="newCoachId"
                             class="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500">
@@ -1110,6 +1129,15 @@ new #[Layout('layouts::admin')] class extends Component
                             @endforeach
                         </select>
                         @error('newCoachId') <span class="text-sm text-red-600">{{ $message }}</span> @enderror
+                    </div>
+
+                    <div>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" wire:model="newIsFree" value="1"
+                                class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500">
+                            <span class="text-sm font-medium text-gray-700">Sesi Gratis</span>
+                        </label>
+                        <p class="text-xs text-gray-500 mt-1">Centang Sesi Gratis.</p>
                     </div>
 
                     <div class="flex gap-3 pt-2">
@@ -1218,6 +1246,15 @@ new #[Layout('layouts::admin')] class extends Component
                             <input type="text" readonly value="{{ \Carbon\Carbon::parse($insertTime)->format('H:i') }}"
                                 class="block w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-md text-sm text-gray-700">
                         </div>
+                    </div>
+
+                    <div>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" wire:model="insertIsFree" value="1"
+                                class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500">
+                            <span class="text-sm font-medium text-gray-700">Sesi Gratis</span>
+                        </label>
+                        <p class="text-xs text-gray-500 mt-1">Centang jika Sesi Gratis</p>
                     </div>
 
                     <div class="flex gap-3 pt-2">

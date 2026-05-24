@@ -23,6 +23,7 @@ class PtBooking extends Model
         'cancellation_requested_at',
         'rejected_at',
         'rejection_reason',
+        'is_free',
     ];
 
     protected $casts = [
@@ -31,6 +32,7 @@ class PtBooking extends Model
         'cancelled_at' => 'datetime',
         'cancellation_requested_at' => 'datetime',
         'rejected_at' => 'datetime',
+        'is_free' => 'boolean',
     ];
 
     public function membership(): BelongsTo

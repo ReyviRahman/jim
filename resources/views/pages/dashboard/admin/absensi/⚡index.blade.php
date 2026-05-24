@@ -91,27 +91,34 @@ public function processScan()
             if ($booking->attendance === 'not_yet') {
                 $membership = $booking->membership;
 
-                if (!$membership || $membership->remaining_sessions <= 0) {
+                if (!$booking->is_free && (!$membership || $membership->remaining_sessions <= 0)) {
                     session()->flash('error', 'Sesi Personal Trainer Anda sudah habis.');
                     $this->scannedCode = '';
                     return;
                 }
 
                 $booking->update(['attendance' => 'attended']);
-                $membership->decrement('remaining_sessions');
 
-                if ($membership->remaining_sessions == 0) {
-                    $membership->update(['status' => 'completed']);
+                if (!$booking->is_free) {
+                    $membership->decrement('remaining_sessions');
+
+                    if ($membership->remaining_sessions == 0) {
+                        $membership->update(['status' => 'completed']);
+                    }
                 }
 
                 Attendance::create([
                     'user_id' => $user->id,
-                    'membership_id' => $membership->id,
+                    'membership_id' => $membership?->id,
                     'type' => 'pt',
                     'check_in_time' => now(),
                 ]);
 
-                session()->flash('success', "Berhasil Check-In: {$user->name}. Sesi PT - Sisa: {$membership->remaining_sessions} sesi.");
+                $sessionInfo = $booking->is_free
+                    ? 'Sesi PT Gratis'
+                    : "Sesi PT - Sisa: {$membership->remaining_sessions} sesi";
+
+                session()->flash('success', "Berhasil Check-In: {$user->name}. {$sessionInfo}.");
                 $this->scannedCode = '';
                 return;
             }
