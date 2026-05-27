@@ -469,27 +469,7 @@ new #[Layout('layouts::admin')] class extends Component
                                 $hangus = ($membership->hangus ?? 0) + ($membership->sesi_hangus ?? 0);
                                 $sisaSesi = $sesiAwal + $sesiDitambahkan - $membership->berjalan - $hangus - $membership->sesi_digantikan;
 
-                                $priceLabel = null;
-                                $labelColor = '';
-                                $pricePaid = $membership->price_paid;
-                                $normalPrice = $membership->normal_price;
-                                $basePrice = $membership->base_price;
-                                $netPrice = $membership->net_price;
-                                $unrecommendedPrice = $membership->unrecommended_price;
-
-                                if ($unrecommendedPrice !== null && $pricePaid < $unrecommendedPrice) {
-                                    $priceLabel = 'Harga Tidak Disarankan';
-                                    $labelColor = 'bg-red-100 text-red-800';
-                                } elseif ($netPrice !== null && $pricePaid < $netPrice) {
-                                    $priceLabel = 'Harga Tidak Disarankan';
-                                    $labelColor = 'bg-red-100 text-red-800';
-                                } elseif (($normalPrice !== null && $pricePaid < $normalPrice) || ($basePrice !== null && $pricePaid < $basePrice)) {
-                                    $priceLabel = 'Harga Net';
-                                    $labelColor = 'bg-emerald-100 text-emerald-800';
-                                } else {
-                                    $priceLabel = 'Harga Normal';
-                                    $labelColor = 'bg-blue-100 text-blue-800';
-                                }
+                                $priceLabelData = $membership->getPriceLabel();
 
                                 $categoryLabel = $this->getPtCategoryLabel($membership);
                                 $ptSessionCategory = $this->ptSessionCategories->firstWhere('category', $categoryLabel);
@@ -513,10 +493,10 @@ new #[Layout('layouts::admin')] class extends Component
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div>Rp {{ number_format($membership->price_paid ?? 0, 0, ',', '.') }}</div>
-                                    @if($priceLabel)
+                                    @if($priceLabelData)
                                         <div class="mt-1">
-                                            <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full {{ $labelColor }}">
-                                                {{ $priceLabel }}
+                                            <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full {{ $priceLabelData['color'] }}">
+                                                {{ $priceLabelData['label'] }}
                                             </span>
                                         </div>
                                     @endif

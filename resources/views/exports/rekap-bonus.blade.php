@@ -44,26 +44,11 @@
             $nominal = $membership->total_paid ?? 0;
             $nominalAkhir = $membership->calculateNominalAkhir();
 
-            // Logika Kategori Harga & Tidak Disarankan
-            $pricePaid = $membership->price_paid;
-            $normalPrice = $membership->normal_price;
-            $netPrice = $membership->net_price;
-            $basePrice = $membership->base_price;
+            $priceLabelData = $membership->getPriceLabel();
+            $kategoriHarga = $priceLabelData['label'] ?? '-';
 
-            $kategoriHarga = '-';
-            $isUnrecommended = false;
-
-            if (($normalPrice !== null && $pricePaid >= $normalPrice) || ($basePrice !== null && $pricePaid >= $basePrice)) {
-                $kategoriHarga = 'Harga Normal';
-            } elseif ($netPrice !== null && $pricePaid >= $netPrice) {
-                $kategoriHarga = 'Harga Net';
-            } elseif ($pricePaid > 0) {
-                $kategoriHarga = 'Harga Tidak Disarankan';
-                $isUnrecommended = true;
-            }
-
-            $isBagiDua = $membership->follow_up_id && $membership->follow_up_id_two && ($membership->follow_up_id !== $membership->follow_up_id_two);
-            $bgColor = ($isUnrecommended || $isBagiDua) ? '#FF0000' : '#ffffff';
+            $isDibagiDua = $nominalAkhir < $nominal;
+            $bgColor = $isDibagiDua ? '#FF0000' : '#ffffff';
 
             $tglMulai = $membership->start_date ? \Carbon\Carbon::parse($membership->start_date)->locale('id')->translatedFormat('l, F d, Y') : 'BELUM AKTIF';
             $endDate = $membership->type === 'pt' ? $membership->pt_end_date : $membership->membership_end_date;

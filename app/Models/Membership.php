@@ -122,20 +122,50 @@ class Membership extends Model
         return $this->hasMany(PtBooking::class)->orderBy('booking_date')->orderBy('booking_time');
     }
 
+    public function getPriceLabel(): ?array
+    {
+        $pricePaid = (float) $this->price_paid;
+        $normalPrice = (float) $this->normal_price;
+        $basePrice = (float) $this->base_price;
+        $netPrice = (float) $this->net_price;
+        $unrecommendedPrice = (float) $this->unrecommended_price;
+
+        $effectiveNormalPrice = $normalPrice > 0 ? $normalPrice : ($basePrice > 0 ? $basePrice : null);
+        $effectiveNetPrice = $netPrice > 0 ? $netPrice : null;
+        $effectiveUnrecommendedPrice = $unrecommendedPrice > 0 ? $unrecommendedPrice : null;
+
+        if ($effectiveNormalPrice !== null && $pricePaid >= $effectiveNormalPrice) {
+            return ['label' => 'Harga Normal', 'color' => 'bg-blue-100 text-blue-800'];
+        }
+
+        if ($effectiveNetPrice !== null && $pricePaid >= $effectiveNetPrice) {
+            return ['label' => 'Harga Net', 'color' => 'bg-emerald-100 text-emerald-800'];
+        }
+
+        if ($pricePaid > 0 && ($effectiveNormalPrice !== null || $effectiveNetPrice !== null || $effectiveUnrecommendedPrice !== null)) {
+            return ['label' => 'Harga Tidak Disarankan', 'color' => 'bg-red-100 text-red-800'];
+        }
+
+        return null;
+    }
+
     public function calculateNominalAkhir(): float
     {
         $nominal = $this->total_paid ?? 0;
 
-        $pricePaid = $this->price_paid;
-        $normalPrice = $this->normal_price;
-        $netPrice = $this->net_price;
-        $basePrice = $this->base_price;
+        $pricePaid = (float) $this->price_paid;
+        $normalPrice = (float) $this->normal_price;
+        $netPrice = (float) $this->net_price;
+        $basePrice = (float) $this->base_price;
+
+        $effectiveNormalPrice = $normalPrice > 0 ? $normalPrice : ($basePrice > 0 ? $basePrice : null);
+        $effectiveNetPrice = $netPrice > 0 ? $netPrice : null;
 
         $isUnrecommended = false;
 
-        if (($normalPrice !== null && $pricePaid >= $normalPrice) || ($basePrice !== null && $pricePaid >= $basePrice)) {
+        if ($effectiveNormalPrice !== null && $pricePaid >= $effectiveNormalPrice) {
             $isUnrecommended = false;
-        } elseif ($netPrice !== null && $pricePaid >= $netPrice) {
+        } elseif ($effectiveNetPrice !== null && $pricePaid >= $effectiveNetPrice) {
             $isUnrecommended = false;
         } elseif ($pricePaid > 0) {
             $isUnrecommended = true;

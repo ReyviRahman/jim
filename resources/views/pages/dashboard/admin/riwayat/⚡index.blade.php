@@ -313,40 +313,14 @@ new #[Layout('layouts::admin')] class extends Component
 
                             {{-- Logika Penentuan Label Harga Sesuai Rentang --}}
                             @if(auth()->check() && auth()->user()->role === 'admin')
-
                                 @php
-                                    $priceLabel = null;
-                                    $labelColor = '';
-
-                                    $pricePaid = $membership->price_paid;
-                                    $normalPrice = $membership->normal_price;
-                                    $basePrice = $membership->base_price;
-                                    $netPrice = $membership->net_price;
-                                    $unrecommendedPrice = $membership->unrecommended_price;
-
-                                    if ($normalPrice !== null && $pricePaid >= $normalPrice) {
-                                        $priceLabel = 'Harga Normal';
-                                        $labelColor = 'bg-blue-100 text-blue-800';
-                                    } elseif ($netPrice !== null && $pricePaid < $netPrice) {
-                                        $priceLabel = 'Harga Tidak Disarankan';
-                                        $labelColor = 'bg-red-100 text-red-800';
-                                    } elseif ($unrecommendedPrice !== null && $pricePaid < $unrecommendedPrice) {
-                                        $priceLabel = 'Harga Tidak Disarankan';
-                                        $labelColor = 'bg-red-100 text-red-800';
-                                    } elseif ($normalPrice !== null && $pricePaid < $normalPrice) {
-                                        $priceLabel = 'Harga Net';
-                                        $labelColor = 'bg-emerald-100 text-emerald-800';
-                                    } elseif ($basePrice !== null && $pricePaid >= $basePrice) {
-                                        $priceLabel = 'Harga Normal';
-                                        $labelColor = 'bg-blue-100 text-blue-800';
-                                    }
+                                    $priceLabelData = $membership->getPriceLabel();
                                 @endphp
 
-                                {{-- Hanya cetak div label jika $priceLabel tidak null --}}
-                                @if($priceLabel)
+                                @if($priceLabelData)
                                     <div class="mt-1 flex justify-end">
-                                        <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full {{ $labelColor }}">
-                                            {{ $priceLabel }}
+                                        <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full {{ $priceLabelData['color'] }}">
+                                            {{ $priceLabelData['label'] }}
                                         </span>
                                     </div>
                                 @endif
