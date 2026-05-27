@@ -263,16 +263,21 @@ new #[Layout('layouts::admin')] class extends Component
         $pricePaid = (float) $this->price_paid;
         $normalPrice = (float) $this->normal_price_ref;
         $netPrice = (float) $this->net_price_ref;
+        $unrecommendedPrice = (float) $this->unrecommended_price_ref;
 
-        if ($normalPrice > 0 && $pricePaid >= $normalPrice) {
+        $effectiveNormalPrice = $normalPrice > 0 ? $normalPrice : null;
+        $effectiveNetPrice = $netPrice > 0 ? $netPrice : null;
+        $effectiveUnrecommendedPrice = $unrecommendedPrice > 0 ? $unrecommendedPrice : null;
+
+        if ($effectiveNormalPrice !== null && $pricePaid >= $effectiveNormalPrice) {
             return ['label' => 'Harga Normal', 'class' => 'bg-blue-100 text-blue-800 border-blue-200'];
         }
 
-        if ($netPrice > 0 && $pricePaid >= $netPrice) {
+        if ($effectiveNetPrice !== null && $pricePaid >= $effectiveNetPrice) {
             return ['label' => 'Harga Net', 'class' => 'bg-emerald-100 text-emerald-800 border-emerald-200'];
         }
 
-        if ($pricePaid > 0 && ($normalPrice > 0 || $netPrice > 0)) {
+        if ($pricePaid > 0 && ($effectiveNormalPrice !== null || $effectiveNetPrice !== null || $effectiveUnrecommendedPrice !== null)) {
             return ['label' => 'Harga Tidak Disarankan', 'class' => 'bg-red-100 text-red-800 border-red-200'];
         }
 
