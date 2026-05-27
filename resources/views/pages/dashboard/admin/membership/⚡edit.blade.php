@@ -94,6 +94,8 @@ new #[Layout('layouts::admin')] class extends Component
 
     public $paymentWarningMessage = '';
 
+    public $showPartialToPaidWarning = false;
+
     public $redirectTo = '';
 
     public $redirectId = '';
@@ -437,6 +439,11 @@ new #[Layout('layouts::admin')] class extends Component
         $this->paymentWarningMessage = '';
     }
 
+    public function cancelPartialToPaidWarning(): void
+    {
+        $this->showPartialToPaidWarning = false;
+    }
+
     public function getFormattedDate($date)
     {
         if (! $date) {
@@ -501,10 +508,12 @@ new #[Layout('layouts::admin')] class extends Component
 
         if (! $this->showPaymentWarning) {
             if ((float) $this->amount_paid < (float) $this->price_paid) {
-                $this->paymentWarningMessage = 'Total terbayar (Rp ' . number_format($this->amount_paid, 0, ',', '.') . ') kurang dari harga final (Rp ' . number_format($this->price_paid, 0, ',', '.') . '). Data akan masuk ke status Cicilan (Partial).';
-                $this->showPaymentWarning = true;
+                if ($this->membership->payment_status !== 'partial') {
+                    $this->paymentWarningMessage = 'Total terbayar (Rp ' . number_format($this->amount_paid, 0, ',', '.') . ') kurang dari harga final (Rp ' . number_format($this->price_paid, 0, ',', '.') . '). Data akan masuk ke status Cicilan (Partial).';
+                    $this->showPaymentWarning = true;
 
-                return;
+                    return;
+                }
             }
 
             if ((float) $this->amount_paid > (float) $this->price_paid) {
@@ -516,6 +525,16 @@ new #[Layout('layouts::admin')] class extends Component
         }
 
         $this->showPaymentWarning = false;
+
+        if (! $this->showPartialToPaidWarning) {
+            if ($this->membership->payment_status === 'partial' && $this->payment_type === 'paid') {
+                $this->showPartialToPaidWarning = true;
+
+                return;
+            }
+        }
+
+        $this->showPartialToPaidWarning = false;
 
         $pkt = null;
         if (in_array($this->registration_type, ['membership', 'bundle_pt_membership', 'visit']) && $this->gym_package_id) {
@@ -590,7 +609,7 @@ new #[Layout('layouts::admin')] class extends Component
                 return $this->redirectRoute($this->redirectTo, ['user' => $this->redirectId], navigate: true);
             }
 
-            return $this->redirectRoute('admin.membership.index', navigate: true);
+            return $this->redirectRoute('admin.riwayat.index', navigate: true);
 
         } catch (\Exception $e) {
             DB::rollBack();
@@ -636,10 +655,38 @@ new #[Layout('layouts::admin')] class extends Component
         </div>
     @endif
 
+    @if($showPartialToPaidWarning)
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" wire:click.self="cancelPartialToPaidWarning">
+            <div class="bg-white rounded-lg shadow-xl border border-default-medium w-full max-w-md mx-4 p-6">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="flex-shrink-0 w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center">
+                        <svg class="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    </div>
+                    <h3 class="text-lg font-semibold text-heading">Konfirmasi Perubahan Status</h3>
+                </div>
+                <p class="text-sm text-body mb-6">Status pembayaran membership ini akan berubah dari <strong>Cicilan (Partial)</strong> menjadi <strong>Lunas (Paid)</strong>. Pastikan semua data transaksi sudah benar sebelum menyimpan.</p>
+                <div class="flex gap-3">
+                    <button type="button" wire:click="cancelPartialToPaidWarning" class="flex-1 text-center text-body bg-white border border-default-medium hover:bg-gray-50 focus:ring-4 focus:ring-gray-100 font-medium rounded-md text-sm px-4 py-2.5 transition-colors">
+                        Batal
+                    </button>
+                    <button type="button" wire:click="save" class="flex-1 text-center text-white bg-brand hover:bg-brand-strong focus:ring-4 focus:ring-brand-medium font-medium rounded-md text-sm px-4 py-2.5 transition-colors">
+                        Lanjutkan Simpan
+                    </button>
+                </div>
+            </div>
+        </div>
+    @endif
+
     <div class="mb-6 flex items-end gap-2">
-        <a href="{{ route('admin.membership.index') }}" wire:navigate class="p-2 bg-white border border-default rounded-md hover:bg-gray-50 text-gray-600 transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
-        </a>
+        @if($redirectTo && $redirectId)
+            <a href="{{ route($redirectTo, ['user' => $redirectId]) }}" wire:navigate class="p-2 bg-white border border-default rounded-md hover:bg-gray-50 text-gray-600 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+            </a>
+        @else
+            <a href="{{ route('admin.riwayat.index') }}" wire:navigate class="p-2 bg-white border border-default rounded-md hover:bg-gray-50 text-gray-600 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+            </a>
+        @endif
         <div>
             <h5 class="text-xl font-semibold text-heading mb-2">Edit Membership & Transaksi</h5>
             <p class="text-body text-sm">Ubah data membership dan transaksi kasir.</p>
@@ -790,11 +837,6 @@ new #[Layout('layouts::admin')] class extends Component
                                         <label for="remaining_sessions" class="block mb-2 text-sm font-medium text-heading">Sisa Sesi</label>
                                         <input type="number" id="remaining_sessions" wire:model="remaining_sessions" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs">
                                         @error('remaining_sessions') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
-                                    </div>
-                                    <div>
-                                        <label for="sesi_ditambahkan" class="block mb-2 text-sm font-medium text-heading">Sesi Ditambahkan</label>
-                                        <input type="number" id="sesi_ditambahkan" wire:model="sesi_ditambahkan" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs">
-                                        @error('sesi_ditambahkan') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                                     </div>
                                     <div>
                                         <label for="sesi_hangus" class="block mb-2 text-sm font-medium text-heading">Sesi Hangus</label>
@@ -1082,7 +1124,7 @@ new #[Layout('layouts::admin')] class extends Component
                             Batal
                         </a>
                     @else
-                        <a href="{{ route('admin.membership.index') }}" wire:navigate class="block w-full text-center text-body bg-white border border-default-medium hover:bg-gray-50 focus:ring-4 focus:ring-gray-100 font-medium rounded-md text-sm px-4 py-3 transition-colors">
+                        <a href="{{ route('admin.riwayat.index') }}" wire:navigate class="block w-full text-center text-body bg-white border border-default-medium hover:bg-gray-50 focus:ring-4 focus:ring-gray-100 font-medium rounded-md text-sm px-4 py-3 transition-colors">
                             Batal
                         </a>
                     @endif
