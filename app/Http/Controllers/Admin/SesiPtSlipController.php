@@ -84,34 +84,7 @@ class SesiPtSlipController extends Controller
 
     private function getCategoryLabel(Membership $membership): string
     {
-        $followUpRole = $membership->followUp?->role;
-        $followUpTwoRole = $membership->followUpTwo?->role;
-
-        if (($followUpRole !== null && $followUpRole !== 'pt') || ($followUpTwoRole !== null && $followUpTwoRole !== 'pt')) {
-            return 'SLS';
-        }
-
-        $pricePaid = $membership->price_paid;
-        $netPrice = $membership->net_price;
-        $unrecommendedPrice = $membership->unrecommended_price;
-
-        if ($netPrice !== null) {
-            if ($pricePaid > $netPrice) {
-                return 'SDR';
-            }
-
-            if ($unrecommendedPrice !== null) {
-                return $pricePaid > $unrecommendedPrice ? 'IR' : 'SPR';
-            }
-
-            return 'IR';
-        }
-
-        if ($unrecommendedPrice !== null) {
-            return $pricePaid > $unrecommendedPrice ? 'SDR' : 'SPR';
-        }
-
-        return 'SDR';
+        return $membership->getPtCategoryLabel();
     }
 
     private function terbilang(int $number): string

@@ -126,7 +126,6 @@ class Membership extends Model
     {
         $pricePaid = (float) $this->price_paid;
         $normalPrice = (float) $this->normal_price;
-        $basePrice = (float) $this->base_price;
         $netPrice = (float) $this->net_price;
         $unrecommendedPrice = (float) $this->unrecommended_price;
 
@@ -147,6 +146,41 @@ class Membership extends Model
         }
 
         return null;
+    }
+
+    public function getPtCategoryLabel(): string
+    {
+        $followUpRole = $this->followUp?->role;
+        $followUpTwoRole = $this->followUpTwo?->role;
+
+        if (($followUpRole !== null && $followUpRole !== 'pt') || ($followUpTwoRole !== null && $followUpTwoRole !== 'pt')) {
+            return 'SLS';
+        }
+
+        $pricePaid = (float) $this->price_paid;
+        $netPrice = (float) $this->net_price;
+        $unrecommendedPrice = (float) $this->unrecommended_price;
+
+        $effectiveNetPrice = $netPrice > 0 ? $netPrice : null;
+        $effectiveUnrecommendedPrice = $unrecommendedPrice > 0 ? $unrecommendedPrice : null;
+
+        if ($effectiveNetPrice !== null) {
+            if ($pricePaid > $effectiveNetPrice) {
+                return 'SDR';
+            }
+
+            if ($effectiveUnrecommendedPrice !== null) {
+                return $pricePaid > $effectiveUnrecommendedPrice ? 'IR' : 'SPR';
+            }
+
+            return 'IR';
+        }
+
+        if ($effectiveUnrecommendedPrice !== null) {
+            return $pricePaid > $effectiveUnrecommendedPrice ? 'SDR' : 'SPR';
+        }
+
+        return 'SDR';
     }
 
     public function calculateNominalAkhir(): float

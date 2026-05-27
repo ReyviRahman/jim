@@ -152,7 +152,7 @@ new #[Layout('layouts::admin')] class extends Component
             $total = 0;
 
             foreach ($memberships as $membership) {
-                if ($this->getPtCategoryLabel($membership) === $category->category) {
+                if ($membership->getPtCategoryLabel() === $category->category) {
                     $jumlah += $membership->berjalan;
                     $total += $membership->berjalan * $category->amount;
                 }
@@ -324,35 +324,7 @@ new #[Layout('layouts::admin')] class extends Component
         session()->flash('success', 'Kategori sesi PT berhasil dihapus.');
     }
 
-    private function getPtCategoryLabel(Membership $membership): string
-    {
-        $followUpRole = $membership->followUp?->role;
-        $followUpTwoRole = $membership->followUpTwo?->role;
 
-        if (($followUpRole !== null && $followUpRole !== 'pt') || ($followUpTwoRole !== null && $followUpTwoRole !== 'pt')) {
-            return 'SLS';
-        }
-
-        $pricePaid = $membership->price_paid;
-        $normalPrice = $membership->normal_price;
-        $basePrice = $membership->base_price;
-        $netPrice = $membership->net_price;
-        $unrecommendedPrice = $membership->unrecommended_price;
-
-        if ($unrecommendedPrice !== null && $pricePaid < $unrecommendedPrice) {
-            return 'SPR';
-        }
-
-        if ($netPrice !== null && $pricePaid < $netPrice) {
-            return 'SPR';
-        }
-
-        if (($normalPrice !== null && $pricePaid < $normalPrice) || ($basePrice !== null && $pricePaid < $basePrice)) {
-            return 'IR';
-        }
-
-        return 'SDR';
-    }
 };
 ?>
 
@@ -471,7 +443,7 @@ new #[Layout('layouts::admin')] class extends Component
 
                                 $priceLabelData = $membership->getPriceLabel();
 
-                                $categoryLabel = $this->getPtCategoryLabel($membership);
+                                $categoryLabel = $membership->getPtCategoryLabel();
                                 $ptSessionCategory = $this->ptSessionCategories->firstWhere('category', $categoryLabel);
                                 $categoryNominal = $ptSessionCategory?->amount ?? 0;
                                 $categoryTotal = $membership->berjalan * $categoryNominal;
