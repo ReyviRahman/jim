@@ -130,7 +130,7 @@ class Membership extends Model
         $netPrice = (float) $this->net_price;
         $unrecommendedPrice = (float) $this->unrecommended_price;
 
-        $effectiveNormalPrice = $normalPrice > 0 ? $normalPrice : ($basePrice > 0 ? $basePrice : null);
+        $effectiveNormalPrice = $normalPrice > 0 ? $normalPrice : null;
         $effectiveNetPrice = $netPrice > 0 ? $netPrice : null;
         $effectiveUnrecommendedPrice = $unrecommendedPrice > 0 ? $unrecommendedPrice : null;
 
@@ -158,7 +158,7 @@ class Membership extends Model
         $netPrice = (float) $this->net_price;
         $basePrice = (float) $this->base_price;
 
-        $effectiveNormalPrice = $normalPrice > 0 ? $normalPrice : ($basePrice > 0 ? $basePrice : null);
+        $effectiveNormalPrice = $normalPrice > 0 ? $normalPrice : null;
         $effectiveNetPrice = $netPrice > 0 ? $netPrice : null;
 
         $isUnrecommended = false;

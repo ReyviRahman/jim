@@ -263,9 +263,8 @@ new #[Layout('layouts::admin')] class extends Component
         $pricePaid = (float) $this->price_paid;
         $normalPrice = (float) $this->normal_price_ref;
         $netPrice = (float) $this->net_price_ref;
-        $basePrice = (float) $this->base_price;
 
-        if (($normalPrice > 0 && $pricePaid >= $normalPrice) || ($basePrice > 0 && $pricePaid >= $basePrice)) {
+        if ($normalPrice > 0 && $pricePaid >= $normalPrice) {
             return ['label' => 'Harga Normal', 'class' => 'bg-blue-100 text-blue-800 border-blue-200'];
         }
 
@@ -273,7 +272,7 @@ new #[Layout('layouts::admin')] class extends Component
             return ['label' => 'Harga Net', 'class' => 'bg-emerald-100 text-emerald-800 border-emerald-200'];
         }
 
-        if ($pricePaid > 0) {
+        if ($pricePaid > 0 && ($normalPrice > 0 || $netPrice > 0)) {
             return ['label' => 'Harga Tidak Disarankan', 'class' => 'bg-red-100 text-red-800 border-red-200'];
         }
 
