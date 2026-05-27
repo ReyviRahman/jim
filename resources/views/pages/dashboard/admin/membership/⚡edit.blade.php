@@ -696,7 +696,7 @@ new #[Layout('layouts::admin')] class extends Component
     <div class="space-y-6">
 
             <div class="p-4 bg-neutral-primary-soft shadow-xs rounded-md border border-default">
-                <h6 class="text-sm font-semibold text-heading mb-3 pb-2 border-b border-default-medium">Member yang Didaftarkan:</h6>
+                <h6 class="text-sm font-semibold text-heading mb-3 pb-2 border-b border-default-medium">Member yang Didaftarkan</h6>
                 <div class="space-y-4">
                     @foreach($selectedUsers as $index => $u)
                         <div class="flex items-center">
