@@ -44,7 +44,7 @@ new #[Layout('layouts::admin')] class extends Component
         <h5 class="text-xl font-semibold text-heading">Detail Membership - {{ $user->name }}</h5>
     </div>
 
-    {{-- Info Profil User --}}
+    {{-- Info Profil User Utama --}}
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
         
         <div class="col-span-1">
@@ -91,6 +91,59 @@ new #[Layout('layouts::admin')] class extends Component
         </div>
 
     </div>
+
+    {{-- Info Profil Member Lainnya --}}
+    @php
+        $allMembers = collect();
+        foreach ($this->memberships as $membership) {
+            foreach ($membership->members as $member) {
+                if ($member->id !== $user->id) {
+                    $allMembers->push($member);
+                }
+            }
+        }
+        $uniqueMembers = $allMembers->unique('id')->values();
+    @endphp
+
+    @if($uniqueMembers->count() > 0)
+        <div class="mb-6">
+            <h4 class="text-lg font-semibold text-heading mb-4">Member Lainnya</h4>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                @foreach($uniqueMembers as $member)
+                    <div class="bg-neutral-primary-soft border border-default rounded-base shadow-xs p-6">
+                        <div class="flex items-center gap-4 mb-4">
+                            @if($member->photo)
+                                <img class="w-16 h-16 rounded-full object-cover border-2 border-neutral-secondary-medium" src="{{ asset('storage/' . $member->photo) }}" alt="{{ $member->name }}">
+                            @else
+                                <img class="w-16 h-16 rounded-full object-cover border-2 border-neutral-secondary-medium" src="https://ui-avatars.com/api/?name={{ urlencode($member->name) }}&background=random&size=128" alt="{{ $member->name }}">
+                            @endif
+                            <div>
+                                <h3 class="text-lg font-bold text-heading">{{ $member->name }}</h3>
+                                <span class="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full {{ $member->is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }}">
+                                    {{ $member->is_active ? 'Akun Aktif' : 'Akun Tidak Aktif' }}
+                                </span>
+                            </div>
+                        </div>
+                        
+                        <div class="space-y-2">
+                            <div>
+                                <label class="block text-xs font-medium text-body">Email</label>
+                                <p class="text-sm text-heading">{{ $member->email }}</p>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-body">No HP / WhatsApp</label>
+                                <p class="text-sm text-heading">{{ $member->phone ?? '-' }}</p>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-body">Role</label>
+                                <p class="text-sm text-heading capitalize">{{ str_replace('_', ' ', $member->role) }}</p>
+                            </div>
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+        </div>
+    @endif
 
     {{-- Tabel Membership --}}
     <div class="relative overflow-x-auto bg-neutral-primary-soft shadow-xs rounded-md border border-default">
