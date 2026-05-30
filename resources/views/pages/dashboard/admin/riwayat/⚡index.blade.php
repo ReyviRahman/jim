@@ -408,13 +408,17 @@ new #[Layout('layouts::admin')] class extends Component
                         </td>
 
                         <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
-                            <h1 class="font-semibold">{{ $membership->followUp->name ?? '-' }}</h1>
+                            <span class="font-semibold">{{ $membership->followUp->name ?? '-' }}</span>
                         </td>
                         <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
-                            <h1 class="font-semibold">{{ $membership->followUpTwo->name ?? '-' }}</h1>
+                            <span class="font-semibold">{{ $membership->followUpTwo->name ?? '-' }}</span>
                         </td>
                         <td class="px-6 py-4 text-center whitespace-nowrap">
                             <div class="flex items-center justify-center gap-2">
+                                <a href="{{ route('admin.riwayat.detail', $membership->user_id) }}" wire:navigate class="inline-flex items-center text-blue-600 hover:text-blue-800 font-medium text-sm">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 me-1"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                                    Detail
+                                </a>
                                 @if(auth()->check() && auth()->user()->role === 'admin')
                                     <a href="{{ route('admin.membership.edit', $membership->id) }}?redirect_to={{ urlencode('admin.riwayat.index') }}" class="inline-flex items-center text-brand hover:text-brand-dark font-medium text-sm">
                                         <svg class="w-4 h-4 me-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10"></path></svg>
@@ -430,7 +434,7 @@ new #[Layout('layouts::admin')] class extends Component
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="7" class="px-6 py-8 text-center text-gray-500">
+                        <td colspan="8" class="px-6 py-8 text-center text-gray-500">
                             Belum ada riwayat transaksi membership.
                         </td>
                     </tr>

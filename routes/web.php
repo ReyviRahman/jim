@@ -88,6 +88,9 @@ Route::middleware('auth')->group(function () {
         Route::livewire('/riwayat', 'pages::dashboard.admin.riwayat.index')
             ->name('admin.riwayat.index');
 
+        Route::livewire('/riwayat/{user}', 'pages::dashboard.admin.riwayat.detail')
+            ->name('admin.riwayat.detail');
+
         Route::livewire('/membership/gabung', 'pages::dashboard.admin.membership.gabung')
             ->name('admin.membership.gabung');
 
