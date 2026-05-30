@@ -20,8 +20,33 @@ new #[Layout('layouts::admin')] class extends Component
     public $dateStart = null;
     public $dateEnd = null;
 
+    public $sortBy = 'created_at';
+    public $sortDirection = 'desc';
+
+    public function sort($column)
+    {
+        if ($this->sortBy === $column) {
+            $this->sortDirection = $this->sortDirection === 'asc' ? 'desc' : 'asc';
+        } else {
+            $this->sortBy = $column;
+            $this->sortDirection = 'asc';
+        }
+
+        $this->resetPage();
+    }
+
     // Reset halaman ke 1 setiap kali user mengetik pencarian
     public function updatingSearch()
+    {
+        $this->resetPage();
+    }
+
+    public function updatingSortBy()
+    {
+        $this->resetPage();
+    }
+
+    public function updatingSortDirection()
     {
         $this->resetPage();
     }
@@ -82,12 +107,24 @@ new #[Layout('layouts::admin')] class extends Component
         } elseif ($this->filterTime === 'custom' && $this->dateStart && $this->dateEnd) {
             // Logika Flatpickr
             $query->whereBetween('created_at', [
-                $this->dateStart . ' 00:00:00', 
+                $this->dateStart . ' 00:00:00',
                 $this->dateEnd . ' 23:59:59'
             ]);
         }
 
-        return $query->latest()->paginate(10);
+        // 3. Logika Sorting
+        if ($this->sortBy === 'user_name') {
+            $query->join('users', 'memberships.user_id', '=', 'users.id')
+                ->orderBy('users.name', $this->sortDirection)
+                ->select('memberships.*');
+        } elseif ($this->sortBy === 'package_name') {
+            $query->orderBy('transaction_type', $this->sortDirection)
+                ->orderBy('package_name', $this->sortDirection);
+        } else {
+            $query->orderBy('created_at', $this->sortDirection);
+        }
+
+        return $query->paginate(10);
     }
 
     public function exportExcel()
@@ -212,8 +249,18 @@ new #[Layout('layouts::admin')] class extends Component
             <thead class="text-sm text-body bg-neutral-secondary-medium border-b border-default-medium">
                 <tr>
                     <th scope="col" class="px-6 py-3 font-medium">No</th>
-                    <th scope="col" class="px-6 py-3 font-medium">Member</th>
-                    <th scope="col" class="px-6 py-3 font-medium">Program / Paket</th>
+                    <th scope="col" wire:click="sort('user_name')" class="px-6 py-3 font-medium cursor-pointer hover:bg-gray-200 select-none">
+                        Member
+                        @if($sortBy === 'user_name')
+                            <span class="ml-1">{{ $sortDirection === 'asc' ? '▲' : '▼' }}</span>
+                        @endif
+                    </th>
+                    <th scope="col" wire:click="sort('package_name')" class="px-6 py-3 font-medium cursor-pointer hover:bg-gray-200 select-none">
+                        Program / Paket
+                        @if($sortBy === 'package_name')
+                            <span class="ml-1">{{ $sortDirection === 'asc' ? '▲' : '▼' }}</span>
+                        @endif
+                    </th>
                     <th scope="col" class="px-6 py-3 font-medium text-right">Total Bayar</th>
                     <th scope="col" class="px-6 py-3 font-medium">Masa Aktif</th>
                     <th scope="col" class="px-6 py-3 font-medium text-center">Admin Follow Up</th>

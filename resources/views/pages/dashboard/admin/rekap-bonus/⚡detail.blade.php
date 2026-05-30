@@ -22,6 +22,21 @@ new #[Layout('layouts::admin')] class extends Component
     public $startDate;
     public $endDate;
 
+    public $sortBy = 'transactions_max_payment_date';
+    public $sortDirection = 'desc';
+
+    public function sort($column)
+    {
+        if ($this->sortBy === $column) {
+            $this->sortDirection = $this->sortDirection === 'asc' ? 'desc' : 'asc';
+        } else {
+            $this->sortBy = $column;
+            $this->sortDirection = 'asc';
+        }
+
+        $this->resetPage();
+    }
+
     public function mount(User $user)
     {
         $this->staffUser = $user;
@@ -31,7 +46,7 @@ new #[Layout('layouts::admin')] class extends Component
     public function setFilterTime($time)
     {
         $this->filterTime = $time;
-        
+
         switch ($time) {
             case 'today':
                 $this->startDate = Carbon::today()->toDateString();
@@ -46,7 +61,7 @@ new #[Layout('layouts::admin')] class extends Component
                 $this->endDate = Carbon::now()->endOfMonth()->toDateString();
                 break;
         }
-        
+
         $this->resetPage(); // Reset paginasi setiap kali filter berubah
     }
 
@@ -73,7 +88,17 @@ new #[Layout('layouts::admin')] class extends Component
         $this->resetPage();
     }
 
+    public function updatingSortBy()
+    {
+        $this->resetPage();
+    }
+
     public function updatingSearch()
+    {
+        $this->resetPage();
+    }
+
+    public function updatingSortDirection()
     {
         $this->resetPage();
     }
@@ -109,11 +134,22 @@ new #[Layout('layouts::admin')] class extends Component
     #[Computed]
     public function memberships()
     {
-        return $this->getBaseQuery()
+        $query = $this->getBaseQuery()
             ->with(['user', 'followUp', 'followUpTwo', 'gymPackage', 'ptPackage', 'transactions'])
-            ->withMax('transactions', 'payment_date')
-            ->orderByDesc('transactions_max_payment_date')
-            ->paginate(500);
+            ->withMax('transactions', 'payment_date');
+
+        if ($this->sortBy === 'user_name') {
+            $query->join('users', 'memberships.user_id', '=', 'users.id')
+                ->orderBy('users.name', $this->sortDirection)
+                ->select('memberships.*');
+        } elseif ($this->sortBy === 'package_name') {
+            $query->orderBy('transaction_type', $this->sortDirection)
+                ->orderBy('package_name', $this->sortDirection);
+        } else {
+            $query->orderBy('transactions_max_payment_date', $this->sortDirection);
+        }
+
+        return $query->paginate(500);
     }
 
     #[Computed]
@@ -244,8 +280,18 @@ new #[Layout('layouts::admin')] class extends Component
                     <th class="px-6 py-3 font-medium text-center border border-default-medium">Tgl Mulai</th>
                     <th class="px-6 py-3 font-medium text-center border border-default-medium">Tgl Selesai</th>
                     <th rowspan="3" class="px-6 py-3 font-medium align-middle border border-default-medium">Tgl Bayar</th>
-                    <th rowspan="3" class="px-6 py-3 font-medium align-middle border border-default-medium">Paket Membership</th>
-                    <th rowspan="3" class="px-6 py-3 font-medium align-middle border border-default-medium">Nama Member</th>
+                    <th rowspan="3" wire:click="sort('package_name')" class="px-6 py-3 font-medium align-middle border border-default-medium cursor-pointer hover:bg-gray-200 select-none">
+                        Paket Membership
+                        @if($sortBy === 'package_name')
+                            <span class="ml-1">{{ $sortDirection === 'asc' ? '▲' : '▼' }}</span>
+                        @endif
+                    </th>
+                    <th rowspan="3" wire:click="sort('user_name')" class="px-6 py-3 font-medium align-middle border border-default-medium cursor-pointer hover:bg-gray-200 select-none">
+                        Nama Member
+                        @if($sortBy === 'user_name')
+                            <span class="ml-1">{{ $sortDirection === 'asc' ? '▲' : '▼' }}</span>
+                        @endif
+                    </th>
                     <th rowspan="3" class="px-6 py-3 font-medium text-right align-middle border border-default-medium">Nominal</th>
                     <th rowspan="3" class="px-6 py-3 font-medium text-right align-middle border border-default-medium">Nominal Akhir</th>
                     <th rowspan="3" class="px-6 py-3 font-medium align-middle border border-default-medium">Follow Up 1</th>
