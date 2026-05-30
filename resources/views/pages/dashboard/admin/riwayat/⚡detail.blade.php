@@ -152,6 +152,7 @@ new #[Layout('layouts::admin')] class extends Component
                 <tr>
                     <th scope="col" class="px-6 py-3 font-medium">No</th>
                     <th scope="col" class="px-6 py-3 font-medium">Member</th>
+                    <th scope="col" class="px-6 py-3 font-medium">Semua Member</th>
                     <th scope="col" class="px-6 py-3 font-medium">Program / Paket</th>
                     <th scope="col" class="px-6 py-3 font-medium text-right">Total Bayar</th>
                     <th scope="col" class="px-6 py-3 font-medium">Masa Aktif</th>
@@ -171,6 +172,19 @@ new #[Layout('layouts::admin')] class extends Component
                         {{-- INFO MEMBER --}}
                         <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
                             <div class="flex flex-col gap-1.5">
+                                @forelse($membership->members as $member)
+                                    <div class="flex items-center gap-2">
+                                        <span class="font-semibold">{{ $member->name }}</span>
+                                    </div>
+                                @empty
+                                    <div class="font-semibold">{{ $membership->user->name ?? 'N/A' }}</div>
+                                @endforelse
+                            </div>
+                        </td>
+
+                        {{-- INFO SEMUA MEMBER --}}
+                        <td class="px-6 py-4 text-heading whitespace-nowrap">
+                            <div class="flex flex-col gap-2">
                                 @forelse($membership->members as $member)
                                     <div class="flex items-center gap-2">
                                         <span class="font-semibold">{{ $member->name }}</span>
@@ -307,7 +321,7 @@ new #[Layout('layouts::admin')] class extends Component
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="7" class="px-6 py-8 text-center text-gray-500">
+                        <td colspan="8" class="px-6 py-8 text-center text-gray-500">
                             Belum ada riwayat membership untuk user ini.
                         </td>
                     </tr>
