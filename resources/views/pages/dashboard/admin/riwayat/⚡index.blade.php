@@ -415,7 +415,7 @@ new #[Layout('layouts::admin')] class extends Component
                         </td>
                         <td class="px-6 py-4 text-center whitespace-nowrap">
                             <div class="flex items-center justify-center gap-2">
-                                <a href="{{ route('admin.riwayat.detail', $membership->user_id) }}" wire:navigate class="inline-flex items-center text-blue-600 hover:text-blue-800 font-medium text-sm">
+                                <a href="{{ route('admin.riwayat.detail', $membership->user_id) }}?members={{ $membership->members->pluck('id')->implode(',') }}" wire:navigate class="inline-flex items-center text-blue-600 hover:text-blue-800 font-medium text-sm">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 me-1"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
                                     Detail
                                 </a>

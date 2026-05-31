@@ -10,31 +10,31 @@ use App\Models\Membership;
 new #[Layout('layouts::admin')] class extends Component
 {
     public User $user;
+    public array $memberIds = [];
 
     public function mount(User $user)
     {
         $this->user = $user;
+        
+        // Get member IDs from query string if provided
+        $membersParam = request()->query('members');
+        if ($membersParam) {
+            $this->memberIds = array_map('intval', explode(',', $membersParam));
+        } else {
+            // Default to just the user
+            $this->memberIds = [$user->id];
+        }
     }
 
     public function getMembershipsProperty()
     {
-        // Get memberships where user is the payer
-        $paidMemberships = Membership::where('user_id', $this->user->id)
-            ->with(['user', 'members', 'admin', 'followUp', 'followUpTwo', 'personalTrainer', 'gymPackage', 'ptPackage'])
-            ->get();
-
-        // Get memberships where user is a member (via pivot)
-        $memberMemberships = Membership::whereHas('members', function ($query) {
-                $query->where('user_id', $this->user->id);
+        return Membership::whereIn('user_id', $this->memberIds)
+            ->orWhereHas('members', function ($query) {
+                $query->whereIn('user_id', $this->memberIds);
             })
             ->with(['user', 'members', 'admin', 'followUp', 'followUpTwo', 'personalTrainer', 'gymPackage', 'ptPackage'])
+            ->orderBy('created_at', 'desc')
             ->get();
-
-        // Merge and remove duplicates
-        return $paidMemberships->merge($memberMemberships)
-            ->unique('id')
-            ->sortByDesc('created_at')
-            ->values();
     }
 };
 ?>
