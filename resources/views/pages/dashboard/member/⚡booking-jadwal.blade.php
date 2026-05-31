@@ -215,7 +215,15 @@ new #[Layout('layouts::member')] class extends Component
         $userId = Auth::id();
 
         $query = PtBooking::with(['membership.ptPackage', 'membership.personalTrainer', 'pt'])
-            ->where('member_id', $userId)
+            ->where(function ($q) use ($userId) {
+                $q->where('member_id', $userId)
+                  ->orWhereHas('membership', function ($subQ) use ($userId) {
+                      $subQ->where('user_id', $userId)
+                           ->orWhereHas('members', function ($mQ) use ($userId) {
+                               $mQ->where('users.id', $userId);
+                           });
+                  });
+            })
             ->orderBy('booking_date', 'desc');
 
         if (! empty($this->search)) {

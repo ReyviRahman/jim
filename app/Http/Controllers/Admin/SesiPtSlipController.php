@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Membership;
 use App\Models\PtPaymentBatch;
 use App\Models\PtSessionCategory;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\Carbon;
 
 class SesiPtSlipController extends Controller
 {
@@ -58,6 +60,42 @@ class SesiPtSlipController extends Controller
         ]);
 
         $fileName = 'Pembayaran_PT_'.str_replace(' ', '_', $batch->pt?->name ?? 'Unknown').'_Batch_'.$batch->id.'.pdf';
+
+        return $pdf->download($fileName);
+    }
+
+    public function printAttendance(Membership $membership)
+    {
+        $membership->load([
+            'user',
+            'members',
+            'personalTrainer',
+            'ptBookings.pt',
+        ]);
+
+        $totalSessions = ($membership->total_sessions ?? 0) + ($membership->sesi_ditambahkan ?? 0);
+
+        $startDate = Carbon::parse($membership->start_date ?? $membership->created_at);
+        $endDate = Carbon::parse($membership->pt_end_date);
+        $durationMonths = $startDate->diffInMonths($endDate);
+
+        $allMembers = collect([$membership->user])->merge($membership->members)->unique('id')->filter()->values();
+
+        $attendedBookings = $membership->ptBookings
+            ->where('attendance', 'attended')
+            ->sortBy('booking_date')
+            ->values();
+
+        $pdf = Pdf::loadView('pages.dashboard.admin.sesi-pt.attendance-pdf', [
+            'membership' => $membership,
+            'allMembers' => $allMembers,
+            'totalSessions' => $totalSessions,
+            'durationMonths' => $durationMonths,
+            'attendedBookings' => $attendedBookings,
+        ]);
+
+        $primaryName = str_replace(' ', '_', $membership->user?->name ?? 'Unknown');
+        $fileName = 'Absensi_PT_'.$membership->id.'_'.$primaryName.'.pdf';
 
         return $pdf->download($fileName);
     }

@@ -32,7 +32,7 @@ new #[Layout('layouts::admin')] class extends Component
     public function ptBookings()
     {
         return $this->membership->ptBookings()
-            ->with(['member', 'pt'])
+            ->with(['member', 'pt', 'membership.members'])
             ->orderBy('booking_date', 'desc')
             ->orderBy('booking_time', 'desc')
             ->get();
@@ -182,7 +182,17 @@ new #[Layout('layouts::admin')] class extends Component
     </div>
 
     <div class="mb-6">
-        <h5 class="text-xl font-semibold text-heading">Detail Booking Membership: {{ $membership->user->name ?? '-' }}</h5>
+        <h5 class="text-xl font-semibold text-heading">
+            Detail Booking Membership: {{ $membership->user->name ?? '-' }}
+            @if($membership->members && $membership->members->count() > 1)
+                <span class="text-sm font-normal text-body">
+                    &
+                    @foreach($membership->members->where('id', '!=', $membership->user_id) as $member)
+                        {{ $member->name }}@if(!$loop->last), @endif
+                    @endforeach
+                </span>
+            @endif
+        </h5>
         <p class="text-sm text-body mt-1">Paket: {{ $membership->ptPackage->name ?? '-' }}</p>
     </div>
 
@@ -236,9 +246,16 @@ new #[Layout('layouts::admin')] class extends Component
     <div class="bg-neutral-primary-soft shadow-xs rounded-md border border-default">
         <div class="p-4 flex items-center justify-between">
             <h6 class="text-lg font-semibold text-heading">Jadwal Booking PT</h6>
-            <button type="button" wire:click="openCreateBookingModal" class="text-white bg-brand box-border border border-transparent hover:bg-brand-strong focus:ring-4 focus:ring-brand-medium shadow-xs font-medium leading-5 rounded-md text-sm px-4 py-2.5 focus:outline-none">
-                + Tambah Booking
-            </button>
+            <div class="flex items-center gap-2">
+                <a href="{{ route('admin.sesi-pt.attendance-pdf', $membership->id) }}" target="_blank"
+                   class="inline-flex items-center text-white bg-red-600 box-border border border-transparent hover:bg-red-700 focus:ring-4 focus:ring-red-300 shadow-xs font-medium leading-5 rounded-md text-sm px-4 py-2.5 focus:outline-none">
+                    <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                    Download PDF
+                </a>
+                <button type="button" wire:click="openCreateBookingModal" class="text-white bg-brand box-border border border-transparent hover:bg-brand-strong focus:ring-4 focus:ring-brand-medium shadow-xs font-medium leading-5 rounded-md text-sm px-4 py-2.5 focus:outline-none">
+                    + Tambah Booking
+                </button>
+            </div>
         </div>
 
         <div class="overflow-x-auto">
@@ -269,6 +286,13 @@ new #[Layout('layouts::admin')] class extends Component
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 {{ $booking->member?->name ?? '-' }}
+                                @if($booking->membership && $booking->membership->members && $booking->membership->members->count() > 1)
+                                    <div class="text-xs text-body font-normal mt-0.5">
+                                        @foreach($booking->membership->members->where('id', '!=', $booking->member_id) as $member)
+                                            {{ $member->name }}@if(!$loop->last), @endif
+                                        @endforeach
+                                    </div>
+                                @endif
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 {{ $booking->pt?->name ?? '-' }}

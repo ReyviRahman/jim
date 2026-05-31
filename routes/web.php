@@ -198,6 +198,9 @@ Route::middleware('auth')->group(function () {
 
         Route::get('/sesi-pt/payment-batch/{batch}/print', [SesiPtSlipController::class, 'printPaymentBatch'])
             ->name('admin.sesi-pt.payment-batch-print');
+
+        Route::get('/sesi-pt/membership/{membership}/attendance-pdf', [SesiPtSlipController::class, 'printAttendance'])
+            ->name('admin.sesi-pt.attendance-pdf');
     });
 
     Route::middleware('role:admin,kasir_gym,kasir_minum')->prefix('dashboard/admin')->group(function () {

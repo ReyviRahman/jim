@@ -135,8 +135,14 @@ new #[Layout('layouts::admin')] class extends Component
             ->orderBy('booking_time');
 
         if (! empty($this->search)) {
-            $query->whereHas('member', function ($q) {
-                $q->where('name', 'like', '%'.$this->search.'%');
+            $search = '%'.$this->search.'%';
+            $query->where(function ($q) use ($search) {
+                $q->whereHas('member', function ($sub) use ($search) {
+                    $sub->where('name', 'like', $search);
+                })
+                ->orWhereHas('membership.members', function ($sub) use ($search) {
+                    $sub->where('name', 'like', $search);
+                });
             });
         }
 

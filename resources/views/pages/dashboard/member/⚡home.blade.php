@@ -107,7 +107,6 @@ public function mount()
         }
 
         return PtBooking::where('membership_id', $this->selectedMembershipId)
-            ->where('member_id', Auth::id())
             ->where('status', 'approved')
             ->where('attendance', 'not_yet')
             ->whereNull('cancellation_requested_at')

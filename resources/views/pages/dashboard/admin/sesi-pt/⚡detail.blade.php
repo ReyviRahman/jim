@@ -60,7 +60,7 @@ new #[Layout('layouts::admin')] class extends Component
                 $query->whereDate('start_date', '<=', $this->dateEnd)
                     ->whereDate('pt_end_date', '>=', $this->dateStart);
             })
-            ->with(['user', 'ptPackage', 'gymPackage', 'followUp', 'followUpTwo'])
+            ->with(['user', 'ptPackage', 'gymPackage', 'followUp', 'followUpTwo', 'members'])
             ->withCount([
                 'ptBookings as berjalan' => function ($q) {
                     $q->where('attendance', 'attended')
@@ -515,6 +515,13 @@ new #[Layout('layouts::admin')] class extends Component
                                 </td>
                                 <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
                                     {{ $membership->user->name ?? '-' }}
+                                    @if($membership->members && $membership->members->count() > 1)
+                                        <div class="text-xs text-body font-normal mt-0.5">
+                                            @foreach($membership->members->where('id', '!=', $membership->user_id) as $member)
+                                                {{ $member->name }}@if(!$loop->last), @endif
+                                            @endforeach
+                                        </div>
+                                    @endif
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     {{ $membership->followUp->name ?? '-' }}
@@ -646,6 +653,13 @@ new #[Layout('layouts::admin')] class extends Component
                                 </td>
                                 <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
                                     {{ $membership->user->name ?? '-' }}
+                                    @if($membership->members && $membership->members->count() > 1)
+                                        <div class="text-xs text-body font-normal mt-0.5">
+                                            @foreach($membership->members->where('id', '!=', $membership->user_id) as $member)
+                                                {{ $member->name }}@if(!$loop->last), @endif
+                                            @endforeach
+                                        </div>
+                                    @endif
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     {{ $membership->followUp->name ?? '-' }}
