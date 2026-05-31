@@ -50,9 +50,9 @@
       "work_id": "dashboard-chart-c00a569a",
       "active_plan": "C:\\web\\jim\\.omo\\plans\\dashboard-chart.md",
       "plan_name": "dashboard-chart",
-      "status": "active",
+      "status": "completed",
       "started_at": "2026-05-31T01:27:06.960Z",
-      "updated_at": "2026-05-31T01:27:06.960Z",
+      "updated_at": "2026-05-31T01:38:36.865Z",
       "session_ids": [
         "ses_184f14a3dffeOYCSwO2gAXSgnt"
       ],
@@ -60,13 +60,15 @@
         "ses_184f14a3dffeOYCSwO2gAXSgnt": "direct"
       },
       "agent": "atlas",
-      "task_sessions": {}
+      "task_sessions": {},
+      "ended_at": "2026-05-31T01:38:36.865Z",
+      "elapsed_ms": 689905
     }
   },
   "active_plan": "C:\\web\\jim\\.omo\\plans\\dashboard-chart.md",
   "started_at": "2026-05-31T01:27:06.960Z",
-  "status": "active",
-  "updated_at": "2026-05-31T01:27:06.960Z",
+  "status": "completed",
+  "updated_at": "2026-05-31T01:38:36.865Z",
   "session_ids": [
     "ses_184f14a3dffeOYCSwO2gAXSgnt"
   ],
@@ -75,5 +77,7 @@
   },
   "plan_name": "dashboard-chart",
   "task_sessions": {},
-  "agent": "atlas"
+  "agent": "atlas",
+  "ended_at": "2026-05-31T01:38:36.865Z",
+  "elapsed_ms": 689905
 }

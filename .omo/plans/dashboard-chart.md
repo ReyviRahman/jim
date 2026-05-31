@@ -56,11 +56,11 @@ Membuat halaman dashboard admin dengan Bar Chart yang menampilkan 3 kategori mem
 - Modifikasi: `resources/views/layouts/admin.blade.php` (tambah link Dashboard)
 
 ### Definition of Done
-- [ ] Route `admin.dashboard` terdaftar dan bisa diakses
-- [ ] Bar Chart menampilkan 3 kategori (Aktif, Belum Aktif, Cicilan)
-- [ ] Filter Flatpickr berfungsi dengan default 15-15
-- [ ] Query menggunakan payment_date terakhir dari membership_transactions
-- [ ] Link Dashboard muncul di sidebar
+- [x] Route `admin.dashboard` terdaftar dan bisa diakses
+- [x] Bar Chart menampilkan 3 kategori (Aktif, Belum Aktif, Cicilan)
+- [x] Filter Flatpickr berfungsi dengan default 15-15
+- [x] Query menggunakan payment_date terakhir dari membership_transactions
+- [x] Link Dashboard muncul di sidebar
 
 ### Must Have
 - Route `/dashboard/admin` sebagai root admin
@@ -108,7 +108,7 @@ Wave FINAL (4 parallel reviews):
 
 ## TODOs
 
-- [ ] 1. Route baru `admin.dashboard`
+- [x] 1. Route baru `admin.dashboard`
 
   **What to do**:
   - Tambahkan route baru di `routes/web.php` di dalam middleware group `role:admin,kasir_gym,head_coach`
@@ -126,7 +126,7 @@ Wave FINAL (4 parallel reviews):
   - Message: `feat(dashboard): add route for admin dashboard`
   - Files: `routes/web.php`
 
-- [ ] 2. Halaman dashboard Livewire SFC
+- [x] 2. Halaman dashboard Livewire SFC
 
   **What to do**:
   - Buat file: `resources/views/pages/dashboard/admin/⚡index.blade.php`
@@ -184,7 +184,7 @@ Wave FINAL (4 parallel reviews):
   - Message: `feat(dashboard): add admin dashboard with bar chart`
   - Files: `resources/views/pages/dashboard/admin/⚡index.blade.php`
 
-- [ ] 3. Link Dashboard di sidebar
+- [x] 3. Link Dashboard di sidebar
 
   **What to do**:
   - Modifikasi `resources/views/layouts/admin.blade.php`
@@ -207,10 +207,10 @@ Wave FINAL (4 parallel reviews):
 
 ## Final Verification Wave
 
-- [ ] F1. **Plan Compliance Audit** — `oracle`
-- [ ] F2. **Code Quality Review** — `unspecified-high`
-- [ ] F3. **Real Manual QA** — `unspecified-high`
-- [ ] F4. **Scope Fidelity Check** — `deep`
+- [x] F1. **Plan Compliance Audit** — `oracle`
+- [x] F2. **Code Quality Review** — `unspecified-high`
+- [x] F3. **Real Manual QA** — `unspecified-high`
+- [x] F4. **Scope Fidelity Check** — `deep`
 
 ---
 
@@ -231,8 +231,8 @@ php artisan view:cache
 ```
 
 ### Final Checklist
-- [ ] Route `admin.dashboard` terdaftar
-- [ ] Halaman dashboard menampilkan Bar Chart
-- [ ] 3 kategori muncul (Aktif, Belum Aktif, Cicilan)
-- [ ] Filter Flatpickr berfungsi
-- [ ] Link Dashboard muncul di sidebar
+- [x] Route `admin.dashboard` terdaftar
+- [x] Halaman dashboard menampilkan Bar Chart
+- [x] 3 kategori muncul (Aktif, Belum Aktif, Cicilan)
+- [x] Filter Flatpickr berfungsi
+- [x] Link Dashboard muncul di sidebar
