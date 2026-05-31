@@ -282,12 +282,12 @@ new #[Layout('layouts::admin')] class extends Component
                             <div class="flex flex-col gap-1.5">
                                 @forelse($membership->members as $member)
                                     <div class="flex items-center gap-2">
-                                        <a href="{{ route('admin.riwayat.detail', $member->id) }}" wire:navigate class="font-semibold text-brand hover:text-brand-dark hover:underline cursor-pointer">
+                                        <a href="{{ route('admin.riwayat.detail', $member->id) }}" wire:navigate class="font-semibold text-black hover:text-black hover:underline cursor-pointer">
                                             {{ $member->name }}
                                         </a>
                                     </div>
                                 @empty
-                                    <a href="{{ route('admin.riwayat.detail', $membership->user_id) }}" wire:navigate class="font-semibold text-brand hover:text-brand-dark hover:underline cursor-pointer">
+                                    <a href="{{ route('admin.riwayat.detail', $membership->user_id) }}" wire:navigate class="font-semibold text-black hover:text-black hover:underline cursor-pointer">
                                         {{ $membership->user->name ?? 'N/A' }}
                                     </a>
                                 @endforelse
