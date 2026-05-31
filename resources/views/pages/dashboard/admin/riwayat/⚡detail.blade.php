@@ -10,27 +10,17 @@ use App\Models\Membership;
 new #[Layout('layouts::admin')] class extends Component
 {
     public User $user;
-    public array $memberIds = [];
 
     public function mount(User $user)
     {
         $this->user = $user;
-        
-        // Get member IDs from query string if provided
-        $membersParam = request()->query('members');
-        if ($membersParam) {
-            $this->memberIds = array_map('intval', explode(',', $membersParam));
-        } else {
-            // Default to just the user
-            $this->memberIds = [$user->id];
-        }
     }
 
     public function getMembershipsProperty()
     {
-        return Membership::whereIn('user_id', $this->memberIds)
+        return Membership::where('user_id', $this->user->id)
             ->orWhereHas('members', function ($query) {
-                $query->whereIn('user_id', $this->memberIds);
+                $query->where('user_id', $this->user->id);
             })
             ->with(['user', 'members', 'admin', 'followUp', 'followUpTwo', 'personalTrainer', 'gymPackage', 'ptPackage'])
             ->orderBy('created_at', 'desc')
@@ -162,10 +152,10 @@ new #[Layout('layouts::admin')] class extends Component
                 <tr>
                     <th scope="col" class="px-6 py-3 font-medium">No</th>
                     <th scope="col" class="px-6 py-3 font-medium">Member</th>
-                    <th scope="col" class="px-6 py-3 font-medium">Semua Member</th>
                     <th scope="col" class="px-6 py-3 font-medium">Program / Paket</th>
                     <th scope="col" class="px-6 py-3 font-medium text-right">Total Bayar</th>
                     <th scope="col" class="px-6 py-3 font-medium">Masa Aktif</th>
+                    <th scope="col" class="px-6 py-3 font-medium text-center">Status</th>
                     <th scope="col" class="px-6 py-3 font-medium text-center">Admin Follow Up</th>
                     <th scope="col" class="px-6 py-3 font-medium text-center">Sales Follow Up</th>
                 </tr>
@@ -182,19 +172,6 @@ new #[Layout('layouts::admin')] class extends Component
                         {{-- INFO MEMBER --}}
                         <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
                             <div class="flex flex-col gap-1.5">
-                                @forelse($membership->members as $member)
-                                    <div class="flex items-center gap-2">
-                                        <span class="font-semibold">{{ $member->name }}</span>
-                                    </div>
-                                @empty
-                                    <div class="font-semibold">{{ $membership->user->name ?? 'N/A' }}</div>
-                                @endforelse
-                            </div>
-                        </td>
-
-                        {{-- INFO SEMUA MEMBER --}}
-                        <td class="px-6 py-4 text-heading whitespace-nowrap">
-                            <div class="flex flex-col gap-2">
                                 @forelse($membership->members as $member)
                                     <div class="flex items-center gap-2">
                                         <span class="font-semibold">{{ $member->name }}</span>
@@ -320,6 +297,28 @@ new #[Layout('layouts::admin')] class extends Component
                                     </div>
                                 @endif
                             </div>
+                        </td>
+
+                        <td class="px-6 py-4 whitespace-nowrap text-center">
+                            @php
+                                $statusColor = match($membership->status) {
+                                    'active' => 'bg-green-100 text-green-800',
+                                    'pending' => 'bg-yellow-100 text-yellow-800',
+                                    'expired' => 'bg-red-100 text-red-800',
+                                    'cancelled' => 'bg-gray-100 text-gray-800',
+                                    default => 'bg-blue-100 text-blue-800'
+                                };
+                                $statusLabel = match($membership->status) {
+                                    'active' => 'Aktif',
+                                    'pending' => 'Menunggu',
+                                    'expired' => 'Kadaluarsa',
+                                    'cancelled' => 'Dibatalkan',
+                                    default => ucfirst($membership->status)
+                                };
+                            @endphp
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ $statusColor }}">
+                                {{ $statusLabel }}
+                            </span>
                         </td>
 
                         <td class="px-6 py-4 font-medium text-heading whitespace-nowrap text-center">
