@@ -3,40 +3,21 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Membership;
+use App\Models\PtPaymentBatch;
 use App\Models\PtSessionCategory;
-use App\Models\User;
 use Barryvdh\DomPDF\Facade\Pdf;
-use Illuminate\Http\Request;
 
 class SesiPtSlipController extends Controller
 {
-    public function print(User $user, Request $request)
+    public function printPaymentBatch(PtPaymentBatch $batch)
     {
-        $dateStart = $request->input('date_start');
-        $dateEnd = $request->input('date_end');
+        $batch->load([
+            'items.ptBooking.membership.followUp',
+            'items.ptBooking.membership.followUpTwo',
+            'pt',
+        ]);
 
-        $memberships = Membership::where('pt_id', $user->id)
-            ->when($dateStart && $dateEnd, function ($query) use ($dateStart, $dateEnd) {
-                $query->whereDate('start_date', '<=', $dateEnd)
-                    ->whereDate('pt_end_date', '>=', $dateStart);
-            })
-            ->with(['followUp', 'followUpTwo'])
-            ->withCount([
-                'ptBookings as berjalan' => function ($q) use ($dateStart, $dateEnd) {
-                    $q->where('attendance', 'attended');
-                    if ($dateStart && $dateEnd) {
-                        $q->whereBetween('booking_date', [
-                            $dateStart.' 00:00:00',
-                            $dateEnd.' 23:59:59',
-                        ]);
-                    }
-                },
-            ])
-            ->orderBy('created_at', 'desc')
-            ->get();
-
-        $ptSessionCategories = PtSessionCategory::where('pt_id', $user->id)
+        $ptSessionCategories = PtSessionCategory::where('pt_id', $batch->pt_id)
             ->latest()
             ->get();
 
@@ -46,45 +27,39 @@ class SesiPtSlipController extends Controller
 
         foreach ($ptSessionCategories as $category) {
             $jumlah = 0;
-            $total = 0;
 
-            foreach ($memberships as $membership) {
-                if ($this->getCategoryLabel($membership) === $category->category) {
-                    $jumlah += $membership->berjalan;
-                    $total += $membership->berjalan * $category->amount;
+            foreach ($batch->items as $item) {
+                if ($item->ptBooking?->membership?->getPtCategoryLabel() === $category->category) {
+                    $jumlah++;
                 }
             }
 
-            $rows[] = [
-                'jenis' => $category->category,
-                'jumlah' => $jumlah,
-                'total' => $total,
-            ];
+            if ($jumlah > 0) {
+                $total = $jumlah * $category->amount;
+                $rows[] = [
+                    'jenis' => $category->category,
+                    'jumlah' => $jumlah,
+                    'total' => $total,
+                ];
 
-            $grandTotalJumlah += $jumlah;
-            $grandTotal += $total;
+                $grandTotalJumlah += $jumlah;
+                $grandTotal += $total;
+            }
         }
 
         $terbilang = $this->terbilang($grandTotal);
 
-        $pdf = Pdf::loadView('pages.dashboard.admin.sesi-pt.slip-pdf', [
-            'user' => $user,
-            'dateStart' => $dateStart,
-            'dateEnd' => $dateEnd,
+        $pdf = Pdf::loadView('pages.dashboard.admin.sesi-pt.payment-batch-pdf', [
+            'batch' => $batch,
             'rows' => $rows,
             'grandTotalJumlah' => $grandTotalJumlah,
             'grandTotal' => $grandTotal,
             'terbilang' => $terbilang,
         ]);
 
-        $fileName = 'Slip_PT_'.str_replace(' ', '_', $user->name).'_'.($dateStart ?? 'all').'.pdf';
+        $fileName = 'Pembayaran_PT_'.str_replace(' ', '_', $batch->pt?->name ?? 'Unknown').'_Batch_'.$batch->id.'.pdf';
 
         return $pdf->download($fileName);
-    }
-
-    private function getCategoryLabel(Membership $membership): string
-    {
-        return $membership->getPtCategoryLabel();
     }
 
     private function terbilang(int $number): string

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>Slip Sesi PT - {{ $user->name }}</title>
+    <title>Detail Pembayaran Sesi PT - {{ $batch->pt?->name ?? 'Unknown' }}</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'DejaVu Sans', sans-serif; font-size: 12px; color: #333; padding: 20px; }
@@ -26,20 +26,20 @@
 <body>
     <div class="header">
         <img src="{{ public_path('icon.png') }}" alt="Icon">
-        <h2>SLIP SESI PT</h2>
+        <h2>DETAIL PEMBAYARAN SESI PT #{{ $batch->id }}</h2>
     </div>
 
     <div class="info">
-        @if($dateStart && $dateEnd)
+        @if($batch->date_start && $batch->date_end)
             <p>
-                @if($dateStart === $dateEnd)
-                    {{ \Carbon\Carbon::parse($dateStart)->translatedFormat('d F Y') }}
+                @if($batch->date_start->equalTo($batch->date_end))
+                    {{ $batch->date_start->translatedFormat('d F Y') }}
                 @else
-                    {{ \Carbon\Carbon::parse($dateStart)->translatedFormat('d F Y') }} - {{ \Carbon\Carbon::parse($dateEnd)->translatedFormat('d F Y') }}
+                    {{ $batch->date_start->translatedFormat('d F Y') }} - {{ $batch->date_end->translatedFormat('d F Y') }}
                 @endif
             </p>
         @endif
-        <p><strong>NAMA:</strong> {{ $user->name }}</p>
+        <p><strong>NAMA:</strong> {{ $batch->pt?->name ?? '-' }}</p>
     </div>
 
     <table>

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class PtBooking extends Model
 {
@@ -24,6 +25,7 @@ class PtBooking extends Model
         'rejected_at',
         'rejection_reason',
         'is_free',
+        'is_paid',
     ];
 
     protected $casts = [
@@ -33,6 +35,7 @@ class PtBooking extends Model
         'cancellation_requested_at' => 'datetime',
         'rejected_at' => 'datetime',
         'is_free' => 'boolean',
+        'is_paid' => 'boolean',
     ];
 
     public function membership(): BelongsTo
@@ -53,6 +56,11 @@ class PtBooking extends Model
     public function cancelledBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'cancelled_by');
+    }
+
+    public function paymentBatchItem(): HasOne
+    {
+        return $this->hasOne(PtPaymentBatchItem::class);
     }
 
     public function isApproved(): bool

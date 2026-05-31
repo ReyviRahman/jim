@@ -141,7 +141,6 @@ Route::middleware('auth')->group(function () {
     });
 
     Route::middleware('role:admin,head_coach')->prefix('dashboard/admin')->group(function () {
-        
 
         Route::livewire('/pengeluaran/{expense}/edit', 'pages::dashboard.admin.pengeluaran.edit')->name('admin.pengeluaran.edit');
 
@@ -197,8 +196,8 @@ Route::middleware('auth')->group(function () {
         Route::livewire('/sesi-pt/membership/{membership}/detail', 'pages::dashboard.admin.sesi-pt.membership-detail')
             ->name('admin.sesi-pt.membership-detail');
 
-        Route::get('/sesi-pt/{user}/slip-print', [SesiPtSlipController::class, 'print'])
-            ->name('admin.sesi-pt.slip-print');
+        Route::get('/sesi-pt/payment-batch/{batch}/print', [SesiPtSlipController::class, 'printPaymentBatch'])
+            ->name('admin.sesi-pt.payment-batch-print');
     });
 
     Route::middleware('role:admin,kasir_gym,kasir_minum')->prefix('dashboard/admin')->group(function () {
