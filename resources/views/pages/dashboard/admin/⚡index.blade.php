@@ -60,20 +60,24 @@ new #[Layout('layouts::admin')] class extends Component
 
     public function getDoubleMembershipsProperty()
     {
-        // Ambil semua user_id dari memberships utama (status != completed)
-        $mainUserIds = Membership::where('status', '!=', 'completed')->pluck('user_id');
+        // Ambil semua membership dengan status != completed beserta user_id
+        $mainMemberships = Membership::where('status', '!=', 'completed')
+            ->get(['user_id', 'id']);
 
-        // Ambil semua user_id dari pivot membership_users (anggota couple/group)
-        $pivotUserIds = DB::table('membership_users')
+        // Ambil semua pivot membership dengan status != completed
+        $pivotMemberships = DB::table('membership_users')
             ->join('memberships', 'membership_users.membership_id', '=', 'memberships.id')
             ->where('memberships.status', '!=', 'completed')
-            ->pluck('membership_users.user_id');
+            ->select('membership_users.user_id', 'membership_users.membership_id as id')
+            ->get();
 
-        // Gabungkan dan hitung frekuensi — ambil yang muncul > 1 kali
-        $doubleUserIds = $mainUserIds
-            ->merge($pivotUserIds)
-            ->countBy()
-            ->filter(fn (int $count): bool => $count > 1)
+        // Gabungkan dan hitung membership unik per user
+        $doubleUserIds = collect($mainMemberships)
+            ->merge($pivotMemberships)
+            ->mapToGroups(function ($item): array {
+                return [$item->user_id => $item->id];
+            })
+            ->filter(fn ($membershipIds): bool => $membershipIds->unique()->count() > 1)
             ->keys();
 
         // Ambil semua membership di mana user dobel terdaftar (sebagai user_id utama atau anggota)
