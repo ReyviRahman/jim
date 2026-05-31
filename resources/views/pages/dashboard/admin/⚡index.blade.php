@@ -184,8 +184,71 @@ new #[Layout('layouts::admin')] class extends Component
     </div>
 
     {{-- Chart Container --}}
-    <div class="bg-neutral-primary-soft border border-default rounded-base shadow-xs p-6 mb-6">
-        <canvas id="membershipChart" width="400" height="200"></canvas>
+    <div class="bg-neutral-primary-soft border border-default rounded-base shadow-xs p-6 mb-6"
+         x-data="{
+             chart: null,
+             init() {
+                 this.render(@js($this->chartData));
+                 Livewire.on('chartDataUpdated', (data) => {
+                     this.render(data[0]);
+                 });
+             },
+             render(data) {
+                 if (this.chart) {
+                     this.chart.destroy();
+                 }
+                 this.chart = new Chart(this.$refs.canvas.getContext('2d'), {
+                     type: 'bar',
+                     data: {
+                         labels: data.labels,
+                         datasets: [{
+                             label: 'Jumlah Membership',
+                             data: data.data,
+                             backgroundColor: data.colors,
+                             borderColor: data.colors,
+                             borderWidth: 1,
+                             borderRadius: 8,
+                             barThickness: 60,
+                         }]
+                     },
+                     options: {
+                         responsive: true,
+                         maintainAspectRatio: false,
+                         plugins: {
+                             legend: {
+                                 display: false
+                             },
+                             tooltip: {
+                                 callbacks: {
+                                     label: function(context) {
+                                         var suffix = context.label === 'Tidak Aktif' ? ' User' : ' Membership';
+                                         return context.parsed.y + suffix;
+                                     }
+                                 }
+                             }
+                         },
+                         scales: {
+                             y: {
+                                 beginAtZero: true,
+                                 ticks: {
+                                     stepSize: 1,
+                                     precision: 0
+                                 },
+                                 grid: {
+                                     color: 'rgba(0, 0, 0, 0.1)'
+                                 }
+                             },
+                             x: {
+                                 grid: {
+                                     display: false
+                                 }
+                             }
+                         }
+                     }
+                 });
+             }
+         }">
+        <canvas x-ref="canvas" width="400" height="200"></canvas>
     </div>
 
     {{-- Tabel Membership Dobel --}}
@@ -359,79 +422,4 @@ new #[Layout('layouts::admin')] class extends Component
         </div>
     </div>
 
-    {{-- Chart.js CDN --}}
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-    <script>
-        document.addEventListener('livewire:initialized', function () {
-            let chart = null;
-
-            function initChart(data) {
-                const ctx = document.getElementById('membershipChart').getContext('2d');
-                
-                if (chart) {
-                    chart.destroy();
-                }
-
-                chart = new Chart(ctx, {
-                    type: 'bar',
-                    data: {
-                        labels: data.labels,
-                        datasets: [{
-                            label: 'Jumlah Membership',
-                            data: data.data,
-                            backgroundColor: data.colors,
-                            borderColor: data.colors,
-                            borderWidth: 1,
-                            borderRadius: 8,
-                            barThickness: 60,
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: {
-                                display: false
-                            },
-                            tooltip: {
-                                callbacks: {
-                                    label: function(context) {
-                                        var suffix = context.label === 'Tidak Aktif' ? ' User' : ' Membership';
-                                        return context.parsed.y + suffix;
-                                    }
-                                }
-                            }
-                        },
-                        scales: {
-                            y: {
-                                beginAtZero: true,
-                                ticks: {
-                                    stepSize: 1,
-                                    precision: 0
-                                },
-                                grid: {
-                                    color: 'rgba(0, 0, 0, 0.1)'
-                                }
-                            },
-                            x: {
-                                grid: {
-                                    display: false
-                                }
-                            }
-                        }
-                    }
-                });
-            }
-
-            // Initial load
-            const initialData = @json($this->chartData);
-            initChart(initialData);
-
-            // Update on Livewire updates
-            Livewire.on('chartDataUpdated', function (data) {
-                initChart(data[0]);
-            });
-        });
-    </script>
 </div>
