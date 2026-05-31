@@ -1,6 +1,6 @@
 {
   "schema_version": 2,
-  "active_work_id": "riwayat-detail-b470e40f",
+  "active_work_id": "dashboard-chart-c00a569a",
   "works": {
     "riwayat-detail-b470e40f": {
       "work_id": "riwayat-detail-b470e40f",
@@ -45,47 +45,35 @@
       },
       "ended_at": "2026-05-30T23:40:31.583Z",
       "elapsed_ms": 609614
+    },
+    "dashboard-chart-c00a569a": {
+      "work_id": "dashboard-chart-c00a569a",
+      "active_plan": "C:\\web\\jim\\.omo\\plans\\dashboard-chart.md",
+      "plan_name": "dashboard-chart",
+      "status": "active",
+      "started_at": "2026-05-31T01:27:06.960Z",
+      "updated_at": "2026-05-31T01:27:06.960Z",
+      "session_ids": [
+        "ses_184f14a3dffeOYCSwO2gAXSgnt"
+      ],
+      "session_origins": {
+        "ses_184f14a3dffeOYCSwO2gAXSgnt": "direct"
+      },
+      "agent": "atlas",
+      "task_sessions": {}
     }
   },
-  "active_plan": "C:\\web\\jim\\.omo\\plans\\riwayat-detail.md",
-  "started_at": "2026-05-30T23:30:21.969Z",
-  "status": "completed",
-  "updated_at": "2026-05-30T23:40:31.583Z",
+  "active_plan": "C:\\web\\jim\\.omo\\plans\\dashboard-chart.md",
+  "started_at": "2026-05-31T01:27:06.960Z",
+  "status": "active",
+  "updated_at": "2026-05-31T01:27:06.960Z",
   "session_ids": [
     "ses_184f14a3dffeOYCSwO2gAXSgnt"
   ],
   "session_origins": {
     "ses_184f14a3dffeOYCSwO2gAXSgnt": "direct"
   },
-  "plan_name": "riwayat-detail",
-  "task_sessions": {
-    "todo:1": {
-      "task_key": "todo:1",
-      "task_label": "1",
-      "task_title": "Route baru `admin.riwayat.detail`",
-      "session_id": "ses_184c38644ffeCQ0jUPVHjwq48a",
-      "agent": "Sisyphus-Junior",
-      "category": "quick",
-      "updated_at": "2026-05-30T23:35:07.070Z",
-      "started_at": "2026-05-30T23:34:29.936Z",
-      "status": "completed",
-      "ended_at": "2026-05-30T23:35:07.069Z",
-      "elapsed_ms": 37133
-    },
-    "final-wave:f1": {
-      "task_key": "final-wave:f1",
-      "task_label": "F1",
-      "task_title": "**Plan Compliance Audit** — `oracle`",
-      "session_id": "ses_184c1a31cffeOqlI4fTdtN8YpK",
-      "agent": "oracle",
-      "updated_at": "2026-05-30T23:39:16.954Z",
-      "started_at": "2026-05-30T23:36:32.655Z",
-      "status": "completed",
-      "ended_at": "2026-05-30T23:39:16.954Z",
-      "elapsed_ms": 164299
-    }
-  },
-  "agent": "atlas",
-  "ended_at": "2026-05-30T23:40:31.583Z",
-  "elapsed_ms": 609614
+  "plan_name": "dashboard-chart",
+  "task_sessions": {},
+  "agent": "atlas"
 }

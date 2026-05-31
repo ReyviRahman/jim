@@ -71,6 +71,9 @@ Route::middleware('auth')->group(function () {
     // GROUP 2: KHUSUS ADMIN
     // Middleware: harus login DAN role = admin
     Route::middleware('role:admin,kasir_gym,head_coach')->prefix('dashboard/admin')->group(function () {
+        Route::livewire('/', 'pages::dashboard.admin.index')
+            ->name('admin.dashboard');
+
         Route::livewire('/absensi', 'pages::dashboard.admin.absensi')
             ->name('admin.absensi.index');
 

@@ -32,6 +32,20 @@
             <ul class="space-y-2 font-medium px-3">
                 @if($isAdminOrKasir)
                 <li>
+                    <a href="{{ route('admin.dashboard') }}" wire:navigate
+                        class="{{ request()->routeIs('admin.dashboard') ? 'text-[#34342F] bg-brand' : 'text-white' }} flex items-center px-2 py-1.5 rounded-md hover:bg-brand hover:text-[#34342F] group transition-colors">
+
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="3" width="7" height="7"/>
+                            <rect x="14" y="3" width="7" height="7"/>
+                            <rect x="14" y="14" width="7" height="7"/>
+                            <rect x="3" y="14" width="7" height="7"/>
+                        </svg>
+
+                        <span class="ms-3">Dashboard</span>
+                    </a>
+                </li>
+                <li>
                     <a href="{{ route('admin.absensi.index') }}" wire:navigate 
                         class="{{ request()->routeIs('admin.absensi.*') ? 'text-[#34342F] bg-brand' : 'text-white' }} flex items-center px-2 py-1.5 rounded-md hover:bg-brand hover:text-[#34342F] group transition-colors">
                             
