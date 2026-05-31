@@ -18,13 +18,23 @@ new #[Layout('layouts::admin')] class extends Component
 
     public function getMembershipsProperty()
     {
-        return Membership::where('user_id', $this->user->id)
-            ->orWhereHas('members', function ($query) {
+        // Get memberships where user is the payer
+        $paidMemberships = Membership::where('user_id', $this->user->id)
+            ->with(['user', 'members', 'admin', 'followUp', 'followUpTwo', 'personalTrainer', 'gymPackage', 'ptPackage'])
+            ->get();
+
+        // Get memberships where user is a member (via pivot)
+        $memberMemberships = Membership::whereHas('members', function ($query) {
                 $query->where('user_id', $this->user->id);
             })
             ->with(['user', 'members', 'admin', 'followUp', 'followUpTwo', 'personalTrainer', 'gymPackage', 'ptPackage'])
-            ->orderBy('created_at', 'desc')
             ->get();
+
+        // Merge and remove duplicates
+        return $paidMemberships->merge($memberMemberships)
+            ->unique('id')
+            ->sortByDesc('created_at')
+            ->values();
     }
 };
 ?>
