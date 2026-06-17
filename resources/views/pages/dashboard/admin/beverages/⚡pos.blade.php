@@ -21,11 +21,13 @@ new #[Layout('layouts::admin')] class extends Component
     public $showExpenseModal = false;
     public $expense_name = '';
     public $expense_amount = '';
+    public $expense_date = '';
 
     public function mount()
     {
         $this->nama_staff = auth()->user()->name ?? '';
         $this->shift = auth()->user()->shift ?? 'pagi';
+        $this->expense_date = now()->format('Y-m-d');
     }
 
     public function searchProducts()
@@ -146,6 +148,7 @@ new #[Layout('layouts::admin')] class extends Component
         $this->showExpenseModal = false;
         $this->expense_name = '';
         $this->expense_amount = '';
+        $this->expense_date = now()->format('Y-m-d');
     }
 
     public function saveExpense()
@@ -157,7 +160,7 @@ new #[Layout('layouts::admin')] class extends Component
 
         BeverageSale::create([
             'nama_staff' => $this->nama_staff,
-            'waktu_transaksi' => now(),
+            'waktu_transaksi' => $this->expense_date,
             'shift' => $this->shift,
             'jumlah_beli' => 0,
             'harga_satuan' => 0,
@@ -586,6 +589,12 @@ new #[Layout('layouts::admin')] class extends Component
                             <input type="text" wire:model.live="expense_amount"
                                 class="block w-full px-3 py-2.5 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs"
                                 placeholder="Contoh: 50000">
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="block mb-2 text-sm font-medium text-heading">Tanggal</label>
+                            <input type="date" wire:model.live="expense_date"
+                                class="block w-full px-3 py-2.5 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs">
                         </div>
 
                         <div class="flex flex-col gap-2 mt-6">

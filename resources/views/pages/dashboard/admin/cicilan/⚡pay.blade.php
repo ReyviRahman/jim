@@ -18,6 +18,7 @@ new #[Layout('layouts::admin')] class extends Component
     public $transaction_type = '';
     public $payment_date = '';
     public $notes = '';
+    public $admin_id;
 
     // Split Payment
     public $is_split_payment = false;
@@ -38,6 +39,7 @@ new #[Layout('layouts::admin')] class extends Component
         }
 
         $this->payment_date = now()->format('Y-m-d');
+        $this->admin_id = Auth::id();
 
         // Auto isi form dengan nominal sisa tagihan penuh
         // $this->amount_paid = $this->sisaTagihan;
@@ -140,7 +142,7 @@ new #[Layout('layouts::admin')] class extends Component
                             'invoice_number' => 'INV-' . date('Ymd') . '-' . strtoupper(uniqid()),
                             'membership_id' => $this->membership->id,
                             'user_id' => $this->membership->user_id,
-                            'admin_id' => $this->membership->admin_id,
+                            'admin_id' => $this->admin_id,
                             'follow_up_id' => $this->membership->follow_up_id ?: null,
                             'follow_up_id_two' => $this->membership->follow_up_id_two ?: null,
                             'transaction_type' => $this->transaction_type,
@@ -159,7 +161,7 @@ new #[Layout('layouts::admin')] class extends Component
                     'invoice_number' => 'INV-' . date('Ymd') . '-' . strtoupper(uniqid()),
                     'membership_id' => $this->membership->id,
                     'user_id' => $this->membership->user_id,
-                    'admin_id' => $this->membership->admin_id, 
+                    'admin_id' => $this->admin_id,
                     'follow_up_id' => $this->membership->follow_up_id ?: null,
                     'follow_up_id_two' => $this->membership->follow_up_id_two ?: null,
                     'transaction_type' => $this->transaction_type,
@@ -484,9 +486,18 @@ new #[Layout('layouts::admin')] class extends Component
                     </div>
 
                     <div>
-                        <label class="block mb-1 text-sm font-medium text-heading">Catatan</label>
+                        <label class="block mb-1 text-sm font-medium text-heading">Catatasss</label>
                         <textarea wire:model="notes" rows="2" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2 shadow-xs placeholder-gray-400" placeholder="Contoh: PELUNASAN NEW MEMBER" required></textarea>
                         @error('notes') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                    </div>
+
+                    <div>
+                        <label class="block mb-1 text-sm font-medium text-heading">Di proses oleh</label>
+                        <select wire:model="admin_id" disabled class="bg-gray-100 border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2 shadow-xs cursor-not-allowed">
+                            <option value="{{ Auth::id() }}">{{ Auth::user()->name }}</option>
+                        </select>
+                        <input type="hidden" wire:model="admin_id">
+                        @error('admin_id') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                     </div>
 
                 </div>
