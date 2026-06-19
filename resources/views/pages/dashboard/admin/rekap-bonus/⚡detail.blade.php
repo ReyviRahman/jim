@@ -7,6 +7,7 @@ use Livewire\WithPagination;
 use App\Models\User;
 use App\Models\Membership;
 use App\Models\SalesKonsultan;
+use App\Models\KasirKonsultan;
 use Carbon\Carbon;
 use App\Exports\RekapBonusExport;
 use Maatwebsite\Excel\Facades\Excel;
@@ -169,7 +170,12 @@ new #[Layout('layouts::admin')] class extends Component
     public function bonusInfo(): array
     {
         $total = $this->totalNominalAkhir;
-        $range = SalesKonsultan::findByNominal($total);
+
+        $range = match ($this->staffUser->role) {
+            'kasir_gym' => KasirKonsultan::findByNominal($total),
+            'sales' => SalesKonsultan::findByNominal($total),
+            default => null,
+        };
 
         if (! $range) {
             return [
