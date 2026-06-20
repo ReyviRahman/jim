@@ -234,4 +234,9 @@ Route::middleware('auth')->group(function () {
         Route::livewire('/beverages/invoice/{invoice}/edit', 'pages::dashboard.admin.beverages.invoice-edit')
             ->name('admin.beverages.invoice.edit');
     });
+
+    Route::middleware('role:admin')->prefix('dashboard/admin')->group(function () {
+        Route::livewire('/rentang-bonus', 'pages::dashboard.admin.rentang-bonus')
+            ->name('admin.rentang-bonus.index');
+    });
 });

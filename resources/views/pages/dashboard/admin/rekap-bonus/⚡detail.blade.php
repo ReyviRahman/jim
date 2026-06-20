@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Models\Membership;
 use App\Models\SalesKonsultan;
 use App\Models\KasirKonsultan;
+use App\Models\CoachKonsultan;
 use Carbon\Carbon;
 use App\Exports\RekapBonusExport;
 use Maatwebsite\Excel\Facades\Excel;
@@ -174,6 +175,7 @@ new #[Layout('layouts::admin')] class extends Component
         $range = match ($this->staffUser->role) {
             'kasir_gym' => KasirKonsultan::findByNominal($total),
             'sales' => SalesKonsultan::findByNominal($total),
+            'pt' => CoachKonsultan::findByNominal($total),
             default => null,
         };
 

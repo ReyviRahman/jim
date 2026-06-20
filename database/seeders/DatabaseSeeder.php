@@ -22,6 +22,7 @@ class DatabaseSeeder extends Seeder
             BeverageSeeder::class,
             SalesKonsultanSeeder::class,
             KasirKonsultanSeeder::class,
+            CoachKonsultanSeeder::class,
         ]);
         // User::factory()->create([
         //     'name' => 'Test User',

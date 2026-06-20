@@ -2,6 +2,7 @@
 
 namespace App\Exports;
 
+use App\Models\CoachKonsultan;
 use App\Models\KasirKonsultan;
 use App\Models\Membership;
 use App\Models\SalesKonsultan;
@@ -73,6 +74,7 @@ class RekapBonusExport implements FromView, ShouldAutoSize, WithStyles
         $range = match ($staffUser->role) {
             'kasir_gym' => KasirKonsultan::findByNominal($totalNominalAkhir),
             'sales' => SalesKonsultan::findByNominal($totalNominalAkhir),
+            'pt' => CoachKonsultan::findByNominal($totalNominalAkhir),
             default => null,
         };
 
