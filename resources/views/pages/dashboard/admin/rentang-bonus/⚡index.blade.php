@@ -312,7 +312,7 @@ new #[Layout('layouts::admin')] class extends Component
     {{-- Kasir Konsultan --}}
     <div class="mt-10">
         <div class="flex justify-between items-center mb-6">
-            <h5 class="text-xl font-semibold text-heading">Master Data Kasir Konsultan</h5>
+            <h5 class="text-xl font-semibold text-heading">Master Data Admin Konsultan</h5>
             <button wire:click="openKasirModal" class="text-white bg-brand box-border border border-transparent hover:bg-brand-strong focus:ring-4 focus:ring-brand-medium shadow-xs font-medium leading-5 rounded-md text-sm px-4 py-2.5 focus:outline-none">+ Tambah Rentang</button>
         </div>
 
