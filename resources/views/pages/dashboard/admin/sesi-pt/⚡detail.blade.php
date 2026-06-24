@@ -31,6 +31,8 @@ new #[Layout('layouts::admin')] class extends Component
     public bool $showPaymentDetailModal = false;
     public ?int $selectedPaymentBatchId = null;
 
+    public string $search = '';
+
     public function mount(User $user)
     {
         $this->user = $user;
@@ -59,6 +61,11 @@ new #[Layout('layouts::admin')] class extends Component
             ->when($this->dateStart && $this->dateEnd, function ($query) {
                 $query->whereDate('start_date', '<=', $this->dateEnd)
                     ->whereDate('pt_end_date', '>=', $this->dateStart);
+            })
+            ->when($this->search, function ($query) {
+                $query->whereHas('user', function ($q) {
+                    $q->where('name', 'like', '%'.$this->search.'%');
+                });
             })
             ->with(['user', 'ptPackage', 'gymPackage', 'followUp', 'followUpTwo', 'members'])
             ->withCount([
@@ -142,6 +149,11 @@ new #[Layout('layouts::admin')] class extends Component
     {
         return $this->getMembershipQuery()
             ->where('pt_id', $this->user->id)
+            ->orderBy(
+                User::select('name')
+                    ->whereColumn('users.id', 'memberships.user_id')
+                    ->limit(1)
+            )
             ->orderBy('created_at', 'desc')
             ->get();
     }
@@ -157,6 +169,11 @@ new #[Layout('layouts::admin')] class extends Component
                     ->whereColumn('pt_bookings.membership_id', 'memberships.id')
                     ->where('pt_bookings.pt_id', $this->user->id);
             })
+            ->orderBy(
+                User::select('name')
+                    ->whereColumn('users.id', 'memberships.user_id')
+                    ->limit(1)
+            )
             ->orderBy('created_at', 'desc')
             ->get();
     }
@@ -403,41 +420,51 @@ new #[Layout('layouts::admin')] class extends Component
         <h5 class="text-xl font-semibold text-heading">Detail Sesi PT: {{ $user->name }}</h5>
     </div>
 
-    <div class="bg-neutral-primary-soft shadow-xs rounded-md border border-default">
-        <div class="p-4 flex flex-col md:flex-row items-center justify-between gap-4">
-            <div class="flex items-center gap-3 w-full md:w-auto">
-                <div class="w-full md:w-auto">
-                    <div class="relative w-full md:w-56" wire:ignore>
-                        <div class="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
-                            <svg class="w-4 h-4 text-body" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 10h16M8 14h8m-4-7V4M7 7V4m10 3V4M5 20h14a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1Z"/></svg>
-                        </div>
-                        <input type="text" x-data
-                            x-init="flatpickr($el, {
-                                mode: 'range',
-                                dateFormat: 'Y-m-d',
-                                defaultDate: ['{{ $dateStart }}', '{{ $dateEnd }}'],
-                                placeholder: 'Pilih Tanggal',
-                                onClose: function(selectedDates, dateStr, instance) {
-                                    @this.call('setDateRange', dateStr)
-                                }
-                            })"
-                            class="block w-full ps-9 pe-3 py-2.5 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs placeholder:text-body"
-                            placeholder="Pilih Rentang Tanggal">
-                    </div>
-                    @if($dateStart && $dateEnd)
-                        <p class="mt-1.5 text-xs text-body">
-                            @if($dateStart === $dateEnd)
-                                {{ \Carbon\Carbon::parse($dateStart)->translatedFormat('d F Y') }}
-                            @else
-                                {{ \Carbon\Carbon::parse($dateStart)->translatedFormat('d F Y') }} - {{ \Carbon\Carbon::parse($dateEnd)->translatedFormat('d F Y') }}
-                            @endif
-                        </p>
+    <div class="mb-4 flex flex-col md:flex-row items-start md:items-center gap-3">
+        <div class="w-full md:w-auto">
+            @if($dateStart && $dateEnd)
+                <p class="mb-1.5 text-xs text-body">
+                    @if($dateStart === $dateEnd)
+                        {{ \Carbon\Carbon::parse($dateStart)->translatedFormat('d F Y') }}
+                    @else
+                        {{ \Carbon\Carbon::parse($dateStart)->translatedFormat('d F Y') }} - {{ \Carbon\Carbon::parse($dateEnd)->translatedFormat('d F Y') }}
                     @endif
+                </p>
+            @endif
+            <div class="relative w-full md:w-56" wire:ignore>
+                <div class="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
+                    <svg class="w-4 h-4 text-body" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 10h16M8 14h8m-4-7V4M7 7V4m10 3V4M5 20h14a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1Z"/></svg>
                 </div>
-
+                <input type="text" x-data
+                    x-init="flatpickr($el, {
+                        mode: 'range',
+                        dateFormat: 'Y-m-d',
+                        defaultDate: ['{{ $dateStart }}', '{{ $dateEnd }}'],
+                        placeholder: 'Pilih Tanggal',
+                        onClose: function(selectedDates, dateStr, instance) {
+                            @this.call('setDateRange', dateStr)
+                        }
+                    })"
+                    class="block w-full ps-9 pe-3 py-2.5 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs placeholder:text-body"
+                    placeholder="Pilih Rentang Tanggal">
             </div>
         </div>
 
+        <div class="w-full md:w-auto">
+            <div class="relative w-full md:w-56">
+                <div class="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
+                    <svg class="w-4 h-4 text-body" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m21 21-3.5-3.5M17 10a7 7 0 1 1-14 0 7 7 0 0 1 14 0Z"/></svg>
+                </div>
+                <input
+                    type="text"
+                    wire:model.live.debounce.300ms="search"
+                    class="block w-full ps-9 mt-6 pe-3 py-2.5 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs placeholder:text-body"
+                    placeholder="Cari nama member...">
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-neutral-primary-soft shadow-xs rounded-md border border-default">
         <div class="overflow-x-auto">
             <table class="w-full text-sm text-left rtl:text-right text-body">
                 <thead class="text-sm text-body bg-neutral-secondary-medium border-b border-default-medium">
