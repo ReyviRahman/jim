@@ -31,6 +31,9 @@ new #[Layout('layouts::admin')] class extends Component
     public bool $showPaymentDetailModal = false;
     public ?int $selectedPaymentBatchId = null;
 
+    public string $potongan = '';
+    public string $keteranganPotongan = '';
+
     public string $search = '';
 
     public function mount(User $user)
@@ -252,6 +255,11 @@ new #[Layout('layouts::admin')] class extends Component
     public function openPaymentDetailModal(int $id): void
     {
         $this->selectedPaymentBatchId = $id;
+
+        $batch = PtPaymentBatch::find($id);
+        $this->potongan = (string) (int) ($batch?->potongan ?? 0);
+        $this->keteranganPotongan = $batch?->keterangan_potongan ?? '';
+
         $this->showPaymentDetailModal = true;
     }
 
@@ -259,6 +267,21 @@ new #[Layout('layouts::admin')] class extends Component
     {
         $this->showPaymentDetailModal = false;
         $this->selectedPaymentBatchId = null;
+        $this->potongan = '';
+        $this->keteranganPotongan = '';
+    }
+
+    public function saveBatchPotongan(): void
+    {
+        $batch = PtPaymentBatch::findOrFail($this->selectedPaymentBatchId);
+
+        $batch->update([
+            'potongan' => (float) $this->potongan,
+            'keterangan_potongan' => $this->keteranganPotongan,
+        ]);
+
+        $this->dispatch('$refresh');
+        session()->flash('success', 'Potongan berhasil disimpan.');
     }
 
     public function deletePaymentBatch(int $id): void
@@ -915,6 +938,7 @@ new #[Layout('layouts::admin')] class extends Component
                                             $category = $this->ptSessionCategories->firstWhere('category', $categoryLabel);
                                             $batchTotalAmount += $category?->amount ?? 0;
                                         }
+                                        $batchTotalAmount -= $batch->potongan ?? 0;
                                     @endphp
                                     Rp {{ number_format($batchTotalAmount, 0, ',', '.') }}
                                 </td>
@@ -1050,6 +1074,11 @@ new #[Layout('layouts::admin')] class extends Component
                         <p class="mt-1"><span class="font-semibold text-heading">NAMA:</span> {{ $user->name }}</p>
                     </div>
 
+                    @php
+                        $batchTotalPotongan = $selectedBatch->potongan ?? 0;
+                        $batchNetTotal = $batchGrandTotal - $batchTotalPotongan;
+                    @endphp
+
                     @if(count($batchRows) > 0)
                         <div class="mb-4">
                             <table class="w-full text-sm text-left text-body border border-default-medium">
@@ -1082,21 +1111,59 @@ new #[Layout('layouts::admin')] class extends Component
                         <p class="text-gray-500 text-center py-6">Belum ada data.</p>
                     @endif
 
-                    <div class="border-t-2 border-default-medium pt-4 mt-4">
+                    <div class="mb-4 p-4 bg-neutral-secondary-soft rounded-md border border-default-medium">
+                        <h6 class="text-sm font-semibold text-heading mb-3">Potongan</h6>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div x-data="{
+                                display: '',
+                                formatRupiah(value) {
+                                    return value.toString().replace(/\D/g, '').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+                                },
+                                init() {
+                                    this.display = this.formatRupiah(this.$wire.potongan);
+                                }
+                            }">
+                                <label for="potongan" class="block text-sm font-medium text-heading">Nominal Potongan</label>
+                                <input type="text" id="potongan"
+                                    x-model="display"
+                                    @input="display = formatRupiah($event.target.value); $wire.potongan = display.replace(/\./g, '')"
+                                    class="mt-1 block w-full px-3 py-2 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand"
+                                    placeholder="0">
+                            </div>
+                            <div>
+                                <label for="keteranganPotongan" class="block text-sm font-medium text-heading">Keterangan Potongan</label>
+                                <input type="text" wire:model="keteranganPotongan" id="keteranganPotongan"
+                                    class="mt-1 block w-full px-3 py-2 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand"
+                                    placeholder="Keterangan potongan">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="border-t-2 border-default-medium pt-4 mt-4 space-y-2">
                         <div class="flex justify-between items-center font-bold text-heading">
                             <span>TOTAL KESELURUHAN</span>
                             <span>Rp {{ number_format($batchGrandTotal, 0, ',', '.') }}</span>
                         </div>
+                        @if($batchTotalPotongan > 0)
+                            <div class="flex justify-between items-center text-red-600">
+                                <span>TOTAL POTONGAN</span>
+                                <span>- Rp {{ number_format($batchTotalPotongan, 0, ',', '.') }}</span>
+                            </div>
+                        @endif
                     </div>
 
                     <div class="mt-4 space-y-1 text-sm">
-                        <p class="font-bold text-heading text-base">BERSIH DITERIMA: Rp {{ number_format($batchGrandTotal, 0, ',', '.') }}</p>
-                        <p class="text-body italic">Terbilang: {{ $this->terbilang($batchGrandTotal) }} rupiah</p>
+                        <p class="font-bold text-heading text-base">BERSIH DITERIMA: Rp {{ number_format($batchNetTotal, 0, ',', '.') }}</p>
+                        <p class="text-body italic">Terbilang: {{ $this->terbilang((int) $batchNetTotal) }} rupiah</p>
                     </div>
                 </div>
 
                 {{-- Footer Actions --}}
                 <div class="p-6 border-t border-default-medium flex gap-3 justify-end">
+                    <button type="button" wire:click="saveBatchPotongan"
+                        class="px-4 py-2 text-white bg-brand hover:bg-brand-strong rounded-md font-medium text-sm">
+                        Simpan Potongan
+                    </button>
                     <a href="{{ route('admin.sesi-pt.payment-batch-print', $selectedPaymentBatchId) }}"
                         class="px-4 py-2 text-white bg-emerald-600 hover:bg-emerald-700 rounded-md font-medium text-sm">
                         Download PDF

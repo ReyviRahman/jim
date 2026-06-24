@@ -13,6 +13,8 @@ class PtPaymentBatch extends Model
         'date_start',
         'date_end',
         'paid_by',
+        'potongan',
+        'keterangan_potongan',
     ];
 
     protected function casts(): array
