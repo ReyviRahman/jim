@@ -23,6 +23,8 @@ new #[Layout('layouts::admin')] class extends Component
     public string $bookingPtId = '';
     public bool $bookingIsFree = false;
 
+    public array $selectedBookings = [];
+
     public function mount(Membership $membership): void
     {
         $this->membership = $membership;
@@ -167,6 +169,98 @@ new #[Layout('layouts::admin')] class extends Component
         session()->flash('success', 'Booking berhasil dihapus.');
     }
 
+    public function bulkAttended(): void
+    {
+        if (empty($this->selectedBookings)) {
+            session()->flash('error', 'Pilih minimal satu booking terlebih dahulu.');
+            return;
+        }
+
+        $bookings = PtBooking::whereIn('id', $this->selectedBookings)->get();
+        $updatedCount = 0;
+
+        foreach ($bookings as $booking) {
+            $oldAttendance = $booking->attendance;
+
+            $updateData = ['attendance' => 'attended'];
+            if ($booking->status === 'pending') {
+                $updateData['status'] = 'approved';
+            }
+
+            $booking->update($updateData);
+
+            if (! $booking->is_free && ($oldAttendance === 'not_yet' || $oldAttendance === null)) {
+                $this->membership->decrement('remaining_sessions');
+            }
+
+            $updatedCount++;
+        }
+
+        $this->membership->refresh();
+        $this->selectedBookings = [];
+        session()->flash('success', "{$updatedCount} booking berhasil ditandai hadir.");
+    }
+
+    public function bulkNoshow(): void
+    {
+        if (empty($this->selectedBookings)) {
+            session()->flash('error', 'Pilih minimal satu booking terlebih dahulu.');
+            return;
+        }
+
+        $bookings = PtBooking::whereIn('id', $this->selectedBookings)->get();
+        $updatedCount = 0;
+
+        foreach ($bookings as $booking) {
+            $oldAttendance = $booking->attendance;
+
+            $updateData = ['attendance' => 'noshow'];
+            if ($booking->status === 'pending') {
+                $updateData['status'] = 'approved';
+            }
+
+            $booking->update($updateData);
+
+            if (! $booking->is_free && ($oldAttendance === 'not_yet' || $oldAttendance === null)) {
+                $this->membership->decrement('remaining_sessions');
+            }
+
+            $updatedCount++;
+        }
+
+        $this->membership->refresh();
+        $this->selectedBookings = [];
+        session()->flash('success', "{$updatedCount} booking berhasil ditandai hangus.");
+    }
+
+    public function toggleSelectAll(): void
+    {
+        $selectableIds = $this->ptBookings
+            ->filter(fn ($booking) => in_array($booking->status, ['approved', 'pending']))
+            ->pluck('id')
+            ->map(fn ($id) => (string) $id)
+            ->toArray();
+
+        $currentSelected = collect($this->selectedBookings)->map(fn ($id) => (string) $id)->toArray();
+        $allSelected = empty(array_diff($selectableIds, $currentSelected));
+
+        $this->selectedBookings = $allSelected ? [] : $selectableIds;
+    }
+
+    #[Computed]
+    public function isAllBookingsSelected(): bool
+    {
+        $selectableIds = $this->ptBookings
+            ->filter(fn ($booking) => in_array($booking->status, ['approved', 'pending']))
+            ->pluck('id')
+            ->map(fn ($id) => (string) $id)
+            ->toArray();
+
+        $currentSelected = collect($this->selectedBookings)->map(fn ($id) => (string) $id)->toArray();
+
+        return ! empty($selectableIds) && empty(array_diff($selectableIds, $currentSelected));
+    }
+
 
 };
 ?>
@@ -231,6 +325,18 @@ new #[Layout('layouts::admin')] class extends Component
         </div>
     @endif
 
+    @if (session()->has('error'))
+        <div x-data="{ show: true }" x-show="show" x-transition.duration.300ms class="mb-6 flex items-center justify-between p-4 text-sm text-red-800 border border-red-200 rounded-md bg-red-50 shadow-xs">
+            <div class="flex items-center gap-2">
+                <svg class="w-5 h-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <span class="font-medium">{{ session('error') }}</span>
+            </div>
+            <button @click="show = false" type="button" class="text-red-600 hover:text-red-900 focus:outline-none">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+    @endif
+
     @if ($bookingError)
         <div x-data="{ show: true }" x-show="show" x-transition.duration.300ms class="mb-6 flex items-center justify-between p-4 text-sm text-red-800 border border-red-200 rounded-md bg-red-50 shadow-xs">
             <div class="flex items-center gap-2">
@@ -246,7 +352,15 @@ new #[Layout('layouts::admin')] class extends Component
     <div class="bg-neutral-primary-soft shadow-xs rounded-md border border-default">
         <div class="p-4 flex items-center justify-between">
             <h6 class="text-lg font-semibold text-heading">Jadwal Booking PT</h6>
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-2 flex-wrap">
+                @if (count($this->selectedBookings) > 0)
+                    <button type="button" wire:click="bulkAttended" class="inline-flex items-center text-white bg-emerald-600 box-border border border-transparent hover:bg-emerald-700 focus:ring-4 focus:ring-emerald-300 shadow-xs font-medium leading-5 rounded-md text-sm px-4 py-2.5 focus:outline-none">
+                        Tandai Hadir
+                    </button>
+                    <button type="button" wire:click="bulkNoshow" class="inline-flex items-center text-white bg-red-600 box-border border border-transparent hover:bg-red-700 focus:ring-4 focus:ring-red-300 shadow-xs font-medium leading-5 rounded-md text-sm px-4 py-2.5 focus:outline-none">
+                        Tandai Hangus
+                    </button>
+                @endif
                 <a href="{{ route('admin.sesi-pt.attendance-pdf', $membership->id) }}" target="_blank"
                    class="inline-flex items-center text-white bg-red-600 box-border border border-transparent hover:bg-red-700 focus:ring-4 focus:ring-red-300 shadow-xs font-medium leading-5 rounded-md text-sm px-4 py-2.5 focus:outline-none">
                     <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
@@ -262,6 +376,9 @@ new #[Layout('layouts::admin')] class extends Component
             <table class="w-full text-sm text-left rtl:text-right text-body">
                 <thead class="text-sm text-body bg-neutral-secondary-medium border-b border-default-medium">
                     <tr>
+                        <th scope="col" class="px-6 py-3 text-center w-10">
+                            <input type="checkbox" wire:click.prevent="toggleSelectAll" @checked($this->isAllBookingsSelected) class="w-4 h-4 text-brand border-default-medium rounded focus:ring-brand">
+                        </th>
                         <th scope="col" class="px-6 py-3 font-medium">No</th>
                         <th scope="col" class="px-6 py-3 font-medium">Tanggal Booking</th>
                         <th scope="col" class="px-6 py-3 font-medium">Waktu Booking</th>
@@ -275,6 +392,11 @@ new #[Layout('layouts::admin')] class extends Component
                 <tbody>
                     @forelse ($this->ptBookings as $booking)
                         <tr wire:key="pt-booking-{{ $booking->id }}" class="bg-neutral-primary-soft border-b border-default hover:bg-neutral-secondary-medium">
+                            <td class="px-6 py-4 text-center whitespace-nowrap">
+                                @if(in_array($booking->status, ['approved', 'pending']))
+                                    <input type="checkbox" wire:model.live="selectedBookings" value="{{ $booking->id }}" class="w-4 h-4 text-brand border-default-medium rounded focus:ring-brand">
+                                @endif
+                            </td>
                             <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
                                 {{ $loop->iteration }}
                             </td>
@@ -342,7 +464,7 @@ new #[Layout('layouts::admin')] class extends Component
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="8" class="px-6 py-8 text-center text-gray-500">
+                            <td colspan="9" class="px-6 py-8 text-center text-gray-500">
                                 Belum ada data booking untuk membership ini.
                             </td>
                         </tr>

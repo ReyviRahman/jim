@@ -402,6 +402,11 @@ new #[Layout('layouts::admin')] class extends Component
         session()->flash('success', 'Kategori sesi PT berhasil dihapus.');
     }
 
+    public function redirectToMembershipDetail(int $id): void
+    {
+        $this->redirectRoute('admin.sesi-pt.membership-detail', $id, navigate: true);
+    }
+
 
 };
 ?>
@@ -487,7 +492,6 @@ new #[Layout('layouts::admin')] class extends Component
                         <th scope="col" class="px-6 py-3 font-medium text-right">Total</th>
                         <th scope="col" class="px-6 py-3 font-medium text-center">Free</th>
                         <th scope="col" class="px-6 py-3 font-medium text-center">Free Berjalan</th>
-                        <th scope="col" class="px-6 py-3 font-medium text-center">Aksi</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -502,7 +506,7 @@ new #[Layout('layouts::admin')] class extends Component
                     {{-- Section 1: Direct PT Memberships --}}
                     @if($this->ptMembershipsDirect->count() > 0)
                         <tr class="bg-blue-50 border-b border-blue-200">
-                            <td colspan="20" class="px-6 py-3 font-semibold text-blue-800 text-sm">
+                            <td colspan="18" class="px-6 py-3 font-semibold text-blue-800 text-sm">
                                 <div class="flex items-center gap-2">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
                                     Membership Langsung (PT Utama)
@@ -536,7 +540,7 @@ new #[Layout('layouts::admin')] class extends Component
 
                                 $totalCategoryTotal += $categoryTotal;
                             @endphp
-                            <tr wire:key="pt-membership-direct-{{ $membership->id }}" class="bg-neutral-primary-soft border-b border-default hover:bg-neutral-secondary-medium">
+                            <tr wire:key="pt-membership-direct-{{ $membership->id }}" wire:click="redirectToMembershipDetail({{ $membership->id }})" class="bg-neutral-primary-soft border-b border-default hover:bg-neutral-secondary-medium cursor-pointer">
                                 <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
                                     {{ $rowNumber++ }}
                                 </td>
@@ -608,11 +612,6 @@ new #[Layout('layouts::admin')] class extends Component
                                 <td class="px-6 py-4 text-center whitespace-nowrap">
                                     {{ $membership->free_berjalan }}
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-center">
-                                    <a href="{{ route('admin.sesi-pt.membership-detail', $membership->id) }}" wire:navigate class="inline-flex items-center px-2.5 py-1.5 text-xs font-medium text-white bg-brand rounded hover:bg-brand-strong transition-colors">
-                                        Detail
-                                    </a>
-                                </td>
                             </tr>
                         @endforeach
                     @endif
@@ -620,10 +619,10 @@ new #[Layout('layouts::admin')] class extends Component
                     {{-- Section 2: Booking-Only Memberships --}}
                     @if($bookingOnlyWithSessions->count() > 0)
                         <tr class="bg-amber-50 border-b border-amber-200">
-                            <td colspan="20" class="px-6 py-3 font-semibold text-amber-800 text-sm">
+                            <td colspan="18" class="px-6 py-3 font-semibold text-amber-800 text-sm">
                                 <div class="flex items-center gap-2">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
-                                    Membership Booking Saja (PT Pengganti/Cadangan)
+                                    Membership (PT Pengganti/Cadangan)
                                 </div>
                             </td>
                         </tr>
@@ -674,7 +673,7 @@ new #[Layout('layouts::admin')] class extends Component
 
                                 $totalCategoryTotal += $categoryTotal;
                             @endphp
-                            <tr wire:key="pt-membership-booking-{{ $membership->id }}" class="bg-neutral-primary-soft border-b border-default hover:bg-neutral-secondary-medium">
+                            <tr wire:key="pt-membership-booking-{{ $membership->id }}" wire:click="redirectToMembershipDetail({{ $membership->id }})" class="bg-neutral-primary-soft border-b border-default hover:bg-neutral-secondary-medium cursor-pointer">
                                 <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
                                     {{ $rowNumber++ }}
                                 </td>
@@ -712,7 +711,6 @@ new #[Layout('layouts::admin')] class extends Component
                                 </td>
                                 <td class="px-6 py-4 text-center whitespace-nowrap text-gray-400">-</td>
                                 <td class="px-6 py-4 text-center whitespace-nowrap text-gray-400">-</td>
-                                <td class="px-6 py-4 text-center whitespace-nowrap text-gray-400">-</td>
                                 <td class="px-6 py-4 text-center whitespace-nowrap font-semibold text-amber-600">
                                     {{ $membership->berjalan_belum_dibayar }}
                                 </td>
@@ -734,18 +732,13 @@ new #[Layout('layouts::admin')] class extends Component
                                 <td class="px-6 py-4 text-center whitespace-nowrap">
                                     {{ $membership->free_berjalan }}
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-center">
-                                    <a href="{{ route('admin.sesi-pt.membership-detail', $membership->id) }}" wire:navigate class="inline-flex items-center px-2.5 py-1.5 text-xs font-medium text-white bg-brand rounded hover:bg-brand-strong transition-colors">
-                                        Detail
-                                    </a>
-                                </td>
                             </tr>
                         @endforeach
                     @endif
 
                     @if($this->ptMembershipsDirect->count() == 0 && $bookingOnlyWithSessions->count() == 0)
                         <tr>
-                            <td colspan="20" class="px-6 py-8 text-center text-gray-500">
+                            <td colspan="18" class="px-6 py-8 text-center text-gray-500">
                                 Belum ada data membership untuk PT ini.
                             </td>
                         </tr>
@@ -756,7 +749,7 @@ new #[Layout('layouts::admin')] class extends Component
                         <tr>
                             <td colspan="15" class="px-6 py-4 text-right">Sub Total</td>
                             <td class="px-6 py-4 text-right whitespace-nowrap">Rp {{ number_format($totalCategoryTotal, 0, ',', '.') }}</td>
-                            <td colspan="4" class="px-6 py-4 text-center whitespace-nowrap">
+                            <td colspan="2" class="px-6 py-4 text-center whitespace-nowrap">
                                 <button
                                     type="button"
                                     wire:click="paySessions"
