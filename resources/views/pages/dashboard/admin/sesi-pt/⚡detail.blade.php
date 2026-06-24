@@ -476,7 +476,7 @@ new #[Layout('layouts::admin')] class extends Component
                         <th scope="col" class="px-6 py-3 font-medium">Harga</th>
                         <th scope="col" class="px-6 py-3 font-medium text-center" colspan="2">Kategori</th>
                         <th scope="col" class="px-6 py-3 font-medium text-center">Sesi Awal</th>
-                        <th scope="col" class="px-6 py-3 font-medium text-center">Sesi Ditambahkan</th>
+                        {{-- <th scope="col" class="px-6 py-3 font-medium text-center">Sesi Ditambahkan</th> --}}
                         <th scope="col" class="px-6 py-3 font-medium text-center">Total Sesi</th>
                         <th scope="col" class="px-6 py-3 font-medium text-center">Belum Bayar</th>
                         <th scope="col" class="px-6 py-3 font-medium text-center">Sudah Bayar</th>
@@ -575,9 +575,9 @@ new #[Layout('layouts::admin')] class extends Component
                                 <td class="px-6 py-4 text-center whitespace-nowrap">
                                     {{ $sesiAwal }}
                                 </td>
-                                <td class="px-6 py-4 text-center whitespace-nowrap">
+                                {{-- <td class="px-6 py-4 text-center whitespace-nowrap">
                                     {{ $sesiDitambahkan }}
-                                </td>
+                                </td> --}}
                                 <td class="px-6 py-4 text-center whitespace-nowrap">
                                     {{ $totalSessions }}
                                 </td>
