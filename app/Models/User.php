@@ -102,6 +102,15 @@ class User extends Authenticatable
             ->first();
     }
 
+    public function getLatestMembershipAttribute(): ?Membership
+    {
+        return Membership::where('user_id', $this->id)
+            ->orWhereHas('members', fn ($q) => $q->where('user_id', $this->id))
+            ->with(['gymPackage', 'ptPackage', 'personalTrainer', 'followUp', 'followUpTwo'])
+            ->latest('created_at')
+            ->first();
+    }
+
     public function ptBookingsAsMember(): HasMany
     {
         return $this->hasMany(PtBooking::class, 'member_id');

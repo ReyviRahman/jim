@@ -5,37 +5,40 @@ namespace App\Livewire\Admin;
 use Livewire\Component;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Computed; 
-use App\Models\Membership;
 use Livewire\WithPagination;
-use Maatwebsite\Excel\Facades\Excel; 
-use App\Exports\MembershipExport;
+use App\Models\User;
+use Illuminate\Support\Facades\DB;
 
 new #[Layout('layouts::admin')] class extends Component
 {
     use WithPagination;
 
-    // --- VARIABEL UNTUK FILTER & PENCARIAN ---
     public $search = '';
-    public $filterTime = 'all'; // all, today, week, month, custom
+    public $filterTime = 'all';
     public $dateStart = null;
     public $dateEnd = null;
 
-    public $sortBy = 'created_at';
+    public $sortBy = 'latest_membership_date';
     public $sortDirection = 'desc';
 
     public function sort($column)
     {
+        $allowed = ['latest_membership_date'];
+
+        if (! in_array($column, $allowed)) {
+            return;
+        }
+
         if ($this->sortBy === $column) {
             $this->sortDirection = $this->sortDirection === 'asc' ? 'desc' : 'asc';
         } else {
             $this->sortBy = $column;
-            $this->sortDirection = 'asc';
+            $this->sortDirection = 'desc';
         }
 
         $this->resetPage();
     }
 
-    // Reset halaman ke 1 setiap kali user mengetik pencarian
     public function updatingSearch()
     {
         $this->resetPage();
@@ -51,7 +54,6 @@ new #[Layout('layouts::admin')] class extends Component
         $this->resetPage();
     }
 
-    // Fungsi untuk Dropdown Waktu Cepat
     public function setFilterTime($time)
     {
         $this->filterTime = $time;
@@ -60,7 +62,6 @@ new #[Layout('layouts::admin')] class extends Component
         $this->resetPage();
     }
 
-    // Fungsi yang dipanggil oleh Flatpickr saat tanggal dipilih
     public function setDateRange($rangeStr)
     {
         if (str_contains($rangeStr, ' to ')) {
@@ -80,23 +81,8 @@ new #[Layout('layouts::admin')] class extends Component
         $this->resetPage();
     }
 
-    #[Computed]
-    public function memberships()
+    private function applyDateFilter($query)
     {
-        $query = Membership::with(['user', 'members', 'admin', 'followUp', 'followUpTwo', 'personalTrainer', 'gymPackage', 'ptPackage']);
-
-        // 1. Logika Pencarian (Mencari di tabel Users atau Members)
-        if (!empty($this->search)) {
-            $query->where(function ($q) {
-                $q->whereHas('user', function ($subQ) {
-                    $subQ->where('name', 'like', '%' . $this->search . '%');
-                })->orWhereHas('members', function ($subQ) {
-                    $subQ->where('name', 'like', '%' . $this->search . '%');
-                });
-            });
-        }
-
-        // 2. Logika Filter Waktu
         if ($this->filterTime === 'today') {
             $query->whereDate('created_at', today());
         } elseif ($this->filterTime === 'week') {
@@ -105,71 +91,59 @@ new #[Layout('layouts::admin')] class extends Component
             $query->whereMonth('created_at', now()->month)
                   ->whereYear('created_at', now()->year);
         } elseif ($this->filterTime === 'custom' && $this->dateStart && $this->dateEnd) {
-            // Logika Flatpickr
             $query->whereBetween('created_at', [
                 $this->dateStart . ' 00:00:00',
                 $this->dateEnd . ' 23:59:59'
             ]);
         }
-
-        // 3. Logika Sorting
-        if ($this->sortBy === 'user_name') {
-            $query->join('users', 'memberships.user_id', '=', 'users.id')
-                ->orderBy('users.name', $this->sortDirection)
-                ->select('memberships.*');
-        } elseif ($this->sortBy === 'package_name') {
-            $query->orderBy('transaction_type', $this->sortDirection)
-                ->orderBy('package_name', $this->sortDirection);
-        } else {
-            $query->orderBy('created_at', $this->sortDirection);
-        }
-
-        return $query->paginate(10);
     }
 
-    public function exportExcel()
+    public function goToDetail($userId)
     {
-        $fileName = 'Data-Membership-' . date('Y-m-d') . '.xlsx';
-        
-        return Excel::download(
-            new MembershipExport(
-                $this->search, 
-                $this->filterTime, 
-                $this->dateStart, 
-                $this->dateEnd
-            ), 
-            $fileName
-        );
+        return $this->redirectRoute('admin.riwayat.detail', $userId, navigate: true);
     }
 
-    public function delete($membershipId)
+    #[Computed]
+    public function users()
     {
-        // 1. Cek apakah user login dan apakah role-nya BUKAN admin
-        if (auth()->check() && auth()->user()->role !== 'admin') {
-            session()->flash('error', 'Akses ditolak! Hanya Admin yang dapat menghapus data ini.');
-            return; // Hentikan proses eksekusi di sini
-        }
-
-        // 2. Jika lolos pengecekan, lanjutkan proses hapus
-        $membership = Membership::findOrFail($membershipId);
-        $membership->delete();
-
-        session()->flash('success', 'Membership dan semua data terkait berhasil dihapus.');
+        return User::where('role', 'member')
+            ->where(function ($q) {
+                $q->whereHas('paidMemberships')
+                  ->orWhereHas('memberships');
+            })
+            ->when($this->search, function ($q) {
+                $q->where(function ($sq) {
+                    $sq->where('name', 'like', '%' . $this->search . '%')
+                       ->orWhere('email', 'like', '%' . $this->search . '%');
+                });
+            })
+            ->when($this->filterTime !== 'all', function ($q) {
+                $q->where(function ($sq) {
+                    $sq->whereHas('paidMemberships', fn ($mq) => $this->applyDateFilter($mq))
+                       ->orWhereHas('memberships', fn ($mq) => $this->applyDateFilter($mq));
+                });
+            })
+            ->when($this->sortBy === 'latest_membership_date', function ($q) {
+                $q->orderBy(DB::raw('(
+                    SELECT MAX(memberships.created_at)
+                    FROM memberships
+                    WHERE memberships.user_id = users.id
+                       OR memberships.id IN (
+                           SELECT membership_users.membership_id
+                           FROM membership_users
+                           WHERE membership_users.user_id = users.id
+                       )
+                )'), $this->sortDirection);
+            })
+            ->paginate(10);
     }
 };
 ?>
 
 <div>
     <div class="flex sm:flex-row flex-col justify-between items-center mb-6">
-    <h5 class="text-xl font-semibold text-heading">Data Riwayat Membership</h5>
-    <div class="flex gap-2">
-            {{-- <button wire:click="exportExcel" type="button" class="text-green-700 bg-green-50 box-border border border-green-200 hover:bg-green-100 focus:ring-4 focus:ring-green-200 shadow-xs font-medium leading-5 rounded-md text-sm px-4 py-2.5 focus:outline-none flex items-center gap-2">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                Export Excel
-            </button> --}}
-            
-            {{-- <a href="{{ route('admin.membership.gabung') }}" wire:navigate class="text-white bg-brand box-border border border-transparent hover:bg-brand-strong focus:ring-4 focus:ring-brand-medium shadow-xs font-medium leading-5 rounded-md text-sm px-4 py-2.5 focus:outline-none">+ Pendaftaran Baru</a> --}}
-        </div>
+        <h5 class="text-xl font-semibold text-heading">Data Riwayat Membership</h5>
+        <div class="flex gap-2"></div>
     </div>
 
     {{-- Notifikasi --}}
@@ -249,192 +223,171 @@ new #[Layout('layouts::admin')] class extends Component
             <thead class="text-sm text-body bg-neutral-secondary-medium border-b border-default-medium">
                 <tr>
                     <th scope="col" class="px-6 py-3 font-medium">No</th>
-                    <th scope="col" wire:click="sort('user_name')" class="px-6 py-3 font-medium cursor-pointer hover:bg-gray-200 select-none">
-                        Member
-                        @if($sortBy === 'user_name')
-                            <span class="ml-1">{{ $sortDirection === 'asc' ? '▲' : '▼' }}</span>
-                        @endif
-                    </th>
-                    <th scope="col" wire:click="sort('package_name')" class="px-6 py-3 font-medium cursor-pointer hover:bg-gray-200 select-none">
-                        Program / Paket
-                        @if($sortBy === 'package_name')
-                            <span class="ml-1">{{ $sortDirection === 'asc' ? '▲' : '▼' }}</span>
-                        @endif
-                    </th>
+                    <th scope="col" class="px-6 py-3 font-medium">Member</th>
+                    <th scope="col" class="px-6 py-3 font-medium">Program / Paket</th>
                     <th scope="col" class="px-6 py-3 font-medium text-right">Total Bayar</th>
                     <th scope="col" class="px-6 py-3 font-medium">Masa Aktif</th>
                     <th scope="col" class="px-6 py-3 font-medium text-center">Admin Follow Up</th>
                     <th scope="col" class="px-6 py-3 font-medium text-center">Sales Follow Up</th>
-                    <th scope="col" class="px-6 py-3 font-medium text-center">Aksi</th>
                 </tr>
             </thead>
             <tbody>
-                @forelse ($this->memberships as $membership)
-                    <tr wire:key="{{ $membership->id }}" class="bg-neutral-primary-soft border-b border-default hover:bg-neutral-secondary-medium">
+                @forelse ($this->users as $user)
+                    @php $latest = $user->latestMembership; @endphp
+                    <tr wire:key="{{ $user->id }}" wire:click="goToDetail({{ $user->id }})" class="bg-neutral-primary-soft border-b border-default hover:bg-neutral-secondary-medium cursor-pointer">
                         
                         {{-- Nomor Urut --}}
                         <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
-                            {{ $loop->iteration + ($this->memberships->currentPage() - 1) * $this->memberships->perPage() }}
+                            {{ $loop->iteration + ($this->users->currentPage() - 1) * $this->users->perPage() }}
                         </td>
 
                         {{-- INFO MEMBER --}}
                         <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
-                            <div class="flex flex-col gap-1.5">
-                                @forelse($membership->members as $member)
-                                    <div class="flex items-center gap-2">
-                                        <a href="{{ route('admin.riwayat.detail', $member->id) }}" wire:navigate class="font-semibold text-black hover:text-black hover:underline cursor-pointer">
-                                            {{ $member->name }}
-                                        </a>
-                                    </div>
-                                @empty
-                                    <a href="{{ route('admin.riwayat.detail', $membership->user_id) }}" wire:navigate class="font-semibold text-black hover:text-black hover:underline cursor-pointer">
-                                        {{ $membership->user->name ?? 'N/A' }}
-                                    </a>
-                                @endforelse
+                            <div class="flex items-center gap-2">
+                                @if($user->photo)
+                                    <img class="w-8 h-8 rounded-full object-cover" src="{{ asset('storage/' . $user->photo) }}" alt="{{ $user->name }}">
+                                @else
+                                    <img class="w-8 h-8 rounded-full object-cover" src="https://ui-avatars.com/api/?name={{ urlencode($user->name) }}&background=random" alt="{{ $user->name }}">
+                                @endif
+                                <div class="flex flex-col">
+                                    <span class="font-semibold">{{ $user->name }}</span>
+                                    <span class="text-xs text-gray-500">{{ $user->email }}</span>
+                                </div>
                             </div>
                         </td>
 
-                        {{-- INFO PROGRAM / PAKET & SESI COACH (DIGABUNG) --}}
+                        {{-- INFO PROGRAM / PAKET --}}
                         <td class="px-6 py-4 text-heading whitespace-nowrap">
-                            <div class="flex flex-col gap-2">
-                                
-                                {{-- Jika ada Paket Gym (Termasuk Visit) --}}
-                                @if(in_array($membership->type, ['membership', 'bundle_pt_membership', 'visit']))
-                                    <div>
-                                        <div class="text-[10px] text-gray-400 uppercase tracking-wider font-bold mb-0.5">
-                                            Paket {{ $membership->type === 'visit' ? 'Harian' : 'Gym' }}
-                                        </div>
-                                        <div class="font-medium {{ $membership->type === 'visit' ? 'text-orange-600' : 'text-emerald-600' }}">
-                                            {{ $membership->gymPackage->name ?? 'Paket Terhapus' }}
-                                        </div>
-                                    </div>
-                                @endif
-
-                                {{-- Jika ada Paket PT --}}
-                                @if(in_array($membership->type, ['pt', 'bundle_pt_membership']))
-                                    <div class="{{ in_array($membership->type, ['bundle_pt_membership']) ? 'border-t border-gray-200 pt-2' : '' }}">
-                                        <div class="text-[10px] text-gray-400 uppercase tracking-wider font-bold mb-0.5">Paket Trainer</div>
-                                        <div class="font-medium text-indigo-600">{{ $membership->ptPackage->name ?? 'Paket Terhapus' }}</div>
-                                        
-                                        <div class="flex items-center gap-3 mt-1">
-                                            <div class="text-xs text-gray-500">
-                                                Coach: <span class="font-medium text-gray-700">{{ $membership->personalTrainer->name ?? '-' }}</span>
+                            @if($latest)
+                                <div class="flex flex-col gap-2">
+                                    @if(in_array($latest->type, ['membership', 'bundle_pt_membership', 'visit']))
+                                        <div>
+                                            <div class="text-[10px] text-gray-400 uppercase tracking-wider font-bold mb-0.5">
+                                                Paket {{ $latest->type === 'visit' ? 'Harian' : 'Gym' }}
                                             </div>
-                                            
-                                            {{-- Informasi Sesi Coach Pindahan --}}
-                                            @if ($membership->total_sessions)
-                                                <div class="text-xs text-gray-500 border-l border-gray-300 pl-3">
-                                                    Sisa Sesi: 
-                                                    <span class="font-bold {{ $membership->remaining_sessions <= 2 ? 'text-red-600' : 'text-green-600' }}">
-                                                        {{ $membership->remaining_sessions }}
-                                                    </span> 
-                                                    <span class="text-gray-400">/ {{ $membership->total_sessions }}</span>
-                                                </div>
-                                            @endif
+                                            <div class="font-medium {{ $latest->type === 'visit' ? 'text-orange-600' : 'text-emerald-600' }}">
+                                                {{ $latest->gymPackage->name ?? 'Paket Terhapus' }}
+                                            </div>
                                         </div>
-                                    </div>
-                                @endif
-                            </div>
+                                    @endif
+
+                                    @if(in_array($latest->type, ['pt', 'bundle_pt_membership']))
+                                        <div class="{{ in_array($latest->type, ['bundle_pt_membership']) ? 'border-t border-gray-200 pt-2' : '' }}">
+                                            <div class="text-[10px] text-gray-400 uppercase tracking-wider font-bold mb-0.5">Paket Trainer</div>
+                                            <div class="font-medium text-indigo-600">{{ $latest->ptPackage->name ?? 'Paket Terhapus' }}</div>
+                                            
+                                            <div class="flex items-center gap-3 mt-1">
+                                                <div class="text-xs text-gray-500">
+                                                    Coach: <span class="font-medium text-gray-700">{{ $latest->personalTrainer->name ?? '-' }}</span>
+                                                </div>
+                                                
+                                                @if ($latest->total_sessions)
+                                                    <div class="text-xs text-gray-500 border-l border-gray-300 pl-3">
+                                                        Sisa Sesi: 
+                                                        <span class="font-bold {{ $latest->remaining_sessions <= 2 ? 'text-red-600' : 'text-green-600' }}">
+                                                            {{ $latest->remaining_sessions }}
+                                                        </span> 
+                                                        <span class="text-gray-400">/ {{ $latest->total_sessions }}</span>
+                                                    </div>
+                                                @endif
+                                            </div>
+                                        </div>
+                                    @endif
+                                </div>
+                            @else
+                                <span class="text-gray-400">-</span>
+                            @endif
                         </td>
 
                         {{-- Total Bayar --}}
                         <td class="px-6 py-4 text-right whitespace-nowrap">
-                            @if($membership->discount_applied > 0)
-                                @php
-                                    $originalPrice = $membership->price_paid + $membership->discount_applied;
-                                    $percentage = ($originalPrice > 0) ? ($membership->discount_applied / $originalPrice) * 100 : 0;
-                                @endphp
-                                
-                                <div class="flex flex-col items-end mb-1">
-                                    <div class="flex items-center gap-2">
-                                        <span class="text-xs text-gray-400 line-through">Rp {{ number_format($originalPrice, 0, ',', '.') }}</span>
-                                        <span class="bg-green-100 text-green-800 text-[10px] font-bold px-1.5 py-0.5 rounded">
-                                            -{{ is_float($percentage) ? round($percentage, 1) : $percentage }}%
-                                        </span>
-                                    </div>
-                                    <div class="text-[10px] text-green-600 font-medium mt-0.5">
-                                        Diskon Rp {{ number_format($membership->discount_applied, 0, ',', '.') }}
-                                    </div>
-                                </div>
-                            @endif
-
-                            <div class="font-bold text-heading text-base">
-                                Rp {{ number_format($membership->price_paid, 0, ',', '.') }}
-                            </div>
-
-                            {{-- Logika Penentuan Label Harga Sesuai Rentang --}}
-                            @if(auth()->check() && auth()->user()->role === 'admin')
-                                @php
-                                    $priceLabelData = $membership->getPriceLabel();
-                                @endphp
-
-                                @if($priceLabelData)
-                                    <div class="mt-1 flex justify-end">
-                                        <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full {{ $priceLabelData['color'] }}">
-                                            {{ $priceLabelData['label'] }}
-                                        </span>
+                            @if($latest)
+                                @if($latest->discount_applied > 0)
+                                    @php
+                                        $originalPrice = $latest->price_paid + $latest->discount_applied;
+                                        $percentage = ($originalPrice > 0) ? ($latest->discount_applied / $originalPrice) * 100 : 0;
+                                    @endphp
+                                    
+                                    <div class="flex flex-col items-end mb-1">
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-xs text-gray-400 line-through">Rp {{ number_format($originalPrice, 0, ',', '.') }}</span>
+                                            <span class="bg-green-100 text-green-800 text-[10px] font-bold px-1.5 py-0.5 rounded">
+                                                -{{ is_float($percentage) ? round($percentage, 1) : $percentage }}%
+                                            </span>
+                                        </div>
+                                        <div class="text-[10px] text-green-600 font-medium mt-0.5">
+                                            Diskon Rp {{ number_format($latest->discount_applied, 0, ',', '.') }}
+                                        </div>
                                     </div>
                                 @endif
+
+                                <div class="font-bold text-heading text-base">
+                                    Rp {{ number_format($latest->price_paid, 0, ',', '.') }}
+                                </div>
+
+                                @if(auth()->check() && auth()->user()->role === 'admin')
+                                    @php
+                                        $priceLabelData = $latest->getPriceLabel();
+                                    @endphp
+
+                                    @if($priceLabelData)
+                                        <div class="mt-1 flex justify-end">
+                                            <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full {{ $priceLabelData['color'] }}">
+                                                {{ $priceLabelData['label'] }}
+                                            </span>
+                                        </div>
+                                    @endif
+                                @endif
+                            @else
+                                <span class="text-gray-400">-</span>
                             @endif
                         </td>
+
                         {{-- Masa Aktif --}}
                         <td class="px-6 py-4 whitespace-nowrap text-xs">
-                            <div class="flex flex-col gap-1.5">
-                                <div class="flex items-center text-gray-600">
-                                    <svg class="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                                    Mulai: <span class="font-medium text-heading ml-1">{{ $membership->start_date ? $membership->start_date->format('d M Y') : 'BELUM AKTIF' }}</span>
+                            @if($latest)
+                                <div class="flex flex-col gap-1.5">
+                                    <div class="flex items-center text-gray-600">
+                                        <svg class="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                        Mulai: <span class="font-medium text-heading ml-1">{{ $latest->start_date ? $latest->start_date->format('d M Y') : 'BELUM AKTIF' }}</span>
+                                    </div>
+
+                                    @if(in_array($latest->type, ['membership', 'bundle_pt_membership']))
+                                        <div class="flex items-center text-gray-600">
+                                            <span class="inline-block w-2 h-2 rounded-full bg-emerald-400 mr-2"></span>
+                                            Gym s/d: <span class="font-medium text-emerald-600 ml-1">{{ $latest->membership_end_date ? $latest->membership_end_date->format('d M Y') : 'BELUM AKTIF' }}</span>
+                                        </div>
+                                    @endif
+
+                                    @if($latest->type === 'visit')
+                                        <div class="flex items-center text-gray-600 mt-0.5">
+                                            <span class="inline-block w-2 h-2 rounded-full bg-orange-400 mr-2"></span>
+                                            <span class="font-medium text-orange-600 ml-1">Berlaku 1 Hari</span>
+                                        </div>
+                                    @endif
+
+                                    @if(in_array($latest->type, ['pt', 'bundle_pt_membership']))
+                                        <div class="flex items-center text-gray-600">
+                                            <span class="inline-block w-2 h-2 rounded-full bg-indigo-400 mr-2"></span>
+                                            PT s/d: <span class="font-medium text-indigo-600 ml-1">{{ $latest->pt_end_date ? $latest->pt_end_date->format('d M Y') : 'BELUM AKTIF' }}</span>
+                                        </div>
+                                    @endif
                                 </div>
-
-                                {{-- Masa aktif Gym --}}
-                                @if(in_array($membership->type, ['membership', 'bundle_pt_membership']))
-                                    <div class="flex items-center text-gray-600">
-                                        <span class="inline-block w-2 h-2 rounded-full bg-emerald-400 mr-2"></span>
-                                        Gym s/d: <span class="font-medium text-emerald-600 ml-1">{{ $membership->membership_end_date ? $membership->membership_end_date->format('d M Y') : 'BELUM AKTIF' }}</span>
-                                    </div>
-                                @endif
-
-                                {{-- Jika Visit, tampilkan label Kunjungan Harian --}}
-                                @if($membership->type === 'visit')
-                                    <div class="flex items-center text-gray-600 mt-0.5">
-                                        <span class="inline-block w-2 h-2 rounded-full bg-orange-400 mr-2"></span>
-                                        <span class="font-medium text-orange-600 ml-1">Berlaku 1 Hari</span>
-                                    </div>
-                                @endif
-
-                                {{-- Masa aktif PT --}}
-                                @if(in_array($membership->type, ['pt', 'bundle_pt_membership']))
-                                    <div class="flex items-center text-gray-600">
-                                        <span class="inline-block w-2 h-2 rounded-full bg-indigo-400 mr-2"></span>
-                                        PT s/d: <span class="font-medium text-indigo-600 ml-1">{{ $membership->pt_end_date ? $membership->pt_end_date->format('d M Y') : 'BELUM AKTIF' }}</span>
-                                    </div>
-                                @endif
-                            </div>
+                            @else
+                                <span class="text-gray-400">-</span>
+                            @endif
                         </td>
 
-                        <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
-                            <span class="font-semibold">{{ $membership->followUp->name ?? '-' }}</span>
+                        <td class="px-6 py-4 font-medium text-heading whitespace-nowrap text-center">
+                            <span class="font-semibold">{{ $latest->followUp->name ?? '-' }}</span>
                         </td>
-                        <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
-                            <span class="font-semibold">{{ $membership->followUpTwo->name ?? '-' }}</span>
-                        </td>
-                        <td class="px-6 py-4 text-center whitespace-nowrap">
-                            <div class="flex items-center justify-center gap-2">
-                                @if(auth()->check() && auth()->user()->role === 'admin')
-                                    <a href="{{ route('admin.membership.edit', $membership->id) }}?redirect_to={{ urlencode('admin.riwayat.index') }}" class="inline-flex items-center text-brand hover:text-brand-dark font-medium text-sm">
-                                        <svg class="w-4 h-4 me-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10"></path></svg>
-                                        Edit
-                                    </a>
-                                    <button type="button" wire:click="delete({{ $membership->id }})" wire:confirm="Apakah Anda yakin ingin menghapus membership ini?" class="inline-flex items-center gap-1 px-3 py-2 text-sm font-medium text-red-700 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 focus:ring-2 focus:ring-red-300 transition-colors">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path><line x1="10" x2="10" y1="11" y2="17"></line><line x1="14" x2="14" y1="11" y2="17"></line></svg>
-                                        Hapus
-                                    </button>
-                                @endif
-                            </div>
+                        <td class="px-6 py-4 font-medium text-heading whitespace-nowrap text-center">
+                            <span class="font-semibold">{{ $latest->followUpTwo->name ?? '-' }}</span>
                         </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="8" class="px-6 py-8 text-center text-gray-500">
+                        <td colspan="7" class="px-6 py-8 text-center text-gray-500">
                             Belum ada riwayat transaksi membership.
                         </td>
                     </tr>
@@ -444,6 +397,6 @@ new #[Layout('layouts::admin')] class extends Component
     </div>
     
     <div class="mt-4">
-        {{ $this->memberships->links() }}
+        {{ $this->users->links() }}
     </div>
 </div>

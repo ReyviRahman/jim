@@ -505,7 +505,7 @@ new #[Layout('layouts::admin')] class extends Component
                         <th scope="col" class="px-6 py-3 font-medium text-center" colspan="2">Kategori</th>
                         <th scope="col" class="px-6 py-3 font-medium text-center">Sesi Awal</th>
                         {{-- <th scope="col" class="px-6 py-3 font-medium text-center">Sesi Ditambahkan</th> --}}
-                        <th scope="col" class="px-6 py-3 font-medium text-center">Total Sesi</th>
+                        {{-- <th scope="col" class="px-6 py-3 font-medium text-center">Total Sesi</th> --}}
                         <th scope="col" class="px-6 py-3 font-medium text-center">Belum Bayar</th>
                         <th scope="col" class="px-6 py-3 font-medium text-center">Sudah Bayar</th>
                         <th scope="col" class="px-6 py-3 font-medium text-center">Hangus</th>
@@ -513,7 +513,7 @@ new #[Layout('layouts::admin')] class extends Component
                         <th scope="col" class="px-6 py-3 font-medium text-center">Sisa Sesi</th>
                         <th scope="col" class="px-6 py-3 font-medium text-right">Nominal</th>
                         <th scope="col" class="px-6 py-3 font-medium text-right">Total</th>
-                        <th scope="col" class="px-6 py-3 font-medium text-center">Free</th>
+                        {{-- <th scope="col" class="px-6 py-3 font-medium text-center">Free</th> --}}
                         <th scope="col" class="px-6 py-3 font-medium text-center">Free Berjalan</th>
                     </tr>
                 </thead>
@@ -605,9 +605,9 @@ new #[Layout('layouts::admin')] class extends Component
                                 {{-- <td class="px-6 py-4 text-center whitespace-nowrap">
                                     {{ $sesiDitambahkan }}
                                 </td> --}}
-                                <td class="px-6 py-4 text-center whitespace-nowrap">
+                                {{-- <td class="px-6 py-4 text-center whitespace-nowrap">
                                     {{ $totalSessions }}
-                                </td>
+                                </td> --}}
                                 <td class="px-6 py-4 text-center whitespace-nowrap font-semibold text-amber-600">
                                     {{ $membership->berjalan_belum_dibayar }}
                                 </td>
@@ -629,9 +629,9 @@ new #[Layout('layouts::admin')] class extends Component
                                 <td class="px-6 py-4 text-right whitespace-nowrap">
                                     Rp {{ number_format($categoryTotal, 0, ',', '.') }}
                                 </td>
-                                <td class="px-6 py-4 text-center whitespace-nowrap">
+                                {{-- <td class="px-6 py-4 text-center whitespace-nowrap">
                                     {{ $membership->free_total }}
-                                </td>
+                                </td> --}}
                                 <td class="px-6 py-4 text-center whitespace-nowrap">
                                     {{ $membership->free_berjalan }}
                                 </td>
@@ -749,9 +749,9 @@ new #[Layout('layouts::admin')] class extends Component
                                 <td class="px-6 py-4 text-right whitespace-nowrap">
                                     Rp {{ number_format($categoryTotal, 0, ',', '.') }}
                                 </td>
-                                <td class="px-6 py-4 text-center whitespace-nowrap">
+                                {{-- <td class="px-6 py-4 text-center whitespace-nowrap">
                                     {{ $membership->free_total }}
-                                </td>
+                                </td> --}}
                                 <td class="px-6 py-4 text-center whitespace-nowrap">
                                     {{ $membership->free_berjalan }}
                                 </td>
@@ -770,7 +770,7 @@ new #[Layout('layouts::admin')] class extends Component
                 @if ($this->ptMembershipsDirect->count() > 0 || $bookingOnlyWithSessions->count() > 0)
                     <tfoot class="bg-neutral-secondary-medium font-semibold text-heading border-t-2 border-default-medium">
                         <tr>
-                            <td colspan="15" class="px-6 py-4 text-right">Sub Total</td>
+                            <td colspan="13" class="px-6 py-4 text-right">Sub Total</td>
                             <td class="px-6 py-4 text-right whitespace-nowrap">Rp {{ number_format($totalCategoryTotal, 0, ',', '.') }}</td>
                             <td colspan="2" class="px-6 py-4 text-center whitespace-nowrap">
                                 <button
