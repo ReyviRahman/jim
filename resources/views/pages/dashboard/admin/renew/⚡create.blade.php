@@ -398,6 +398,7 @@ new #[Layout('layouts::admin')] class extends Component
                 'membership_id' => $newMembership->id,
                 'user_id' => $this->mainUser->id,
                 'admin_id' => $this->admin_id,
+                'shift' => User::find($this->admin_id)?->shift,
                 'follow_up_id' => $this->follow_up_id ?: null,
                 'follow_up_id_two' => $this->follow_up_id_two ?: null,
                 'transaction_type' => $this->transaction_type,

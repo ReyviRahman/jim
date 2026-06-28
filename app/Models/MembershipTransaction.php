@@ -11,6 +11,7 @@ class MembershipTransaction extends Model
         'membership_id',
         'user_id',
         'admin_id',
+        'shift',
         'follow_up_id',
         'follow_up_id_two',
         'transaction_type',

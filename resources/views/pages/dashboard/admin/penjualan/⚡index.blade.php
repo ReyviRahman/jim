@@ -134,12 +134,13 @@ new #[Layout('layouts::admin')] class extends Component
         MembershipTransaction::create([
             'invoice_number' => $invoiceNumber,
             'user_id' => $this->selectedUserId,
-            'membership_id' => null, 
-            'admin_id' => $this->adminId, // Ubah dari Auth::id() menjadi pilihan dari modal
-            'transaction_type' => 'Pemasukan Lain', 
-            'package_name' => $this->incomeCategory, 
-            'amount' => $this->incomeAmount,         
-            'payment_method' => $this->incomePaymentMethod, 
+            'membership_id' => null,
+            'admin_id' => $this->adminId,
+            'shift' => User::find($this->adminId)?->shift,
+            'transaction_type' => 'Pemasukan Lain',
+            'package_name' => $this->incomeCategory,
+            'amount' => $this->incomeAmount,
+            'payment_method' => $this->incomePaymentMethod,
             'payment_date' => now(),
             'notes' => 'Data Pemasukan Tambahan',
         ]);
@@ -218,18 +219,11 @@ new #[Layout('layouts::admin')] class extends Component
                   ->whereDate('payment_date', '<=', $this->dateEnd);
         }
 
-        // 3. Logika Filter Shift (Jam)
-        // Pagi = 06:00 - 14:59 | Siang = 15:00 - 23:59
+        // 3. Logika Filter Shift
         if ($this->shift === 'pagi') {
-            // Cari transaksi yang dikerjakan oleh admin dengan shift 'Pagi'
-            $query->whereHas('admin', function ($q) {
-                $q->where('shift', 'Pagi');
-            });
+            $query->where('shift', 'Pagi');
         } elseif ($this->shift === 'siang') {
-            // Cari transaksi yang dikerjakan oleh admin dengan shift 'Siang'
-            $query->whereHas('admin', function ($q) {
-                $q->where('shift', 'Siang');
-            });
+            $query->where('shift', 'Siang');
         }
 
         return $query;
@@ -289,15 +283,11 @@ new #[Layout('layouts::admin')] class extends Component
                          ->whereDate('expense_date', '<=', $this->dateEnd);
         }
 
-        // Terapkan Filter Shift ke Pengeluaran (Jika ada)
+        // Terapkan Filter Shift ke Pengeluaran
         if ($this->shift === 'pagi') {
-            $expenseQuery->whereHas('admin', function ($q) {
-                $q->where('shift', 'Pagi');
-            });
+            $expenseQuery->where('shift', 'Pagi');
         } elseif ($this->shift === 'siang') {
-            $expenseQuery->whereHas('admin', function ($q) {
-                $q->where('shift', 'Siang');
-            });
+            $expenseQuery->where('shift', 'Siang');
         }
 
         $rincianPengeluaran = $expenseQuery->with('admin')->get();
@@ -361,9 +351,9 @@ new #[Layout('layouts::admin')] class extends Component
                          ->whereDate('expense_date', '<=', $this->dateEnd);
         }
         if ($this->shift === 'pagi') {
-            $expenseQuery->whereHas('admin', fn($q) => $q->where('shift', 'Pagi'));
+            $expenseQuery->where('shift', 'Pagi');
         } elseif ($this->shift === 'siang') {
-            $expenseQuery->whereHas('admin', fn($q) => $q->where('shift', 'Siang'));
+            $expenseQuery->where('shift', 'Siang');
         }
         
         $rincianPengeluaran = $expenseQuery->with('admin')->get();
@@ -507,6 +497,7 @@ new #[Layout('layouts::admin')] class extends Component
                     <th class="px-6 py-3 font-medium">Catatan</th>
                     <th class="px-6 py-3 font-medium text-right">Nominal</th>
                     <th class="px-6 py-3 font-medium">Metode Bayar</th>
+                    <th class="px-6 py-3 font-medium">Nama Kasir</th>
                     <th class="px-6 py-3 font-medium">Admin Follow Up</th>
                     <th class="px-6 py-3 font-medium">Sales Follow Up</th>
                 </tr>
@@ -555,11 +546,12 @@ new #[Layout('layouts::admin')] class extends Component
                         <td class="px-6 py-4 font-medium text-gray-700 whitespace-nowrap">{{ $transaction->notes }}</td>
                         <td class="px-6 py-4 text-right font-bold text-emerald-600 whitespace-nowrap">Rp {{ number_format($transaction->amount, 0, ',', '.') }}</td>
                         <td class="px-6 py-4 whitespace-nowrap"><span class="text-xs font-medium border bg-white px-2 py-0.5 rounded shadow-xs">{{ strtoupper($transaction->payment_method) }}</span></td>
+                        <td class="px-6 py-4 whitespace-nowrap">{{ $transaction->admin->name ?? '-' }}</td>
                         <td class="px-6 py-4 whitespace-nowrap">{{ $transaction->followUp->name ?? '-' }}</td>
                         <td class="px-6 py-4 whitespace-nowrap">{{ $transaction->followUpTwo->name ?? '-' }}</td>
                     </tr>
                 @empty
-                    <tr><td colspan="10" class="px-6 py-8 text-center text-gray-500">Belum ada riwayat penjualan.</td></tr>
+                    <tr><td colspan="13" class="px-6 py-8 text-center text-gray-500">Belum ada riwayat penjualan.</td></tr>
                 @endforelse
             </tbody>
         </table>

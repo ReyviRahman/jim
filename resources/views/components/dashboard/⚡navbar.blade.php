@@ -4,6 +4,32 @@ use Livewire\Component;
 use Illuminate\Support\Facades\Auth;
 
 new class extends Component {
+    public bool $showShiftModal = false;
+    public string $selectedShift = '';
+
+    public function openShiftModal()
+    {
+        $this->selectedShift = Auth::user()->shift ?? '';
+        $this->showShiftModal = true;
+    }
+
+    public function closeShiftModal()
+    {
+        $this->showShiftModal = false;
+        $this->resetValidation();
+    }
+
+    public function saveShift()
+    {
+        $this->validate([
+            'selectedShift' => 'required|in:Pagi,Siang',
+        ]);
+
+        Auth::user()->update(['shift' => $this->selectedShift]);
+
+        return $this->redirect(url()->previous());
+    }
+
     public function logout()
     {
         Auth::logout();
@@ -33,6 +59,21 @@ new class extends Component {
             <div class="flex items-center">
                 @auth
                     <div class="sm:ms-4 ms-auto flex items-center md:order-2 space-x-3 md:space-x-0 rtl:space-x-reverse">
+                        @if(in_array(Auth::user()->role, ['admin', 'kasir_gym', 'kasir_minum']))
+                            <button type="button" wire:click="openShiftModal"
+                                class="inline-flex items-center gap-1.5 me-2 sm:me-3 px-2 sm:px-3 py-1.5 text-sm font-medium text-brand bg-[#34342F] border border-default-medium rounded-md hover:bg-neutral-tertiary-medium focus:ring-4 focus:ring-brand focus:outline-none">
+                                <svg class="w-4 h-4" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/>
+                                </svg>
+                                <span class="hidden sm:inline">
+                                    @if(Auth::user()->shift)
+                                        Shift: {{ Auth::user()->shift }}
+                                    @else
+                                        Pilih Shift
+                                    @endif
+                                </span>
+                            </button>
+                        @endif
                         <button type="button"
                             class="flex text-sm bg-[#34342F] rounded-full md:me-0 focus:ring-4 focus:ring-brand"
                             id="user-menu-button" aria-expanded="false" data-dropdown-toggle="user-dropdown"
@@ -81,4 +122,42 @@ new class extends Component {
             </div>
         </div>
     </div>
+
+    @if($showShiftModal)
+        <div class="fixed inset-0 z-50 flex items-center justify-center w-full h-full overflow-y-auto bg-gray-900/50 backdrop-blur-sm">
+            <div class="relative w-full max-w-sm p-4 bg-white rounded-lg shadow sm:p-5">
+                <div class="flex items-center justify-between pb-4 mb-4 border-b rounded-t border-gray-200">
+                    <h3 class="text-lg font-semibold text-gray-900">Ubah Shift</h3>
+                    <button type="button" wire:click="closeShiftModal" class="text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm p-1.5 ml-auto inline-flex items-center">
+                        <svg aria-hidden="true" class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                        </svg>
+                        <span class="sr-only">Tutup modal</span>
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3 mb-5">
+                    <button type="button" wire:click="$set('selectedShift', 'Pagi')"
+                        class="px-4 py-3 text-sm font-medium border rounded-lg focus:outline-none focus:ring-4 {{ $selectedShift === 'Pagi' ? 'bg-brand text-secondary border-brand' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50' }}">
+                        Pagi
+                    </button>
+                    <button type="button" wire:click="$set('selectedShift', 'Siang')"
+                        class="px-4 py-3 text-sm font-medium border rounded-lg focus:outline-none focus:ring-4 {{ $selectedShift === 'Siang' ? 'bg-brand text-secondary border-brand' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50' }}">
+                        Siang
+                    </button>
+                </div>
+                @error('selectedShift') <span class="text-xs text-red-500 mb-4 block">{{ $message }}</span> @enderror
+
+                <div class="flex items-center gap-3 justify-end">
+                    <button type="button" wire:click="closeShiftModal" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:ring-4 focus:ring-gray-100 focus:outline-none">
+                        Batal
+                    </button>
+                    <button type="button" wire:click="saveShift" wire:loading.attr="disabled" class="px-4 py-2 text-sm font-medium text-secondary bg-brand rounded-lg hover:bg-yellow-300 focus:ring-4 focus:ring-brand focus:outline-none disabled:opacity-50">
+                        <span wire:loading.remove wire:target="saveShift">Simpan</span>
+                        <span wire:loading wire:target="saveShift">Menyimpan...</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    @endif
 </nav>

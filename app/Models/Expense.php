@@ -9,6 +9,7 @@ class Expense extends Model
 {
     protected $fillable = [
         'admin_id',
+        'shift',
         'description',
         'amount',
         'expense_date',

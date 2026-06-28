@@ -33,7 +33,8 @@ new #[Layout('layouts::admin')] class extends Component
 
         // Simpan ke database
         Expense::create([
-            'admin_id' => Auth::id(), // Ambil ID dari admin yang sedang login
+            'admin_id' => Auth::id(),
+            'shift' => Auth::user()->shift,
             'description' => $this->description,
             'amount' => $this->amount,
             'expense_date' => $this->expense_date,
