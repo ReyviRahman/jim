@@ -481,8 +481,11 @@ new #[Layout('layouts::admin')] class extends Component
                                     @foreach($this->summary['rincian_pengeluaran'] as $exp)
                                         <li class="flex justify-between items-start gap-3 border-b border-gray-100 pb-2 last:border-0 last:pb-0">
                                             <div class="flex-1">
-                                                <span class="block font-semibold text-gray-800">{{ $exp->nama_penghutang ?? 'Tidak ada nama' }}</span>
+                                                <span class="block font-semibold text-gray-800">{{ $exp->nama_produk ?? 'Tidak ada nama' }}</span>
                                                 <span class="text-gray-500 text-[10px] mt-0.5 block">{{ $exp->waktu_transaksi->format('d M Y H:i') }}</span>
+                                                @if($exp->nama_penghutang)
+                                                    <span class="text-gray-400 text-[10px] block">Oleh: {{ $exp->nama_penghutang }}</span>
+                                                @endif
                                             </div>
                                             <span class="font-bold text-red-600 whitespace-nowrap">- Rp {{ number_format($exp->total_harga, 0, ',', '.') }}</span>
                                         </li>
