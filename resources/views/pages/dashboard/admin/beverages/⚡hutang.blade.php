@@ -73,11 +73,9 @@ new #[Layout('layouts::admin')] class extends Component
             return;
         }
 
-        $totalHarga = $originalSale->total_harga;
-        $metodeBayar = $this->selectedKeteranganBayar;
-
         BeverageSale::create([
             'beverage_id' => $originalSale->beverage_id,
+            'parent_beverage_sale_id' => $originalSale->id,
             'nama_produk' => $originalSale->nama_produk,
             'nama_staff' => $originalSale->nama_staff,
             'waktu_transaksi' => now(),
@@ -85,7 +83,7 @@ new #[Layout('layouts::admin')] class extends Component
             'jumlah_beli' => $originalSale->jumlah_beli,
             'harga_satuan' => $originalSale->harga_satuan,
             'total_harga' => $originalSale->total_harga,
-            'keterangan_bayar' => $metodeBayar,
+            'keterangan_bayar' => $this->selectedKeteranganBayar,
             'nama_penghutang' => $originalSale->nama_penghutang,
             'is_lunas' => true,
         ]);
@@ -96,7 +94,7 @@ new #[Layout('layouts::admin')] class extends Component
         $this->selectedHutangId = null;
         $this->selectedKeteranganBayar = '';
 
-        session()->flash('success', 'Hutang berhasil dilunasi dengan metode ' . ($metodeBayar === 'deposit_hutang_cash' ? 'Deposit/Cash' : 'Deposit/TF BCA/QRIS') . '.');
+        session()->flash('success', 'Hutang berhasil dilunasi.');
     }
 
     public function deleteHutang($id)
@@ -237,8 +235,8 @@ new #[Layout('layouts::admin')] class extends Component
                             <label class="block mb-2 text-sm font-medium text-heading">Metode Bayar</label>
                             <select wire:model="selectedKeteranganBayar"
                                 class="block w-full px-3 py-2 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs">
-                                <option value="deposit_hutang_cash">Deposit/Cash</option>
-                                <option value="deposit_hutang_qris">Deposit/TF BCA/QRIS</option>
+                                <option value="deposit_hutang_cash">Pelunasan Hutang (Cash)</option>
+                                <option value="deposit_hutang_qris">Pelunasan Hutang (QRIS)</option>
                             </select>
                         </div>
                         <div class="flex flex-col gap-2">

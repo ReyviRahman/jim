@@ -11,6 +11,7 @@ Route::livewire('/', 'pages::index')
 // --- API ROUTES ---
 Route::middleware('auth')->group(function () {
     Route::get('/api/beverages/search', [BeverageApiController::class, 'search']);
+    Route::get('/api/beverages/deposits', [BeverageApiController::class, 'activeDeposits']);
     Route::post('/admin/beverages/pos/process', [BeverageApiController::class, 'processSale'])->name('admin.beverages.pos.process');
 });
 
@@ -44,9 +45,6 @@ Route::middleware('auth')->group(function () {
         Route::livewire('/jadwal-pt', 'pages::dashboard.member.jadwal-pt.index')
             ->name('member.jadwal-pt.index');
 
-        Route::livewire('/booking-jadwal', 'pages::dashboard.member.booking-jadwal')
-            ->name('member.booking-jadwal.index');
-
         // Route::livewire('/paket', 'pages::dashboard.member.package')
         //     ->name('member.paket.index');
 
@@ -60,9 +58,6 @@ Route::middleware('auth')->group(function () {
 
         Route::livewire('/riwayat-kehadiran', 'pages::dashboard.pt.kehadiran')
             ->name('pt.kehadiran.index');
-
-        Route::livewire('/jadwal-pt', 'pages::dashboard.pt.jadwal-pt.index')
-            ->name('pt.jadwal-pt.index');
 
         Route::livewire('/booking-jadwal', 'pages::dashboard.pt.booking-jadwal.index')
             ->name('pt.booking-jadwal.index');
@@ -224,6 +219,9 @@ Route::middleware('auth')->group(function () {
 
         Route::livewire('/beverages/hutang', 'pages::dashboard.admin.beverages.hutang')
             ->name('admin.beverages.hutang');
+
+        Route::livewire('/beverages/deposit', 'pages::dashboard.admin.beverages.deposit')
+            ->name('admin.beverages.deposit');
 
         Route::livewire('/beverages/invoice', 'pages::dashboard.admin.beverages.invoice')
             ->name('admin.beverages.invoice');

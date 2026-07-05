@@ -116,18 +116,6 @@ new #[Layout('layouts::member')] class extends Component
         return $query->get();
     }
 
-    public function timeSlots(): array
-    {
-        $slots = [];
-        for ($h = 7; $h <= 22; $h++) {
-            $start = str_pad((string) $h, 2, '0', STR_PAD_LEFT).':00';
-            $end = str_pad((string) ($h + 1), 2, '0', STR_PAD_LEFT).':00';
-            $slots[] = ['hour' => $h, 'label' => $start.' - '.$end];
-        }
-
-        return $slots;
-    }
-
     public function daysOfWeek(): array
     {
         return [
@@ -141,14 +129,11 @@ new #[Layout('layouts::member')] class extends Component
         ];
     }
 
-    public function getBookingsForSlot(string $day, int $hour)
+    public function getBookingsForDay(Carbon $date)
     {
-        return $this->bookings->filter(function ($booking) use ($day, $hour) {
-            $bookingDay = strtolower($booking->booking_date->locale('id')->isoFormat('dddd'));
-            $bookingHour = (int) $booking->booking_time->format('H');
-
-            return $bookingDay === $day && $bookingHour === $hour;
-        });
+        return $this->bookings->filter(function ($booking) use ($date) {
+            return $booking->booking_date->format('Y-m-d') === $date->format('Y-m-d');
+        })->sortBy('booking_time');
     }
 
     #[Computed]
@@ -224,7 +209,7 @@ new #[Layout('layouts::member')] class extends Component
         </div>
 
         <div class="p-4 border-t border-default-medium flex flex-col md:flex-row items-center justify-between gap-4">
-            <div class="flex items-center gap-2">
+            <div class="flex flex-wrap items-center gap-2">
                 <button wire:click="previousWeek" class="inline-flex items-center gap-1 px-3 py-2 text-sm font-medium text-body bg-neutral-secondary-medium border border-default-medium rounded hover:bg-neutral-secondary-dark transition-colors">
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
                     Minggu Lalu
@@ -245,95 +230,83 @@ new #[Layout('layouts::member')] class extends Component
             </span>
         </div>
 
-        <div class="overflow-x-auto">
-            <table class="w-full text-sm text-left text-body border-collapse">
-                <thead class="text-sm text-body bg-neutral-secondary-medium border-b border-default-medium">
-                    <tr>
-                        <th scope="col" class="px-4 py-3 font-medium whitespace-nowrap border-r border-default-medium w-28">Time</th>
-                        @php
-                            $weekStart = $this->getWeekStart();
-                            $dayLabels = $this->daysOfWeek();
-                        @endphp
-                        @foreach($dayLabels as $dayKey => $dayName)
-                            <th scope="col" class="px-4 py-3 font-medium text-center border-r border-default-medium min-w-[140px]">
-                                {{ $dayName }}
-                                <div class="text-xs font-normal text-body mt-0.5">
-                                    {{ $weekStart->copy()->addDays($loop->index)->locale('id')->isoFormat('D MMM') }}
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-4">
+            @php
+                $dayLabels = $this->daysOfWeek();
+            @endphp
+            @foreach($dayLabels as $dayKey => $dayName)
+                @php
+                    $currentDayDate = $this->getWeekStart()->copy()->addDays($loop->index);
+                    $dayBookings = $this->getBookingsForDay($currentDayDate);
+                    $isToday = $currentDayDate->isToday();
+                @endphp
+                <div class="bg-neutral-primary-soft rounded-xl shadow-xs border {{ $isToday ? 'border-brand ring-1 ring-brand' : 'border-default' }} overflow-hidden flex flex-col">
+                    <div class="px-4 py-3 border-b border-default-medium {{ $isToday ? 'bg-brand/10' : 'bg-neutral-secondary-medium' }}">
+                        <h3 class="text-sm font-bold {{ $isToday ? 'text-brand' : 'text-heading' }}">{{ $dayName }}</h3>
+                        <p class="text-xs {{ $isToday ? 'text-brand-dark' : 'text-body' }} mt-0.5">
+                            {{ $currentDayDate->locale('id')->isoFormat('D MMM') }}
+                        </p>
+                    </div>
+                    <div class="p-3 flex-1 flex flex-col gap-2 min-h-[120px]">
+                        @forelse($dayBookings as $booking)
+                            <div wire:click="openDetailModal({{ $booking->id }})"
+                                class="cursor-pointer p-3 rounded-lg border text-sm transition-colors
+                                @if($booking->status === 'cancelled') bg-gray-50 border-gray-200 opacity-60
+                                @elseif($booking->isRejected()) bg-red-50 border-red-200
+                                @elseif($booking->isPending()) bg-orange-50 border-orange-200
+                                @elseif($booking->isCancellationPending()) bg-yellow-50 border-yellow-200
+                                @else bg-green-50 border-green-200
+                                @endif">
+                                <div class="font-semibold text-heading truncate">{{ $booking->member?->name ?? '-' }}</div>
+                                @if($booking->membership && $booking->membership->members)
+                                    @foreach($booking->membership->members->where('id', '!=', $booking->member_id) as $member)
+                                        <div class="font-semibold text-heading truncate">{{ $member->name }}</div>
+                                    @endforeach
+                                @endif
+                                <div class="text-body text-xs mt-0.5 truncate">{{ $booking->pt?->name ?? '-' }}</div>
+                                <div class="mt-1.5 flex items-center gap-1 text-xs font-medium text-heading">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                                    {{ $booking->booking_time->format('H:i') }}
                                 </div>
-                            </th>
-                        @endforeach
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse($this->timeSlots() as $slot)
-                        <tr class="bg-neutral-primary-soft border-b border-default hover:bg-neutral-secondary-medium/50">
-                            <td class="px-4 py-3 font-medium text-heading whitespace-nowrap border-r border-default-medium bg-neutral-secondary-medium/30">
-                                {{ $slot['label'] }}
-                            </td>
-                            @foreach(array_keys($dayLabels) as $dayKey)
-                                @php
-                                    $slotBookings = $this->getBookingsForSlot($dayKey, $slot['hour']);
-                                @endphp
-                                <td class="px-2 py-2 border-r border-default align-top min-w-[140px]">
-                                    <div class="flex flex-col gap-1.5">
-                                        @foreach($slotBookings as $booking)
-                                            <div wire:click="openDetailModal({{ $booking->id }})"
-                                                class="cursor-pointer p-2 rounded border text-xs transition-colors
-                                                @if($booking->status === 'cancelled') bg-gray-50 border-gray-200 opacity-60
-                                                @elseif($booking->isRejected()) bg-red-50 border-red-200
-                                                @elseif($booking->isPending()) bg-orange-50 border-orange-200
-                                                @elseif($booking->isCancellationPending()) bg-yellow-50 border-yellow-200
-                                                @else bg-green-50 border-green-200
-                                                @endif">
-                                                <div class="font-semibold text-heading truncate">{{ $booking->member?->name ?? '-' }}</div>
-                                                @if($booking->membership && $booking->membership->members)
-                                                    @foreach($booking->membership->members->where('id', '!=', $booking->member_id) as $member)
-                                                        <div class="font-semibold text-heading truncate">{{ $member->name }}</div>
-                                                    @endforeach
-                                                @endif
-                                                <div class="text-body mt-0.5 truncate">{{ $booking->pt?->name ?? '-' }}</div>
-                                                <div class="mt-1 flex items-center gap-1">
-                                                    @if($booking->isCancellationPending())
-                                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-yellow-100 text-yellow-800">Pending Cancel</span>
-                                                    @else
-                                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium capitalize
-                                                            @if($booking->status === 'pending') bg-orange-100 text-orange-800
-                                                            @elseif($booking->status === 'approved') bg-green-100 text-green-800
-                                                            @elseif($booking->status === 'cancelled') bg-gray-100 text-gray-600
-                                                            @elseif($booking->status === 'rejected') bg-red-100 text-red-800
-                                                            @else bg-gray-100 text-gray-800
-                                                            @endif">
-                                                            {{ $booking->status }}
-                                                        </span>
-                                                    @endif
-                                                    @if($booking->status === 'approved')
-                                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium capitalize
-                                                            @if($booking->attendance === 'attended') bg-green-100 text-green-800
-                                                            @elseif($booking->attendance === 'noshow') bg-red-100 text-red-800
-                                                            @else bg-gray-100 text-gray-600
-                                                            @endif">
-                                                            @if($booking->attendance === 'attended') Hadir
-                                                            @elseif($booking->attendance === 'noshow') Hangus
-                                                            @else Belum
-                                                            @endif
-                                                        </span>
-                                                    @endif
-                                                </div>
-                                            </div>
-                                        @endforeach
-                                    </div>
-                                </td>
-                            @endforeach
-                        </tr>
-                    @empty
-                        <tr>
-                            <td colspan="8" class="px-6 py-8 text-center text-gray-500">
-                                Tidak ada data slot waktu.
-                            </td>
-                        </tr>
-                    @endforelse
-                </tbody>
-            </table>
+                                <div class="mt-2 flex flex-wrap items-center gap-1">
+                                    @if($booking->isCancellationPending())
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-yellow-100 text-yellow-800">Pending Cancel</span>
+                                    @else
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium capitalize
+                                            @if($booking->status === 'pending') bg-orange-100 text-orange-800
+                                            @elseif($booking->status === 'approved') bg-green-100 text-green-800
+                                            @elseif($booking->status === 'cancelled') bg-gray-100 text-gray-600
+                                            @elseif($booking->status === 'rejected') bg-red-100 text-red-800
+                                            @else bg-gray-100 text-gray-800
+                                            @endif">
+                                            {{ $booking->status }}
+                                        </span>
+                                    @endif
+                                    @if($booking->status === 'approved')
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium capitalize
+                                            @if($booking->attendance === 'attended') bg-green-100 text-green-800
+                                            @elseif($booking->attendance === 'noshow') bg-red-100 text-red-800
+                                            @else bg-gray-100 text-gray-600
+                                            @endif">
+                                            @if($booking->attendance === 'attended') Hadir
+                                            @elseif($booking->attendance === 'noshow') Hangus
+                                            @else Belum
+                                            @endif
+                                        </span>
+                                    @endif
+                                </div>
+                            </div>
+                        @empty
+                            <div class="flex-1 flex flex-col items-center justify-center text-center py-4">
+                                <svg class="w-8 h-8 text-gray-200 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                </svg>
+                                <p class="text-xs text-gray-400">Tidak ada booking</p>
+                            </div>
+                        @endforelse
+                    </div>
+                </div>
+            @endforeach
         </div>
     </div>
 

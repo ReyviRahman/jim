@@ -18,6 +18,7 @@ new #[Layout('layouts::admin')] class extends Component
 
     public $search = '';
     public $start_date = '';
+    public $statusFilter = 'active';
     public $editingStokAwalId = null;
     public $editingStokAwalValue = 0;
     public $isAdmin = false;
@@ -29,6 +30,11 @@ new #[Layout('layouts::admin')] class extends Component
     {
         $this->start_date = date('Y-m-d');
         $this->isAdmin = auth()->check() && auth()->user()->role === 'admin';
+    }
+
+    public function updatingStatusFilter()
+    {
+        $this->resetPage();
     }
 
     public function editStokAwal($id)
@@ -120,6 +126,8 @@ new #[Layout('layouts::admin')] class extends Component
     public function getBeveragesWithStockProperty()
     {
         $beverages = Beverage::withTrashed()
+            ->when($this->statusFilter === 'active', fn($q) => $q->whereNull('deleted_at'))
+            ->when($this->statusFilter === 'inactive', fn($q) => $q->whereNotNull('deleted_at'))
             ->when($this->search, fn($q) => $q->where('nama_produk', 'like', '%' . $this->search . '%'))
             ->orderBy('nama_produk')
             ->paginate(10);
@@ -259,6 +267,15 @@ new #[Layout('layouts::admin')] class extends Component
             <div class="flex flex-col sm:flex-row gap-2 w-full">
                 <div class="flex-1">
                     <input type="text" wire:model.live.debounce.300ms="search" class="block w-full ps-9 pe-3 py-2.5 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs placeholder:text-body" placeholder="Cari nama produk...">
+                </div>
+                <div>
+                    <label class="block mb-1 text-xs font-medium text-heading">Status</label>
+                    <select wire:model.live="statusFilter"
+                        class="block px-3 py-2 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs">
+                        <option value="active">Aktif</option>
+                        <option value="inactive">Tidak Aktif</option>
+                        <option value="all">Semua</option>
+                    </select>
                 </div>
                 <div class="flex gap-2 items-end">
                     <div>

@@ -5,6 +5,7 @@ namespace App\Livewire\Pages\Dashboard\Admin\Beverages;
 use App\Exports\BeverageSaleExport;
 use App\Exports\BeverageSaleExportDetail;
 use App\Models\BeverageSale;
+use App\Models\DepositBeverage;
 use Livewire\Component;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -22,6 +23,7 @@ new #[Layout('layouts::admin')] class extends Component
     public $shift = '';
     public $showDeleteModal = false;
     public $selectedSaleId = null;
+    public $selectedSale = null;
 
     public function mount()
     {
@@ -57,15 +59,23 @@ new #[Layout('layouts::admin')] class extends Component
 
     private function getBaseQuery()
     {
-        $query = BeverageSale::with(['beverage' => function ($query) {
-            $query->withTrashed();
-        }])
+        $query = BeverageSale::with([
+            'beverage' => function ($query) {
+                $query->withTrashed();
+            },
+            'depositBeverage',
+        ])
         ->when($this->searchProduct, function ($query) {
             $query->where(function ($q) {
                 $q->whereHas('beverage', function ($q2) {
                     $q2->where('nama_produk', 'like', '%' . $this->searchProduct . '%');
                 })
-                ->orWhere('nama_staff', 'like', '%' . $this->searchProduct . '%');
+                ->orWhere('nama_staff', 'like', '%' . $this->searchProduct . '%')
+                ->orWhere('nama_penghutang', 'like', '%' . $this->searchProduct . '%')
+                ->orWhere('nama_produk', 'like', '%' . $this->searchProduct . '%')
+                ->orWhereHas('depositBeverage', function ($q2) {
+                    $q2->where('nama_pelanggan', 'like', '%' . $this->searchProduct . '%');
+                });
             });
         })
         ->when($this->shift, function ($query) {
@@ -106,36 +116,34 @@ new #[Layout('layouts::admin')] class extends Component
     {
         $data = $this->getBaseQuery()->get();
 
-        $cash = $data->where('keterangan_bayar', 'cash')->sum('total_harga');
+        $cash = $data->where('keterangan_bayar', 'cash')->sum('total_harga') + $data->where('keterangan_bayar', 'cash')->sum('save_deposit');
         $transfer = $data->where('keterangan_bayar', 'tf_bca_qris')->sum('total_harga');
-        $depositCash = $data->where('keterangan_bayar', 'deposit_hutang_cash')->sum('total_harga');
-        $depositQris = $data->where('keterangan_bayar', 'deposit_hutang_qris')->sum('total_harga');
+        $deposit = $data->where('keterangan_bayar', 'deposit')->sum('total_harga') + $data->where('keterangan_bayar', '!=', 'deposit')->sum('deposit_amount');
+        $depositHutangCash = $data->where('keterangan_bayar', 'deposit_hutang_cash')->sum('total_harga');
+        $depositHutangQris = $data->where('keterangan_bayar', 'deposit_hutang_qris')->sum('total_harga');
         $operasional = $data->where('keterangan_bayar', 'operasional')->sum('total_harga');
         $pengeluaranUmum = $data->where('keterangan_bayar', 'pengeluaran_umum')->sum('total_harga');
         $hutang = $data->where('keterangan_bayar', 'hutang')->sum('total_harga');
 
         $rincianPengeluaran = $data->where('keterangan_bayar', 'pengeluaran_umum')->values();
 
-        $totalCash = $cash + $depositCash;
-        $totalTransfer = $transfer + $depositQris;
         $totalPengeluaran = $pengeluaranUmum;
-        $totalMasuk = $cash + $transfer + $depositCash + $depositQris;
+        $totalMasuk = $cash + $transfer + $depositHutangCash + $depositHutangQris;
 
         $penjualan = $cash + $transfer;
 
-        $realCash = $totalCash - $totalPengeluaran;
+        $realCash = $cash - $totalPengeluaran;
         $balanceHijau = $totalMasuk - $totalPengeluaran;
 
         return [
             'cash' => $cash,
             'transfer' => $transfer,
-            'deposit_cash' => $depositCash,
-            'deposit_qris' => $depositQris,
+            'deposit' => $deposit,
+            'deposit_hutang_cash' => $depositHutangCash,
+            'deposit_hutang_qris' => $depositHutangQris,
             'operasional' => $operasional,
             'pengeluaran_umum' => $pengeluaranUmum,
             'hutang' => $hutang,
-            'total_cash' => $totalCash,
-            'total_transfer' => $totalTransfer,
             'total_pengeluaran' => $totalPengeluaran,
             'total_masuk' => $totalMasuk,
             'penjualan' => $penjualan,
@@ -176,24 +184,52 @@ new #[Layout('layouts::admin')] class extends Component
     public function confirmDelete($id)
     {
         $this->selectedSaleId = $id;
+        $this->selectedSale = BeverageSale::with(['depositBeverage', 'parentBeverageSale', 'changeDeposit'])->find($id);
         $this->showDeleteModal = true;
     }
 
     public function deleteSale()
     {
-        $sale = BeverageSale::find($this->selectedSaleId);
+        $sale = BeverageSale::with(['depositBeverage', 'parentBeverageSale'])->find($this->selectedSaleId);
         if (!$sale) {
             $this->closeDeleteModal();
             return;
         }
 
-        $stockAffecting = !in_array($sale->keterangan_bayar, ['deposit_hutang_cash', 'deposit_hutang_qris', 'operasional', 'pengeluaran_umum']);
+        if ($sale->keterangan_bayar === 'cash') {
+            $changeDeposit = DepositBeverage::where('beverage_sale_id', $sale->id)->first();
+
+            if ($changeDeposit) {
+                if ($changeDeposit->is_used || $changeDeposit->sisa_nominal !== $changeDeposit->nominal) {
+                    session()->flash('error', 'Tidak dapat menghapus transaksi karena deposit kembaliannya sudah digunakan.');
+                    $this->closeDeleteModal();
+
+                    return;
+                }
+
+                $changeDeposit->delete();
+            }
+        }
+
+        $stockAffecting = !in_array($sale->keterangan_bayar, ['deposit_hutang_cash', 'deposit_hutang_qris', 'pengeluaran_umum']);
 
         if ($stockAffecting && $sale->beverage) {
             $beverage = $sale->beverage;
             $beverage->update([
                 'stok_sekarang' => $beverage->stok_sekarang + $sale->jumlah_beli,
             ]);
+        }
+
+        if ($sale->depositBeverage && $sale->deposit_amount > 0) {
+            $deposit = $sale->depositBeverage;
+            $deposit->update([
+                'sisa_nominal' => $deposit->sisa_nominal + $sale->deposit_amount,
+                'is_used' => false,
+            ]);
+        }
+
+        if ($sale->parentBeverageSale && in_array($sale->keterangan_bayar, ['deposit_hutang_cash', 'deposit_hutang_qris'])) {
+            $sale->parentBeverageSale->update(['is_lunas' => false]);
         }
 
         $sale->delete();
@@ -208,6 +244,7 @@ new #[Layout('layouts::admin')] class extends Component
     {
         $this->showDeleteModal = false;
         $this->selectedSaleId = null;
+        $this->selectedSale = null;
     }
 
     public function with(): array
@@ -310,6 +347,7 @@ new #[Layout('layouts::admin')] class extends Component
                                 'operasional' => 'bg-blue-50',
                                 'pengeluaran_umum' => 'bg-red-50',
                                 'deposit_hutang_cash', 'deposit_hutang_qris' => 'bg-yellow-50',
+                                'deposit' => 'bg-indigo-50',
                                 'hutang' => 'bg-purple-50',
                                 default => 'bg-neutral-primary-soft',
                             };
@@ -321,7 +359,12 @@ new #[Layout('layouts::admin')] class extends Component
                             <td class="px-4 py-3 whitespace-nowrap">{{ $sale->nama_produk ?? '-' }}</td>
                             <td class="px-4 py-3 text-center whitespace-nowrap">{{ $sale->jumlah_beli }}</td>
                             <td class="px-4 py-3 text-right whitespace-nowrap">Rp {{ number_format($sale->harga_satuan, 0, ',', '.') }}</td>
-                            <td class="px-4 py-3 text-right whitespace-nowrap font-semibold text-emerald-600">Rp {{ number_format($sale->total_harga, 0, ',', '.') }}</td>
+                            <td class="px-4 py-3 text-right whitespace-nowrap font-semibold text-emerald-600">
+                                Rp {{ number_format($sale->total_harga + ($sale->save_deposit ?? 0), 0, ',', '.') }}
+                                @if($sale->save_deposit > 0)
+                                    <span class="block text-[10px] text-body font-normal">(termasuk deposit Rp {{ number_format($sale->save_deposit, 0, ',', '.') }})</span>
+                                @endif
+                            </td>
                             <td class="px-4 py-3 whitespace-nowrap">{{ ucfirst($sale->shift) }}</td>
                             <td class="px-4 py-3 whitespace-nowrap">
                                 @php
@@ -330,9 +373,10 @@ new #[Layout('layouts::admin')] class extends Component
                                         'tf_bca_qris' => 'TF BCA/Qris',
                                         'operasional' => 'Operasional',
                                         'pengeluaran_umum' => 'Pengeluaran Umum',
-                                        'deposit_hutang_cash' => 'Deposit/Cash',
-                                        'deposit_hutang_qris' => 'Deposit/QRIS',
+                                        'deposit_hutang_cash' => 'Pelunasan Hutang (Cash)',
+                                        'deposit_hutang_qris' => 'Pelunasan Hutang (QRIS)',
                                         'hutang' => 'Hutang',
+                                        'deposit' => 'Deposit',
                                     ];
                                     $badge = match($sale->keterangan_bayar) {
                                         'cash' => 'bg-emerald-100 text-emerald-700',
@@ -340,6 +384,7 @@ new #[Layout('layouts::admin')] class extends Component
                                         'operasional' => 'bg-blue-100 text-blue-700',
                                         'pengeluaran_umum' => 'bg-red-100 text-red-700',
                                         'deposit_hutang_cash', 'deposit_hutang_qris' => 'bg-yellow-100 text-yellow-700',
+                                        'deposit' => 'bg-indigo-100 text-indigo-700',
                                         'hutang' => 'bg-purple-100 text-purple-700',
                                         default => 'bg-gray-100 text-gray-700',
                                     };
@@ -402,16 +447,23 @@ new #[Layout('layouts::admin')] class extends Component
                         <td class="px-4 py-3 text-right font-bold text-red-600">- Rp {{ number_format($this->summary['total_pengeluaran'], 0, ',', '.') }}</td>
                     </tr>
                     <tr class="border-b border-gray-100">
-                        <td class="px-4 py-3 font-medium">PELUNASAN HUTANG (CASH)</td>
-                        <td class="px-4 py-3 text-right font-bold">Rp {{ number_format($this->summary['deposit_cash'], 0, ',', '.') }}</td>
+                        <td class="px-4 py-3 font-medium">DEPOSIT</td>
+                        <td class="px-4 py-3 text-right font-bold">Rp {{ number_format($this->summary['deposit'], 0, ',', '.') }}</td>
                         
                         <td class="px-4 py-3 font-medium border-l border-gray-200">HUTANG</td>
                         <td class="px-4 py-3 text-right font-bold">Rp {{ number_format($this->summary['hutang'], 0, ',', '.') }}</td>
                     </tr>
                     <tr class="border-b border-gray-100">
-                        <td class="px-4 py-3 font-medium">PELUNASAN HUTANG (TF BCA/QRIS)</td>
-                        <td class="px-4 py-3 text-right font-bold">Rp {{ number_format($this->summary['deposit_qris'], 0, ',', '.') }}</td>
-                        
+                        <td class="px-4 py-3 font-medium">PELUNASAN HUTANG (CASH)</td>
+                        <td class="px-4 py-3 text-right font-bold">Rp {{ number_format($this->summary['deposit_hutang_cash'], 0, ',', '.') }}</td>
+
+                        <td class="px-4 py-3 font-medium border-l border-gray-200"></td>
+                        <td class="px-4 py-3 text-right font-bold"></td>
+                    </tr>
+                    <tr class="border-b border-gray-100">
+                        <td class="px-4 py-3 font-medium">PELUNASAN HUTANG (QRIS)</td>
+                        <td class="px-4 py-3 text-right font-bold">Rp {{ number_format($this->summary['deposit_hutang_qris'], 0, ',', '.') }}</td>
+
                         <td class="px-4 py-3 font-medium border-l border-gray-200"></td>
                         <td class="px-4 py-3 text-right font-bold"></td>
                     </tr>
@@ -472,12 +524,44 @@ new #[Layout('layouts::admin')] class extends Component
                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
                         </button>
                     </div>
-                    <p class="text-body mb-6">Apakah Anda yakin ingin menghapus data penjualan ini? Stok minuman akan dikembalikan.</p>
+                    <p class="text-body mb-4">Apakah Anda yakin ingin menghapus data penjualan ini? Stok minuman akan dikembalikan.</p>
+
+                    @if($selectedSale && $selectedSale->depositBeverage && $selectedSale->deposit_amount > 0)
+                        <div class="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-md text-sm text-amber-800">
+                            <p class="font-semibold mb-1">Transaksi ini menggunakan deposit:</p>
+                            <p>Pelanggan: {{ $selectedSale->depositBeverage->nama_pelanggan }}</p>
+                            <p>Deposit akan dikembalikan: Rp {{ number_format($selectedSale->deposit_amount, 0, ',', '.') }}</p>
+                        </div>
+                    @endif
+
+                    @if($selectedSale && $selectedSale->parentBeverageSale && in_array($selectedSale->keterangan_bayar, ['deposit_hutang_cash', 'deposit_hutang_qris']))
+                        <div class="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md text-sm text-yellow-800">
+                            <p class="font-semibold mb-1">Transaksi ini adalah pelunasan hutang:</p>
+                            <p>Penghutang: {{ $selectedSale->parentBeverageSale->nama_penghutang }}</p>
+                            <p>Hutang asli akan kembali menjadi belum lunas setelah dihapus.</p>
+                        </div>
+                    @endif
+
+                    @if($selectedSale && $selectedSale->changeDeposit)
+                        <div class="mb-4 p-3 bg-cyan-50 border border-cyan-200 rounded-md text-sm text-cyan-800">
+                            <p class="font-semibold mb-1">Transaksi ini menghasilkan deposit kembalian:</p>
+                            <p>Pelanggan: {{ $selectedSale->changeDeposit->nama_pelanggan }}</p>
+                            <p>Nominal: Rp {{ number_format($selectedSale->changeDeposit->nominal, 0, ',', '.') }}</p>
+                            @if($selectedSale->changeDeposit->is_used || $selectedSale->changeDeposit->sisa_nominal !== $selectedSale->changeDeposit->nominal)
+                                <p class="font-semibold text-red-600 mt-1">Deposit sudah digunakan, transaksi tidak dapat dihapus.</p>
+                            @else
+                                <p>Deposit akan ikut dihapus.</p>
+                            @endif
+                        </div>
+                    @endif
+
                     <div class="flex items-center justify-end gap-3">
                         <button type="button" wire:click="closeDeleteModal" class="px-4 py-2 text-sm font-medium text-body bg-neutral-secondary-medium border border-default-medium rounded-md hover:bg-neutral-secondary-strong transition-colors">
                             Batal
                         </button>
-                        <button type="button" wire:click="deleteSale" class="px-4 py-2.5 text-white bg-red-600 hover:bg-red-700 rounded-md font-medium text-sm focus:outline-none">
+                        <button type="button" wire:click="deleteSale"
+                            @if($selectedSale && $selectedSale->changeDeposit && ($selectedSale->changeDeposit->is_used || $selectedSale->changeDeposit->sisa_nominal !== $selectedSale->changeDeposit->nominal)) disabled @endif
+                            class="px-4 py-2.5 text-white bg-red-600 hover:bg-red-700 rounded-md font-medium text-sm focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed">
                             Hapus
                         </button>
                     </div>

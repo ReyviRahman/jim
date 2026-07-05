@@ -17,6 +17,10 @@ new #[Layout('layouts::admin')] class extends Component
 
     public $scannedCode = '';
 
+    public $dateStart = null;
+    public $dateEnd = null;
+    public $roleFilter = '';
+
 public function processScan()
     {
         $data = json_decode($this->scannedCode, true);
@@ -206,17 +210,51 @@ session()->flash('success', "Berhasil Check-In: {$user->name}. {$infoSesi}");
         $this->scannedCode = '';
     }
 
+    public function setDateRange($rangeStr)
+    {
+        if (str_contains($rangeStr, ' to ')) {
+            $dates = explode(' to ', $rangeStr);
+            $this->dateStart = $dates[0];
+            $this->dateEnd = $dates[1];
+        } elseif ($rangeStr) {
+            $this->dateStart = $rangeStr;
+            $this->dateEnd = $rangeStr;
+        } else {
+            $this->dateStart = null;
+            $this->dateEnd = null;
+        }
+
+        $this->resetPage();
+    }
+
     public function with(): array
     {
+        $query = Attendance::with([
+            'user',
+            'membership.gymPackage',
+            'membership.ptPackage',
+            'membership.personalTrainer' // <--- Tambahkan baris ini
+        ]);
+
+        if ($this->dateStart && $this->dateEnd) {
+            $query->whereBetween('check_in_time', [
+                $this->dateStart.' 00:00:00',
+                $this->dateEnd.' 23:59:59',
+            ]);
+        }
+
+        if ($this->roleFilter === 'member') {
+            $query->whereHas('user', function ($q) {
+                $q->where('role', 'member');
+            });
+        } elseif ($this->roleFilter === 'employee') {
+            $query->whereHas('user', function ($q) {
+                $q->where('role', '!=', 'member');
+            });
+        }
+
         return [
-            'attendances' => Attendance::with([
-                'user', 
-                'membership.gymPackage', 
-                'membership.ptPackage',
-                'membership.personalTrainer' // <--- Tambahkan baris ini
-            ])
-            ->latest('check_in_time')
-            ->paginate(10),
+            'attendances' => $query->latest('check_in_time')->paginate(10),
         ];
     }
 };
@@ -256,6 +294,34 @@ session()->flash('success', "Berhasil Check-In: {$user->name}. {$infoSesi}");
             <span class="font-medium">Gagal!</span> {{ session('error') }}
         </div>
     @endif
+
+    <div class="mb-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+        <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full md:w-auto">
+            <div class="relative w-full sm:w-56" wire:ignore>
+                <div class="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
+                    <svg class="w-4 h-4 text-body" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 10h16M8 14h8m-4-7V4M7 7V4m10 3V4M5 20h14a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1Z"/></svg>
+                </div>
+                <input type="text" x-data
+                    x-init="flatpickr($el, {
+                        mode: 'range',
+                        dateFormat: 'Y-m-d',
+                        placeholder: 'Pilih Rentang Tanggal',
+                        onClose: function(selectedDates, dateStr, instance) {
+                            @this.call('setDateRange', dateStr)
+                        }
+                    })"
+                    class="block w-full ps-9 pe-3 py-2.5 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs placeholder:text-body"
+                    placeholder="Pilih Rentang Tanggal">
+            </div>
+
+            <select wire:model.live="roleFilter"
+                class="bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs block w-full sm:w-40 ps-3 pe-8 py-2.5">
+                <option value="">Semua Role</option>
+                <option value="member">Member</option>
+                <option value="employee">Karyawan</option>
+            </select>
+        </div>
+    </div>
 
     <div class="relative overflow-x-auto bg-neutral-primary-soft shadow-xs rounded-md border border-default">
         <table class="w-full text-sm text-left rtl:text-right text-body">
@@ -346,7 +412,7 @@ session()->flash('success', "Berhasil Check-In: {$user->name}. {$infoSesi}");
                 @empty
                     <tr>
                         <td colspan="5" class="px-6 py-8 text-center text-gray-500">
-                            Belum ada data absensi hari ini.
+                            Tidak ada data absensi.
                         </td>
                     </tr>
                 @endforelse

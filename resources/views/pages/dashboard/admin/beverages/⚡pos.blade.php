@@ -15,6 +15,7 @@ new #[Layout('layouts::admin')] class extends Component
     public $shift = '';
     public $keterangan_bayar = 'cash';
     public $nama_penghutang = '';
+    public $cash_received = '';
     public $nama_staff = '';
     public $products = [];
     public $showNotFound = false;
@@ -189,6 +190,21 @@ new #[Layout('layouts::admin')] class extends Component
     showNotFound: false,
     keterangan_bayar: 'cash',
     nama_penghutang: '',
+    cash_received: '',
+    change_amount: 0,
+    save_change_as_deposit: false,
+    deposit_customer_name: '',
+    deposits: [],
+    depositSearchQuery: '',
+    selected_deposit_id: '',
+    selected_deposit_balance: 0,
+    selected_deposit_name: '',
+    secondary_payment_method: '',
+    secondary_cash_received: '',
+    secondary_change_amount: 0,
+    secondary_nama_penghutang: '',
+    save_secondary_change_as_deposit: false,
+    secondary_deposit_customer_name: '',
     total: 0,
     totalItems: 0,
     showModal: false,
@@ -214,6 +230,66 @@ new #[Layout('layouts::admin')] class extends Component
         const response = await fetch(`/api/beverages/search?q=${encodeURIComponent(this.searchProduct)}`);
         this.products = await response.json();
         this.showNotFound = this.products.length === 0;
+    },
+
+    async loadDeposits(query = '') {
+        const url = '/api/beverages/deposits' + (query ? `?q=${encodeURIComponent(query)}` : '');
+        const response = await fetch(url);
+        this.deposits = await response.json();
+    },
+
+    searchDeposits() {
+        this.loadDeposits(this.depositSearchQuery);
+    },
+
+    selectDeposit(deposit) {
+        this.selected_deposit_id = deposit.id;
+        this.selected_deposit_balance = deposit.sisa_nominal;
+        this.selected_deposit_name = deposit.nama_pelanggan;
+        this.depositSearchQuery = deposit.nama_pelanggan + ' (Rp ' + this.formatNumber(deposit.sisa_nominal) + ')';
+        this.deposits = [];
+        this.secondary_payment_method = '';
+        this.secondary_cash_received = '';
+        this.secondary_change_amount = 0;
+        this.secondary_nama_penghutang = '';
+    },
+
+    clearSelectedDeposit() {
+        this.selected_deposit_id = '';
+        this.selected_deposit_balance = 0;
+        this.selected_deposit_name = '';
+        this.depositSearchQuery = '';
+        this.deposits = [];
+        this.secondary_payment_method = '';
+        this.secondary_cash_received = '';
+        this.secondary_change_amount = 0;
+        this.secondary_nama_penghutang = '';
+    },
+
+    handlePaymentMethodChange(event) {
+        const method = event.target.value;
+        if (method !== 'cash') {
+            this.cash_received = '';
+            if (this.$refs.cash_input) {
+                this.$refs.cash_input.value = '';
+            }
+            this.save_change_as_deposit = false;
+            this.deposit_customer_name = '';
+            this.updateChangeAmount();
+        }
+        if (method === 'deposit') {
+            this.loadDeposits();
+        } else {
+            this.selected_deposit_id = '';
+            this.selected_deposit_balance = 0;
+            this.selected_deposit_name = '';
+            this.depositSearchQuery = '';
+            this.deposits = [];
+            this.secondary_payment_method = '';
+            this.secondary_cash_received = '';
+            this.secondary_change_amount = 0;
+            this.secondary_nama_penghutang = '';
+        }
     },
 
     selectProduct(id) {
@@ -251,10 +327,80 @@ new #[Layout('layouts::admin')] class extends Component
     updateTotals() {
         this.total = this.selectedProducts.reduce((sum, item) => sum + (item.harga_satuan * item.jumlah_beli), 0);
         this.totalItems = this.selectedProducts.reduce((sum, item) => sum + item.jumlah_beli, 0);
+        this.updateChangeAmount();
+        this.updateSecondaryChangeAmount();
+    },
+
+    getRemainingTotal() {
+        if (this.keterangan_bayar === 'deposit' && this.selected_deposit_id) {
+            return Math.max(0, this.total - this.selected_deposit_balance);
+        }
+        return 0;
+    },
+
+    handleSecondaryPaymentMethodChange(event) {
+        const method = event.target.value;
+        if (method !== 'cash') {
+            this.secondary_cash_received = '';
+            if (this.$refs.secondary_cash_input) {
+                this.$refs.secondary_cash_input.value = '';
+            }
+            this.save_secondary_change_as_deposit = false;
+            this.secondary_deposit_customer_name = '';
+            this.updateSecondaryChangeAmount();
+        }
+        if (method !== 'hutang') {
+            this.secondary_nama_penghutang = '';
+        }
+    },
+
+    formatSecondaryCashInput(event) {
+        let value = event.target.value.replace(/\D/g, '');
+        this.secondary_cash_received = value;
+        event.target.value = value ? this.formatNumber(parseInt(value, 10)) : '';
+        this.updateSecondaryChangeAmount();
+    },
+
+    updateSecondaryChangeAmount() {
+        const cash = parseInt(this.secondary_cash_received, 10) || 0;
+        this.secondary_change_amount = Math.max(0, cash - this.getRemainingTotal());
+    },
+
+    formatCashInput(event) {
+        let value = event.target.value.replace(/\D/g, '');
+        this.cash_received = value;
+        event.target.value = value ? this.formatNumber(parseInt(value, 10)) : '';
+        this.updateChangeAmount();
+    },
+
+    updateChangeAmount() {
+        const cash = parseInt(this.cash_received, 10) || 0;
+        this.change_amount = Math.max(0, cash - this.total);
     },
 
     formatNumber(num) {
         return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    },
+
+    getFinalTotal() {
+        if (this.keterangan_bayar === 'deposit' && this.selected_deposit_id) {
+            return Math.max(0, this.total - this.selected_deposit_balance);
+        }
+        return this.total;
+    },
+
+    getDepositUsed() {
+        if (this.keterangan_bayar === 'deposit' && this.selected_deposit_id) {
+            return Math.min(this.total, this.selected_deposit_balance);
+        }
+        return 0;
+    },
+
+    getDepositRemaining() {
+        if (this.keterangan_bayar === 'deposit' && this.selected_deposit_id) {
+            return Math.max(0, this.selected_deposit_balance - this.total);
+        }
+        return 0;
     },
 
     openModal() {
@@ -263,11 +409,54 @@ new #[Layout('layouts::admin')] class extends Component
             alert('Nama penghutang harus diisi untuk transaksi hutang.');
             return;
         }
+        if (this.keterangan_bayar === 'cash') {
+            const cash = parseInt(this.cash_received, 10) || 0;
+            if (cash < this.total) {
+                alert('Nominal cash yang diterima harus lebih besar atau sama dengan total belanja.');
+                return;
+            }
+            if (this.save_change_as_deposit && !this.deposit_customer_name.trim()) {
+                alert('Nama pelanggan harus diisi jika kembalian disimpan sebagai deposit.');
+                return;
+            }
+        }
+        if (this.keterangan_bayar === 'deposit') {
+            if (!this.selected_deposit_id) {
+                alert('Pilih deposit yang akan digunakan.');
+                return;
+            }
+            const remaining = this.getRemainingTotal();
+            if (remaining > 0) {
+                if (!this.secondary_payment_method) {
+                    alert('Pilih metode pembayaran untuk sisa total bayar.');
+                    return;
+                }
+                if (this.secondary_payment_method === 'cash') {
+                    const cash = parseInt(this.secondary_cash_received, 10) || 0;
+                    if (cash < remaining) {
+                        alert('Nominal cash untuk sisa pembayaran harus lebih besar atau sama dengan Rp ' + this.formatNumber(remaining) + '.');
+                        return;
+                    }
+                }
+                if (this.secondary_payment_method === 'hutang' && !this.secondary_nama_penghutang.trim()) {
+                    alert('Nama penghutang harus diisi untuk sisa pembayaran hutang.');
+                    return;
+                }
+                if (this.secondary_payment_method === 'cash' && this.save_secondary_change_as_deposit && !this.secondary_deposit_customer_name.trim()) {
+                    alert('Nama pelanggan harus diisi jika kembalian sisa disimpan sebagai deposit.');
+                    return;
+                }
+            }
+        }
         this.showModal = true;
     },
 
     closeModal() {
         this.showModal = false;
+        this.save_change_as_deposit = false;
+        this.deposit_customer_name = '';
+        this.save_secondary_change_as_deposit = false;
+        this.secondary_deposit_customer_name = '';
     },
 
     openExpenseModal() {
@@ -319,12 +508,16 @@ new #[Layout('layouts::admin')] class extends Component
                                 class="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold rounded-md transition-colors">
                                 Daftar Hutang
                             </a>
+                            <a href="{{ route('admin.beverages.deposit') }}"
+                                class="px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white text-sm font-semibold rounded-md transition-colors">
+                                Daftar Deposit
+                            </a>
                         </div>
                     </div>
                     <div class="relative mt-2">
                         <input type="text" x-model="searchProduct" @input.debounce.300ms="searchProducts()"
                             class="block w-full px-3 py-2.5 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs placeholder:text-body"
-                            placeholder="Ketik nama produk... (Le Minerale)">
+                            placeholder="Ketik nama produk... (Crystalin)">
                         <template x-if="products.length > 0">
                             <div class="absolute z-10 w-full mt-1 bg-white border border-default-medium rounded-md shadow-lg max-h-60 overflow-y-auto">
                                 <template x-for="product in products" :key="product.id">
@@ -418,12 +611,13 @@ new #[Layout('layouts::admin')] class extends Component
 
                 <div class="mb-4">
                     <label class="block mb-2 text-sm font-medium text-heading">Metode Bayar</label>
-                    <select x-model="keterangan_bayar" name="keterangan_bayar" 
+                    <select x-model="keterangan_bayar" name="keterangan_bayar" @change="handlePaymentMethodChange($event)"
                         class="block w-full px-3 py-2.5 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs">
                         <option value="cash">Cash</option>
                         <option value="tf_bca_qris">TF BCA/Qris</option>
                         <option value="hutang">Hutang</option>
                         <option value="operasional">Operasional</option>
+                        <option value="deposit">Deposit</option>
                     </select>
                 </div>
 
@@ -436,18 +630,180 @@ new #[Layout('layouts::admin')] class extends Component
                     </div>
                 </template>
 
+                <template x-if="keterangan_bayar === 'cash'">
+                    <div class="mb-4">
+                        <label class="block mb-2 text-sm font-medium text-heading">Nominal Cash Diterima</label>
+                        <input type="text" x-ref="cash_input" name="cash_received" @input="formatCashInput($event)"
+                            class="block w-full px-3 py-2.5 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs"
+                            placeholder="Masukkan nominal cash">
+                    </div>
+                </template>
+
+                <template x-if="keterangan_bayar === 'deposit'">
+                    <div class="mb-4">
+                        <label class="block mb-2 text-sm font-medium text-heading">Pilih Deposit</label>
+                        <div class="relative">
+                            <input type="text" x-model="depositSearchQuery" @input.debounce.300ms="searchDeposits()"
+                                class="block w-full px-3 py-2.5 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs"
+                                placeholder="Ketik nama pelanggan...">
+                            <template x-if="selected_deposit_id">
+                                <button type="button" @click="clearSelectedDeposit()"
+                                    class="absolute right-2 top-1/2 -translate-y-1/2 text-red-500 hover:text-red-700">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                                </button>
+                            </template>
+                        </div>
+                        <template x-if="deposits.length > 0">
+                            <div class="absolute z-10 w-full mt-1 bg-white border border-default-medium rounded-md shadow-lg max-h-60 overflow-y-auto">
+                                <template x-for="deposit in deposits" :key="deposit.id">
+                                    <button type="button" @click="selectDeposit(deposit)"
+                                        class="w-full px-4 py-3 text-left hover:bg-neutral-secondary-medium transition-colors border-b border-default last:border-b-0">
+                                        <div class="flex justify-between items-center">
+                                            <span class="font-semibold text-heading" x-text="deposit.nama_pelanggan"></span>
+                                            <span class="text-sm text-emerald-600 font-semibold" x-text="'Rp ' + formatNumber(deposit.sisa_nominal)"></span>
+                                        </div>
+                                    </button>
+                                </template>
+                            </div>
+                        </template>
+                        <template x-if="deposits.length === 0 && depositSearchQuery.length >= 1 && !selected_deposit_id">
+                            <div class="mt-1 text-sm text-gray-500">Deposit tidak ditemukan.</div>
+                        </template>
+                        <template x-if="selected_deposit_id">
+                            <p class="mt-2 text-sm text-body">
+                                Sisa deposit: <span class="font-semibold text-heading" x-text="'Rp ' + formatNumber(selected_deposit_balance)"></span>
+                            </p>
+                        </template>
+
+                        <template x-if="selected_deposit_id && getRemainingTotal() > 0">
+                            <div class="mt-4 p-3 bg-purple-50 rounded-md border border-purple-100">
+                                <div class="mb-3">
+                                    <label class="block mb-2 text-sm font-medium text-heading">Sisa yang Harus Dibayar</label>
+                                    <p class="text-lg font-bold text-purple-700" x-text="'Rp ' + formatNumber(getRemainingTotal())"></p>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="block mb-2 text-sm font-medium text-heading">Metode Pembayaran Sisa</label>
+                                    <select x-model="secondary_payment_method" name="secondary_payment_method" @change="handleSecondaryPaymentMethodChange($event)"
+                                        class="block w-full px-3 py-2.5 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs">
+                                        <option value="">Pilih Metode</option>
+                                        <option value="cash">Cash</option>
+                                        <option value="tf_bca_qris">TF BCA/Qris</option>
+                                        <option value="hutang">Hutang</option>
+                                        <option value="operasional">Operasional</option>
+                                    </select>
+                                </div>
+                                <template x-if="secondary_payment_method === 'cash'">
+                                    <div class="mb-3">
+                                        <label class="block mb-2 text-sm font-medium text-heading">Nominal Cash Diterima</label>
+                                        <input type="text" x-ref="secondary_cash_input" name="secondary_cash_received" @input="formatSecondaryCashInput($event)"
+                                            class="block w-full px-3 py-2.5 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs"
+                                            placeholder="Masukkan nominal cash">
+                                    </div>
+                                </template>
+                                <template x-if="secondary_payment_method === 'hutang'">
+                                    <div class="mb-3">
+                                        <label class="block mb-2 text-sm font-medium text-heading">Nama Penghutang</label>
+                                        <input type="text" x-model="secondary_nama_penghutang" name="secondary_nama_penghutang"
+                                            class="block w-full px-3 py-2.5 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs"
+                                            placeholder="Masukkan nama penghutang">
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+
+                        <input type="hidden" name="selected_deposit_id" :value="selected_deposit_id">
+                    </div>
+                </template>
+
                 <div class="border-t border-default-medium pt-4 mt-4">
                     <div class="flex justify-between items-center mb-2">
                         <span class="text-body">Total Item</span>
                         <span class="font-semibold text-heading" x-text="totalItems + ' item'"></span>
                     </div>
-                    <div class="flex justify-between items-center mb-4">
-                        <span class="text-lg font-semibold text-heading">Total Bayar</span>
-                        <span class="text-xl font-bold text-emerald-600" x-text="'Rp ' + formatNumber(total)"></span>
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-body">Total Belanja</span>
+                        <span class="font-semibold text-heading" x-text="'Rp ' + formatNumber(total)"></span>
                     </div>
+                    <template x-if="keterangan_bayar === 'deposit' && selected_deposit_id">
+                        <div>
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-body">Deposit Terpakai</span>
+                                <span class="font-semibold text-heading" x-text="'Rp ' + formatNumber(getDepositUsed())"></span>
+                            </div>
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-body">Sisa Deposit</span>
+                                <span class="font-semibold text-heading" x-text="'Rp ' + formatNumber(getDepositRemaining())"></span>
+                            </div>
+                        </div>
+                    </template>
+                    <div class="flex justify-between items-center mb-4 pt-2 border-t border-default-medium">
+                        <span class="text-lg font-semibold text-heading">Total Bayar</span>
+                        <span class="text-xl font-bold text-emerald-600" x-text="'Rp ' + formatNumber(getFinalTotal())"></span>
+                    </div>
+                    <template x-if="keterangan_bayar === 'cash' && cash_received">
+                        <div class="mb-4">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-body">Kembalian</span>
+                                <span class="text-lg font-bold text-blue-600" x-text="'Rp ' + formatNumber(change_amount)"></span>
+                            </div>
+                            <template x-if="change_amount > 0">
+                                <div class="p-3 bg-yellow-50 rounded-md">
+                                    <label class="flex items-center gap-2 mb-3 cursor-pointer">
+                                        <input type="checkbox" name="save_change_as_deposit" value="1" x-model="save_change_as_deposit"
+                                            class="w-4 h-4 text-brand border-default-medium rounded focus:ring-brand">
+                                        <span class="text-sm font-medium text-heading">Simpan kembalian sebagai deposit</span>
+                                    </label>
+                                    <template x-if="save_change_as_deposit">
+                                        <div>
+                                            <label class="block mb-1 text-sm font-medium text-heading">Nama Pelanggan</label>
+                                            <input type="text" name="deposit_customer_name" x-model="deposit_customer_name"
+                                                class="block w-full px-3 py-2 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs"
+                                                placeholder="Masukkan nama pelanggan">
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+                    <template x-if="keterangan_bayar === 'deposit' && selected_deposit_id && secondary_payment_method">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-body">Metode Sisa</span>
+                            <span class="font-semibold text-heading" x-text="secondary_payment_method === 'tf_bca_qris' ? 'TF BCA/Qris' : secondary_payment_method.charAt(0).toUpperCase() + secondary_payment_method.slice(1)"></span>
+                        </div>
+                    </template>
+                    <template x-if="keterangan_bayar === 'deposit' && selected_deposit_id && secondary_payment_method === 'cash' && secondary_cash_received">
+                        <div class="mb-4">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-body">Kembalian Sisa</span>
+                                <span class="text-lg font-bold text-blue-600" x-text="'Rp ' + formatNumber(secondary_change_amount)"></span>
+                            </div>
+                            <template x-if="secondary_change_amount > 0">
+                                <div class="p-3 bg-yellow-50 rounded-md">
+                                    <label class="flex items-center gap-2 mb-3 cursor-pointer">
+                                        <input type="checkbox" name="save_secondary_change_as_deposit" value="1" x-model="save_secondary_change_as_deposit"
+                                            class="w-4 h-4 text-brand border-default-medium rounded focus:ring-brand">
+                                        <span class="text-sm font-medium text-heading">Simpan kembalian sisa sebagai deposit</span>
+                                    </label>
+                                    <template x-if="save_secondary_change_as_deposit">
+                                        <div>
+                                            <label class="block mb-1 text-sm font-medium text-heading">Nama Pelanggan</label>
+                                            <input type="text" name="secondary_deposit_customer_name" x-model="secondary_deposit_customer_name"
+                                                class="block w-full px-3 py-2 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs"
+                                                placeholder="Masukkan nama pelanggan">
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
                 </div>
 
                 <input type="hidden" name="nama_penghutang" :value="nama_penghutang">
+                <input type="hidden" name="secondary_payment_method" :value="secondary_payment_method">
+                <input type="hidden" name="secondary_cash_received" :value="secondary_cash_received">
+                <input type="hidden" name="secondary_nama_penghutang" :value="secondary_nama_penghutang">
+                <input type="hidden" name="save_secondary_change_as_deposit" :value="save_secondary_change_as_deposit ? 1 : 0">
+                <input type="hidden" name="secondary_deposit_customer_name" :value="secondary_deposit_customer_name">
                 <input type="hidden" name="selected_products" :value="JSON.stringify(selectedProducts)">
 
                 <button type="button" @click="openModal()" :disabled="selectedProducts.length === 0"
@@ -502,6 +858,76 @@ new #[Layout('layouts::admin')] class extends Component
                                     </div>
                                 </div>
                             </div>
+
+                            <template x-if="keterangan_bayar === 'cash'">
+                                <div class="mb-4 p-3 bg-blue-50 rounded-md">
+                                    <div class="grid grid-cols-2 gap-2 text-sm">
+                                        <div>
+                                            <span class="text-body">Cash Diterima:</span>
+                                            <span class="font-semibold text-heading" x-text="'Rp ' + formatNumber(parseInt(cash_received, 10) || 0)"></span>
+                                        </div>
+                                        <div>
+                                            <span class="text-body">Kembalian:</span>
+                                            <span class="font-semibold text-heading" x-text="'Rp ' + formatNumber(change_amount)"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+
+                            <template x-if="keterangan_bayar === 'deposit' && selected_deposit_id">
+                                <div class="mb-4 p-3 bg-purple-50 rounded-md">
+                                    <div class="grid grid-cols-2 gap-2 text-sm">
+                                        <div>
+                                            <span class="text-body">Pelanggan:</span>
+                                            <span class="font-semibold text-heading" x-text="selected_deposit_name || '-'"></span>
+                                        </div>
+                                        <div>
+                                            <span class="text-body">Sisa Deposit:</span>
+                                            <span class="font-semibold text-heading" x-text="'Rp ' + formatNumber(selected_deposit_balance)"></span>
+                                        </div>
+                                        <div>
+                                            <span class="text-body">Total Belanja:</span>
+                                            <span class="font-semibold text-heading" x-text="'Rp ' + formatNumber(total)"></span>
+                                        </div>
+                                        <div>
+                                            <span class="text-body">Deposit Terpakai:</span>
+                                            <span class="font-semibold text-heading" x-text="'Rp ' + formatNumber(getDepositUsed())"></span>
+                                        </div>
+                                        <div>
+                                            <span class="text-body">Total Bayar:</span>
+                                            <span class="font-semibold text-heading" x-text="'Rp ' + formatNumber(getFinalTotal())"></span>
+                                        </div>
+                                        <div>
+                                            <span class="text-body">Sisa Setelah Bayar:</span>
+                                            <span class="font-semibold text-heading" x-text="'Rp ' + formatNumber(getDepositRemaining())"></span>
+                                        </div>
+                                        <template x-if="getRemainingTotal() > 0">
+                                            <div>
+                                                <span class="text-body">Metode Sisa:</span>
+                                                <span class="font-semibold text-heading" x-text="secondary_payment_method === 'tf_bca_qris' ? 'TF BCA/Qris' : (secondary_payment_method ? secondary_payment_method.charAt(0).toUpperCase() + secondary_payment_method.slice(1) : '-')"></span>
+                                            </div>
+                                        </template>
+                                        <template x-if="getRemainingTotal() > 0 && secondary_payment_method === 'cash'">
+                                            <div>
+                                                <span class="text-body">Cash Sisa:</span>
+                                                <span class="font-semibold text-heading" x-text="'Rp ' + formatNumber(parseInt(secondary_cash_received, 10) || 0)"></span>
+                                            </div>
+                                        </template>
+                                        <template x-if="getRemainingTotal() > 0 && secondary_payment_method === 'cash' && secondary_change_amount > 0">
+                                            <div>
+                                                <span class="text-body">Kembalian Sisa:</span>
+                                                <span class="font-semibold text-heading" x-text="'Rp ' + formatNumber(secondary_change_amount)"></span>
+                                            </div>
+                                        </template>
+                                        <template x-if="getRemainingTotal() > 0 && secondary_payment_method === 'cash' && secondary_change_amount > 0 && save_secondary_change_as_deposit">
+                                            <div class="col-span-2">
+                                                <span class="text-body">Simpan Kembalian sebagai Deposit:</span>
+                                                <span class="font-semibold text-heading" x-text="'Ya (' + secondary_deposit_customer_name + ')'"></span>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+                            </template>
 
                             <div class="mb-4">
                                 <h4 class="font-semibold text-heading mb-2">Daftar Belanja:</h4>

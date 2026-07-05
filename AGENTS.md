@@ -21,7 +21,7 @@ php artisan tinker   # Interactive REPL
 - Routes: `routes/web.php` (HTTP), `routes/console.php` (commands)
 - Middleware alias: `role` (EnsureUserRole)
 - Models in `app/Models/`
-- Tests use SQLite in-memory (`.env` must not affect test runs)
+- Tests use MySQL database `jim_test` configured in `phpunit.xml` (`.env` must not affect test runs)
 
 ## Setup
 
