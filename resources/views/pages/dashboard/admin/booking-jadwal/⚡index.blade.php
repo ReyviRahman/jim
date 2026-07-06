@@ -492,6 +492,11 @@ new #[Layout('layouts::admin')] class extends Component
             return;
         }
 
+        if (Auth::user()->role === 'kasir_gym' && $booking->status === 'approved') {
+            session()->flash('error', 'Anda tidak memiliki izin untuk menghapus booking approved.');
+            return;
+        }
+
         $booking->delete();
         $this->closeDetailModal();
         session()->flash('success', 'Booking berhasil dihapus.');
@@ -1075,7 +1080,7 @@ new #[Layout('layouts::admin')] class extends Component
                             </button>
                         @endif
 
-                        @if(! in_array($booking->attendance, ['attended', 'noshow']))
+                        @if(! in_array($booking->attendance, ['attended', 'noshow']) && ! (Auth::user()->role === 'kasir_gym' && $booking->status === 'approved'))
                             <button wire:click="deleteBooking({{ $booking->id }})" wire:confirm="Hapus booking ini? Data tidak bisa dikembalikan."
                                 class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white bg-gray-600 rounded hover:bg-gray-700 transition-colors ml-auto">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
