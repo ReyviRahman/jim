@@ -64,6 +64,10 @@ class DeviceEventController extends Controller
             ]);
         }
 
+        if (! $this->shouldStoreEvent($eventData)) {
+            return response('OK', 200);
+        }
+
         try {
             DeviceEvent::create([
                 'device_code' => $device,
@@ -190,5 +194,20 @@ class DeviceEventController extends Controller
         }
 
         return null;
+    }
+
+    private function shouldStoreEvent(array $eventData): bool
+    {
+        // Skip noise events such as door status or idle pings that carry no
+        // employee data and have undefined attendance state.
+        if (
+            $eventData['verify_mode'] === 'invalid'
+            && $eventData['attendance_status'] === 'undefined'
+            && empty($eventData['employee_no'])
+        ) {
+            return false;
+        }
+
+        return true;
     }
 }

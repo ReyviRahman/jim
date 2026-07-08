@@ -126,6 +126,31 @@ XML;
         ]);
     }
 
+    public function test_it_ignores_noise_events_without_employee_data(): void
+    {
+        $eventLog = json_encode([
+            'eventType' => 'AccessControllerEvent',
+            'dateTime' => '2025-10-30T14:45:00+07:00',
+            'AccessControllerEvent' => [
+                'doorNo' => 1,
+                'attendanceStatus' => 'undefined',
+                'currentVerifyMode' => 'invalid',
+            ],
+        ]);
+
+        $response = $this->call('POST', '/api/integrations/devices/HQ-BIO-01/event', [
+            'event_log' => $eventLog,
+        ]);
+
+        $response->assertStatus(200);
+
+        $this->assertDatabaseMissing('device_events', [
+            'device_code' => 'HQ-BIO-01',
+            'event_type' => 'AccessControllerEvent',
+            'verify_mode' => 'invalid',
+        ]);
+    }
+
     public function test_it_returns_ok_and_logs_failed_status_for_invalid_xml(): void
     {
         $response = $this->call('POST', '/api/integrations/devices/HQ-BIO-01/event', [], [], [], [
