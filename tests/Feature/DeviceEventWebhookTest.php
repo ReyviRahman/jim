@@ -38,6 +38,11 @@ XML;
         $this->assertDatabaseHas('device_events', [
             'device_code' => 'HQ-BIO-01',
             'event_type' => 'AccessControllerEvent',
+            'employee_no' => 'EMP001',
+            'name' => 'John Doe',
+            'card_no' => '1234567890',
+            'door_no' => '1',
+            'swipe_result' => 'success',
             'status' => 'received',
         ]);
     }
@@ -45,9 +50,14 @@ XML;
     public function test_it_stores_json_event(): void
     {
         $payload = [
-            'eventType' => 'VideoMotion',
+            'eventType' => 'AccessControllerEvent',
             'eventState' => 'active',
             'dateTime' => '2025-10-30T14:35:00Z',
+            'employeeNoString' => 'EMP002',
+            'name' => 'Jane Doe',
+            'cardNo' => '0987654321',
+            'doorNo' => '2',
+            'swipeResult' => 'success',
         ];
 
         $response = $this->postJson('/api/integrations/devices/HQ-BIO-01/event', $payload);
@@ -56,8 +66,25 @@ XML;
 
         $this->assertDatabaseHas('device_events', [
             'device_code' => 'HQ-BIO-01',
-            'event_type' => 'VideoMotion',
+            'event_type' => 'AccessControllerEvent',
+            'employee_no' => 'EMP002',
+            'name' => 'Jane Doe',
+            'card_no' => '0987654321',
+            'door_no' => '2',
+            'swipe_result' => 'success',
             'status' => 'received',
+        ]);
+    }
+
+    public function test_it_ignores_empty_heartbeat_payload(): void
+    {
+        $response = $this->call('POST', '/api/integrations/devices/HQ-BIO-01/event', [], [], [], [], '   ');
+
+        $response->assertStatus(200);
+        $response->assertSee('OK');
+
+        $this->assertDatabaseMissing('device_events', [
+            'device_code' => 'HQ-BIO-01',
         ]);
     }
 

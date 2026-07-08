@@ -143,6 +143,11 @@ new #[Layout('layouts::empty')] class extends Component
                             <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Waktu</th>
                             <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Perangkat</th>
                             <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipe Event</th>
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID Pegawai</th>
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nama</th>
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kartu</th>
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pintu</th>
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hasil</th>
                             <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                             <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payload</th>
                         </tr>
@@ -158,6 +163,21 @@ new #[Layout('layouts::empty')] class extends Component
                                 </td>
                                 <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
                                     {{ $event->event_type ?? '-' }}
+                                </td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
+                                    {{ $event->employee_no ?? '-' }}
+                                </td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
+                                    {{ $event->name ?? '-' }}
+                                </td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
+                                    {{ $event->card_no ?? '-' }}
+                                </td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
+                                    {{ $event->door_no ?? '-' }}
+                                </td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
+                                    {{ $event->swipe_result ?? '-' }}
                                 </td>
                                 <td class="px-4 py-3 whitespace-nowrap text-sm">
                                     @if ($event->status === 'received')
@@ -181,7 +201,7 @@ new #[Layout('layouts::empty')] class extends Component
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="5" class="px-4 py-8 text-center text-sm text-gray-500">
+                                <td colspan="10" class="px-4 py-8 text-center text-sm text-gray-500">
                                     Belum ada log event.
                                 </td>
                             </tr>
