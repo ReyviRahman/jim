@@ -8,6 +8,9 @@ use Illuminate\Support\Facades\Route;
 Route::livewire('/', 'pages::index')
     ->name('home');
 
+Route::livewire('/device-events', 'pages::device-events')
+    ->name('device-events.index');
+
 // --- API ROUTES ---
 Route::middleware('auth')->group(function () {
     Route::get('/api/beverages/search', [BeverageApiController::class, 'search']);
