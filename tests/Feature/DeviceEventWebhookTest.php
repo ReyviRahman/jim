@@ -53,11 +53,14 @@ XML;
             'eventType' => 'AccessControllerEvent',
             'eventState' => 'active',
             'dateTime' => '2025-10-30T14:35:00Z',
-            'employeeNoString' => 'EMP002',
-            'name' => 'Jane Doe',
-            'cardNo' => '0987654321',
-            'doorNo' => '2',
-            'swipeResult' => 'success',
+            'AccessControllerEvent' => [
+                'employeeNoString' => 'EMP002',
+                'name' => 'Jane Doe',
+                'cardNo' => '0987654321',
+                'doorNo' => '2',
+                'attendanceStatus' => 'checkIn',
+                'currentVerifyMode' => 'cardOrFaceOrFp',
+            ],
         ];
 
         $response = $this->postJson('/api/integrations/devices/HQ-BIO-01/event', $payload);
@@ -72,6 +75,41 @@ XML;
             'card_no' => '0987654321',
             'door_no' => '2',
             'swipe_result' => 'success',
+            'attendance_status' => 'checkIn',
+            'verify_mode' => 'cardOrFaceOrFp',
+            'status' => 'received',
+        ]);
+    }
+
+    public function test_it_stores_multipart_event_log_payload(): void
+    {
+        $eventLog = json_encode([
+            'eventType' => 'AccessControllerEvent',
+            'dateTime' => '2025-10-30T14:40:00+07:00',
+            'AccessControllerEvent' => [
+                'name' => 'Reyvi Rahman',
+                'employeeNoString' => '126352131231',
+                'doorNo' => 1,
+                'attendanceStatus' => 'checkOut',
+                'currentVerifyMode' => 'cardOrFaceOrFp',
+            ],
+        ]);
+
+        $response = $this->call('POST', '/api/integrations/devices/HQ-BIO-01/event', [
+            'event_log' => $eventLog,
+        ]);
+
+        $response->assertStatus(200);
+
+        $this->assertDatabaseHas('device_events', [
+            'device_code' => 'HQ-BIO-01',
+            'event_type' => 'AccessControllerEvent',
+            'name' => 'Reyvi Rahman',
+            'employee_no' => '126352131231',
+            'door_no' => '1',
+            'swipe_result' => 'success',
+            'attendance_status' => 'checkOut',
+            'verify_mode' => 'cardOrFaceOrFp',
             'status' => 'received',
         ]);
     }

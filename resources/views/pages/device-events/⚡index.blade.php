@@ -148,6 +148,8 @@ new #[Layout('layouts::empty')] class extends Component
                             <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kartu</th>
                             <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pintu</th>
                             <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hasil</th>
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Absensi</th>
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mode Verifikasi</th>
                             <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                             <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payload</th>
                         </tr>
@@ -179,6 +181,12 @@ new #[Layout('layouts::empty')] class extends Component
                                 <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
                                     {{ $event->swipe_result ?? '-' }}
                                 </td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
+                                    {{ $event->attendance_status ?? '-' }}
+                                </td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
+                                    {{ $event->verify_mode ?? '-' }}
+                                </td>
                                 <td class="px-4 py-3 whitespace-nowrap text-sm">
                                     @if ($event->status === 'received')
                                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
@@ -201,7 +209,7 @@ new #[Layout('layouts::empty')] class extends Component
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="10" class="px-4 py-8 text-center text-sm text-gray-500">
+                                <td colspan="12" class="px-4 py-8 text-center text-sm text-gray-500">
                                     Belum ada log event.
                                 </td>
                             </tr>

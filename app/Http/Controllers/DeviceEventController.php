@@ -45,6 +45,8 @@ class DeviceEventController extends Controller
             'card_no' => null,
             'door_no' => null,
             'swipe_result' => null,
+            'attendance_status' => null,
+            'verify_mode' => null,
             'accessed_at' => null,
         ];
         $status = 'received';
@@ -72,6 +74,8 @@ class DeviceEventController extends Controller
                 'card_no' => $eventData['card_no'],
                 'door_no' => $eventData['door_no'],
                 'swipe_result' => $eventData['swipe_result'],
+                'attendance_status' => $eventData['attendance_status'],
+                'verify_mode' => $eventData['verify_mode'],
                 'accessed_at' => $eventData['accessed_at'],
                 'payload' => $payload,
                 'status' => $status,
@@ -96,11 +100,59 @@ class DeviceEventController extends Controller
             'card_no' => null,
             'door_no' => null,
             'swipe_result' => null,
+            'attendance_status' => null,
+            'verify_mode' => null,
             'accessed_at' => null,
         ];
 
         $trimmed = ltrim($raw);
+        $array = $this->decodePayload($trimmed);
 
+        if (! is_array($array)) {
+            return $data;
+        }
+
+        // Hikvision multipart form sends the JSON inside an "event_log" field.
+        if (isset($array['event_log']) && is_string($array['event_log'])) {
+            $decoded = json_decode($array['event_log'], true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                $array = $decoded;
+            }
+        }
+
+        $event = $array;
+
+        // Hikvision nests the actual event under the eventType key,
+        // e.g. AccessControllerEvent -> { ... }.
+        if (isset($event['eventType']) && is_array($event[$event['eventType']] ?? null)) {
+            $event = array_merge($event, $event[$event['eventType']]);
+        }
+
+        // Older XML format uses ActivePost as the nested container.
+        if (isset($event['ActivePost']) && is_array($event['ActivePost'])) {
+            $event = array_merge($event, $event['ActivePost']);
+        }
+
+        $data['event_type'] = $event['eventType'] ?? $event['event_type'] ?? null;
+        $data['employee_no'] = $event['employeeNoString'] ?? $event['employee_no'] ?? null;
+        $data['name'] = $event['name'] ?? null;
+        $data['card_no'] = $event['cardNo'] ?? $event['card_no'] ?? null;
+        $data['door_no'] = $event['doorNo'] ?? $event['door_no'] ?? null;
+        $data['attendance_status'] = $event['attendanceStatus'] ?? $event['attendance_status'] ?? null;
+        $data['verify_mode'] = $event['currentVerifyMode'] ?? $event['verify_mode'] ?? null;
+
+        $data['swipe_result'] = $this->determineSwipeResult($event);
+
+        $dateTime = $event['dateTime'] ?? $event['date_time'] ?? null;
+        if (! empty($dateTime)) {
+            $data['accessed_at'] = Carbon::parse($dateTime)->setTimezone(config('app.timezone'));
+        }
+
+        return $data;
+    }
+
+    private function decodePayload(string $trimmed): ?array
+    {
         if (str_starts_with($trimmed, '<')) {
             libxml_use_internal_errors(true);
             $xml = simplexml_load_string($trimmed);
@@ -109,40 +161,34 @@ class DeviceEventController extends Controller
                 throw new RuntimeException('Unable to parse XML payload');
             }
 
-            $array = json_decode(json_encode($xml), true);
-            $data['event_type'] = $array['eventType'] ?? null;
-            $activePost = $array['ActivePost'] ?? [];
-
-            $data['employee_no'] = $activePost['employeeNoString'] ?? null;
-            $data['name'] = $activePost['name'] ?? null;
-            $data['card_no'] = $activePost['cardNo'] ?? null;
-            $data['door_no'] = $activePost['doorNo'] ?? null;
-            $data['swipe_result'] = $activePost['swipeResult'] ?? null;
-
-            if (! empty($array['dateTime'])) {
-                $data['accessed_at'] = Carbon::parse($array['dateTime'])->setTimezone(config('app.timezone'));
-            }
-
-            return $data;
+            return json_decode(json_encode($xml), true);
         }
 
         $json = json_decode($trimmed, true);
 
         if (json_last_error() === JSON_ERROR_NONE && is_array($json)) {
-            $data['event_type'] = $json['eventType'] ?? $json['event_type'] ?? null;
-            $data['employee_no'] = $json['employeeNoString'] ?? $json['employee_no'] ?? null;
-            $data['name'] = $json['name'] ?? null;
-            $data['card_no'] = $json['cardNo'] ?? $json['card_no'] ?? null;
-            $data['door_no'] = $json['doorNo'] ?? $json['door_no'] ?? null;
-            $data['swipe_result'] = $json['swipeResult'] ?? $json['swipe_result'] ?? null;
-
-            if (! empty($json['dateTime'])) {
-                $data['accessed_at'] = Carbon::parse($json['dateTime'])->setTimezone(config('app.timezone'));
-            }
-
-            return $data;
+            return $json;
         }
 
-        return $data;
+        return null;
+    }
+
+    private function determineSwipeResult(array $event): ?string
+    {
+        if (isset($event['swipeResult'])) {
+            return $event['swipeResult'];
+        }
+
+        $verifyMode = $event['currentVerifyMode'] ?? null;
+        if ($verifyMode === 'invalid') {
+            return 'failed';
+        }
+
+        $attendanceStatus = $event['attendanceStatus'] ?? null;
+        if (in_array($attendanceStatus, ['checkIn', 'checkOut'], true)) {
+            return 'success';
+        }
+
+        return null;
     }
 }

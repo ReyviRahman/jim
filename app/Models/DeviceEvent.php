@@ -15,6 +15,8 @@ class DeviceEvent extends Model
         'card_no',
         'door_no',
         'swipe_result',
+        'attendance_status',
+        'verify_mode',
         'accessed_at',
         'payload',
         'status',
