@@ -15,6 +15,7 @@ class DeviceEventController extends Controller
     public function store(Request $request, string $device): Response
     {
         $raw = $request->getContent();
+        $formData = $request->except(array_keys($request->allFiles()));
 
         Log::debug('Hikvision webhook hit', [
             'device' => $device,
@@ -24,9 +25,16 @@ class DeviceEventController extends Controller
             'ip' => $request->ip(),
             'payload_length' => strlen($raw),
             'payload_preview' => substr($raw, 0, 500),
+            'form_data' => $formData,
         ]);
 
-        if (empty($raw) || trim($raw) === '') {
+        $payload = $raw;
+
+        if (empty($payload) || trim($payload) === '') {
+            $payload = json_encode($formData);
+        }
+
+        if (empty($payload) || trim($payload) === '' || $payload === '[]' || $payload === '{}') {
             return response('OK', 200);
         }
 
@@ -43,7 +51,7 @@ class DeviceEventController extends Controller
         $errorMessage = null;
 
         try {
-            $eventData = $this->extractEventData($raw);
+            $eventData = $this->extractEventData($payload);
         } catch (Throwable $e) {
             $status = 'failed';
             $errorMessage = $e->getMessage();
@@ -65,7 +73,7 @@ class DeviceEventController extends Controller
                 'door_no' => $eventData['door_no'],
                 'swipe_result' => $eventData['swipe_result'],
                 'accessed_at' => $eventData['accessed_at'],
-                'payload' => $raw,
+                'payload' => $payload,
                 'status' => $status,
                 'error_message' => $errorMessage,
             ]);
