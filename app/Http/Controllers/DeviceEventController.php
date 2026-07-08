@@ -16,6 +16,16 @@ class DeviceEventController extends Controller
     {
         $raw = $request->getContent();
 
+        Log::debug('Hikvision webhook hit', [
+            'device' => $device,
+            'method' => $request->method(),
+            'url' => $request->url(),
+            'content_type' => $request->header('Content-Type'),
+            'ip' => $request->ip(),
+            'payload_length' => strlen($raw),
+            'payload_preview' => substr($raw, 0, 500),
+        ]);
+
         if (empty($raw) || trim($raw) === '') {
             return response('OK', 200);
         }
