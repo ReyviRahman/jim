@@ -28,7 +28,7 @@ class DeviceEventWebhookTest extends TestCase
 </EventNotificationAlert>
 XML;
 
-        $response = $this->call('POST', '/api/integrations/devices/HQ-BIO-01/event', [], [], [], [
+        $response = $this->call('POST', '/api/absensi', [], [], [], [
             'CONTENT_TYPE' => 'application/xml',
         ], $xml);
 
@@ -63,7 +63,7 @@ XML;
             ],
         ];
 
-        $response = $this->postJson('/api/integrations/devices/HQ-BIO-01/event', $payload);
+        $response = $this->postJson('/api/absensi', $payload);
 
         $response->assertStatus(200);
 
@@ -95,7 +95,7 @@ XML;
             ],
         ]);
 
-        $response = $this->call('POST', '/api/integrations/devices/HQ-BIO-01/event', [
+        $response = $this->call('POST', '/api/absensi', [
             'event_log' => $eventLog,
         ]);
 
@@ -116,7 +116,7 @@ XML;
 
     public function test_it_ignores_empty_heartbeat_payload(): void
     {
-        $response = $this->call('POST', '/api/integrations/devices/HQ-BIO-01/event', [], [], [], [], '   ');
+        $response = $this->call('POST', '/api/absensi', [], [], [], [], '   ');
 
         $response->assertStatus(200);
         $response->assertSee('OK');
@@ -138,7 +138,7 @@ XML;
             ],
         ]);
 
-        $response = $this->call('POST', '/api/integrations/devices/HQ-BIO-01/event', [
+        $response = $this->call('POST', '/api/absensi', [
             'event_log' => $eventLog,
         ]);
 
@@ -153,7 +153,7 @@ XML;
 
     public function test_it_returns_ok_and_logs_failed_status_for_invalid_xml(): void
     {
-        $response = $this->call('POST', '/api/integrations/devices/HQ-BIO-01/event', [], [], [], [
+        $response = $this->call('POST', '/api/absensi', [], [], [], [
             'CONTENT_TYPE' => 'application/xml',
         ], '<not valid xml');
 
