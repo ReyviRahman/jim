@@ -5,7 +5,10 @@ use Livewire\Attributes\Layout;
 use Livewire\WithPagination;
 use App\Models\User;
 use App\Models\Membership;
+use App\Exports\MemberExport;
+use Maatwebsite\Excel\Facades\Excel;
 use Carbon\Carbon;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 new #[Layout('layouts::admin')] class extends Component
 {
@@ -84,6 +87,16 @@ new #[Layout('layouts::admin')] class extends Component
         return $this->redirectRoute('admin.membership.paket', [
             'users' => $this->selectedUsers
         ], navigate: true);
+    }
+
+    public function exportExcel(): BinaryFileResponse
+    {
+        $fileName = 'data-member-'.date('Y-m-d').'.xlsx';
+
+        return Excel::download(
+            new MemberExport($this->search),
+            $fileName
+        );
     }
 
     // Reset halaman ke 1 setiap kali user mengetik di pencarian
@@ -227,6 +240,12 @@ new #[Layout('layouts::admin')] class extends Component
             
             <div class="flex sm:flex-row flex-col gap-4 items-center">
                 <div>
+                    <button type="button" wire:click="exportExcel" class="text-green-700 bg-green-50 box-border border border-green-200 hover:bg-green-100 focus:ring-4 focus:ring-green-200 shadow-xs font-medium leading-5 rounded-md text-sm px-4 py-2.5 focus:outline-none flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                        Export Excel
+                    </button>
+                </div>
+                <div>
                     <a href="{{ route('admin.akun.member.create') }}" wire:navigate class="text-white bg-brand box-border border border-transparent hover:bg-brand-strong focus:ring-4 focus:ring-brand-medium shadow-xs font-medium leading-5 rounded-md text-sm px-4 py-2.5 focus:outline-none">+ Buat Akun</a>
                 </div>
                 <div class="relative">
@@ -260,6 +279,7 @@ new #[Layout('layouts::admin')] class extends Component
                     <th scope="col" class="px-6 py-3 font-medium w-4">
                         {{-- Dikosongkan untuk header checkbox --}}
                     </th>
+                    <th scope="col" class="px-6 py-3 font-medium">ID</th>
                     <th scope="col" class="px-6 py-3 font-medium">Nama</th>
                     <th scope="col" class="px-6 py-3 font-medium">Pekerjaan</th>
                     <th scope="col" class="px-6 py-3 font-medium">Aksi</th>
@@ -273,6 +293,9 @@ new #[Layout('layouts::admin')] class extends Component
                                 <input id="checkbox-{{ $user->id }}" type="checkbox" value="{{ $user->id }}" wire:model.live="selectedUsers"
                                     class="w-4 h-4 text-brand bg-gray-100 border-gray-300 rounded focus:ring-brand focus:ring-2 cursor-pointer">
                             </div>
+                        </td>
+                        <td class="px-6 py-4 font-medium text-heading">
+                            {{ $user->id }}
                         </td>
                         <th scope="row" class="flex items-center px-6 py-4 text-heading whitespace-nowrap">
                             @if($user->photo)
@@ -311,7 +334,7 @@ new #[Layout('layouts::admin')] class extends Component
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="4" class="px-6 py-4 text-center text-body">
+                        <td colspan="5" class="px-6 py-4 text-center text-body">
                             Data user tidak ditemukan.
                         </td>
                     </tr>

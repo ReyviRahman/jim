@@ -38,6 +38,7 @@ new #[Layout('layouts::admin')] class extends Component
     public $base_price = 0;
     public $manual_discount = 0;
     public $discount_applied = 0; 
+    public $admin_fee = 0;
     public $price_paid = 0; // Total Tagihan Akhir
     public $calculated_total_sessions = 0;
 
@@ -198,6 +199,10 @@ new #[Layout('layouts::admin')] class extends Component
 
     public function updated($property)
     {
+        if ($property === 'admin_fee' && blank($this->admin_fee)) {
+            $this->admin_fee = 0;
+        }
+
         if ($property === 'registration_type') {
             $this->pt_package_id = '';
             $this->pt_id = null;
@@ -209,7 +214,7 @@ new #[Layout('layouts::admin')] class extends Component
             }
         }
 
-        if (in_array($property, ['registration_type', 'gym_package_id', 'pt_package_id', 'manual_discount'])) {
+        if (in_array($property, ['registration_type', 'gym_package_id', 'pt_package_id', 'manual_discount', 'admin_fee'])) {
             $this->calculateTotal();
         }
 
@@ -283,8 +288,7 @@ new #[Layout('layouts::admin')] class extends Component
         $diskonManualAngka = empty($this->manual_discount) ? 0 : (int) $this->manual_discount;
         $this->discount_applied = $diskonGym + $diskonPt + $diskonManualAngka;
         
-        $this->price_paid = $this->base_price - $this->discount_applied; 
-        if ($this->price_paid < 0) $this->price_paid = 0;
+        $this->price_paid = max(0, $this->base_price - $this->discount_applied) + (int) $this->admin_fee;
 
         // Auto isi jumlah bayar jika lunas
         if ($this->payment_type === 'paid') {
@@ -301,6 +305,8 @@ new #[Layout('layouts::admin')] class extends Component
 
     public function save()
     {
+        $this->admin_fee = blank($this->admin_fee) ? 0 : $this->admin_fee;
+
         if (!$this->registration_type) {
             $this->addError('registration_type', 'Pilih jenis pendaftaran terlebih dahulu.');
             return;
@@ -324,6 +330,7 @@ new #[Layout('layouts::admin')] class extends Component
             'follow_up_id_two' => 'required|exists:users,id',
             'is_active' => 'required|boolean',
             'manual_discount' => 'nullable|numeric|min:0|max:' . $this->base_price,
+            'admin_fee' => 'nullable|numeric|min:0',
         ];
 
         if (!$this->is_split_payment) {
@@ -402,6 +409,7 @@ new #[Layout('layouts::admin')] class extends Component
                 'follow_up_id_two' => $this->follow_up_id_two ?: null,
                 'base_price' => $this->base_price,
                 'discount_applied' => $this->discount_applied,
+                'admin_fee' => $this->admin_fee,
                 'normal_price' => $pkt?->normal_price,
                 'net_price' => $pkt?->net_price,
                 'unrecommended_price' => $pkt?->unrecommended_price,
@@ -875,6 +883,13 @@ new #[Layout('layouts::admin')] class extends Component
                             <span>- Rp {{ number_format((int)$manual_discount, 0, ',', '.') }}</span>
                         </div>
                     @endif
+                    @if((int)$admin_fee > 0)
+                        <div class="border-t border-default-medium my-2"></div>
+                        <div class="flex justify-between font-medium text-sm">
+                            <span>Biaya Admin</span>
+                            <span>+ Rp {{ number_format((int)$admin_fee, 0, ',', '.') }}</span>
+                        </div>
+                    @endif
                 </div>
 
                 <div class="border-y border-default-medium py-3 mb-4 flex justify-between items-center bg-gray-50 px-3 rounded">
@@ -915,6 +930,33 @@ new #[Layout('layouts::admin')] class extends Component
                             placeholder="Diskon (Jika Ada)">
                     </div>
                     @error('manual_discount') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                </div>
+                @endif
+
+                @if($registration_type)
+                <div class="mb-4">
+                    <label class="block mb-1 text-sm font-medium text-heading">Biaya Admin</label>
+                    <div x-data="{
+                        adminFee: $wire.entangle('admin_fee').live,
+                        formatted: '',
+                        init() {
+                            this.formatValue(this.adminFee);
+                            $watch('adminFee', value => this.formatValue(value));
+                        },
+                        formatValue(value) {
+                            this.formatted = value ? new Intl.NumberFormat('id-ID').format(value.toString().replace(/\D/g, '')) : '';
+                        },
+                        updateValue(event) {
+                            let raw = event.target.value.replace(/\D/g, '');
+                            this.adminFee = raw;
+                            this.formatValue(raw);
+                        }
+                    }">
+                        <input type="text" x-model="formatted" @input="updateValue($event)"
+                            class="bg-white border border-default-medium text-heading text-lg font-bold rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2 shadow-xs text-brand-strong"
+                            placeholder="Biaya Admin (Jika Ada)">
+                    </div>
+                    @error('admin_fee') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                 </div>
                 @endif
 

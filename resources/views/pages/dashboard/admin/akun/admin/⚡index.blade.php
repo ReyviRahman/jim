@@ -2,10 +2,13 @@
 
 namespace App\Livewire\Admin; // Sesuaikan namespace jika berbeda
 
+use App\Exports\AdminExport;
+use App\Models\User;
 use Livewire\Component;
 use Livewire\Attributes\Layout;
 use Livewire\WithPagination;
-use App\Models\User;
+use Maatwebsite\Excel\Facades\Excel;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 new #[Layout('layouts::admin')] class extends Component
 {
@@ -31,6 +34,16 @@ new #[Layout('layouts::admin')] class extends Component
         session()->flash('success', "Akun {$user->name} berhasil {$statusMessage}.");
     }
     // 👆 SELESAI 👆
+
+    public function exportExcel(): BinaryFileResponse
+    {
+        $fileName = 'data-admin-'.date('Y-m-d').'.xlsx';
+
+        return Excel::download(
+            new AdminExport($this->search),
+            $fileName
+        );
+    }
 
     public function with(): array
     {
@@ -63,6 +76,12 @@ new #[Layout('layouts::admin')] class extends Component
             
             <div class="flex sm:flex-row flex-col gap-4 items-center">
                 <div>
+                    <button type="button" wire:click="exportExcel" class="text-green-700 bg-green-50 box-border border border-green-200 hover:bg-green-100 focus:ring-4 focus:ring-green-200 shadow-xs font-medium leading-5 rounded-md text-sm px-4 py-2.5 focus:outline-none flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                        Export Excel
+                    </button>
+                </div>
+                <div>
                     {{-- Sesuaikan route ini dengan route untuk halaman create kasir --}}
                     <a href="{{ route('admin.akun.admin.create') }}" wire:navigate class="text-white bg-brand box-border border border-transparent hover:bg-brand-strong focus:ring-4 focus:ring-brand-medium shadow-xs font-medium leading-5 rounded-md text-sm px-4 py-2.5 focus:outline-none">+ Buat Akun</a>
                 </div>
@@ -82,6 +101,7 @@ new #[Layout('layouts::admin')] class extends Component
         <table class="w-full text-sm text-left rtl:text-right text-body">
             <thead class="text-sm text-body bg-neutral-secondary-medium border-b border-t border-default-medium">
                 <tr>
+                    <th scope="col" class="px-6 py-3 font-medium">ID</th>
                     <th scope="col" class="px-6 py-3 font-medium">Nama</th>
                     <th scope="col" class="px-6 py-3 font-medium">Role</th>
                     <th scope="col" class="px-6 py-3 font-medium">Status Akun</th>
@@ -91,6 +111,9 @@ new #[Layout('layouts::admin')] class extends Component
             <tbody>
                 @forelse ($users as $user)
                     <tr class="bg-neutral-primary-soft border-b border-default hover:bg-neutral-secondary-medium">
+                        <td class="px-6 py-4 font-medium text-heading">
+                            {{ $user->id }}
+                        </td>
                         <th scope="row" class="flex items-center px-6 py-4 text-heading whitespace-nowrap">
                             @if($user->photo)
                                 <img class="w-10 h-10 rounded-full object-cover" src="{{ asset('storage/' . $user->photo) }}" alt="{{ $user->name }}">
@@ -155,7 +178,7 @@ new #[Layout('layouts::admin')] class extends Component
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="4" class="px-6 py-8 text-center text-body">
+                        <td colspan="5" class="px-6 py-8 text-center text-body">
                             Belum ada data akun.
                         </td>
                     </tr>

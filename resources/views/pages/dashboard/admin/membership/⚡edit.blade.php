@@ -42,6 +42,8 @@ new #[Layout('layouts::admin')] class extends Component
 
     public $discount_applied = 0;
 
+    public $admin_fee = 0;
+
     public $price_paid = 0;
 
     public $normal_price_ref = 0;
@@ -124,6 +126,7 @@ new #[Layout('layouts::admin')] class extends Component
 
         $this->base_price = $this->membership->base_price;
         $this->discount_applied = $this->membership->discount_applied;
+        $this->admin_fee = $this->membership->admin_fee ?? 0;
         $this->price_paid = $this->membership->price_paid;
         $this->normal_price_ref = $this->membership->normal_price ?? 0;
         $this->net_price_ref = $this->membership->net_price ?? 0;
@@ -329,6 +332,10 @@ new #[Layout('layouts::admin')] class extends Component
 
     public function updated($property)
     {
+        if ($property === 'admin_fee' && blank($this->admin_fee)) {
+            $this->admin_fee = 0;
+        }
+
         if ($property === 'is_active') {
             if (! $this->is_active) {
                 $this->start_date = '';
@@ -352,7 +359,7 @@ new #[Layout('layouts::admin')] class extends Component
             }
         }
 
-        if (in_array($property, ['registration_type', 'gym_package_id', 'pt_package_id', 'manual_discount'])) {
+        if (in_array($property, ['registration_type', 'gym_package_id', 'pt_package_id', 'manual_discount', 'admin_fee'])) {
             $this->calculateTotal();
         }
 
@@ -417,10 +424,7 @@ new #[Layout('layouts::admin')] class extends Component
         $diskonManualAngka = empty($this->manual_discount) ? 0 : (int) $this->manual_discount;
         $this->discount_applied = $diskonGym + $diskonPt + $diskonManualAngka;
 
-        $this->price_paid = $this->base_price - $this->discount_applied;
-        if ($this->price_paid < 0) {
-            $this->price_paid = 0;
-        }
+        $this->price_paid = max(0, $this->base_price - $this->discount_applied) + (int) $this->admin_fee;
 
         if ($pkt) {
             $this->normal_price_ref = $pkt->normal_price ?? 0;
@@ -460,6 +464,8 @@ new #[Layout('layouts::admin')] class extends Component
 
     public function save()
     {
+        $this->admin_fee = blank($this->admin_fee) ? 0 : $this->admin_fee;
+
         if (! $this->registration_type) {
             $this->addError('registration_type', 'Pilih jenis pendaftaran terlebih dahulu.');
 
@@ -485,6 +491,7 @@ new #[Layout('layouts::admin')] class extends Component
             'follow_up_id' => 'required|exists:users,id',
             'follow_up_id_two' => 'required|exists:users,id',
             'manual_discount' => 'nullable|numeric|min:0|max:'.$this->base_price,
+            'admin_fee' => 'nullable|numeric|min:0',
         ];
 
         if ($this->payment_type === 'partial') {
@@ -560,6 +567,7 @@ new #[Layout('layouts::admin')] class extends Component
                 'follow_up_id_two' => $this->follow_up_id_two ?: null,
                 'base_price' => $this->base_price,
                 'discount_applied' => $this->discount_applied,
+                'admin_fee' => $this->admin_fee,
                 'normal_price' => $pkt?->normal_price,
                 'net_price' => $pkt?->net_price,
                 'unrecommended_price' => $pkt?->unrecommended_price,
@@ -970,7 +978,32 @@ new #[Layout('layouts::admin')] class extends Component
                                 </div>
 
                                 <div>
-                                    <label class="block mb-1 text-sm font-medium text-heading">Harga Final</label>
+                                    <label class="block mb-1 text-sm font-medium text-heading">Biaya Admin</label>
+                                    <div x-data="{
+                                        adminFee: $wire.entangle('admin_fee').live,
+                                        formatted: '',
+                                        init() {
+                                            this.formatValue(this.adminFee);
+                                            $watch('adminFee', value => this.formatValue(value));
+                                        },
+                                        formatValue(value) {
+                                            this.formatted = value ? new Intl.NumberFormat('id-ID').format(value.toString().replace(/\D/g, '')) : '';
+                                        },
+                                        updateValue(event) {
+                                            let raw = event.target.value.replace(/\D/g, '');
+                                            this.adminFee = raw;
+                                            this.formatValue(raw);
+                                        }
+                                    }">
+                                        <input type="text" x-model="formatted" @input="updateValue($event)"
+                                            class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2 shadow-xs"
+                                            placeholder="Biaya Admin (Jika Ada)">
+                                    </div>
+                                    @error('admin_fee') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                                </div>
+
+                                <div>
+                                    <label class="block mb-1 text-sm font-medium text-heading">Total Tagihan</label>
                                     <input type="text" readonly
                                         x-data="{ fmt(v) { return 'Rp ' + (v ? parseInt(v).toLocaleString('id-ID') : '0'); } }"
                                         x-effect="$el.value = fmt($wire.price_paid)"

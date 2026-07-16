@@ -10,6 +10,10 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Membership extends Model
 {
+    protected $attributes = [
+        'admin_fee' => 0,
+    ];
+
     protected $fillable = [
         'user_id',
         'type',
@@ -21,6 +25,7 @@ class Membership extends Model
         'pt_package_id',
         'base_price',
         'discount_applied',
+        'admin_fee',
         'price_paid',
         'normal_price',
         'net_price',
@@ -47,6 +52,7 @@ class Membership extends Model
         'pt_end_date' => 'date',
         'membership_end_date' => 'date',
         'price_paid' => 'decimal:0',
+        'admin_fee' => 'decimal:0',
         'total_sessions' => 'integer',
         'remaining_sessions' => 'integer',
         'sesi_ditambahkan' => 'integer',
