@@ -2,7 +2,10 @@
 
 namespace App\Livewire;
 
+use App\HikvisionUserService;
 use App\Models\DeviceEvent;
+use App\Models\User;
+use Illuminate\Support\Facades\Log;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Livewire\Attributes\Layout;
@@ -17,6 +20,34 @@ new #[Layout('layouts::empty')] class extends Component
     public string $statusFilter = '';
     public ?string $dateStart = null;
     public ?string $dateEnd = null;
+
+    public function syncLatestMember(HikvisionUserService $hikvisionUserService): void
+    {
+        $user = User::query()
+            ->where('role', 'member')
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->first(['id', 'name']);
+
+        if ($user === null) {
+            session()->flash('error', 'Belum ada member yang dapat disinkronkan.');
+
+            return;
+        }
+
+        try {
+            $hikvisionUserService->sync($user);
+
+            session()->flash('success', "Member {$user->name} (ID: {$user->id}) berhasil dikirim ke Hikvision.");
+        } catch (\Throwable $exception) {
+            Log::warning('Failed to sync member to Hikvision', [
+                'user_id' => $user->id,
+                'error' => $exception->getMessage(),
+            ]);
+
+            session()->flash('error', 'Gagal mengirim member ke Hikvision. Periksa koneksi dan konfigurasi perangkat.');
+        }
+    }
 
     public function updating($property): void
     {
@@ -66,6 +97,26 @@ new #[Layout('layouts::empty')] class extends Component
         <div class="mb-6">
             <h1 class="text-2xl font-bold text-gray-900">Log Perangkat Hikvision</h1>
             <p class="text-sm text-gray-600 mt-1">Memantau event yang masuk dari perangkat akses kontrol.</p>
+        </div>
+
+        @if (session('success'))
+            <div class="mb-6 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800" role="status">
+                {{ session('success') }}
+            </div>
+        @endif
+
+        @if (session('error'))
+            <div class="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800" role="alert">
+                {{ session('error') }}
+            </div>
+        @endif
+
+        <div class="mb-6 flex justify-end">
+            <button type="button" wire:click="syncLatestMember"
+                class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 data-loading:pointer-events-none data-loading:opacity-50">
+                <span wire:loading.remove wire:target="syncLatestMember">Sinkronkan Member Terbaru</span>
+                <span wire:loading wire:target="syncLatestMember">Mengirim...</span>
+            </button>
         </div>
 
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">

@@ -124,8 +124,9 @@ new #[Layout('layouts::admin')] class extends Component
             <thead class="text-sm text-body bg-neutral-secondary-medium border-b border-default-medium">
                 <tr>
                     <th scope="col" class="px-6 py-3 font-medium">No</th>
+                    <th scope="col" class="px-6 py-3 font-medium text-center">Aksi</th>
                     @if(auth()->check() && auth()->user()->role === 'admin')
-                        <th scope="col" class="px-6 py-3 font-medium text-center">Aksi</th>
+                        <th scope="col" class="px-6 py-3 font-medium text-center">Kelola</th>
                     @endif
                     <th scope="col" class="px-6 py-3 font-medium">Member</th>
                     <th scope="col" class="px-6 py-3 font-medium">Program / Paket</th>
@@ -143,6 +144,17 @@ new #[Layout('layouts::admin')] class extends Component
                         {{-- Nomor Urut --}}
                         <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
                             {{ $loop->iteration }}
+                        </td>
+
+                        <td class="px-6 py-4 text-center whitespace-nowrap">
+                            <a href="{{ route('admin.riwayat.membership.invoice', $membership) }}"
+                                class="inline-flex items-center justify-center rounded-md p-2 text-fg-brand hover:bg-brand-soft hover:text-brand-strong"
+                                title="Unduh Invoice">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-5 w-5">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5V6.75a3.375 3.375 0 00-3.375-3.375h-1.5A3.375 3.375 0 006.375 6.75v1.5h-1.5A3.375 3.375 0 001.5 11.625v6.75a2.625 2.625 0 002.625 2.625h15.75a2.625 2.625 0 002.625-2.625v-4.125a2.625 2.625 0 00-2.625-2.625z" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 15.75h9m-9-3h9" />
+                                </svg>
+                            </a>
                         </td>
 
                         @if(auth()->check() && auth()->user()->role === 'admin')
@@ -329,7 +341,7 @@ new #[Layout('layouts::admin')] class extends Component
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="{{ auth()->check() && auth()->user()->role === 'admin' ? '9' : '8' }}" class="px-6 py-8 text-center text-gray-500">
+                        <td colspan="{{ auth()->check() && auth()->user()->role === 'admin' ? '10' : '9' }}" class="px-6 py-8 text-center text-gray-500">
                             Belum ada riwayat membership untuk user ini.
                         </td>
                     </tr>

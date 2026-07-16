@@ -35,4 +35,13 @@ return [
         ],
     ],
 
+    'hikvision' => [
+        'base_url' => env('HIKVISION_BASE_URL'),
+        'username' => env('HIKVISION_USERNAME'),
+        'password' => env('HIKVISION_PASSWORD'),
+        'timeout' => (int) env('HIKVISION_TIMEOUT', 10),
+        'connect_timeout' => (int) env('HIKVISION_CONNECT_TIMEOUT', 5),
+        'user_endpoint' => env('HIKVISION_USER_ENDPOINT', '/ISAPI/AccessControl/UserInfo/Record?format=json'),
+    ],
+
 ];

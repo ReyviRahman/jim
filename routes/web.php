@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\MembershipInvoiceController;
 use App\Http\Controllers\Admin\SesiPtSlipController;
 use App\Http\Controllers\BeverageApiController;
 use Illuminate\Support\Facades\Route;
@@ -88,6 +89,9 @@ Route::middleware('auth')->group(function () {
 
         Route::livewire('/riwayat', 'pages::dashboard.admin.riwayat.index')
             ->name('admin.riwayat.index');
+
+        Route::get('/riwayat/membership/{membership}/invoice', [MembershipInvoiceController::class, 'download'])
+            ->name('admin.riwayat.membership.invoice');
 
         Route::livewire('/riwayat/{user}', 'pages::dashboard.admin.riwayat.detail')
             ->name('admin.riwayat.detail');

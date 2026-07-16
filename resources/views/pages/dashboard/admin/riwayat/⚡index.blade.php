@@ -229,6 +229,7 @@ new #[Layout('layouts::admin')] class extends Component
                     <th scope="col" class="px-6 py-3 font-medium">Masa Aktif</th>
                     <th scope="col" class="px-6 py-3 font-medium text-center">Admin Follow Up</th>
                     <th scope="col" class="px-6 py-3 font-medium text-center">Sales Follow Up</th>
+                    <th scope="col" class="px-6 py-3 font-medium text-center">Invoice</th>
                 </tr>
             </thead>
             <tbody>
@@ -384,10 +385,26 @@ new #[Layout('layouts::admin')] class extends Component
                         <td class="px-6 py-4 font-medium text-heading whitespace-nowrap text-center">
                             <span class="font-semibold">{{ $latest->followUpTwo->name ?? '-' }}</span>
                         </td>
+                        <td class="px-6 py-4 text-center whitespace-nowrap">
+                            @if($latest)
+                                <span x-data>
+                                    <a href="{{ route('admin.riwayat.membership.invoice', $latest) }}" @click.stop
+                                        class="inline-flex items-center justify-center rounded-md p-2 text-fg-brand hover:bg-brand-soft hover:text-brand-strong"
+                                        title="Unduh Invoice">
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-5 w-5">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5V6.75a3.375 3.375 0 00-3.375-3.375h-1.5A3.375 3.375 0 006.375 6.75v1.5h-1.5A3.375 3.375 0 001.5 11.625v6.75a2.625 2.625 0 002.625 2.625h15.75a2.625 2.625 0 002.625-2.625v-4.125a2.625 2.625 0 00-2.625-2.625z" />
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 15.75h9m-9-3h9" />
+                                        </svg>
+                                    </a>
+                                </span>
+                            @else
+                                <span class="text-gray-400">-</span>
+                            @endif
+                        </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="7" class="px-6 py-8 text-center text-gray-500">
+                        <td colspan="8" class="px-6 py-8 text-center text-gray-500">
                             Belum ada riwayat transaksi membership.
                         </td>
                     </tr>
