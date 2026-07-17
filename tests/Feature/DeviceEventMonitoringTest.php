@@ -55,7 +55,7 @@ class DeviceEventMonitoringTest extends TestCase
             ->assertSee("Member {$latestMember->name} (ID: {$latestMember->id}) berhasil dikirim ke Hikvision.");
 
         Http::assertSent(function (Request $request) use ($latestMember): bool {
-            return $request->method() === 'PUT'
+            return $request->method() === 'POST'
                 && $request->url() === 'http://hikvision.test/ISAPI/AccessControl/UserInfo/Record?format=json'
                 && $request->data() === [
                     'UserInfo' => [

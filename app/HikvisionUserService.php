@@ -34,7 +34,7 @@ class HikvisionUserService
                 return $exception instanceof ConnectionException
                     || ($exception instanceof RequestException && $exception->response->serverError());
             }, throw: false)
-            ->put($baseUrl.$endpoint, [
+            ->post($baseUrl.$endpoint, [
                 'UserInfo' => [
                     'employeeNo' => (string) $user->id,
                     'name' => $user->name,
