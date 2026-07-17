@@ -5,9 +5,11 @@ use Livewire\Attributes\Layout;
 use Livewire\WithPagination;
 use App\Models\User;
 use App\Models\Membership;
+use App\HikvisionUserService;
 use App\Exports\MemberExport;
 use Maatwebsite\Excel\Facades\Excel;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 new #[Layout('layouts::admin')] class extends Component
@@ -17,6 +19,84 @@ new #[Layout('layouts::admin')] class extends Component
     public $search = '';
     // Properti untuk menyimpan ID user yang dicentang
     public array $selectedUsers = [];
+    public ?int $syncingUserId = null;
+    public ?string $syncStartDate = null;
+    public ?string $syncEndDate = null;
+    public bool $showSyncModal = false;
+    public array $hikvisionEmployeeNumbers = [];
+
+    public function mount(HikvisionUserService $hikvisionUserService): void
+    {
+        $this->refreshHikvisionMembers($hikvisionUserService);
+    }
+
+    public function openSyncModal(int $userId): void
+    {
+        $user = User::query()
+            ->where('role', 'member')
+            ->find($userId, ['id']);
+
+        if ($user === null) {
+            session()->flash('error', 'Member tidak ditemukan.');
+
+            return;
+        }
+
+        $this->resetValidation();
+        $this->syncingUserId = $user->id;
+        $this->syncStartDate = now()->startOfYear()->toDateString();
+        $this->syncEndDate = now()->endOfYear()->toDateString();
+        $this->showSyncModal = true;
+    }
+
+    public function closeSyncModal(): void
+    {
+        $this->resetValidation();
+        $this->reset('syncingUserId', 'syncStartDate', 'syncEndDate', 'showSyncModal');
+    }
+
+    public function syncMember(HikvisionUserService $hikvisionUserService): void
+    {
+        $this->validate([
+            'syncingUserId' => ['required', 'integer', 'exists:users,id'],
+            'syncStartDate' => ['required', 'date'],
+            'syncEndDate' => ['required', 'date', 'after_or_equal:syncStartDate'],
+        ]);
+
+        $user = User::query()
+            ->where('role', 'member')
+            ->find($this->syncingUserId, ['id', 'name']);
+
+        if ($user === null) {
+            $this->closeSyncModal();
+            session()->flash('error', 'Member tidak ditemukan.');
+
+            return;
+        }
+
+        try {
+            $hikvisionUserService->sync(
+                $user,
+                Carbon::parse($this->syncStartDate)->startOfDay(),
+                Carbon::parse($this->syncEndDate)->endOfDay(),
+            );
+
+            $this->hikvisionEmployeeNumbers = collect($this->hikvisionEmployeeNumbers)
+                ->push((string) $user->id)
+                ->unique()
+                ->values()
+                ->all();
+            $this->closeSyncModal();
+            session()->flash('success', "Member {$user->name} (ID: {$user->id}) berhasil dikirim ke Hikvision.");
+        } catch (\Throwable $exception) {
+            Log::warning('Failed to sync member to Hikvision from member account page', [
+                'user_id' => $user->id,
+                'error' => $exception->getMessage(),
+            ]);
+
+            session()->flash('error', 'Gagal mengirim member ke Hikvision. Periksa koneksi dan konfigurasi perangkat.');
+        }
+    }
 
     public function refreshMembershipStatus($userId)
     {
@@ -103,13 +183,47 @@ new #[Layout('layouts::admin')] class extends Component
     public function updatedSearch()
     {
         $this->resetPage();
+        $this->refreshHikvisionMembers(app(HikvisionUserService::class));
+    }
+
+    public function updatedPage(): void
+    {
+        $this->refreshHikvisionMembers(app(HikvisionUserService::class));
+    }
+
+    private function refreshHikvisionMembers(HikvisionUserService $hikvisionUserService): void
+    {
+        $userIds = User::query()
+            ->where('role', 'member')
+            ->whereDoesntHave('memberships', function ($query) {
+                $query->whereIn('status', ['pending']);
+            })
+            ->where(function ($query) {
+                $query->where('name', 'like', '%'.$this->search.'%')
+                    ->orWhere('email', 'like', '%'.$this->search.'%');
+            })
+            ->latest()
+            ->paginate(10)
+            ->getCollection()
+            ->pluck('id')
+            ->all();
+
+        try {
+            $this->hikvisionEmployeeNumbers = $hikvisionUserService->existingEmployeeNumbers($userIds);
+        } catch (\Throwable $exception) {
+            Log::warning('Failed to check existing Hikvision members', [
+                'user_ids' => $userIds,
+                'error' => $exception->getMessage(),
+            ]);
+
+            $this->hikvisionEmployeeNumbers = [];
+        }
     }
 
     // Mengirim data ke view
     public function with(): array
     {
-        return [
-            'users' => User::query()
+        $users = User::query()
                 // 1. Tambahkan Eager Loading di sini
                 ->with(['memberships' => function ($query) {
                     // Ambil data membership yang aktif saja
@@ -130,7 +244,11 @@ new #[Layout('layouts::admin')] class extends Component
                 })
                 // 4. Urutkan & Paginate
                 ->latest()
-                ->paginate(10)
+                ->paginate(10);
+
+        return [
+            'users' => $users,
+            'hikvisionEmployeeNumbers' => $this->hikvisionEmployeeNumbers,
         ];
     }
 };
@@ -329,6 +447,15 @@ new #[Layout('layouts::admin')] class extends Component
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                                     </svg>
                                 </button>
+                                @unless (in_array((string) $user->id, $hikvisionEmployeeNumbers, true))
+                                    <button type="button" wire:click="openSyncModal({{ $user->id }})"
+                                        class="p-1.5 text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                                        title="Sinkronkan ke Hikvision">
+                                        <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 16v-8m0 0-3-3m3 3 3-3M4 17.25V19a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-1.75" />
+                                        </svg>
+                                    </button>
+                                @endunless
                             </div>
                         </td>
                     </tr>
@@ -343,4 +470,42 @@ new #[Layout('layouts::admin')] class extends Component
         </table>
         {{ $users->links('components.custom-pagination') }}
     </div>
+
+    @if ($showSyncModal)
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="sync-member-title">
+            <div class="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+                <div class="mb-5 flex items-start justify-between gap-4">
+                    <div>
+                        <h2 id="sync-member-title" class="text-lg font-semibold text-heading">Sinkronkan Member ke Hikvision</h2>
+                        <p class="mt-1 text-sm text-body">Pilih masa berlaku akses perangkat untuk member ini.</p>
+                    </div>
+                    <button type="button" wire:click="closeSyncModal" class="rounded-md p-1 text-body hover:bg-neutral-secondary-medium hover:text-heading" aria-label="Tutup">
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18 18 6M6 6l12 12" /></svg>
+                    </button>
+                </div>
+
+                <form wire:submit="syncMember" class="space-y-4">
+                    <div>
+                        <label for="sync-start-date" class="mb-1 block text-sm font-medium text-heading">Tanggal mulai</label>
+                        <input id="sync-start-date" type="date" wire:model="syncStartDate" class="block w-full rounded-md border border-default-medium px-3 py-2 text-sm text-heading shadow-xs focus:border-brand focus:ring-brand">
+                        @error('syncStartDate') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                    </div>
+
+                    <div>
+                        <label for="sync-end-date" class="mb-1 block text-sm font-medium text-heading">Tanggal berakhir</label>
+                        <input id="sync-end-date" type="date" wire:model="syncEndDate" class="block w-full rounded-md border border-default-medium px-3 py-2 text-sm text-heading shadow-xs focus:border-brand focus:ring-brand">
+                        @error('syncEndDate') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                    </div>
+
+                    <div class="flex justify-end gap-3 pt-2">
+                        <button type="button" wire:click="closeSyncModal" class="rounded-md border border-default-medium px-4 py-2 text-sm font-medium text-body hover:bg-neutral-secondary-medium">Batal</button>
+                        <button type="submit" wire:loading.attr="disabled" wire:target="syncMember" class="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50">
+                            <span wire:loading.remove wire:target="syncMember">Sinkronkan</span>
+                            <span wire:loading wire:target="syncMember">Mengirim...</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    @endif
 </div>

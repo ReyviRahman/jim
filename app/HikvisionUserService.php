@@ -3,41 +3,80 @@
 namespace App;
 
 use App\Models\User;
+use Carbon\CarbonInterface;
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 use RuntimeException;
 use Throwable;
 
 class HikvisionUserService
 {
     /**
+     * @param  array<int, int|string>  $employeeNumbers
+     * @return array<int, string>
+     *
      * @throws RequestException
      */
-    public function sync(User $user): void
+    public function existingEmployeeNumbers(array $employeeNumbers): array
     {
-        $baseUrl = rtrim((string) config('services.hikvision.base_url'), '/');
-        $endpoint = '/'.ltrim((string) config('services.hikvision.user_endpoint'), '/');
+        $employeeNumbers = collect($employeeNumbers)
+            ->map(fn (int|string $employeeNumber): string => (string) $employeeNumber)
+            ->filter()
+            ->unique()
+            ->values();
 
-        if ($baseUrl === '') {
-            throw new RuntimeException('Hikvision base URL is not configured.');
+        if ($employeeNumbers->isEmpty()) {
+            return [];
         }
 
-        $validityStart = now()->startOfYear();
-        $validityEnd = now()->endOfYear();
+        $response = $this->request()
+            ->post($this->baseUrl().$this->userSearchEndpoint(), [
+                'UserInfoSearchCond' => [
+                    'searchID' => (string) Str::uuid(),
+                    'searchResultPosition' => 0,
+                    'maxResults' => $employeeNumbers->count(),
+                    'EmployeeNoList' => $employeeNumbers
+                        ->map(fn (string $employeeNumber): array => ['employeeNo' => $employeeNumber])
+                        ->all(),
+                ],
+            ])
+            ->throw();
 
-        Http::acceptJson()
-            ->withDigestAuth(
-                (string) config('services.hikvision.username'),
-                (string) config('services.hikvision.password'),
-            )
-            ->connectTimeout((int) config('services.hikvision.connect_timeout'))
-            ->timeout((int) config('services.hikvision.timeout'))
-            ->retry([100, 200], function (Throwable $exception): bool {
-                return $exception instanceof ConnectionException
-                    || ($exception instanceof RequestException && $exception->response->serverError());
-            }, throw: false)
-            ->post($baseUrl.$endpoint, [
+        $searchResult = data_get($response->json(), 'UserInfoSearch');
+
+        if (! is_array($searchResult)) {
+            throw new RuntimeException('Hikvision member search returned an invalid response.');
+        }
+
+        $matchList = data_get($searchResult, 'MatchList', []);
+
+        if (isset($matchList['employeeNo'])) {
+            $matchList = [$matchList];
+        }
+
+        return collect($matchList)
+            ->pluck('employeeNo')
+            ->map(fn (mixed $employeeNumber): string => (string) $employeeNumber)
+            ->filter()
+            ->intersect($employeeNumbers)
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @throws RequestException
+     */
+    public function sync(User $user, ?CarbonInterface $validityStart = null, ?CarbonInterface $validityEnd = null): void
+    {
+        $validityStart ??= now()->startOfYear();
+        $validityEnd ??= now()->endOfYear();
+
+        $this->request()
+            ->post($this->baseUrl().$this->userEndpoint(), [
                 'UserInfo' => [
                     'employeeNo' => (string) $user->id,
                     'name' => $user->name,
@@ -50,5 +89,41 @@ class HikvisionUserService
                 ],
             ])
             ->throw();
+    }
+
+    private function baseUrl(): string
+    {
+        $baseUrl = rtrim((string) config('services.hikvision.base_url'), '/');
+
+        if ($baseUrl === '') {
+            throw new RuntimeException('Hikvision base URL is not configured.');
+        }
+
+        return $baseUrl;
+    }
+
+    private function userEndpoint(): string
+    {
+        return '/'.ltrim((string) config('services.hikvision.user_endpoint'), '/');
+    }
+
+    private function userSearchEndpoint(): string
+    {
+        return '/'.ltrim((string) config('services.hikvision.user_search_endpoint', '/ISAPI/AccessControl/UserInfo/Search?format=json'), '/');
+    }
+
+    private function request(): PendingRequest
+    {
+        return Http::acceptJson()
+            ->withDigestAuth(
+                (string) config('services.hikvision.username'),
+                (string) config('services.hikvision.password'),
+            )
+            ->connectTimeout((int) config('services.hikvision.connect_timeout'))
+            ->timeout((int) config('services.hikvision.timeout'))
+            ->retry([100, 200], function (Throwable $exception): bool {
+                return $exception instanceof ConnectionException
+                    || ($exception instanceof RequestException && $exception->response->serverError());
+            }, throw: false);
     }
 }
