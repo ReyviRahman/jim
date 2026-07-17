@@ -7,7 +7,9 @@ use App\Jobs\SyncHikvisionMember;
 use App\Models\DeviceEvent;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Livewire\Livewire;
@@ -178,6 +180,45 @@ class DeviceEventMonitoringTest extends TestCase
         $employeeNumbers = app(HikvisionUserService::class)->existingEmployeeNumbers([10]);
 
         $this->assertSame([], $employeeNumbers);
+    }
+
+    public function test_it_stops_checking_hikvision_during_the_unavailable_cooldown(): void
+    {
+        config()->set('services.hikvision', [
+            'base_url' => 'http://hikvision.test',
+            'username' => 'admin',
+            'password' => 'secret',
+            'timeout' => 3,
+            'connect_timeout' => 3,
+            'failure_cooldown' => 60,
+            'user_search_endpoint' => '/ISAPI/AccessControl/UserInfo/Search?format=json',
+        ]);
+        Http::preventStrayRequests();
+        Http::fake(['http://hikvision.test/*' => Http::failedConnection()]);
+
+        $service = app(HikvisionUserService::class);
+
+        $connectionFailed = false;
+
+        try {
+            $service->existingEmployeeNumbers([10]);
+            $this->fail('Expected the failed Hikvision connection to be thrown.');
+        } catch (ConnectionException) {
+            $connectionFailed = true;
+        }
+
+        $this->assertTrue($connectionFailed);
+        $this->assertTrue(Cache::has('hikvision:unavailable:'.md5('http://hikvision.test')));
+
+        try {
+            $service->existingEmployeeNumbers([10]);
+            $this->fail('Expected the cached device cooldown to block the request.');
+        } catch (\RuntimeException $exception) {
+            $this->assertSame('Hikvision device is temporarily unavailable.', $exception->getMessage());
+        }
+
+        Http::assertSentCount(1);
+        Cache::forget('hikvision:unavailable:'.md5('http://hikvision.test'));
     }
 
     public function test_it_rejects_a_hikvision_search_protocol_error_response(): void

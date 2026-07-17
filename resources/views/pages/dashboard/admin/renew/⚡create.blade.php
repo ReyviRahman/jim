@@ -200,6 +200,9 @@ new #[Layout('layouts::admin')] class extends Component
             } else {
                 $this->amount_paid = '';
                 $this->is_active = false;
+                $this->start_date = null;
+                $this->membership_end_date = null;
+                $this->pt_end_date = null;
                 $this->toastMessage = 'Status membership diubah ke tidak aktif karena pembayaran cicilan';
                 $this->toastType = 'warning';
             }
@@ -382,12 +385,12 @@ new #[Layout('layouts::admin')] class extends Component
                 'remaining_sessions' => $remainingSessionsNew,
                 'sesi_ditambahkan' => $sesiDitambahkan,
                 
-                'start_date' => $this->start_date,
-                'membership_end_date' => in_array($this->registration_type, ['membership', 'bundle_pt_membership', 'visit']) ? $this->membership_end_date : null,
-                'pt_end_date' => in_array($this->registration_type, ['pt', 'bundle_pt_membership']) ? $this->pt_end_date : null,
+                'start_date' => $this->payment_type === 'paid' ? $this->start_date : null,
+                'membership_end_date' => $this->payment_type === 'paid' && in_array($this->registration_type, ['membership', 'bundle_pt_membership', 'visit']) ? $this->membership_end_date : null,
+                'pt_end_date' => $this->payment_type === 'paid' && in_array($this->registration_type, ['pt', 'bundle_pt_membership']) ? $this->pt_end_date : null,
                 
                 'status' => $this->payment_type === 'paid' ? 'active' : 'pending',
-                'is_active' => $this->is_active,
+                'is_active' => $this->payment_type === 'paid' ? $this->is_active : false,
                 'notes' => $this->notes,
                 'transaction_type' => $this->transaction_type,
                 'package_name' => $this->package_name,
@@ -396,7 +399,7 @@ new #[Layout('layouts::admin')] class extends Component
             $newMembership->members()->attach($this->selectedUsers->pluck('id')->toArray());
 
             // Jika paket lama adalah PT, update pt_end_date paket lama agar mengikuti nilai pt_end_date yang dipilih
-            if ($this->oldMembership->type === 'pt') {
+            if ($this->payment_type === 'paid' && $this->oldMembership->type === 'pt') {
                 $this->oldMembership->update([
                     'pt_end_date' => $this->pt_end_date,
                 ]);

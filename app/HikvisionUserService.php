@@ -7,10 +7,10 @@ use Carbon\CarbonInterface;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\RequestException;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use RuntimeException;
-use Throwable;
 
 class HikvisionUserService
 {
@@ -32,58 +32,68 @@ class HikvisionUserService
             return [];
         }
 
-        $response = $this->request()
-            ->post($this->baseUrl().$this->userSearchEndpoint(), [
-                'UserInfoSearchCond' => [
-                    'searchID' => (string) Str::uuid(),
-                    'searchResultPosition' => 0,
-                    'maxResults' => $employeeNumbers->count(),
-                    'EmployeeNoList' => $employeeNumbers
-                        ->map(fn (string $employeeNumber): array => ['employeeNo' => $employeeNumber])
-                        ->all(),
-                ],
-            ])
-            ->throw();
+        $this->ensureDeviceIsAvailable();
 
-        $payload = $response->json();
+        try {
+            $response = $this->request()
+                ->post($this->baseUrl().$this->userSearchEndpoint(), [
+                    'UserInfoSearchCond' => [
+                        'searchID' => (string) Str::uuid(),
+                        'searchResultPosition' => 0,
+                        'maxResults' => $employeeNumbers->count(),
+                        'EmployeeNoList' => $employeeNumbers
+                            ->map(fn (string $employeeNumber): array => ['employeeNo' => $employeeNumber])
+                            ->all(),
+                    ],
+                ])
+                ->throw();
 
-        if (isset($payload['ResponseStatus'])) {
-            throw new RuntimeException('Hikvision member search returned an error response.');
+            $payload = $response->json();
+
+            if (isset($payload['ResponseStatus'])) {
+                throw new RuntimeException('Hikvision member search returned an error response.');
+            }
+
+            $searchResult = data_get($payload, 'UserInfoSearch');
+
+            if (! is_array($searchResult)) {
+                throw new RuntimeException('Hikvision member search returned an invalid response.');
+            }
+
+            $responseStatus = data_get($searchResult, 'responseStatusStrg');
+
+            if (is_string($responseStatus) && ! in_array(strtoupper($responseStatus), ['OK', 'MORE', 'NO MATCH', 'NO MATCHES'], true)) {
+                throw new RuntimeException('Hikvision member search did not complete successfully.');
+            }
+
+            $matchList = data_get($searchResult, 'UserInfo', data_get($searchResult, 'MatchList', []));
+
+            if (isset($matchList['employeeNo']) || isset($matchList['UserInfo'])) {
+                $matchList = [$matchList];
+            }
+
+            $this->clearDeviceUnavailable();
+
+            return collect($matchList)
+                ->map(function (mixed $match): ?string {
+                    if (! is_array($match)) {
+                        return null;
+                    }
+
+                    $employeeNumber = data_get($match, 'employeeNo') ?? data_get($match, 'UserInfo.employeeNo');
+
+                    return is_scalar($employeeNumber) ? (string) $employeeNumber : null;
+                })
+                ->filter()
+                ->intersect($employeeNumbers)
+                ->unique()
+                ->values()
+                ->all();
+        } catch (ConnectionException $exception) {
+            $this->markDeviceUnavailable();
+
+            throw $exception;
         }
-
-        $searchResult = data_get($payload, 'UserInfoSearch');
-
-        if (! is_array($searchResult)) {
-            throw new RuntimeException('Hikvision member search returned an invalid response.');
-        }
-
-        $responseStatus = data_get($searchResult, 'responseStatusStrg');
-
-        if (is_string($responseStatus) && ! in_array(strtoupper($responseStatus), ['OK', 'MORE', 'NO MATCH', 'NO MATCHES'], true)) {
-            throw new RuntimeException('Hikvision member search did not complete successfully.');
-        }
-
-        $matchList = data_get($searchResult, 'UserInfo', data_get($searchResult, 'MatchList', []));
-
-        if (isset($matchList['employeeNo']) || isset($matchList['UserInfo'])) {
-            $matchList = [$matchList];
-        }
-
-        return collect($matchList)
-            ->map(function (mixed $match): ?string {
-                if (! is_array($match)) {
-                    return null;
-                }
-
-                $employeeNumber = data_get($match, 'employeeNo') ?? data_get($match, 'UserInfo.employeeNo');
-
-                return is_scalar($employeeNumber) ? (string) $employeeNumber : null;
-            })
-            ->filter()
-            ->intersect($employeeNumbers)
-            ->unique()
-            ->values()
-            ->all();
     }
 
     /**
@@ -94,20 +104,30 @@ class HikvisionUserService
         $validityStart ??= now()->startOfYear();
         $validityEnd ??= now()->endOfYear();
 
-        $this->request()
-            ->post($this->baseUrl().$this->userEndpoint(), [
-                'UserInfo' => [
-                    'employeeNo' => (string) $user->id,
-                    'name' => $user->name,
-                    'userType' => 'normal',
-                    'Valid' => [
-                        'enable' => true,
-                        'beginTime' => $validityStart->format('Y-m-d\\TH:i:s'),
-                        'endTime' => $validityEnd->format('Y-m-d\\TH:i:s'),
+        $this->ensureDeviceIsAvailable();
+
+        try {
+            $this->request()
+                ->post($this->baseUrl().$this->userEndpoint(), [
+                    'UserInfo' => [
+                        'employeeNo' => (string) $user->id,
+                        'name' => $user->name,
+                        'userType' => 'normal',
+                        'Valid' => [
+                            'enable' => true,
+                            'beginTime' => $validityStart->format('Y-m-d\\TH:i:s'),
+                            'endTime' => $validityEnd->format('Y-m-d\\TH:i:s'),
+                        ],
                     ],
-                ],
-            ])
-            ->throw();
+                ])
+                ->throw();
+
+            $this->clearDeviceUnavailable();
+        } catch (ConnectionException $exception) {
+            $this->markDeviceUnavailable();
+
+            throw $exception;
+        }
     }
 
     private function baseUrl(): string
@@ -139,10 +159,32 @@ class HikvisionUserService
                 (string) config('services.hikvision.password'),
             )
             ->connectTimeout((int) config('services.hikvision.connect_timeout'))
-            ->timeout((int) config('services.hikvision.timeout'))
-            ->retry([100, 200], function (Throwable $exception): bool {
-                return $exception instanceof ConnectionException
-                    || ($exception instanceof RequestException && $exception->response->serverError());
-            }, throw: false);
+            ->timeout((int) config('services.hikvision.timeout'));
+    }
+
+    private function ensureDeviceIsAvailable(): void
+    {
+        if (Cache::has($this->deviceUnavailableCacheKey())) {
+            throw new RuntimeException('Hikvision device is temporarily unavailable.');
+        }
+    }
+
+    private function markDeviceUnavailable(): void
+    {
+        Cache::put(
+            $this->deviceUnavailableCacheKey(),
+            true,
+            now()->addSeconds((int) config('services.hikvision.failure_cooldown', 60)),
+        );
+    }
+
+    private function clearDeviceUnavailable(): void
+    {
+        Cache::forget($this->deviceUnavailableCacheKey());
+    }
+
+    private function deviceUnavailableCacheKey(): string
+    {
+        return 'hikvision:unavailable:'.md5($this->baseUrl());
     }
 }

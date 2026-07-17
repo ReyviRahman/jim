@@ -84,6 +84,8 @@ new #[Layout('layouts::admin')] class extends Component
 
     public $is_active = true;
 
+    public $membership_status = '';
+
     public $originalStartDate = '';
 
     public $originalMembershipEndDate = '';
@@ -162,6 +164,9 @@ new #[Layout('layouts::admin')] class extends Component
         $this->payment_type = $this->membership->payment_status;
         $this->amount_paid = $this->membership->total_paid;
         $this->is_active = $this->membership->is_active;
+        $this->membership_status = in_array($this->membership->status, ['active', 'completed', 'pending'])
+            ? $this->membership->status
+            : '';
 
         $latestTxn = $this->membership->transactions->sortByDesc('payment_date')->first();
 
@@ -480,6 +485,7 @@ new #[Layout('layouts::admin')] class extends Component
 
         $rules = [
             'registration_type' => 'required|in:membership,pt,bundle_pt_membership,visit',
+            'membership_status' => 'nullable|in:active,completed,pending',
             'start_date' => $this->is_active ? 'required|date' : 'nullable|date',
             'payment_type' => 'required|in:paid,partial',
             'payment_method' => 'required|in:cash,transfer,qris,debit',
@@ -580,6 +586,7 @@ new #[Layout('layouts::admin')] class extends Component
                 'membership_end_date' => in_array($this->registration_type, ['membership', 'bundle_pt_membership', 'visit']) ? ($this->membership_end_date ?: null) : null,
                 'pt_end_date' => in_array($this->registration_type, ['pt', 'bundle_pt_membership']) ? ($this->pt_end_date ?: null) : null,
                 'is_active' => $this->is_active,
+                'status' => $this->membership_status ?: $this->membership->status,
                 'notes' => $this->notes,
             ]);
 
@@ -610,7 +617,6 @@ new #[Layout('layouts::admin')] class extends Component
             $this->membership->update([
                 'total_paid' => $calculatedTotalPaid,
                 'payment_status' => $paymentStatus,
-                'status' => $paymentStatus === 'paid' ? 'active' : 'pending',
             ]);
 
             DB::commit();
@@ -749,15 +755,26 @@ new #[Layout('layouts::admin')] class extends Component
 
                     @if($registration_type)
                         <div class="md:col-span-2">
-                            <label class="block mb-2 text-sm font-medium text-heading">Status Membership</label>
+                            <label for="membership_status" class="block mb-2 text-sm font-medium text-heading">Status Membership</label>
+                            <select id="membership_status" wire:model="membership_status" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs">
+                                <option value="">-- Pilih Status --</option>
+                                <option value="active">Active</option>
+                                <option value="completed">Completed</option>
+                                <option value="pending">Pending</option>
+                            </select>
+                            @error('membership_status') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                        </div>
+
+                        <div class="md:col-span-2">
+                            <label class="block mb-2 text-sm font-medium text-heading">Ubah Tanggal</label>
                             <div class="flex gap-4">
                                 <label class="flex items-center gap-2 cursor-pointer">
                                     <input type="radio" wire:model.live="is_active" value="1" class="text-brand focus:ring-brand w-4 h-4">
-                                    <span class="text-sm font-medium">Aktif Sekarang</span>
+                                    <span class="text-sm font-medium">Input tanggal</span>
                                 </label>
                                 <label class="flex items-center gap-2 cursor-pointer">
                                     <input type="radio" wire:model.live="is_active" value="0" class="text-red-600 focus:ring-red-500 w-4 h-4">
-                                    <span class="text-sm font-medium text-red-600">Tidak Aktif (Pending)</span>
+                                    <span class="text-sm font-medium text-red-600">Kosongkan tanggal</span>
                                 </label>
                             </div>
                         </div>

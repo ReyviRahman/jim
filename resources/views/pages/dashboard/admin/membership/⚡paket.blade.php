@@ -234,6 +234,9 @@ new #[Layout('layouts::admin')] class extends Component
             } else {
                 $this->amount_paid = '';
                 $this->is_active = false;
+                $this->start_date = null;
+                $this->membership_end_date = null;
+                $this->pt_end_date = null;
             }
         }
 
@@ -421,12 +424,12 @@ new #[Layout('layouts::admin')] class extends Component
                 'total_sessions' => in_array($this->registration_type, ['pt', 'bundle_pt_membership']) ? $this->calculated_total_sessions : null,
                 'remaining_sessions' => in_array($this->registration_type, ['pt', 'bundle_pt_membership']) ? $this->calculated_total_sessions : null,
                 
-                'start_date' => $this->start_date,
-                'membership_end_date' => in_array($this->registration_type, ['membership', 'bundle_pt_membership', 'visit']) ? $this->membership_end_date : null,
-                'pt_end_date' => in_array($this->registration_type, ['pt', 'bundle_pt_membership']) ? $this->pt_end_date : null,
+                'start_date' => $this->payment_type === 'paid' ? $this->start_date : null,
+                'membership_end_date' => $this->payment_type === 'paid' && in_array($this->registration_type, ['membership', 'bundle_pt_membership', 'visit']) ? $this->membership_end_date : null,
+                'pt_end_date' => $this->payment_type === 'paid' && in_array($this->registration_type, ['pt', 'bundle_pt_membership']) ? $this->pt_end_date : null,
                 
                 'status' => $this->payment_type === 'paid' ? 'active' : 'pending',
-                'is_active' => $this->is_active,
+                'is_active' => $this->payment_type === 'paid' ? $this->is_active : false,
                 'notes' => $this->notes,
                 'transaction_type' => $this->transaction_type,
                 'package_name' => $this->package_name,
