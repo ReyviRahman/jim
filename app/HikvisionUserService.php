@@ -23,6 +23,9 @@ class HikvisionUserService
             throw new RuntimeException('Hikvision base URL is not configured.');
         }
 
+        $validityStart = now()->startOfYear();
+        $validityEnd = now()->endOfYear();
+
         Http::acceptJson()
             ->withDigestAuth(
                 (string) config('services.hikvision.username'),
@@ -39,6 +42,11 @@ class HikvisionUserService
                     'employeeNo' => (string) $user->id,
                     'name' => $user->name,
                     'userType' => 'normal',
+                    'Valid' => [
+                        'enable' => true,
+                        'beginTime' => $validityStart->format('Y-m-d\\TH:i:s'),
+                        'endTime' => $validityEnd->format('Y-m-d\\TH:i:s'),
+                    ],
                 ],
             ])
             ->throw();

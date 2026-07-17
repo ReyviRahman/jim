@@ -62,6 +62,11 @@ class DeviceEventMonitoringTest extends TestCase
                         'employeeNo' => (string) $latestMember->id,
                         'name' => $latestMember->name,
                         'userType' => 'normal',
+                        'Valid' => [
+                            'enable' => true,
+                            'beginTime' => now()->startOfYear()->format('Y-m-d\\TH:i:s'),
+                            'endTime' => now()->endOfYear()->format('Y-m-d\\TH:i:s'),
+                        ],
                     ],
                 ];
         });
