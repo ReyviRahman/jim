@@ -42,7 +42,6 @@ return [
         'timeout' => (int) env('HIKVISION_TIMEOUT', 10),
         'connect_timeout' => (int) env('HIKVISION_CONNECT_TIMEOUT', 5),
         'user_endpoint' => env('HIKVISION_USER_ENDPOINT', '/ISAPI/AccessControl/UserInfo/Record?format=json'),
-        'user_search_endpoint' => env('HIKVISION_USER_SEARCH_ENDPOINT', '/ISAPI/AccessControl/UserInfo/Search?format=json'),
     ],
 
 ];

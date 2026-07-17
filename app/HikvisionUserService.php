@@ -8,65 +8,11 @@ use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Str;
 use RuntimeException;
 use Throwable;
 
 class HikvisionUserService
 {
-    /**
-     * @param  array<int, int|string>  $employeeNumbers
-     * @return array<int, string>
-     *
-     * @throws RequestException
-     */
-    public function existingEmployeeNumbers(array $employeeNumbers): array
-    {
-        $employeeNumbers = collect($employeeNumbers)
-            ->map(fn (int|string $employeeNumber): string => (string) $employeeNumber)
-            ->filter()
-            ->unique()
-            ->values();
-
-        if ($employeeNumbers->isEmpty()) {
-            return [];
-        }
-
-        $response = $this->request()
-            ->post($this->baseUrl().$this->userSearchEndpoint(), [
-                'UserInfoSearchCond' => [
-                    'searchID' => (string) Str::uuid(),
-                    'searchResultPosition' => 0,
-                    'maxResults' => $employeeNumbers->count(),
-                    'EmployeeNoList' => $employeeNumbers
-                        ->map(fn (string $employeeNumber): array => ['employeeNo' => $employeeNumber])
-                        ->all(),
-                ],
-            ])
-            ->throw();
-
-        $searchResult = data_get($response->json(), 'UserInfoSearch');
-
-        if (! is_array($searchResult)) {
-            throw new RuntimeException('Hikvision member search returned an invalid response.');
-        }
-
-        $matchList = data_get($searchResult, 'MatchList', []);
-
-        if (isset($matchList['employeeNo'])) {
-            $matchList = [$matchList];
-        }
-
-        return collect($matchList)
-            ->pluck('employeeNo')
-            ->map(fn (mixed $employeeNumber): string => (string) $employeeNumber)
-            ->filter()
-            ->intersect($employeeNumbers)
-            ->unique()
-            ->values()
-            ->all();
-    }
-
     /**
      * @throws RequestException
      */
@@ -105,11 +51,6 @@ class HikvisionUserService
     private function userEndpoint(): string
     {
         return '/'.ltrim((string) config('services.hikvision.user_endpoint'), '/');
-    }
-
-    private function userSearchEndpoint(): string
-    {
-        return '/'.ltrim((string) config('services.hikvision.user_search_endpoint', '/ISAPI/AccessControl/UserInfo/Search?format=json'), '/');
     }
 
     private function request(): PendingRequest
