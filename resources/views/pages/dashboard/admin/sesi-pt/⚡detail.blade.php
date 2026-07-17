@@ -298,8 +298,7 @@ new #[Layout('layouts::admin')] class extends Component
         $query = PtBooking::query()
             ->where('pt_id', $this->user->id)
             ->where('attendance', 'attended')
-            ->where('is_free', false)
-            ->where('is_paid', false);
+            ->where('is_free', false);
 
         if ($this->dateStart && $this->dateEnd) {
             $query->whereBetween('booking_date', [
