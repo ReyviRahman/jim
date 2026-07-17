@@ -31,6 +31,14 @@ new #[Layout('layouts::admin')] class extends Component
     public bool $showPaymentDetailModal = false;
     public ?int $selectedPaymentBatchId = null;
 
+    public bool $showPaymentPreviewModal = false;
+
+    /** @var array<int, array{member_name: string, sessions: int, nominal: int, total: int}> */
+    public array $paymentPreviewRows = [];
+
+    public int $paymentPreviewTotalSessions = 0;
+    public int $paymentPreviewTotalAmount = 0;
+
     public string $potongan = '';
     public string $keteranganPotongan = '';
 
@@ -205,20 +213,7 @@ new #[Layout('layouts::admin')] class extends Component
 
     public function paySessions(): void
     {
-        $query = PtBooking::query()
-            ->where('pt_id', $this->user->id)
-            ->where('attendance', 'attended')
-            ->where('is_free', false)
-            ;
-
-        if ($this->dateStart && $this->dateEnd) {
-            $query->whereBetween('booking_date', [
-                $this->dateStart . ' 00:00:00',
-                $this->dateEnd . ' 23:59:59',
-            ]);
-        }
-
-        $bookings = $query->with(['membership.followUp', 'membership.followUpTwo'])->get();
+        $bookings = $this->payableBookings();
 
         if ($bookings->isEmpty()) {
             session()->flash('error', 'Tidak ada sesi berjalan dalam periode ini.');
@@ -250,6 +245,74 @@ new #[Layout('layouts::admin')] class extends Component
 
         session()->flash('success', 'Berhasil membayar ' . $bookings->count() . ' sesi PT.');
         $this->dispatch('scroll-to-history');
+    }
+
+    public function openPaymentPreview(): void
+    {
+        $bookings = $this->payableBookings();
+
+        if ($bookings->isEmpty()) {
+            session()->flash('error', 'Tidak ada sesi berjalan dalam periode ini.');
+
+            return;
+        }
+
+        $this->paymentPreviewRows = $bookings
+            ->groupBy('membership_id')
+            ->map(function ($membershipBookings): array {
+                $membership = $membershipBookings->first()->membership;
+                $categoryLabel = $membership->getPtCategoryLabel();
+                $nominal = (int) ($this->ptSessionCategories->firstWhere('category', $categoryLabel)?->amount ?? 0);
+                $sessions = $membershipBookings->count();
+
+                return [
+                    'member_name' => $membership->user?->name ?? '-',
+                    'sessions' => $sessions,
+                    'nominal' => $nominal,
+                    'total' => $sessions * $nominal,
+                ];
+            })
+            ->values()
+            ->all();
+        $this->paymentPreviewTotalSessions = $bookings->count();
+        $this->paymentPreviewTotalAmount = collect($this->paymentPreviewRows)->sum('total');
+        $this->showPaymentPreviewModal = true;
+    }
+
+    public function closePaymentPreview(): void
+    {
+        $this->showPaymentPreviewModal = false;
+        $this->paymentPreviewRows = [];
+        $this->paymentPreviewTotalSessions = 0;
+        $this->paymentPreviewTotalAmount = 0;
+    }
+
+    public function confirmPayment(): void
+    {
+        $this->paySessions();
+        $this->closePaymentPreview();
+    }
+
+    private function payableBookings()
+    {
+        $query = PtBooking::query()
+            ->where('pt_id', $this->user->id)
+            ->where('attendance', 'attended')
+            ->where('is_free', false)
+            ->where('is_paid', false);
+
+        if ($this->dateStart && $this->dateEnd) {
+            $query->whereBetween('booking_date', [
+                $this->dateStart . ' 00:00:00',
+                $this->dateEnd . ' 23:59:59',
+            ]);
+        }
+
+        return $query->with([
+            'membership.user',
+            'membership.followUp',
+            'membership.followUpTwo',
+        ])->get();
     }
 
     public function openPaymentDetailModal(int $id): void
@@ -499,22 +562,22 @@ new #[Layout('layouts::admin')] class extends Component
                     <tr>
                         <th scope="col" class="px-6 py-3 font-medium">No</th>
                         <th scope="col" class="px-6 py-3 font-medium">Nama Member</th>
-                        <th scope="col" class="px-6 py-3 font-medium">Admin Follow Up</th>
-                        <th scope="col" class="px-6 py-3 font-medium">Sales Follow Up</th>
-                        <th scope="col" class="px-6 py-3 font-medium">Harga</th>
-                        <th scope="col" class="px-6 py-3 font-medium text-center" colspan="2">Kategori</th>
                         <th scope="col" class="px-6 py-3 font-medium text-center">Sesi Awal</th>
                         {{-- <th scope="col" class="px-6 py-3 font-medium text-center">Sesi Ditambahkan</th> --}}
                         {{-- <th scope="col" class="px-6 py-3 font-medium text-center">Total Sesi</th> --}}
                         <th scope="col" class="px-6 py-3 font-medium text-center">Belum Bayar</th>
                         <th scope="col" class="px-6 py-3 font-medium text-center">Sudah Bayar</th>
+                        <th scope="col" class="px-6 py-3 font-medium text-right">Nominal</th>
+                        <th scope="col" class="px-6 py-3 font-medium text-right">Total</th>
                         <th scope="col" class="px-6 py-3 font-medium text-center">Hangus</th>
                         <th scope="col" class="px-6 py-3 font-medium text-center">Sesi Digantikan</th>
                         <th scope="col" class="px-6 py-3 font-medium text-center">Sisa Sesi</th>
-                        <th scope="col" class="px-6 py-3 font-medium text-right">Nominal</th>
-                        <th scope="col" class="px-6 py-3 font-medium text-right">Total</th>
                         {{-- <th scope="col" class="px-6 py-3 font-medium text-center">Free</th> --}}
                         <th scope="col" class="px-6 py-3 font-medium text-center">Free Berjalan</th>
+                        <th scope="col" class="px-6 py-3 font-medium">Admin Follow Up</th>
+                        <th scope="col" class="px-6 py-3 font-medium">Sales Follow Up</th>
+                        <th scope="col" class="px-6 py-3 font-medium">Harga</th>
+                        <th scope="col" class="px-6 py-3 font-medium text-center" colspan="2">Kategori</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -524,12 +587,13 @@ new #[Layout('layouts::admin')] class extends Component
                         $bookingOnlyWithSessions = $this->ptMembershipsBookingOnly->filter(function($m) {
                             return $m->berjalan > 0;
                         });
+                        $totalSessions = 0;
                     @endphp
 
                     {{-- Section 1: Direct PT Memberships --}}
                     @if($this->ptMembershipsDirect->count() > 0)
                         <tr class="bg-blue-50 border-b border-blue-200">
-                            <td colspan="18" class="px-6 py-3 font-semibold text-blue-800 text-sm">
+                            <td colspan="16" class="px-6 py-3 font-semibold text-blue-800 text-sm">
                                 <div class="flex items-center gap-2">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
                                     Membership Langsung (PT Utama)
@@ -550,7 +614,7 @@ new #[Layout('layouts::admin')] class extends Component
                                     $sesiDitambahkan = 0;
                                 }
 
-                                $totalSessions = $sesiAwal + $sesiDitambahkan;
+                                $membershipTotalSessions = $sesiAwal + $sesiDitambahkan;
                                 $hangus = ($membership->hangus ?? 0) + ($membership->sesi_hangus ?? 0);
                                 $sisaSesi = $sesiAwal + $sesiDitambahkan - $membership->berjalan - $hangus - $membership->sesi_digantikan;
 
@@ -562,6 +626,7 @@ new #[Layout('layouts::admin')] class extends Component
                                 $categoryTotal = $membership->berjalan * $categoryNominal;
 
                                 $totalCategoryTotal += $categoryTotal;
+                                $totalSessions += $membership->berjalan;
                             @endphp
                             <tr wire:key="pt-membership-direct-{{ $membership->id }}" wire:click="redirectToMembershipDetail({{ $membership->id }})" class="bg-neutral-primary-soft border-b border-default hover:bg-neutral-secondary-medium cursor-pointer">
                                 <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
@@ -576,6 +641,42 @@ new #[Layout('layouts::admin')] class extends Component
                                             @endforeach
                                         </div>
                                     @endif
+                                </td>
+                                <td class="px-6 py-4 text-center whitespace-nowrap">
+                                    {{ $sesiAwal }}
+                                </td>
+                                {{-- <td class="px-6 py-4 text-center whitespace-nowrap">
+                                    {{ $sesiDitambahkan }}
+                                </td> --}}
+                                {{-- <td class="px-6 py-4 text-center whitespace-nowrap">
+                                    {{ $membershipTotalSessions }}
+                                </td> --}}
+                                <td class="px-6 py-4 text-center whitespace-nowrap font-semibold text-amber-600">
+                                    {{ $membership->berjalan_belum_dibayar }}
+                                </td>
+                                <td class="px-6 py-4 text-center whitespace-nowrap font-semibold text-emerald-600">
+                                    {{ $membership->berjalan_dibayar }}
+                                </td>
+                                <td class="px-6 py-4 text-right whitespace-nowrap">
+                                    Rp {{ number_format($categoryNominal, 0, ',', '.') }}
+                                </td>
+                                <td class="px-6 py-4 text-right whitespace-nowrap">
+                                    Rp {{ number_format($categoryTotal, 0, ',', '.') }}
+                                </td>
+                                <td class="px-6 py-4 text-center whitespace-nowrap">
+                                    {{ $hangus }}
+                                </td>
+                                <td class="px-6 py-4 text-center whitespace-nowrap">
+                                    {{ $membership->sesi_digantikan }}
+                                </td>
+                                <td class="px-6 py-4 text-center whitespace-nowrap">
+                                    {{ $sisaSesi }}
+                                </td>
+                                {{-- <td class="px-6 py-4 text-center whitespace-nowrap">
+                                    {{ $membership->free_total }}
+                                </td> --}}
+                                <td class="px-6 py-4 text-center whitespace-nowrap">
+                                    {{ $membership->free_berjalan }}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     {{ $membership->followUp->name ?? '-' }}
@@ -599,42 +700,6 @@ new #[Layout('layouts::admin')] class extends Component
                                 <td class="px-6 py-4 whitespace-nowrap font-semibold text-heading">
                                     {{ $categoryLabel }}
                                 </td>
-                                <td class="px-6 py-4 text-center whitespace-nowrap">
-                                    {{ $sesiAwal }}
-                                </td>
-                                {{-- <td class="px-6 py-4 text-center whitespace-nowrap">
-                                    {{ $sesiDitambahkan }}
-                                </td> --}}
-                                {{-- <td class="px-6 py-4 text-center whitespace-nowrap">
-                                    {{ $totalSessions }}
-                                </td> --}}
-                                <td class="px-6 py-4 text-center whitespace-nowrap font-semibold text-amber-600">
-                                    {{ $membership->berjalan_belum_dibayar }}
-                                </td>
-                                <td class="px-6 py-4 text-center whitespace-nowrap font-semibold text-emerald-600">
-                                    {{ $membership->berjalan_dibayar }}
-                                </td>
-                                <td class="px-6 py-4 text-center whitespace-nowrap">
-                                    {{ $hangus }}
-                                </td>
-                                <td class="px-6 py-4 text-center whitespace-nowrap">
-                                    {{ $membership->sesi_digantikan }}
-                                </td>
-                                <td class="px-6 py-4 text-center whitespace-nowrap">
-                                    {{ $sisaSesi }}
-                                </td>
-                                <td class="px-6 py-4 text-right whitespace-nowrap">
-                                    Rp {{ number_format($categoryNominal, 0, ',', '.') }}
-                                </td>
-                                <td class="px-6 py-4 text-right whitespace-nowrap">
-                                    Rp {{ number_format($categoryTotal, 0, ',', '.') }}
-                                </td>
-                                {{-- <td class="px-6 py-4 text-center whitespace-nowrap">
-                                    {{ $membership->free_total }}
-                                </td> --}}
-                                <td class="px-6 py-4 text-center whitespace-nowrap">
-                                    {{ $membership->free_berjalan }}
-                                </td>
                             </tr>
                         @endforeach
                     @endif
@@ -642,7 +707,7 @@ new #[Layout('layouts::admin')] class extends Component
                     {{-- Section 2: Booking-Only Memberships --}}
                     @if($bookingOnlyWithSessions->count() > 0)
                         <tr class="bg-amber-50 border-b border-amber-200">
-                            <td colspan="18" class="px-6 py-3 font-semibold text-amber-800 text-sm">
+                            <td colspan="16" class="px-6 py-3 font-semibold text-amber-800 text-sm">
                                 <div class="flex items-center gap-2">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
                                     Membership (PT Pengganti/Cadangan)
@@ -663,7 +728,7 @@ new #[Layout('layouts::admin')] class extends Component
                                     $sesiDitambahkan = 0;
                                 }
 
-                                $totalSessions = $sesiAwal + $sesiDitambahkan;
+                                $membershipTotalSessions = $sesiAwal + $sesiDitambahkan;
                                 $hangus = ($membership->hangus ?? 0) + ($membership->sesi_hangus ?? 0);
                                 $sisaSesi = $sesiAwal + $sesiDitambahkan - $membership->berjalan - $hangus;
 
@@ -695,6 +760,7 @@ new #[Layout('layouts::admin')] class extends Component
                                 $categoryTotal = $membership->berjalan * $categoryNominal;
 
                                 $totalCategoryTotal += $categoryTotal;
+                                $totalSessions += $membership->berjalan;
                             @endphp
                             <tr wire:key="pt-membership-booking-{{ $membership->id }}" wire:click="redirectToMembershipDetail({{ $membership->id }})" class="bg-neutral-primary-soft border-b border-default hover:bg-neutral-secondary-medium cursor-pointer">
                                 <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
@@ -709,6 +775,28 @@ new #[Layout('layouts::admin')] class extends Component
                                             @endforeach
                                         </div>
                                     @endif
+                                </td>
+                                <td class="px-6 py-4 text-center whitespace-nowrap text-gray-400">-</td>
+                                <td class="px-6 py-4 text-center whitespace-nowrap font-semibold text-amber-600">
+                                    {{ $membership->berjalan_belum_dibayar }}
+                                </td>
+                                <td class="px-6 py-4 text-center whitespace-nowrap font-semibold text-emerald-600">
+                                    {{ $membership->berjalan_dibayar }}
+                                </td>
+                                <td class="px-6 py-4 text-right whitespace-nowrap">
+                                    Rp {{ number_format($categoryNominal, 0, ',', '.') }}
+                                </td>
+                                <td class="px-6 py-4 text-right whitespace-nowrap">
+                                    Rp {{ number_format($categoryTotal, 0, ',', '.') }}
+                                </td>
+                                <td class="px-6 py-4 text-center whitespace-nowrap text-gray-400">-</td>
+                                <td class="px-6 py-4 text-center whitespace-nowrap text-gray-400">-</td>
+                                <td class="px-6 py-4 text-center whitespace-nowrap text-gray-400">-</td>
+                                {{-- <td class="px-6 py-4 text-center whitespace-nowrap">
+                                    {{ $membership->free_total }}
+                                </td> --}}
+                                <td class="px-6 py-4 text-center whitespace-nowrap">
+                                    {{ $membership->free_berjalan }}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     {{ $membership->followUp->name ?? '-' }}
@@ -732,36 +820,13 @@ new #[Layout('layouts::admin')] class extends Component
                                 <td class="px-6 py-4 whitespace-nowrap font-semibold text-heading">
                                     {{ $categoryLabel }}
                                 </td>
-                                <td class="px-6 py-4 text-center whitespace-nowrap text-gray-400">-</td>
-                                <td class="px-6 py-4 text-center whitespace-nowrap text-gray-400">-</td>
-                                <td class="px-6 py-4 text-center whitespace-nowrap font-semibold text-amber-600">
-                                    {{ $membership->berjalan_belum_dibayar }}
-                                </td>
-                                <td class="px-6 py-4 text-center whitespace-nowrap font-semibold text-emerald-600">
-                                    {{ $membership->berjalan_dibayar }}
-                                </td>
-                                <td class="px-6 py-4 text-center whitespace-nowrap text-gray-400">-</td>
-                                <td class="px-6 py-4 text-center whitespace-nowrap text-gray-400">-</td>
-                                <td class="px-6 py-4 text-center whitespace-nowrap text-gray-400">-</td>
-                                <td class="px-6 py-4 text-right whitespace-nowrap">
-                                    Rp {{ number_format($categoryNominal, 0, ',', '.') }}
-                                </td>
-                                <td class="px-6 py-4 text-right whitespace-nowrap">
-                                    Rp {{ number_format($categoryTotal, 0, ',', '.') }}
-                                </td>
-                                {{-- <td class="px-6 py-4 text-center whitespace-nowrap">
-                                    {{ $membership->free_total }}
-                                </td> --}}
-                                <td class="px-6 py-4 text-center whitespace-nowrap">
-                                    {{ $membership->free_berjalan }}
-                                </td>
                             </tr>
                         @endforeach
                     @endif
 
                     @if($this->ptMembershipsDirect->count() == 0 && $bookingOnlyWithSessions->count() == 0)
                         <tr>
-                            <td colspan="18" class="px-6 py-8 text-center text-gray-500">
+                            <td colspan="16" class="px-6 py-8 text-center text-gray-500">
                                 Belum ada data membership untuk PT ini.
                             </td>
                         </tr>
@@ -770,19 +835,19 @@ new #[Layout('layouts::admin')] class extends Component
                 @if ($this->ptMembershipsDirect->count() > 0 || $bookingOnlyWithSessions->count() > 0)
                     <tfoot class="bg-neutral-secondary-medium font-semibold text-heading border-t-2 border-default-medium">
                         <tr>
-                            <td colspan="13" class="px-6 py-4 text-right">Sub Total</td>
-                            <td class="px-6 py-4 text-right whitespace-nowrap">Rp {{ number_format($totalCategoryTotal, 0, ',', '.') }}</td>
-                            <td colspan="2" class="px-6 py-4 text-center whitespace-nowrap">
+                            <td colspan="4" class="px-6 py-4 text-end whitespace-nowrap">
                                 <button
                                     type="button"
-                                    wire:click="paySessions"
-                                    wire:confirm="Yakin ingin membayar semua sesi berjalan dalam periode ini? Sesi yang sudah dibayar akan dimasukkan ulang."
+                                    wire:click="openPaymentPreview"
                                     class="inline-flex items-center px-3 py-1.5 text-xs font-medium text-white bg-emerald-600 rounded hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                     @if($this->ptMembershipsDirect->sum('berjalan') + $bookingOnlyWithSessions->sum('berjalan') <= 0) disabled @endif
                                 >
                                     Bayar Sesi
                                 </button>
                             </td>
+                            <td  class="px-6 py-4 text-right">Sub Total</td>
+                            <td class="px-6 py-4 text-center whitespace-nowrap">Total Sesi: {{ $totalSessions }}</td>
+                            <td class="px-6 py-4 text-right whitespace-nowrap">Rp {{ number_format($totalCategoryTotal, 0, ',', '.') }}</td>
                         </tr>
                     </tfoot>
                 @endif
@@ -1015,6 +1080,66 @@ new #[Layout('layouts::admin')] class extends Component
                     <button type="button" wire:click="save"
                         class="px-4 py-2 text-white bg-brand hover:bg-brand-strong rounded-md font-medium text-sm">
                         Simpan
+                    </button>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    @if ($showPaymentPreviewModal)
+        <div class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/40 py-10 backdrop-blur-sm" wire:click.self="closePaymentPreview">
+            <div class="flex flex-col w-full max-w-3xl max-h-[calc(100vh-5rem)] mx-4 overflow-hidden bg-white rounded-lg shadow-xl">
+                <div class="flex items-center justify-between p-6 border-b border-default-medium">
+                    <div>
+                        <h3 class="text-lg font-semibold text-heading">Preview Pembayaran Sesi PT</h3>
+                        <p class="mt-1 text-sm text-body">Periksa rincian sesi sebelum pembayaran dibuat.</p>
+                    </div>
+                    <button type="button" wire:click="closePaymentPreview" class="text-body hover:text-heading" aria-label="Tutup preview pembayaran">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="flex-1 min-h-0 p-6 overflow-y-auto">
+                    <div class="overflow-x-auto border rounded-md border-default-medium">
+                        <table class="w-full text-sm text-left text-body">
+                            <thead class="border-b bg-neutral-secondary-medium border-default-medium">
+                                <tr>
+                                    <th class="px-4 py-3 font-medium">Nama Member</th>
+                                    <th class="px-4 py-3 font-medium text-center">Jumlah Sesi</th>
+                                    <th class="px-4 py-3 font-medium text-right">Nominal</th>
+                                    <th class="px-4 py-3 font-medium text-right">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach ($paymentPreviewRows as $row)
+                                    <tr wire:key="payment-preview-{{ $loop->index }}" class="border-b border-default-medium last:border-b-0">
+                                        <td class="px-4 py-3 font-medium text-heading">{{ $row['member_name'] }}</td>
+                                        <td class="px-4 py-3 text-center">{{ $row['sessions'] }}</td>
+                                        <td class="px-4 py-3 text-right whitespace-nowrap">Rp {{ number_format($row['nominal'], 0, ',', '.') }}</td>
+                                        <td class="px-4 py-3 text-right whitespace-nowrap">Rp {{ number_format($row['total'], 0, ',', '.') }}</td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                            <tfoot class="font-semibold text-heading bg-neutral-secondary-medium border-t border-default-medium">
+                                <tr>
+                                    <td class="px-4 py-3">Sub Total</td>
+                                    <td class="px-4 py-3 text-center">{{ $paymentPreviewTotalSessions }} Sesi</td>
+                                    <td class="px-4 py-3"></td>
+                                    <td class="px-4 py-3 text-right whitespace-nowrap">Rp {{ number_format($paymentPreviewTotalAmount, 0, ',', '.') }}</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-3 p-6 border-t border-default-medium">
+                    <button type="button" wire:click="closePaymentPreview" class="px-4 py-2 text-sm font-medium rounded-md border border-default-medium text-heading bg-neutral-secondary-medium hover:bg-neutral-secondary-strong">
+                        Batal
+                    </button>
+                    <button type="button" wire:click="confirmPayment" wire:loading.attr="disabled" class="px-4 py-2 text-sm font-medium text-white bg-emerald-600 rounded-md hover:bg-emerald-700 disabled:opacity-50">
+                        Konfirmasi Pembayaran
                     </button>
                 </div>
             </div>

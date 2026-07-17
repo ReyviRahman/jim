@@ -98,11 +98,6 @@ class CheckExpiredMemberships extends Command
                         'is_active' => false,
                     ];
 
-                    if ($membership->type === 'pt') {
-                        $updateData['sesi_hangus'] = $membership->remaining_sessions;
-                        $updateData['remaining_sessions'] = 0;
-                    }
-
                     $membership->update($updateData);
                 }
 
