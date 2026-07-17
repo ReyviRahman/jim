@@ -10,6 +10,7 @@ use App\Models\PtSessionCategory;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Livewire\Component;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Computed;
@@ -33,11 +34,13 @@ new #[Layout('layouts::admin')] class extends Component
 
     public bool $showPaymentPreviewModal = false;
 
-    /** @var array<int, array{member_name: string, sessions: int, nominal: int, total: int}> */
+    /** @var array<int, array{membership_id: int, member_name: string, sessions: int, nominal: int, total: int}> */
     public array $paymentPreviewRows = [];
 
     public int $paymentPreviewTotalSessions = 0;
     public int $paymentPreviewTotalAmount = 0;
+
+    public string $paymentPreviewSearch = '';
 
     public string $potongan = '';
     public string $keteranganPotongan = '';
@@ -257,6 +260,7 @@ new #[Layout('layouts::admin')] class extends Component
             return;
         }
 
+        $this->paymentPreviewSearch = '';
         $this->paymentPreviewRows = $bookings
             ->groupBy('membership_id')
             ->map(function ($membershipBookings): array {
@@ -266,12 +270,14 @@ new #[Layout('layouts::admin')] class extends Component
                 $sessions = $membershipBookings->count();
 
                 return [
+                    'membership_id' => $membership->id,
                     'member_name' => $membership->user?->name ?? '-',
                     'sessions' => $sessions,
                     'nominal' => $nominal,
                     'total' => $sessions * $nominal,
                 ];
             })
+            ->sortBy('member_name', SORT_NATURAL | SORT_FLAG_CASE)
             ->values()
             ->all();
         $this->paymentPreviewTotalSessions = $bookings->count();
@@ -279,10 +285,24 @@ new #[Layout('layouts::admin')] class extends Component
         $this->showPaymentPreviewModal = true;
     }
 
+    #[Computed]
+    public function filteredPaymentPreviewRows(): array
+    {
+        if (blank($this->paymentPreviewSearch)) {
+            return $this->paymentPreviewRows;
+        }
+
+        return collect($this->paymentPreviewRows)
+            ->filter(fn (array $row): bool => Str::contains($row['member_name'], $this->paymentPreviewSearch, ignoreCase: true))
+            ->values()
+            ->all();
+    }
+
     public function closePaymentPreview(): void
     {
         $this->showPaymentPreviewModal = false;
         $this->paymentPreviewRows = [];
+        $this->paymentPreviewSearch = '';
         $this->paymentPreviewTotalSessions = 0;
         $this->paymentPreviewTotalAmount = 0;
     }
@@ -1088,10 +1108,9 @@ new #[Layout('layouts::admin')] class extends Component
     @if ($showPaymentPreviewModal)
         <div class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/40 py-10 backdrop-blur-sm" wire:click.self="closePaymentPreview">
             <div class="flex flex-col w-full max-w-3xl max-h-[calc(100vh-5rem)] mx-4 overflow-hidden bg-white rounded-lg shadow-xl">
-                <div class="flex items-center justify-between p-6 border-b border-default-medium">
+                <div class="flex items-center justify-between px-6 py-2 border-b border-default-medium">
                     <div>
                         <h3 class="text-lg font-semibold text-heading">Preview Pembayaran Sesi PT</h3>
-                        <p class="mt-1 text-sm text-body">Periksa rincian sesi sebelum pembayaran dibuat.</p>
                     </div>
                     <button type="button" wire:click="closePaymentPreview" class="text-body hover:text-heading" aria-label="Tutup preview pembayaran">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1101,6 +1120,16 @@ new #[Layout('layouts::admin')] class extends Component
                 </div>
 
                 <div class="flex-1 min-h-0 p-6 overflow-y-auto">
+                    <div class="mb-4">
+                        <label for="payment-preview-search" class="sr-only">Cari nama member</label>
+                        <input
+                            id="payment-preview-search"
+                            type="search"
+                            wire:model.live.debounce.250ms="paymentPreviewSearch"
+                            class="block w-full px-3 py-2 text-sm rounded-md border border-default-medium bg-neutral-secondary-medium text-heading placeholder:text-body focus:border-brand focus:ring-brand"
+                            placeholder="Cari nama member..."
+                        >
+                    </div>
                     <div class="overflow-x-auto border rounded-md border-default-medium">
                         <table class="w-full text-sm text-left text-body">
                             <thead class="border-b bg-neutral-secondary-medium border-default-medium">
@@ -1112,14 +1141,18 @@ new #[Layout('layouts::admin')] class extends Component
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach ($paymentPreviewRows as $row)
-                                    <tr wire:key="payment-preview-{{ $loop->index }}" class="border-b border-default-medium last:border-b-0">
+                                @forelse ($this->filteredPaymentPreviewRows as $row)
+                                    <tr wire:key="payment-preview-{{ $row['membership_id'] }}" class="border-b border-default-medium last:border-b-0">
                                         <td class="px-4 py-3 font-medium text-heading">{{ $row['member_name'] }}</td>
                                         <td class="px-4 py-3 text-center">{{ $row['sessions'] }}</td>
                                         <td class="px-4 py-3 text-right whitespace-nowrap">Rp {{ number_format($row['nominal'], 0, ',', '.') }}</td>
                                         <td class="px-4 py-3 text-right whitespace-nowrap">Rp {{ number_format($row['total'], 0, ',', '.') }}</td>
                                     </tr>
-                                @endforeach
+                                @empty
+                                    <tr>
+                                        <td colspan="4" class="px-4 py-6 text-center text-body">Member tidak ditemukan.</td>
+                                    </tr>
+                                @endforelse
                             </tbody>
                             <tfoot class="font-semibold text-heading bg-neutral-secondary-medium border-t border-default-medium">
                                 <tr>
@@ -1133,7 +1166,7 @@ new #[Layout('layouts::admin')] class extends Component
                     </div>
                 </div>
 
-                <div class="flex justify-end gap-3 p-6 border-t border-default-medium">
+                <div class="flex justify-end gap-3 px-6 py-2 border-t border-default-medium">
                     <button type="button" wire:click="closePaymentPreview" class="px-4 py-2 text-sm font-medium rounded-md border border-default-medium text-heading bg-neutral-secondary-medium hover:bg-neutral-secondary-strong">
                         Batal
                     </button>
