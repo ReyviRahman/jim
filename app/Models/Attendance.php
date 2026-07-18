@@ -9,8 +9,10 @@ class Attendance extends Model
 {
     protected $fillable = [
         'user_id',
+        'device_event_id',
         'membership_id',
         'type',
+        'attendance_status',
         'check_in_time',
     ];
 
@@ -26,5 +28,10 @@ class Attendance extends Model
     public function membership(): BelongsTo
     {
         return $this->belongsTo(Membership::class);
+    }
+
+    public function deviceEvent(): BelongsTo
+    {
+        return $this->belongsTo(DeviceEvent::class);
     }
 }
