@@ -6,6 +6,7 @@ use App\Models\Membership;
 use App\Models\PtBooking;
 use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 use Livewire\Component;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Computed;
@@ -15,6 +16,8 @@ new #[Layout('layouts::admin')] class extends Component
     public Membership $membership;
 
     public bool $showBookingModal = false;
+    public bool $showInitialSessionsModal = false;
+    public string $initialSessions = '';
     public string $bookingDate = '';
     public string $bookingTime = '';
     public string $bookingAttendance = 'attended';
@@ -76,6 +79,63 @@ new #[Layout('layouts::admin')] class extends Component
 
         $this->resetBookingForm();
         $this->showBookingModal = true;
+    }
+
+    public function openInitialSessionsModal(): void
+    {
+        $this->initialSessions = (string) ($this->membership->total_sessions ?? 0);
+        $this->resetErrorBag();
+        $this->showInitialSessionsModal = true;
+    }
+
+    public function closeInitialSessionsModal(): void
+    {
+        $this->showInitialSessionsModal = false;
+        $this->initialSessions = '';
+        $this->resetErrorBag();
+    }
+
+    public function saveInitialSessions(): void
+    {
+        $validated = $this->validate([
+            'initialSessions' => ['required', 'integer', 'min:0'],
+        ], [
+            'initialSessions.required' => 'Sesi awal wajib diisi.',
+            'initialSessions.integer' => 'Sesi awal harus berupa bilangan bulat.',
+            'initialSessions.min' => 'Sesi awal tidak boleh kurang dari 0.',
+        ]);
+
+        $newInitialSessions = (int) $validated['initialSessions'];
+
+        $canSave = DB::transaction(function () use ($newInitialSessions): bool {
+            $membership = Membership::query()
+                ->lockForUpdate()
+                ->findOrFail($this->membership->id);
+
+            $initialSessionsDelta = $newInitialSessions - (int) ($membership->total_sessions ?? 0);
+            $remainingSessions = (int) ($membership->remaining_sessions ?? 0) + $initialSessionsDelta;
+
+            if ($remainingSessions < 0) {
+                return false;
+            }
+
+            $membership->update([
+                'total_sessions' => $newInitialSessions,
+                'remaining_sessions' => $remainingSessions,
+            ]);
+
+            return true;
+        }, attempts: 3);
+
+        if (! $canSave) {
+            $this->addError('initialSessions', 'Sesi awal tidak dapat dikurangi karena sisa sesi tidak boleh menjadi negatif.');
+
+            return;
+        }
+
+        $this->membership->refresh();
+        $this->closeInitialSessionsModal();
+        session()->flash('success', 'Sesi awal berhasil diperbarui.');
     }
 
     public function closeBookingModal(): void
@@ -292,7 +352,12 @@ new #[Layout('layouts::admin')] class extends Component
 
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
         <div class="bg-neutral-primary-soft shadow-xs rounded-md border border-default p-4">
-            <p class="text-xs text-body font-medium uppercase tracking-wide">Sesi Awal</p>
+            <div class="flex items-center justify-between gap-2">
+                <p class="text-xs text-body font-medium uppercase tracking-wide">Sesi Awal</p>
+                <button type="button" wire:click="openInitialSessionsModal" class="text-xs font-medium text-brand hover:text-brand-strong">
+                    Edit
+                </button>
+            </div>
             <p class="text-2xl font-bold text-heading mt-1">{{ $membership->total_sessions ?? 0 }}</p>
         </div>
         <div class="bg-neutral-primary-soft shadow-xs rounded-md border border-default p-4">
@@ -550,6 +615,36 @@ new #[Layout('layouts::admin')] class extends Component
                     </button>
                     <button type="button" wire:click="saveBooking"
                         class="px-4 py-2 text-white bg-brand hover:bg-brand-strong rounded-md font-medium text-sm">
+                        Simpan
+                    </button>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    @if ($showInitialSessionsModal)
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" wire:click.self="closeInitialSessionsModal">
+            <div class="w-full max-w-md mx-4 bg-white rounded-lg shadow-xl">
+                <div class="flex items-center justify-between p-6 border-b border-default-medium">
+                    <h3 class="text-lg font-semibold text-heading">Edit Sesi Awal</h3>
+                    <button type="button" wire:click="closeInitialSessionsModal" class="text-body hover:text-heading" aria-label="Tutup modal edit sesi awal">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="p-6">
+                    <label for="initialSessions" class="block text-sm font-medium text-heading">Sesi Awal</label>
+                    <input type="number" wire:model="initialSessions" id="initialSessions" min="0" class="block w-full px-3 py-2 mt-1 rounded-md border-default-medium shadow-sm focus:border-brand focus:ring-brand sm:text-sm bg-neutral-secondary-medium">
+                    @error('initialSessions') <span class="block mt-1 text-xs text-red-500">{{ $message }}</span> @enderror
+                </div>
+
+                <div class="flex justify-end gap-3 p-6 border-t border-default-medium">
+                    <button type="button" wire:click="closeInitialSessionsModal" class="px-4 py-2 text-sm font-medium rounded-md border border-default-medium text-heading bg-neutral-secondary-medium hover:bg-neutral-secondary-strong">
+                        Batal
+                    </button>
+                    <button type="button" wire:click="saveInitialSessions" class="px-4 py-2 text-sm font-medium text-white rounded-md bg-brand hover:bg-brand-strong">
                         Simpan
                     </button>
                 </div>
