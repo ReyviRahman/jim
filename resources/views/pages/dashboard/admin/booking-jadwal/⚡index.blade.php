@@ -385,6 +385,35 @@ new #[Layout('layouts::admin')] class extends Component
         session()->flash('success', 'Booking ditandai hangus. Sesi PT berkurang.');
     }
 
+    public function markAsAttended(int $bookingId): void
+    {
+        if (Auth::user()?->role !== 'admin') {
+            session()->flash('error', 'Anda tidak memiliki izin untuk melakukan tindakan ini.');
+
+            return;
+        }
+
+        $booking = PtBooking::with('membership')->find($bookingId);
+
+        if (! $booking || ! $booking->isApproved() || ! $booking->isAttendanceNotYet()) {
+            session()->flash('error', 'Booking tidak valid untuk ditandai hadir.');
+
+            return;
+        }
+
+        $booking->update(['attendance' => 'attended']);
+
+        if (! $booking->is_free && $booking->membership?->remaining_sessions > 0) {
+            $booking->membership->decrement('remaining_sessions');
+
+            if ($booking->membership->remaining_sessions === 0) {
+                $booking->membership->update(['status' => 'completed']);
+            }
+        }
+
+        session()->flash('success', 'Booking berhasil ditandai hadir.');
+    }
+
     public function restoreNoshow($bookingId)
     {
         $booking = PtBooking::find($bookingId);
@@ -1053,6 +1082,14 @@ new #[Layout('layouts::admin')] class extends Component
                             <span class="text-xs text-red-500">Booking ditolak</span>
                         @elseif($booking->status === 'approved')
                             @if($booking->attendance === 'not_yet')
+                                @if(Auth::user()->role === 'admin')
+                                    <button wire:click="markAsAttended({{ $booking->id }})" wire:confirm="Tandai booking ini sebagai hadir?"
+                                        wire:loading.attr="disabled" wire:target="markAsAttended({{ $booking->id }})"
+                                        class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white bg-green-600 rounded hover:bg-green-700 transition-colors disabled:pointer-events-none disabled:opacity-50">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                        Tandai Hadir
+                                    </button>
+                                @endif
                                 <button wire:click="openCancelModal({{ $booking->id }})"
                                     class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white bg-red-600 rounded hover:bg-red-700 transition-colors">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
