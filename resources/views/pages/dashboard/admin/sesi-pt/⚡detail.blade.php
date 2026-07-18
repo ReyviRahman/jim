@@ -581,6 +581,8 @@ new #[Layout('layouts::admin')] class extends Component
                     <tr>
                         <th scope="col" class="px-6 py-3 font-medium">No</th>
                         <th scope="col" class="px-6 py-3 font-medium">Nama Member</th>
+                        <th scope="col" class="px-6 py-3 font-medium">Harga</th>
+                        <th scope="col" class="px-6 py-3 font-medium text-center" colspan="2">Kategori</th>
                         <th scope="col" class="px-6 py-3 font-medium text-center">Sesi Awal</th>
                         {{-- <th scope="col" class="px-6 py-3 font-medium text-center">Sesi Ditambahkan</th> --}}
                         {{-- <th scope="col" class="px-6 py-3 font-medium text-center">Total Sesi</th> --}}
@@ -595,8 +597,6 @@ new #[Layout('layouts::admin')] class extends Component
                         <th scope="col" class="px-6 py-3 font-medium text-center">Free Berjalan</th>
                         <th scope="col" class="px-6 py-3 font-medium">Admin Follow Up</th>
                         <th scope="col" class="px-6 py-3 font-medium">Sales Follow Up</th>
-                        <th scope="col" class="px-6 py-3 font-medium">Harga</th>
-                        <th scope="col" class="px-6 py-3 font-medium text-center" colspan="2">Kategori</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -661,6 +661,22 @@ new #[Layout('layouts::admin')] class extends Component
                                         </div>
                                     @endif
                                 </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div>Rp {{ number_format($membership->price_paid ?? 0, 0, ',', '.') }}</div>
+                                    @if($priceLabelData)
+                                        <div class="mt-1">
+                                            <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full {{ $priceLabelData['color'] }}">
+                                                {{ $priceLabelData['label'] }}
+                                            </span>
+                                        </div>
+                                    @endif
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap capitalize">
+                                    {{ $category }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap font-semibold text-heading">
+                                    {{ $categoryLabel }}
+                                </td>
                                 <td class="px-6 py-4 text-center whitespace-nowrap">
                                     {{ $sesiAwal }}
                                 </td>
@@ -702,22 +718,6 @@ new #[Layout('layouts::admin')] class extends Component
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     {{ $membership->followUpTwo->name ?? '-' }}
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <div>Rp {{ number_format($membership->price_paid ?? 0, 0, ',', '.') }}</div>
-                                    @if($priceLabelData)
-                                        <div class="mt-1">
-                                            <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full {{ $priceLabelData['color'] }}">
-                                                {{ $priceLabelData['label'] }}
-                                            </span>
-                                        </div>
-                                    @endif
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap capitalize">
-                                    {{ $category }}
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap font-semibold text-heading">
-                                    {{ $categoryLabel }}
                                 </td>
                             </tr>
                         @endforeach
@@ -795,6 +795,22 @@ new #[Layout('layouts::admin')] class extends Component
                                         </div>
                                     @endif
                                 </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div>Rp {{ number_format($membership->price_paid ?? 0, 0, ',', '.') }}</div>
+                                    @if($priceLabel)
+                                        <div class="mt-1">
+                                            <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full {{ $labelColor }}">
+                                                {{ $priceLabel }}
+                                            </span>
+                                        </div>
+                                    @endif
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap capitalize">
+                                    {{ $category }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap font-semibold text-heading">
+                                    {{ $categoryLabel }}
+                                </td>
                                 <td class="px-6 py-4 text-center whitespace-nowrap text-gray-400">-</td>
                                 <td class="px-6 py-4 text-center whitespace-nowrap font-semibold text-amber-600">
                                     {{ $membership->berjalan_belum_dibayar }}
@@ -822,22 +838,6 @@ new #[Layout('layouts::admin')] class extends Component
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     {{ $membership->followUpTwo->name ?? '-' }}
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <div>Rp {{ number_format($membership->price_paid ?? 0, 0, ',', '.') }}</div>
-                                    @if($priceLabel)
-                                        <div class="mt-1">
-                                            <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full {{ $labelColor }}">
-                                                {{ $priceLabel }}
-                                            </span>
-                                        </div>
-                                    @endif
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap capitalize">
-                                    {{ $category }}
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap font-semibold text-heading">
-                                    {{ $categoryLabel }}
                                 </td>
                             </tr>
                         @endforeach
