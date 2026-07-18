@@ -34,7 +34,7 @@ new #[Layout('layouts::admin')] class extends Component
 
     public bool $showPaymentPreviewModal = false;
 
-    /** @var array<int, array{membership_id: int, member_name: string, sessions: int, nominal: int, total: int}> */
+    /** @var array<int, array{membership_id: int, member_name: string, category: string, sessions: int, nominal: int, total: int}> */
     public array $paymentPreviewRows = [];
 
     public int $paymentPreviewTotalSessions = 0;
@@ -272,6 +272,7 @@ new #[Layout('layouts::admin')] class extends Component
                 return [
                     'membership_id' => $membership->id,
                     'member_name' => $membership->user?->name ?? '-',
+                    'category' => $categoryLabel,
                     'sessions' => $sessions,
                     'nominal' => $nominal,
                     'total' => $sessions * $nominal,
@@ -1135,6 +1136,7 @@ new #[Layout('layouts::admin')] class extends Component
                             <thead class="border-b bg-neutral-secondary-medium border-default-medium">
                                 <tr>
                                     <th class="px-4 py-3 font-medium">Nama Member</th>
+                                    <th class="px-4 py-3 font-medium">Kategori</th>
                                     <th class="px-4 py-3 font-medium text-center">Jumlah Sesi</th>
                                     <th class="px-4 py-3 font-medium text-right">Nominal</th>
                                     <th class="px-4 py-3 font-medium text-right">Total</th>
@@ -1144,19 +1146,21 @@ new #[Layout('layouts::admin')] class extends Component
                                 @forelse ($this->filteredPaymentPreviewRows as $row)
                                     <tr wire:key="payment-preview-{{ $row['membership_id'] }}" class="border-b border-default-medium last:border-b-0">
                                         <td class="px-4 py-3 font-medium text-heading">{{ $row['member_name'] }}</td>
+                                        <td class="px-4 py-3">{{ $row['category'] }}</td>
                                         <td class="px-4 py-3 text-center">{{ $row['sessions'] }}</td>
                                         <td class="px-4 py-3 text-right whitespace-nowrap">Rp {{ number_format($row['nominal'], 0, ',', '.') }}</td>
                                         <td class="px-4 py-3 text-right whitespace-nowrap">Rp {{ number_format($row['total'], 0, ',', '.') }}</td>
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="4" class="px-4 py-6 text-center text-body">Member tidak ditemukan.</td>
+                                        <td colspan="5" class="px-4 py-6 text-center text-body">Member tidak ditemukan.</td>
                                     </tr>
                                 @endforelse
                             </tbody>
                             <tfoot class="font-semibold text-heading bg-neutral-secondary-medium border-t border-default-medium">
                                 <tr>
                                     <td class="px-4 py-3">Sub Total</td>
+                                    <td class="px-4 py-3"></td>
                                     <td class="px-4 py-3 text-center">{{ $paymentPreviewTotalSessions }} Sesi</td>
                                     <td class="px-4 py-3"></td>
                                     <td class="px-4 py-3 text-right whitespace-nowrap">Rp {{ number_format($paymentPreviewTotalAmount, 0, ',', '.') }}</td>
