@@ -61,7 +61,11 @@ new #[Layout('layouts::empty')] class extends Component
         $query = DeviceEvent::query();
 
         if ($this->search !== '') {
-            $query->where('payload', 'like', '%'.$this->search.'%');
+            $search = '%'.$this->search.'%';
+            $query->where(function ($query) use ($search) {
+                $query->where('employee_no', 'like', $search)
+                    ->orWhere('name', 'like', $search);
+            });
         }
 
         if ($this->deviceFilter !== '') {

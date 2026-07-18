@@ -23,6 +23,7 @@ class DeviceEvent extends Model
         'attendance_status',
         'verify_mode',
         'accessed_at',
+        'event_hash',
         'payload',
         'status',
         'error_message',
@@ -32,6 +33,7 @@ class DeviceEvent extends Model
     {
         return [
             'is_found' => 'boolean',
+            'accessed_at' => 'datetime',
         ];
     }
 }

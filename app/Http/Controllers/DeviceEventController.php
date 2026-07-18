@@ -13,56 +13,31 @@ use Throwable;
 
 class DeviceEventController extends Controller
 {
-    public function store(Request $request, string $device): Response
+    public function store(Request $request): Response
     {
-        $raw = $request->getContent();
-        $formData = $request->except(array_keys($request->allFiles()));
+        $device = (string) config('services.hikvision.device_code', 'HQ-BIO-01');
+        $payload = $this->payload($request);
 
         Log::debug('Hikvision webhook hit', [
             'device' => $device,
-            'method' => $request->method(),
-            'url' => $request->url(),
             'content_type' => $request->header('Content-Type'),
             'ip' => $request->ip(),
-            'payload_length' => strlen($raw),
-            'payload_preview' => substr($raw, 0, 500),
-            'form_data' => $formData,
+            'payload_length' => $payload === null ? 0 : strlen($payload),
         ]);
 
-        $payload = $raw;
-
-        if (empty($payload) || trim($payload) === '') {
-            $payload = json_encode($formData);
-        }
-
-        if (empty($payload) || trim($payload) === '' || $payload === '[]' || $payload === '{}') {
+        if ($payload === null) {
             return response('OK', 200);
         }
-
-        $eventData = [
-            'event_type' => null,
-            'employee_no' => null,
-            'name' => null,
-            'card_no' => null,
-            'door_no' => null,
-            'swipe_result' => null,
-            'attendance_status' => null,
-            'verify_mode' => null,
-            'accessed_at' => null,
-        ];
-        $status = 'received';
-        $errorMessage = null;
 
         try {
             $eventData = $this->extractEventData($payload);
         } catch (Throwable $e) {
-            $status = 'failed';
-            $errorMessage = $e->getMessage();
-
             Log::warning('Hikvision event extraction failed', [
                 'device' => $device,
                 'error' => $e->getMessage(),
             ]);
+
+            return response('OK', 200);
         }
 
         if (! $this->shouldStoreEvent($eventData)) {
@@ -72,23 +47,22 @@ class DeviceEventController extends Controller
         try {
             $isFound = $eventData['employee_no'] !== null
                 && User::query()->whereKey($eventData['employee_no'])->exists();
+            $eventHash = hash('sha256', implode('|', [
+                $device,
+                $eventData['employee_no'],
+                $eventData['accessed_at']->toIso8601String(),
+                $eventData['attendance_status'],
+            ]));
 
-            DeviceEvent::create([
+            DeviceEvent::firstOrCreate(['event_hash' => $eventHash], [
                 'device_code' => $device,
-                'source_ip' => $request->ip(),
-                'event_type' => $eventData['event_type'],
                 'employee_no' => $eventData['employee_no'],
                 'is_found' => $isFound,
                 'name' => $eventData['name'],
-                'card_no' => $eventData['card_no'],
-                'door_no' => $eventData['door_no'],
-                'swipe_result' => $eventData['swipe_result'],
                 'attendance_status' => $eventData['attendance_status'],
                 'verify_mode' => $eventData['verify_mode'],
                 'accessed_at' => $eventData['accessed_at'],
-                'payload' => $payload,
-                'status' => $status,
-                'error_message' => $errorMessage,
+                'payload' => '',
             ]);
         } catch (Throwable $e) {
             Log::error('Failed to store Hikvision event', [
@@ -100,15 +74,29 @@ class DeviceEventController extends Controller
         return response('OK', 200);
     }
 
+    private function payload(Request $request): ?string
+    {
+        $eventLog = $request->input('event_log');
+
+        if (is_string($eventLog) && trim($eventLog) !== '') {
+            return $eventLog;
+        }
+
+        $raw = trim($request->getContent());
+
+        if ($raw === '' || $raw === '[]' || $raw === '{}') {
+            return null;
+        }
+
+        return $raw;
+    }
+
     private function extractEventData(string $raw): array
     {
         $data = [
             'event_type' => null,
             'employee_no' => null,
             'name' => null,
-            'card_no' => null,
-            'door_no' => null,
-            'swipe_result' => null,
             'attendance_status' => null,
             'verify_mode' => null,
             'accessed_at' => null,
@@ -145,12 +133,8 @@ class DeviceEventController extends Controller
         $data['event_type'] = $event['eventType'] ?? $event['event_type'] ?? null;
         $data['employee_no'] = $event['employeeNoString'] ?? $event['employee_no'] ?? null;
         $data['name'] = $event['name'] ?? null;
-        $data['card_no'] = $event['cardNo'] ?? $event['card_no'] ?? null;
-        $data['door_no'] = $event['doorNo'] ?? $event['door_no'] ?? null;
         $data['attendance_status'] = $event['attendanceStatus'] ?? $event['attendance_status'] ?? null;
         $data['verify_mode'] = $event['currentVerifyMode'] ?? $event['verify_mode'] ?? null;
-
-        $data['swipe_result'] = $this->determineSwipeResult($event);
 
         $dateTime = $event['dateTime'] ?? $event['date_time'] ?? null;
         if (! empty($dateTime)) {
@@ -182,37 +166,12 @@ class DeviceEventController extends Controller
         return null;
     }
 
-    private function determineSwipeResult(array $event): ?string
-    {
-        if (isset($event['swipeResult'])) {
-            return $event['swipeResult'];
-        }
-
-        $verifyMode = $event['currentVerifyMode'] ?? null;
-        if ($verifyMode === 'invalid') {
-            return 'failed';
-        }
-
-        $attendanceStatus = $event['attendanceStatus'] ?? null;
-        if (in_array($attendanceStatus, ['checkIn', 'checkOut'], true)) {
-            return 'success';
-        }
-
-        return null;
-    }
-
     private function shouldStoreEvent(array $eventData): bool
     {
-        // Skip noise events such as door status or idle pings that carry no
-        // employee data and have undefined attendance state.
-        if (
-            $eventData['verify_mode'] === 'invalid'
-            && $eventData['attendance_status'] === 'undefined'
-            && empty($eventData['employee_no'])
-        ) {
-            return false;
-        }
-
-        return true;
+        return $eventData['event_type'] === 'AccessControllerEvent'
+            && ! empty($eventData['employee_no'])
+            && in_array($eventData['attendance_status'], ['checkIn', 'checkOut'], true)
+            && $eventData['verify_mode'] !== 'invalid'
+            && $eventData['accessed_at'] instanceof Carbon;
     }
 }

@@ -1,11 +1,8 @@
 <?php
 
 use App\Http\Controllers\DeviceEventController;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
-Route::post('/absensi', function (Request $request) {
-    return app(DeviceEventController::class)->store($request, 'HQ-BIO-01');
-})
+Route::post('/absensi', [DeviceEventController::class, 'store'])
     ->name('device-events.store')
     ->middleware('throttle:60,1');
