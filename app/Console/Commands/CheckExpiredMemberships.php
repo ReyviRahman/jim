@@ -2,12 +2,10 @@
 
 namespace App\Console\Commands;
 
-use App\Mail\MembershipExpiredNotification;
 use App\Models\Membership;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
 
 class CheckExpiredMemberships extends Command
 {
@@ -127,31 +125,9 @@ class CheckExpiredMemberships extends Command
             $this->info($msg);
         }
 
-        // Kirim email notifikasi jika ada yang diupdate
-        if ($updatedCount > 0) {
-            $this->sendEmailNotification($updatedCount, $details);
-        }
-
         $memberNames = collect($details)->pluck('user_name')->filter()->implode(', ');
         Log::info("[CheckExpiredMemberships] {$timestamp} - Selesai. Total updated: {$updatedCount}. Member: {$memberNames}");
 
         return self::SUCCESS;
-    }
-
-    private function sendEmailNotification(int $updatedCount, array $details): void
-    {
-        try {
-            $recipient = 'reyvirahman@gmail.com';
-
-            $mail = new MembershipExpiredNotification($updatedCount, $details);
-
-            Mail::to($recipient)->send($mail);
-
-            $this->info('Email notifikasi telah dikirim ke: '.$recipient);
-            Log::info('[CheckExpiredMemberships] - Email notifikasi dikirim ke: '.$recipient);
-        } catch (\Exception $e) {
-            Log::error('[CheckExpiredMemberships] - Gagal mengirim email: '.$e->getMessage());
-            $this->error('Gagal mengirim email notifikasi: '.$e->getMessage());
-        }
     }
 }

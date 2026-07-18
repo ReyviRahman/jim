@@ -43,5 +43,6 @@ class CheckExpiredMembershipsTest extends TestCase
         $this->assertFalse($membership->is_active);
         $this->assertSame(5, $membership->remaining_sessions);
         $this->assertSame(2, $membership->sesi_hangus);
+        Mail::assertNothingOutgoing();
     }
 }

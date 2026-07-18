@@ -330,9 +330,6 @@ new #[Layout('layouts::admin')] class extends Component
                 $query->where('status', 'active');
             }])
             ->where('role', 'member')
-            ->whereDoesntHave('memberships', function ($query) {
-                $query->whereIn('status', ['pending']);
-            })
             ->where(function ($query) {
                 $query->where('name', 'like', '%'.$this->search.'%')
                     ->orWhere('email', 'like', '%'.$this->search.'%');
@@ -353,9 +350,6 @@ new #[Layout('layouts::admin')] class extends Component
                 }])
                 // 2. Filter Role
                 ->where('role', 'member')
-                ->whereDoesntHave('memberships', function ($query) {
-                    $query->whereIn('status', ['pending']);
-                })
                 // 3. Pencarian Name & Email
                 ->where(function ($query) {
                     $query->where('name', 'like', '%' . $this->search . '%')
