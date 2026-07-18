@@ -770,11 +770,11 @@ new #[Layout('layouts::admin')] class extends Component
                             <div class="flex gap-4">
                                 <label class="flex items-center gap-2 cursor-pointer">
                                     <input type="radio" wire:model.live="is_active" value="1" class="text-brand focus:ring-brand w-4 h-4">
-                                    <span class="text-sm font-medium">Input tanggal</span>
+                                    <span class="text-sm font-medium">Member Aktif</span>
                                 </label>
                                 <label class="flex items-center gap-2 cursor-pointer">
                                     <input type="radio" wire:model.live="is_active" value="0" class="text-red-600 focus:ring-red-500 w-4 h-4">
-                                    <span class="text-sm font-medium text-red-600">Kosongkan tanggal</span>
+                                    <span class="text-sm font-medium text-red-600">Belum Aktif</span>
                                 </label>
                             </div>
                         </div>
