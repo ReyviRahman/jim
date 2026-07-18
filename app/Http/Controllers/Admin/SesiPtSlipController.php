@@ -31,7 +31,7 @@ class SesiPtSlipController extends Controller
             $jumlah = 0;
 
             foreach ($batch->items as $item) {
-                if ($item->ptBooking?->membership?->getPtCategoryLabel() === $category->category) {
+                if ($item->ptBooking?->membership?->getPtCategoryLabelFor($batch->pt_id) === $category->category) {
                     $jumlah++;
                 }
             }

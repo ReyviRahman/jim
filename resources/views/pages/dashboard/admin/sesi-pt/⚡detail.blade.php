@@ -225,7 +225,7 @@ new #[Layout('layouts::admin')] class extends Component
 
         $totalAmount = 0;
         foreach ($bookings as $booking) {
-            $categoryLabel = $booking->membership->getPtCategoryLabel();
+            $categoryLabel = $booking->membership->getPtCategoryLabelFor($this->user->id);
             $ptSessionCategory = $this->ptSessionCategories->firstWhere('category', $categoryLabel);
             $totalAmount += $ptSessionCategory?->amount ?? 0;
         }
@@ -265,7 +265,7 @@ new #[Layout('layouts::admin')] class extends Component
             ->groupBy('membership_id')
             ->map(function ($membershipBookings): array {
                 $membership = $membershipBookings->first()->membership;
-                $categoryLabel = $membership->getPtCategoryLabel();
+                $categoryLabel = $membership->getPtCategoryLabelFor($this->user->id);
                 $nominal = (int) ($this->ptSessionCategories->firstWhere('category', $categoryLabel)?->amount ?? 0);
                 $sessions = $membershipBookings->count();
 
@@ -640,7 +640,7 @@ new #[Layout('layouts::admin')] class extends Component
 
                                 $priceLabelData = $membership->getPriceLabel();
 
-                                $categoryLabel = $membership->getPtCategoryLabel();
+                                $categoryLabel = $membership->getPtCategoryLabelFor($this->user->id);
                                 $ptSessionCategory = $this->ptSessionCategories->firstWhere('category', $categoryLabel);
                                 $categoryNominal = $ptSessionCategory?->amount ?? 0;
                                 $categoryTotal = $membership->berjalan * $categoryNominal;
@@ -774,7 +774,7 @@ new #[Layout('layouts::admin')] class extends Component
                                     $labelColor = 'bg-blue-100 text-blue-800';
                                 }
 
-                                $categoryLabel = $membership->getPtCategoryLabel();
+                                $categoryLabel = $membership->getPtCategoryLabelFor($this->user->id);
                                 $ptSessionCategory = $this->ptSessionCategories->firstWhere('category', $categoryLabel);
                                 $categoryNominal = $ptSessionCategory?->amount ?? 0;
                                 $categoryTotal = $membership->berjalan * $categoryNominal;
@@ -1019,7 +1019,7 @@ new #[Layout('layouts::admin')] class extends Component
                                     @php
                                         $batchTotalAmount = 0;
                                         foreach ($batch->items as $item) {
-                                            $categoryLabel = $item->ptBooking?->membership?->getPtCategoryLabel();
+                                            $categoryLabel = $item->ptBooking?->membership?->getPtCategoryLabelFor($this->user->id);
                                             $category = $this->ptSessionCategories->firstWhere('category', $categoryLabel);
                                             $batchTotalAmount += $category?->amount ?? 0;
                                         }
@@ -1193,7 +1193,7 @@ new #[Layout('layouts::admin')] class extends Component
             foreach ($batchCategories as $category) {
                 $jumlah = 0;
                 foreach ($selectedBatch->items as $item) {
-                    if ($item->ptBooking?->membership?->getPtCategoryLabel() === $category->category) {
+                    if ($item->ptBooking?->membership?->getPtCategoryLabelFor($this->user->id) === $category->category) {
                         $jumlah++;
                     }
                 }

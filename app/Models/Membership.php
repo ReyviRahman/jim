@@ -189,6 +189,15 @@ class Membership extends Model
         return 'SDR';
     }
 
+    public function getPtCategoryLabelFor(int $ptId): string
+    {
+        if ((int) $this->pt_id !== $ptId) {
+            return 'SLS';
+        }
+
+        return $this->getPtCategoryLabel();
+    }
+
     public function calculateNominalAkhir(): float
     {
         $nominal = $this->total_paid ?? 0;

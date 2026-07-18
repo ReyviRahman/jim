@@ -6,6 +6,7 @@ use App\Models\Membership;
 use App\Models\PtBooking;
 use App\Models\PtPaymentBatch;
 use App\Models\PtPaymentBatchItem;
+use App\Models\PtSessionCategory;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -101,6 +102,56 @@ class PtSessionPaymentTest extends TestCase
             ->set('paymentPreviewSearch', '')
             ->assertCount('filteredPaymentPreviewRows', 3)
             ->assertSet('filteredPaymentPreviewRows.0.member_name', 'Andi');
+    }
+
+    public function test_substitute_pt_membership_uses_sls_category(): void
+    {
+        $primaryPt = $this->createUser(['role' => 'pt']);
+        $substitutePt = $this->createUser(['role' => 'pt']);
+        $member = $this->createUser(['name' => 'Member Cadangan']);
+        $admin = $this->createUser(['role' => 'admin']);
+
+        $membership = Membership::create([
+            'user_id' => $member->id,
+            'type' => 'pt',
+            'pt_id' => $primaryPt->id,
+            'base_price' => 100000,
+            'price_paid' => 100000,
+            'total_paid' => 100000,
+            'payment_status' => 'paid',
+            'start_date' => today(),
+            'pt_end_date' => today()->addMonth(),
+            'status' => 'active',
+        ]);
+
+        PtBooking::create([
+            'membership_id' => $membership->id,
+            'member_id' => $member->id,
+            'pt_id' => $substitutePt->id,
+            'booking_date' => today(),
+            'booking_time' => '09:00:00',
+            'status' => 'approved',
+            'attendance' => 'attended',
+            'is_free' => false,
+            'is_paid' => false,
+        ]);
+
+        PtSessionCategory::create([
+            'pt_id' => $substitutePt->id,
+            'category' => 'SLS',
+            'amount' => 50000,
+        ]);
+
+        $this->assertSame('SDR', $membership->getPtCategoryLabelFor($primaryPt->id));
+        $this->assertSame('SLS', $membership->getPtCategoryLabelFor($substitutePt->id));
+
+        $this->actingAs($admin);
+
+        Livewire::test('pages::dashboard.admin.sesi-pt.detail', ['user' => $substitutePt])
+            ->assertSeeInOrder(['Membership (PT Pengganti/Cadangan)', $member->name, 'SLS'])
+            ->call('openPaymentPreview')
+            ->assertSet('paymentPreviewRows.0.category', 'SLS')
+            ->assertSet('paymentPreviewRows.0.nominal', 50000);
     }
 
     /**
