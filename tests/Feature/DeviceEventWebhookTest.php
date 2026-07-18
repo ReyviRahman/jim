@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -43,7 +44,29 @@ XML;
             'card_no' => '1234567890',
             'door_no' => '1',
             'swipe_result' => 'success',
+            'is_found' => false,
             'status' => 'received',
+        ]);
+    }
+
+    public function test_it_marks_an_event_as_found_when_its_employee_number_matches_a_user_id(): void
+    {
+        $user = User::factory()->create([
+            'age' => 30,
+            'gender' => 'Laki-laki',
+            'phone' => fake()->unique()->numerify('08##########'),
+        ]);
+
+        $response = $this->postJson('/api/absensi', [
+            'eventType' => 'AccessControllerEvent',
+            'employeeNoString' => (string) $user->id,
+        ]);
+
+        $response->assertOk();
+
+        $this->assertDatabaseHas('device_events', [
+            'employee_no' => (string) $user->id,
+            'is_found' => true,
         ]);
     }
 

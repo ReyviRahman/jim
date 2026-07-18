@@ -6,11 +6,16 @@ use Illuminate\Database\Eloquent\Model;
 
 class DeviceEvent extends Model
 {
+    protected $attributes = [
+        'is_found' => false,
+    ];
+
     protected $fillable = [
         'device_code',
         'source_ip',
         'event_type',
         'employee_no',
+        'is_found',
         'name',
         'card_no',
         'door_no',
@@ -22,4 +27,11 @@ class DeviceEvent extends Model
         'status',
         'error_message',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'is_found' => 'boolean',
+        ];
+    }
 }

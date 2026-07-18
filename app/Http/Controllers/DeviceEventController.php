@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\DeviceEvent;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Carbon;
@@ -69,11 +70,15 @@ class DeviceEventController extends Controller
         }
 
         try {
+            $isFound = $eventData['employee_no'] !== null
+                && User::query()->whereKey($eventData['employee_no'])->exists();
+
             DeviceEvent::create([
                 'device_code' => $device,
                 'source_ip' => $request->ip(),
                 'event_type' => $eventData['event_type'],
                 'employee_no' => $eventData['employee_no'],
+                'is_found' => $isFound,
                 'name' => $eventData['name'],
                 'card_no' => $eventData['card_no'],
                 'door_no' => $eventData['door_no'],

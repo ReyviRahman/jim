@@ -195,6 +195,7 @@ new #[Layout('layouts::empty')] class extends Component
                             <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Perangkat</th>
                             <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipe Event</th>
                             <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID Pegawai</th>
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ditemukan</th>
                             <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nama</th>
                             <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kartu</th>
                             <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pintu</th>
@@ -219,6 +220,17 @@ new #[Layout('layouts::empty')] class extends Component
                                 </td>
                                 <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
                                     {{ $event->employee_no ?? '-' }}
+                                </td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm">
+                                    @if ($event->is_found)
+                                        <span class="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
+                                            Ya
+                                        </span>
+                                    @else
+                                        <span class="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800">
+                                            Tidak
+                                        </span>
+                                    @endif
                                 </td>
                                 <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
                                     {{ $event->name ?? '-' }}
@@ -260,7 +272,7 @@ new #[Layout('layouts::empty')] class extends Component
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="12" class="px-4 py-8 text-center text-sm text-gray-500">
+                                <td colspan="13" class="px-4 py-8 text-center text-sm text-gray-500">
                                     Belum ada log event.
                                 </td>
                             </tr>
