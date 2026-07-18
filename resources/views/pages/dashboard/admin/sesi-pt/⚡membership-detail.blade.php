@@ -18,6 +18,8 @@ new #[Layout('layouts::admin')] class extends Component
     public bool $showBookingModal = false;
     public bool $showInitialSessionsModal = false;
     public string $initialSessions = '';
+    public bool $showRemainingSessionsModal = false;
+    public string $remainingSessions = '';
     public string $bookingDate = '';
     public string $bookingTime = '';
     public string $bookingAttendance = 'attended';
@@ -136,6 +138,70 @@ new #[Layout('layouts::admin')] class extends Component
         $this->membership->refresh();
         $this->closeInitialSessionsModal();
         session()->flash('success', 'Sesi awal berhasil diperbarui.');
+    }
+
+    public function openRemainingSessionsModal(): void
+    {
+        $this->authorizeRemainingSessionsEdit();
+        $this->remainingSessions = (string) ($this->membership->remaining_sessions ?? 0);
+        $this->resetErrorBag();
+        $this->showRemainingSessionsModal = true;
+    }
+
+    public function closeRemainingSessionsModal(): void
+    {
+        $this->showRemainingSessionsModal = false;
+        $this->remainingSessions = '';
+        $this->resetErrorBag();
+    }
+
+    public function saveRemainingSessions(): void
+    {
+        $this->authorizeRemainingSessionsEdit();
+        $this->membership->refresh();
+        $totalSessions = (int) ($this->membership->total_sessions ?? 0);
+        $validated = $this->validate([
+            'remainingSessions' => ['required', 'integer', 'min:0', 'max:'.$totalSessions],
+        ], [
+            'remainingSessions.required' => 'Sisa sesi wajib diisi.',
+            'remainingSessions.integer' => 'Sisa sesi harus berupa bilangan bulat.',
+            'remainingSessions.min' => 'Sisa sesi tidak boleh kurang dari 0.',
+            'remainingSessions.max' => 'Sisa sesi tidak boleh lebih dari total sesi.',
+        ]);
+
+        $newRemainingSessions = (int) $validated['remainingSessions'];
+
+        $canSave = DB::transaction(function () use ($newRemainingSessions): bool {
+            $membership = Membership::query()
+                ->lockForUpdate()
+                ->findOrFail($this->membership->id);
+
+            if ($newRemainingSessions > (int) ($membership->total_sessions ?? 0)) {
+                return false;
+            }
+
+            $membership->update(['remaining_sessions' => $newRemainingSessions]);
+
+            return true;
+        }, attempts: 3);
+
+        if (! $canSave) {
+            $this->addError('remainingSessions', 'Sisa sesi tidak boleh lebih dari total sesi.');
+
+            return;
+        }
+
+        $this->membership->refresh();
+        $this->closeRemainingSessionsModal();
+        session()->flash('success', 'Sisa sesi berhasil diperbarui.');
+    }
+
+    private function authorizeRemainingSessionsEdit(): void
+    {
+        abort_unless(
+            auth()->check() && in_array(auth()->user()->role, ['admin', 'head_coach'], true),
+            403
+        );
     }
 
     public function closeBookingModal(): void
@@ -373,7 +439,12 @@ new #[Layout('layouts::admin')] class extends Component
             <p class="text-2xl font-bold text-heading mt-1">{{ $this->totalSesiBerjalan }}</p>
         </div>
         <div class="bg-neutral-primary-soft shadow-xs rounded-md border border-default p-4">
-            <p class="text-xs text-body font-medium uppercase tracking-wide">Sisa Sesi</p>
+            <div class="flex items-center justify-between gap-2">
+                <p class="text-xs text-body font-medium uppercase tracking-wide">Sisa Sesi</p>
+                <button type="button" wire:click="openRemainingSessionsModal" class="text-xs font-medium text-brand hover:text-brand-strong">
+                    Edit
+                </button>
+            </div>
             <p class="text-2xl font-bold text-heading mt-1">{{ $membership->remaining_sessions ?? 0 }}</p>
         </div>
     </div>
@@ -645,6 +716,37 @@ new #[Layout('layouts::admin')] class extends Component
                         Batal
                     </button>
                     <button type="button" wire:click="saveInitialSessions" class="px-4 py-2 text-sm font-medium text-white rounded-md bg-brand hover:bg-brand-strong">
+                        Simpan
+                    </button>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    @if ($showRemainingSessionsModal)
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" wire:click.self="closeRemainingSessionsModal">
+            <div class="w-full max-w-md mx-4 bg-white rounded-lg shadow-xl">
+                <div class="flex items-center justify-between p-6 border-b border-default-medium">
+                    <h3 class="text-lg font-semibold text-heading">Edit Sisa Sesi</h3>
+                    <button type="button" wire:click="closeRemainingSessionsModal" class="text-body hover:text-heading" aria-label="Tutup modal edit sisa sesi">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="p-6">
+                    <label for="remainingSessions" class="block text-sm font-medium text-heading">Sisa Sesi</label>
+                    <input type="number" wire:model="remainingSessions" id="remainingSessions" min="0" max="{{ $membership->total_sessions ?? 0 }}" class="block w-full px-3 py-2 mt-1 rounded-md border-default-medium shadow-sm focus:border-brand focus:ring-brand sm:text-sm bg-neutral-secondary-medium">
+                    <p class="mt-1 text-xs text-body">Maksimal {{ $membership->total_sessions ?? 0 }} sesi.</p>
+                    @error('remainingSessions') <span class="block mt-1 text-xs text-red-500">{{ $message }}</span> @enderror
+                </div>
+
+                <div class="flex justify-end gap-3 p-6 border-t border-default-medium">
+                    <button type="button" wire:click="closeRemainingSessionsModal" class="px-4 py-2 text-sm font-medium rounded-md border border-default-medium text-heading bg-neutral-secondary-medium hover:bg-neutral-secondary-strong">
+                        Batal
+                    </button>
+                    <button type="button" wire:click="saveRemainingSessions" class="px-4 py-2 text-sm font-medium text-white rounded-md bg-brand hover:bg-brand-strong">
                         Simpan
                     </button>
                 </div>

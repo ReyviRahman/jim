@@ -229,12 +229,7 @@ session()->flash('success', "Berhasil Check-In: {$user->name}. {$infoSesi}");
 
     public function with(): array
     {
-        $query = Attendance::with([
-            'user',
-            'membership.gymPackage',
-            'membership.ptPackage',
-            'membership.personalTrainer' // <--- Tambahkan baris ini
-        ]);
+        $query = Attendance::with('user');
 
         if ($this->dateStart && $this->dateEnd) {
             $query->whereBetween('check_in_time', [
@@ -328,9 +323,8 @@ session()->flash('success', "Berhasil Check-In: {$user->name}. {$infoSesi}");
             <thead class="text-sm text-body bg-neutral-secondary-medium border-b border-default-medium">
                 <tr>
                     <th scope="col" class="px-6 py-3 font-medium">No</th>
-                    <th scope="col" class="px-6 py-3 font-medium">Nama Member</th>
-                    <th scope="col" class="px-6 py-3 font-medium">Tipe Kedatangan</th>
-                    <th scope="col" class="px-6 py-3 font-medium">Detail Paket</th>
+                    <th scope="col" class="px-6 py-3 font-medium">Nama User</th>
+                    <th scope="col" class="px-6 py-3 font-medium">Role User</th>
                     <th scope="col" class="px-6 py-3 font-medium">Waktu Check-In</th>
                 </tr>
             </thead>
@@ -358,43 +352,16 @@ session()->flash('success', "Berhasil Check-In: {$user->name}. {$infoSesi}");
                         </td>
 
                         <td class="px-6 py-4 whitespace-nowrap">
-                            @if($attendance->type === 'gym')
-                                <span class="px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-md bg-emerald-100 text-emerald-800 border border-emerald-200">
-                                    🏋️ Gym Mandiri
+                            @if($attendance->user)
+                                <span class="inline-flex rounded-md border border-blue-200 bg-blue-100 px-2.5 py-1 text-xs font-semibold leading-5 text-blue-800">
+                                    {{ match ($attendance->user->role) {
+                                        'pt' => 'PT',
+                                        'kasir_gym' => 'Kasir Gym',
+                                        'kasir_minum' => 'Kasir Minuman',
+                                        'head_coach' => 'Head Coach',
+                                        default => \Illuminate\Support\Str::headline($attendance->user->role),
+                                    } }}
                                 </span>
-                            @elseif($attendance->type === 'pt')
-                                <span class="px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-md bg-indigo-100 text-indigo-800 border border-indigo-200">
-                                    👨‍🏫 Sesi PT
-                                </span>
-                            @elseif($attendance->type === 'visit')
-                                <span class="px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-md bg-orange-100 text-orange-800 border border-orange-200">
-                                    🎟️ Visit Harian
-                                </span>
-                            @elseif($attendance->type === 'coach_attendance')
-                                <span class="px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-md bg-blue-100 text-blue-800 border border-blue-200">
-                                    📋 Kehadiran Coach
-                                </span>
-                            @endif
-                        </td>
-                        
-                        <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
-                            @if($attendance->membership)
-                                <div class="flex flex-col gap-1">
-                                    @if(in_array($attendance->type, ['gym', 'visit']) && $attendance->membership->gymPackage)
-                                        <div class="text-sm font-semibold text-emerald-700">
-                                            {{ $attendance->membership->gymPackage->name }}
-                                        </div>
-                                    @endif
-
-                                    @if($attendance->type === 'pt' && $attendance->membership->ptPackage)
-                                        <div class="text-sm font-semibold text-indigo-700">
-                                            {{ $attendance->membership->ptPackage->name }}
-                                        </div>
-                                        <div class="text-xs text-gray-600 mt-0.5">
-                                            Coach: <span class="font-bold">{{ $attendance->membership->personalTrainer->name ?? '-' }}</span>
-                                        </div>
-                                    @endif
-                                </div>
                             @else
                                 <span class="text-red-500 italic">-</span>
                             @endif
@@ -411,7 +378,7 @@ session()->flash('success', "Berhasil Check-In: {$user->name}. {$infoSesi}");
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="5" class="px-6 py-8 text-center text-gray-500">
+                        <td colspan="4" class="px-6 py-8 text-center text-gray-500">
                             Tidak ada data absensi.
                         </td>
                     </tr>
