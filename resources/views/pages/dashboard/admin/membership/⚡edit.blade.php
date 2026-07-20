@@ -364,6 +364,10 @@ new #[Layout('layouts::admin')] class extends Component
             }
         }
 
+        if (in_array($property, ['registration_type', 'gym_package_id', 'pt_package_id'], true)) {
+            $this->syncReferencePricesFromPackage();
+        }
+
         if (in_array($property, ['registration_type', 'gym_package_id', 'pt_package_id', 'manual_discount', 'admin_fee'])) {
             $this->calculateTotal();
         }
@@ -400,7 +404,6 @@ new #[Layout('layouts::admin')] class extends Component
         $this->calculated_total_sessions = 0;
         $jumlahUser = $this->selectedUsers->count();
 
-        $pkt = null;
         $isGymActive = in_array($this->registration_type, ['membership', 'bundle_pt_membership', 'visit']);
         if ($isGymActive && $this->gym_package_id) {
             $package = GymPackage::find($this->gym_package_id);
@@ -408,7 +411,6 @@ new #[Layout('layouts::admin')] class extends Component
                 $multiplier = ($this->registration_type === 'visit') ? $jumlahUser : 1;
                 $hargaGym = $package->price * $multiplier;
                 $diskonGym = ($package->discount ?? 0) * $multiplier;
-                $pkt = $package;
             }
         }
 
@@ -419,9 +421,6 @@ new #[Layout('layouts::admin')] class extends Component
                 $hargaPt = $ptPackage->price;
                 $diskonPt = $ptPackage->discount ?? 0;
                 $this->calculated_total_sessions = $ptPackage->pt_sessions;
-                if (! $pkt) {
-                    $pkt = $ptPackage;
-                }
             }
         }
 
@@ -431,13 +430,19 @@ new #[Layout('layouts::admin')] class extends Component
 
         $this->price_paid = max(0, $this->base_price - $this->discount_applied) + (int) $this->admin_fee;
 
-        if ($pkt) {
-            $this->normal_price_ref = $pkt->normal_price ?? 0;
-            $this->net_price_ref = $pkt->net_price ?? 0;
-            $this->unrecommended_price_ref = $pkt->unrecommended_price ?? 0;
-        }
-
         $this->calculateTotalPaid();
+    }
+
+    private function syncReferencePricesFromPackage(): void
+    {
+        $packageId = in_array($this->registration_type, ['membership', 'bundle_pt_membership', 'visit'])
+            ? $this->gym_package_id
+            : $this->pt_package_id;
+        $package = $packageId ? GymPackage::find($packageId) : null;
+
+        $this->normal_price_ref = $package?->normal_price ?? 0;
+        $this->net_price_ref = $package?->net_price ?? 0;
+        $this->unrecommended_price_ref = $package?->unrecommended_price ?? 0;
     }
 
     public function calculateTotalPaid()
@@ -498,6 +503,9 @@ new #[Layout('layouts::admin')] class extends Component
             'follow_up_id_two' => 'required|exists:users,id',
             'manual_discount' => 'nullable|numeric|min:0|max:'.$this->base_price,
             'admin_fee' => 'nullable|numeric|min:0',
+            'normal_price_ref' => 'nullable|numeric|min:0',
+            'net_price_ref' => 'nullable|numeric|min:0',
+            'unrecommended_price_ref' => 'nullable|numeric|min:0',
         ];
 
         if ($this->payment_type === 'partial') {
@@ -553,13 +561,6 @@ new #[Layout('layouts::admin')] class extends Component
 
         $this->showPartialToPaidWarning = false;
 
-        $pkt = null;
-        if (in_array($this->registration_type, ['membership', 'bundle_pt_membership', 'visit']) && $this->gym_package_id) {
-            $pkt = GymPackage::find($this->gym_package_id);
-        } elseif ($this->registration_type === 'pt' && $this->pt_package_id) {
-            $pkt = GymPackage::find($this->pt_package_id);
-        }
-
         try {
             DB::beginTransaction();
 
@@ -574,9 +575,9 @@ new #[Layout('layouts::admin')] class extends Component
                 'base_price' => $this->base_price,
                 'discount_applied' => $this->discount_applied,
                 'admin_fee' => $this->admin_fee,
-                'normal_price' => $pkt?->normal_price,
-                'net_price' => $pkt?->net_price,
-                'unrecommended_price' => $pkt?->unrecommended_price,
+                'normal_price' => $this->normal_price_ref ?: 0,
+                'net_price' => $this->net_price_ref ?: 0,
+                'unrecommended_price' => $this->unrecommended_price_ref ?: 0,
                 'price_paid' => $this->price_paid,
                 'total_sessions' => in_array($this->registration_type, ['pt', 'bundle_pt_membership']) ? $this->total_sessions : null,
                 'remaining_sessions' => in_array($this->registration_type, ['pt', 'bundle_pt_membership']) ? $this->remaining_sessions : null,
@@ -933,24 +934,75 @@ new #[Layout('layouts::admin')] class extends Component
 
                             <div class="grid gap-3 md:grid-cols-3 mb-4">
                                 <div class="p-3 rounded-md border bg-blue-50 border-blue-200">
-                                    <div class="text-xs font-medium text-blue-700 mb-1">Harga Normal</div>
-                                    <div class="text-sm font-bold text-blue-900">
-                                        Rp {{ number_format($this->normal_price_ref, 0, ',', '.') }}
+                                    <label for="normal_price_ref" class="block mb-1 text-xs font-medium text-blue-700">Harga Normal</label>
+                                    <div class="flex items-center text-sm font-bold text-blue-900" x-data="{
+                                        price: $wire.entangle('normal_price_ref').live,
+                                        formatted: '',
+                                        init() {
+                                            this.formatValue(this.price);
+                                            $watch('price', value => this.formatValue(value));
+                                        },
+                                        formatValue(value) {
+                                            this.formatted = value === null || value === '' ? '' : new Intl.NumberFormat('id-ID').format(value.toString().replace(/\D/g, ''));
+                                        },
+                                        updateValue(event) {
+                                            let raw = event.target.value.replace(/\D/g, '');
+                                            this.price = raw;
+                                            this.formatValue(raw);
+                                        }
+                                    }">
+                                        <span class="mr-2">Rp</span>
+                                        <input type="text" id="normal_price_ref" inputmode="numeric" x-model="formatted" @input="updateValue($event)" class="block w-full bg-white border border-blue-200 rounded-md px-2 py-1 text-sm font-semibold text-blue-900 focus:border-brand focus:ring-brand">
                                     </div>
+                                    @error('normal_price_ref') <span class="block mt-1 text-xs text-red-500">{{ $message }}</span> @enderror
                                 </div>
 
                                 <div class="p-3 rounded-md border bg-emerald-50 border-emerald-200">
-                                    <div class="text-xs font-medium text-emerald-700 mb-1">Harga Net</div>
-                                    <div class="text-sm font-bold text-emerald-900">
-                                        Rp {{ number_format($this->net_price_ref, 0, ',', '.') }}
+                                    <label for="net_price_ref" class="block mb-1 text-xs font-medium text-emerald-700">Harga Net</label>
+                                    <div class="flex items-center text-sm font-bold text-emerald-900" x-data="{
+                                        price: $wire.entangle('net_price_ref').live,
+                                        formatted: '',
+                                        init() {
+                                            this.formatValue(this.price);
+                                            $watch('price', value => this.formatValue(value));
+                                        },
+                                        formatValue(value) {
+                                            this.formatted = value === null || value === '' ? '' : new Intl.NumberFormat('id-ID').format(value.toString().replace(/\D/g, ''));
+                                        },
+                                        updateValue(event) {
+                                            let raw = event.target.value.replace(/\D/g, '');
+                                            this.price = raw;
+                                            this.formatValue(raw);
+                                        }
+                                    }">
+                                        <span class="mr-2">Rp</span>
+                                        <input type="text" id="net_price_ref" inputmode="numeric" x-model="formatted" @input="updateValue($event)" class="block w-full bg-white border border-emerald-200 rounded-md px-2 py-1 text-sm font-semibold text-emerald-900 focus:border-brand focus:ring-brand">
                                     </div>
+                                    @error('net_price_ref') <span class="block mt-1 text-xs text-red-500">{{ $message }}</span> @enderror
                                 </div>
 
                                 <div class="p-3 rounded-md border bg-red-50 border-red-200">
-                                    <div class="text-xs font-medium text-red-700 mb-1">Harga Tidak Disarankan</div>
-                                    <div class="text-sm font-bold text-red-900">
-                                        Rp {{ number_format($this->unrecommended_price_ref, 0, ',', '.') }}
+                                    <label for="unrecommended_price_ref" class="block mb-1 text-xs font-medium text-red-700">Harga Tidak Disarankan</label>
+                                    <div class="flex items-center text-sm font-bold text-red-900" x-data="{
+                                        price: $wire.entangle('unrecommended_price_ref').live,
+                                        formatted: '',
+                                        init() {
+                                            this.formatValue(this.price);
+                                            $watch('price', value => this.formatValue(value));
+                                        },
+                                        formatValue(value) {
+                                            this.formatted = value === null || value === '' ? '' : new Intl.NumberFormat('id-ID').format(value.toString().replace(/\D/g, ''));
+                                        },
+                                        updateValue(event) {
+                                            let raw = event.target.value.replace(/\D/g, '');
+                                            this.price = raw;
+                                            this.formatValue(raw);
+                                        }
+                                    }">
+                                        <span class="mr-2">Rp</span>
+                                        <input type="text" id="unrecommended_price_ref" inputmode="numeric" x-model="formatted" @input="updateValue($event)" class="block w-full bg-white border border-red-200 rounded-md px-2 py-1 text-sm font-semibold text-red-900 focus:border-brand focus:ring-brand">
                                     </div>
+                                    @error('unrecommended_price_ref') <span class="block mt-1 text-xs text-red-500">{{ $message }}</span> @enderror
                                 </div>
                             </div>
 

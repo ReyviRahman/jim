@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\GymPackage;
 use App\Models\Membership;
+use App\Models\MembershipTransaction;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Features\SupportTesting\Testable;
@@ -122,6 +123,57 @@ class AdminMembershipAdminFeeTest extends TestCase
 
         Livewire::test('pages::dashboard.admin.membership.edit', ['id' => $pendingMembership->id])
             ->assertSet('membership_status', 'pending');
+    }
+
+    public function test_edit_form_persists_editable_reference_prices_and_converts_empty_values_to_zero(): void
+    {
+        $membership = $this->createMembership();
+        $membership->update([
+            'admin_id' => $membership->user_id,
+            'follow_up_id' => $membership->user_id,
+            'follow_up_id_two' => $membership->user_id,
+            'normal_price' => 300000,
+            'net_price' => 275000,
+            'unrecommended_price' => 250000,
+        ]);
+        MembershipTransaction::create([
+            'invoice_number' => 'INV-PRICE-REF-'.fake()->unique()->numerify('######'),
+            'membership_id' => $membership->id,
+            'user_id' => $membership->user_id,
+            'admin_id' => $membership->user_id,
+            'follow_up_id' => $membership->user_id,
+            'follow_up_id_two' => $membership->user_id,
+            'transaction_type' => 'MEMBERSHIP BARU',
+            'package_name' => 'Paket Gym',
+            'amount' => 250000,
+            'payment_method' => 'cash',
+            'payment_date' => now(),
+            'start_date' => now(),
+            'end_date' => now()->addMonth(),
+            'notes' => 'Catatan',
+        ]);
+
+        Livewire::test('pages::dashboard.admin.membership.edit', ['id' => $membership->id])
+            ->set('normal_price_ref', 320000)
+            ->set('net_price_ref', '')
+            ->set('unrecommended_price_ref', 240000)
+            ->call('save');
+
+        $membership->refresh();
+
+        $this->assertSame('320000', $membership->normal_price);
+        $this->assertSame('0', $membership->net_price);
+        $this->assertSame('240000', $membership->unrecommended_price);
+    }
+
+    public function test_edit_form_rejects_negative_reference_prices(): void
+    {
+        $membership = $this->createMembership();
+
+        Livewire::test('pages::dashboard.admin.membership.edit', ['id' => $membership->id])
+            ->set('normal_price_ref', -1)
+            ->call('save')
+            ->assertHasErrors(['normal_price_ref' => 'min']);
     }
 
     public function test_renewal_form_adds_admin_fee_to_the_total_bill(): void

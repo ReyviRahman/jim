@@ -285,15 +285,6 @@ new #[Layout('layouts::admin')] class extends Component
             <thead class="text-xs text-body bg-neutral-secondary-medium border-b border-default-medium">
                 <tr>
                     <th rowspan="3" class="px-6 py-3 font-medium align-middle border border-default-medium">No</th>
-                    <th class="px-6 py-3 font-medium text-center border border-default-medium">Tgl Mulai</th>
-                    <th class="px-6 py-3 font-medium text-center border border-default-medium">Tgl Selesai</th>
-                    <th rowspan="3" class="px-6 py-3 font-medium align-middle border border-default-medium">Tgl Bayar</th>
-                    <th rowspan="3" wire:click="sort('package_name')" class="px-6 py-3 font-medium align-middle border border-default-medium cursor-pointer hover:bg-gray-200 select-none">
-                        Paket Membership
-                        @if($sortBy === 'package_name')
-                            <span class="ml-1">{{ $sortDirection === 'asc' ? '▲' : '▼' }}</span>
-                        @endif
-                    </th>
                     <th rowspan="3" wire:click="sort('user_name')" class="px-6 py-3 font-medium align-middle border border-default-medium cursor-pointer hover:bg-gray-200 select-none">
                         Nama Member
                         @if($sortBy === 'user_name')
@@ -304,6 +295,15 @@ new #[Layout('layouts::admin')] class extends Component
                     <th rowspan="3" class="px-6 py-3 font-medium text-right align-middle border border-default-medium">Nominal Akhir</th>
                     <th rowspan="3" class="px-6 py-3 font-medium align-middle border border-default-medium">Follow Up 1</th>
                     <th rowspan="3" class="px-6 py-3 font-medium align-middle border border-default-medium">Follow Up 2</th>
+                    <th class="px-6 py-3 font-medium text-center border border-default-medium">Tgl Mulai</th>
+                    <th class="px-6 py-3 font-medium text-center border border-default-medium">Tgl Selesai</th>
+                    <th rowspan="3" class="px-6 py-3 font-medium align-middle border border-default-medium">Tgl Bayar</th>
+                    <th rowspan="3" wire:click="sort('package_name')" class="px-6 py-3 font-medium align-middle border border-default-medium cursor-pointer hover:bg-gray-200 select-none">
+                        Paket Membership
+                        @if($sortBy === 'package_name')
+                            <span class="ml-1">{{ $sortDirection === 'asc' ? '▲' : '▼' }}</span>
+                        @endif
+                    </th>
                     <th rowspan="3" class="px-6 py-3 font-medium align-middle border border-default-medium">Aksi</th>
                 </tr>
                 <tr>
@@ -326,33 +326,9 @@ new #[Layout('layouts::admin')] class extends Component
                     
                     <tr wire:key="{{ $membership->id }}" class="bg-white border-b border-gray-100 hover:bg-gray-50">
                         <td class="px-6 py-4">{{ $loop->iteration + ($this->memberships->currentPage() - 1) * $this->memberships->perPage() }}</td>
-                        
-                        
-                        
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            {{ $membership->start_date ? \Carbon\Carbon::parse($membership->start_date)->translatedFormat('l, d F Y') : 'BELUM AKTIF' }}
-                        </td>
-                        
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            @php
-                                $endDate = $membership->type === 'pt' ? $membership->pt_end_date : $membership->membership_end_date;
-                            @endphp
-                            {{ $endDate ? \Carbon\Carbon::parse($endDate)->translatedFormat('l, d F Y') : 'BELUM AKTIF' }}
-                        </td>
-                        
-                        <td class="px-6 py-4 whitespace-nowrap text-yellow-500 font-semibold">
-                            {{ $membership->transactions->sortByDesc('payment_date')->first()?->payment_date?->translatedFormat('d F Y') ?? '-' }}
-                        </td>
-                        
-                        <td class="px-6 py-4 font-medium text-gray-700 whitespace-nowrap">
-                            <span class="px-2 py-0.5 text-xs rounded border border-gray-200 bg-gray-50 shadow-xs uppercase">
-                                {{ $packageName }}
-                            </span>
-                        </td>
                         <td class="px-6 py-4 whitespace-nowrap font-bold text-gray-800">
                             {{ $membership->user->name ?? '-' }}
                         </td>
-                        
                         <td class="px-6 py-4 text-right whitespace-nowrap text-gray-600">
                             <div>Rp {{ number_format($nominal, 0, ',', '.') }}</div>
 
@@ -370,17 +346,34 @@ new #[Layout('layouts::admin')] class extends Component
                                 @endif
                             @endif
                         </td>
-                        
                         <td class="px-6 py-4 text-right font-bold text-emerald-600 whitespace-nowrap">
                             Rp {{ number_format($nominalAkhir, 0, ',', '.') }}
                         </td>
-                        
                         <td class="px-6 py-4 whitespace-nowrap">
                             {{ $membership->followUp->name ?? '-' }}
                         </td>
-                        
                         <td class="px-6 py-4 whitespace-nowrap">
                             {{ $membership->followUpTwo->name ?? '-' }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            {{ $membership->start_date ? \Carbon\Carbon::parse($membership->start_date)->translatedFormat('l, d F Y') : 'BELUM AKTIF' }}
+                        </td>
+
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            @php
+                                $endDate = $membership->type === 'pt' ? $membership->pt_end_date : $membership->membership_end_date;
+                            @endphp
+                            {{ $endDate ? \Carbon\Carbon::parse($endDate)->translatedFormat('l, d F Y') : 'BELUM AKTIF' }}
+                        </td>
+
+                        <td class="px-6 py-4 whitespace-nowrap text-yellow-500 font-semibold">
+                            {{ $membership->transactions->sortByDesc('payment_date')->first()?->payment_date?->translatedFormat('d F Y') ?? '-' }}
+                        </td>
+
+                        <td class="px-6 py-4 font-medium text-gray-700 whitespace-nowrap">
+                            <span class="px-2 py-0.5 text-xs rounded border border-gray-200 bg-gray-50 shadow-xs uppercase">
+                                {{ $packageName }}
+                            </span>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
                             @if(auth()->user()->role === 'admin')
@@ -402,13 +395,13 @@ new #[Layout('layouts::admin')] class extends Component
             @if($this->memberships->count() > 0)
                 <tfoot class="bg-gray-100 font-semibold text-gray-900 border-t-2 border-gray-300">
                     <tr>
-                        <td colspan="7" class="px-6 py-4 text-right">
+                        <td colspan="3" class="px-6 py-4 text-right">
                             Total Keseluruhan:
                         </td>
                         <td class="px-6 py-4 text-right text-emerald-700 whitespace-nowrap">
                             Rp {{ number_format($this->totalNominalAkhir, 0, ',', '.') }}
                         </td>
-                        <td colspan="3" class="px-6 py-4"></td>
+                        <td colspan="7" class="px-6 py-4"></td>
                     </tr>
                     @if(in_array(auth()->user()->role, ['admin', 'head_coach']))
                         @php
@@ -416,7 +409,7 @@ new #[Layout('layouts::admin')] class extends Component
                         @endphp
                         @if($bonus['persen'] > 0)
                             <tr class="border-t border-gray-200">
-                                <td colspan="7" class="px-6 py-4 text-right text-gray-600">
+                                <td colspan="3" class="px-6 py-4 text-right text-gray-600">
                                     Bonus ({{ $bonus['persen'] }}%)
                                     <span class="text-xs text-gray-400 block">
                                         Rentang:
@@ -432,17 +425,17 @@ new #[Layout('layouts::admin')] class extends Component
                                 <td class="px-6 py-4 text-right text-blue-700 whitespace-nowrap">
                                     Rp {{ number_format($bonus['total_bonus'], 0, ',', '.') }}
                                 </td>
-                                <td colspan="3" class="px-6 py-4"></td>
+                                <td colspan="7" class="px-6 py-4"></td>
                             </tr>
                         @else
                             <tr class="border-t border-gray-200">
-                                <td colspan="7" class="px-6 py-4 text-right text-gray-500">
+                                <td colspan="3" class="px-6 py-4 text-right text-gray-500">
                                     Tidak ada rentang bonus yang cocok
                                 </td>
                                 <td class="px-6 py-4 text-right text-gray-400 whitespace-nowrap">
                                     Rp 0
                                 </td>
-                                <td colspan="3" class="px-6 py-4"></td>
+                                <td colspan="7" class="px-6 py-4"></td>
                             </tr>
                         @endif
                     @endif
