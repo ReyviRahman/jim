@@ -26,7 +26,8 @@ new #[Layout('layouts::empty')] #[Title('FRANS GYM | Pusat Kebugaran Terbaik di 
             // 4. Ganti ->get() menjadi ->paginate(6) (misal: tampilkan 6 PT per halaman)
             'trainers' => User::where('role', 'pt')
                               ->where('is_active', true)
-                              ->paginate(3) 
+                              ->whereNotIn('name', ['Wira Harianto', 'Melvin'])
+                              ->paginate(3)
         ];
     }
 };
