@@ -18,6 +18,8 @@
         table td.text-center { text-align: center; }
         table td.text-right { text-align: right; }
         table tfoot td { background-color: #f0f0f0; font-weight: bold; }
+        .discount-note { display: block; margin-top: 2px; font-size: 10px; font-weight: normal; color: #666; }
+        .discount-value { color: #c62828; }
         .footer { margin-top: 10px; font-size: 12px; }
         .footer .bersih { font-size: 14px; font-weight: bold; margin-bottom: 4px; }
         .footer .terbilang { font-style: italic; color: #555; }
@@ -69,11 +71,22 @@
                 <td class="text-center">{{ $grandTotalJumlah }}</td>
                 <td class="text-right">Rp {{ number_format($grandTotal, 0, ',', '.') }}</td>
             </tr>
+            @if($potongan > 0)
+                <tr>
+                    <td colspan="2">
+                        TOTAL POTONGAN
+                        @if($batch->keterangan_potongan)
+                            <span class="discount-note">{{ $batch->keterangan_potongan }}</span>
+                        @endif
+                    </td>
+                    <td class="text-right discount-value">- Rp {{ number_format($potongan, 0, ',', '.') }}</td>
+                </tr>
+            @endif
         </tfoot>
     </table>
 
     <div class="footer">
-        <p class="bersih">BERSIH DITERIMA: Rp {{ number_format($grandTotal, 0, ',', '.') }}</p>
+        <p class="bersih">BERSIH DITERIMA: Rp {{ number_format($netTotal, 0, ',', '.') }}</p>
         <p class="terbilang">Terbilang: {{ $terbilang }} rupiah</p>
     </div>
 </body>

@@ -157,7 +157,9 @@ new #[Layout('layouts::admin')] class extends Component
     #[Computed]
     public function totalNominalAkhir()
     {
-        $memberships = $this->getBaseQuery()->get(['total_paid', 'follow_up_id', 'follow_up_id_two', 'price_paid', 'net_price', 'unrecommended_price']);
+        $memberships = $this->getBaseQuery()
+            ->with('followUp:id,role')
+            ->get(['total_paid', 'follow_up_id', 'follow_up_id_two', 'price_paid', 'normal_price', 'net_price', 'unrecommended_price']);
 
         $total = 0;
         foreach ($memberships as $membership) {

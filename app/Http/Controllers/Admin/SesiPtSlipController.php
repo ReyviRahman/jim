@@ -49,13 +49,17 @@ class SesiPtSlipController extends Controller
             }
         }
 
-        $terbilang = $this->terbilang($grandTotal);
+        $potongan = (float) ($batch->potongan ?? 0);
+        $netTotal = $grandTotal - $potongan;
+        $terbilang = $this->terbilang((int) $netTotal);
 
         $pdf = Pdf::loadView('pages.dashboard.admin.sesi-pt.payment-batch-pdf', [
             'batch' => $batch,
             'rows' => $rows,
             'grandTotalJumlah' => $grandTotalJumlah,
             'grandTotal' => $grandTotal,
+            'potongan' => $potongan,
+            'netTotal' => $netTotal,
             'terbilang' => $terbilang,
         ]);
 

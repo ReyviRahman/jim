@@ -202,6 +202,15 @@ class Membership extends Model
     {
         $nominal = $this->total_paid ?? 0;
 
+        $isSameCoach = $this->follow_up_id !== null
+            && $this->follow_up_id_two !== null
+            && (int) $this->follow_up_id === (int) $this->follow_up_id_two
+            && $this->followUp?->role === 'pt';
+
+        if ($isSameCoach) {
+            return $nominal;
+        }
+
         $pricePaid = (float) $this->price_paid;
         $normalPrice = (float) $this->normal_price;
         $netPrice = (float) $this->net_price;
