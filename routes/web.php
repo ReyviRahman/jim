@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\MembershipInvoiceController;
 use App\Http\Controllers\Admin\SesiPtSlipController;
 use App\Http\Controllers\BeverageApiController;
+use App\Http\Controllers\MembershipInvoiceVerificationController;
 use Illuminate\Support\Facades\Route;
 
 // --- HALAMAN PUBLIK (Bisa diakses siapa saja) ---
@@ -11,6 +12,10 @@ Route::livewire('/', 'pages::index')
 
 Route::livewire('/device-events', 'pages::device-events')
     ->name('device-events.index');
+
+Route::get('/invoice/membership/{membership}/verify', MembershipInvoiceVerificationController::class)
+    ->middleware(['signed', 'throttle:60,1'])
+    ->name('membership.invoice.verify');
 
 // --- API ROUTES ---
 Route::middleware('auth')->group(function () {
