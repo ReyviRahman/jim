@@ -11,6 +11,7 @@ use App\Models\KasirKonsultan;
 use App\Models\CoachKonsultan;
 use Carbon\Carbon;
 use App\Exports\RekapBonusExport;
+use Illuminate\Database\Eloquent\Builder;
 use Maatwebsite\Excel\Facades\Excel;
 
 new #[Layout('layouts::admin')] class extends Component 
@@ -105,7 +106,21 @@ new #[Layout('layouts::admin')] class extends Component
         $this->resetPage();
     }
 
-    private function getBaseQuery()
+    private function applyLatestPaymentDateFilter(Builder $query): Builder
+    {
+        return $query
+            ->whereHas('transactions', function (Builder $query): void {
+                $query->whereBetween('payment_date', [
+                    $this->startDate,
+                    $this->endDate,
+                ]);
+            })
+            ->whereDoesntHave('transactions', function (Builder $query): void {
+                $query->where('payment_date', '>', $this->endDate);
+            });
+    }
+
+    private function getBaseQuery(): Builder
     {
         return Membership::where(function ($query) {
                 $query->where('follow_up_id', $this->staffUser->id)
@@ -124,12 +139,7 @@ new #[Layout('layouts::admin')] class extends Component
                 });
             })
             ->when($this->startDate && $this->endDate, function ($query) {
-                $query->whereHas('transactions', function ($q) {
-                    $q->whereBetween('payment_date', [
-                        $this->startDate . ' 00:00:00',
-                        $this->endDate . ' 23:59:59'
-                    ]);
-                });
+                $this->applyLatestPaymentDateFilter($query);
             });
     }
 
@@ -137,7 +147,14 @@ new #[Layout('layouts::admin')] class extends Component
     public function memberships()
     {
         $query = $this->getBaseQuery()
-            ->with(['user', 'followUp', 'followUpTwo', 'gymPackage', 'ptPackage', 'transactions'])
+            ->with([
+                'user',
+                'followUp',
+                'followUpTwo',
+                'gymPackage',
+                'ptPackage',
+                'transactions',
+            ])
             ->withMax('transactions', 'payment_date');
 
         if ($this->sortBy === 'user_name') {

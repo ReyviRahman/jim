@@ -123,6 +123,72 @@ class RekapBonusDetailTableTest extends TestCase
             ->assertDontSee('Rp 550.000');
     }
 
+    public function test_detail_page_only_displays_payment_dates_inside_selected_target_period(): void
+    {
+        $admin = $this->createUser('admin');
+        $staffUser = $this->createUser('sales');
+        $julyMember = $this->createUser('member');
+        $augustMember = $this->createUser('member');
+        $mixedPeriodMember = $this->createUser('member');
+
+        $julyMembership = $this->createPaidMembership($julyMember, $admin, $staffUser);
+        $augustMembership = $this->createPaidMembership($augustMember, $admin, $staffUser);
+        $mixedPeriodMembership = $this->createPaidMembership($mixedPeriodMember, $admin, $staffUser);
+
+        $this->createTransaction($julyMembership, $julyMember, $admin, $staffUser, '2026-07-17');
+        $this->createTransaction($augustMembership, $augustMember, $admin, $staffUser, '2026-08-17');
+        $this->createTransaction($mixedPeriodMembership, $mixedPeriodMember, $admin, $staffUser, '2026-07-17');
+        $this->createTransaction($mixedPeriodMembership, $mixedPeriodMember, $admin, $staffUser, '2026-08-17');
+
+        $this->actingAs($admin);
+
+        Livewire::test('pages::dashboard.admin.rekap-bonus.detail', ['user' => $staffUser])
+            ->call('setDateRange', '2026-07-01 to 2026-07-31')
+            ->assertSee($julyMember->name)
+            ->assertDontSee($augustMember->name)
+            ->assertDontSee($mixedPeriodMember->name)
+            ->assertSee('17 July 2026')
+            ->assertDontSee('17 August 2026');
+    }
+
+    private function createPaidMembership(User $member, User $admin, User $staffUser): Membership
+    {
+        return Membership::create([
+            'user_id' => $member->id,
+            'type' => 'membership',
+            'admin_id' => $admin->id,
+            'follow_up_id' => $staffUser->id,
+            'base_price' => 500_000,
+            'price_paid' => 500_000,
+            'total_paid' => 500_000,
+            'payment_status' => 'paid',
+            'start_date' => '2026-07-17',
+            'status' => 'active',
+            'transaction_type' => 'MEMBERSHIP',
+            'package_name' => 'Test Target Period',
+        ]);
+    }
+
+    private function createTransaction(
+        Membership $membership,
+        User $member,
+        User $admin,
+        User $staffUser,
+        string $paymentDate
+    ): void {
+        $membership->transactions()->create([
+            'invoice_number' => 'INV-'.$membership->id.'-'.$paymentDate,
+            'user_id' => $member->id,
+            'admin_id' => $admin->id,
+            'follow_up_id' => $staffUser->id,
+            'transaction_type' => 'MEMBERSHIP',
+            'package_name' => 'Test Target Period',
+            'amount' => 500_000,
+            'payment_method' => 'cash',
+            'payment_date' => $paymentDate,
+        ]);
+    }
+
     /**
      * @param  array<string, int>  $overrides
      */

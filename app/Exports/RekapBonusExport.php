@@ -9,6 +9,7 @@ use App\Models\SalesKonsultan;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Contracts\View\View;
+use Illuminate\Database\Eloquent\Builder;
 use Maatwebsite\Excel\Concerns\FromView;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithStyles;
@@ -37,7 +38,14 @@ class RekapBonusExport implements FromView, ShouldAutoSize, WithStyles
         $staffUser = User::findOrFail($this->staffUserId);
 
         // Tambahkan 'followUp', 'followUpTwo' di dalam array with()
-        $memberships = Membership::with(['user', 'gymPackage', 'ptPackage', 'followUp', 'followUpTwo', 'transactions'])
+        $memberships = Membership::with([
+            'user',
+            'gymPackage',
+            'ptPackage',
+            'followUp',
+            'followUpTwo',
+            'transactions',
+        ])
             ->where(function ($query) {
                 $query->where('follow_up_id', $this->staffUserId)
                     ->orWhere('follow_up_id_two', $this->staffUserId);
@@ -55,12 +63,7 @@ class RekapBonusExport implements FromView, ShouldAutoSize, WithStyles
                 });
             })
             ->when($this->startDate && $this->endDate, function ($query) {
-                $query->whereHas('transactions', function ($q) {
-                    $q->whereBetween('payment_date', [
-                        $this->startDate.' 00:00:00',
-                        $this->endDate.' 23:59:59',
-                    ]);
-                });
+                $this->applyLatestPaymentDateFilter($query);
             })
             ->withMax('transactions', 'payment_date')
             ->orderByDesc('transactions_max_payment_date')
@@ -115,6 +118,20 @@ class RekapBonusExport implements FromView, ShouldAutoSize, WithStyles
             'totalNominalAkhir' => $totalNominalAkhir,
             'bonusInfo' => $bonusInfo,
         ]);
+    }
+
+    private function applyLatestPaymentDateFilter(Builder $query): Builder
+    {
+        return $query
+            ->whereHas('transactions', function (Builder $query): void {
+                $query->whereBetween('payment_date', [
+                    $this->startDate,
+                    $this->endDate,
+                ]);
+            })
+            ->whereDoesntHave('transactions', function (Builder $query): void {
+                $query->where('payment_date', '>', $this->endDate);
+            });
     }
 
     // Memberikan style tambahan ke Excel secara terprogram
