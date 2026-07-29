@@ -151,11 +151,36 @@ class RekapBonusDetailTableTest extends TestCase
             ->assertDontSee('17 August 2026');
     }
 
-    private function createPaidMembership(User $member, User $admin, User $staffUser): Membership
+    public function test_pt_bonus_detail_only_displays_pt_membership_type(): void
     {
+        $admin = $this->createUser('admin');
+        $coach = $this->createUser('pt');
+        $ptMember = $this->createUser('member');
+        $gymMember = $this->createUser('member');
+
+        $ptMembership = $this->createPaidMembership($ptMember, $admin, $coach, 'pt');
+        $gymMembership = $this->createPaidMembership($gymMember, $admin, $coach);
+
+        $this->createTransaction($ptMembership, $ptMember, $admin, $coach, '2026-07-17');
+        $this->createTransaction($gymMembership, $gymMember, $admin, $coach, '2026-07-17');
+
+        $this->actingAs($admin);
+
+        Livewire::test('pages::dashboard.admin.rekap-bonus.detail', ['user' => $coach])
+            ->call('setDateRange', '2026-07-01 to 2026-07-31')
+            ->assertSee($ptMember->name)
+            ->assertDontSee($gymMember->name);
+    }
+
+    private function createPaidMembership(
+        User $member,
+        User $admin,
+        User $staffUser,
+        string $type = 'membership'
+    ): Membership {
         return Membership::create([
             'user_id' => $member->id,
-            'type' => 'membership',
+            'type' => $type,
             'admin_id' => $admin->id,
             'follow_up_id' => $staffUser->id,
             'base_price' => 500_000,

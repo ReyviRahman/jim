@@ -127,6 +127,10 @@ new #[Layout('layouts::admin')] class extends Component
                       ->orWhere('follow_up_id_two', $this->staffUser->id);
             })
             ->where('type', '!=', 'visit')
+            ->when(
+                $this->staffUser->role === 'pt',
+                fn (Builder $query): Builder => $query->where('type', 'pt')
+            )
             ->where('payment_status', 'paid')
             ->when($this->search, function ($query) {
                 $query->where(function ($q) {
