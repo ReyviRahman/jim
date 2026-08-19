@@ -104,6 +104,71 @@ class PtSessionPaymentTest extends TestCase
             ->assertSet('filteredPaymentPreviewRows.0.member_name', 'Andi');
     }
 
+    public function test_payment_preview_uses_the_same_membership_date_range_as_the_session_table(): void
+    {
+        $pt = $this->createUser(['role' => 'pt']);
+        $admin = $this->createUser(['role' => 'admin']);
+        $includedMember = $this->createUser(['name' => 'Member Dalam Periode']);
+        $excludedMember = $this->createUser(['name' => 'Member Tanpa Periode']);
+
+        $includedMembership = Membership::create([
+            'user_id' => $includedMember->id,
+            'type' => 'pt',
+            'pt_id' => $pt->id,
+            'base_price' => 100000,
+            'price_paid' => 100000,
+            'total_paid' => 100000,
+            'payment_status' => 'paid',
+            'start_date' => '2026-07-01',
+            'pt_end_date' => '2026-08-31',
+            'status' => 'active',
+        ]);
+        $excludedMembership = Membership::create([
+            'user_id' => $excludedMember->id,
+            'type' => 'pt',
+            'pt_id' => $pt->id,
+            'base_price' => 100000,
+            'price_paid' => 100000,
+            'total_paid' => 100000,
+            'payment_status' => 'paid',
+            'start_date' => null,
+            'pt_end_date' => null,
+            'status' => 'active',
+        ]);
+
+        foreach ([$includedMembership, $excludedMembership] as $membership) {
+            PtBooking::create([
+                'membership_id' => $membership->id,
+                'member_id' => $membership->user_id,
+                'pt_id' => $pt->id,
+                'booking_date' => '2026-07-20',
+                'booking_time' => '09:00:00',
+                'status' => 'approved',
+                'attendance' => 'attended',
+                'is_free' => false,
+                'is_paid' => false,
+            ]);
+        }
+
+        PtSessionCategory::create([
+            'pt_id' => $pt->id,
+            'category' => 'SDR',
+            'amount' => 50000,
+        ]);
+
+        $this->actingAs($admin);
+
+        Livewire::test('pages::dashboard.admin.sesi-pt.detail', ['user' => $pt])
+            ->set('dateStart', '2026-07-16')
+            ->set('dateEnd', '2026-08-15')
+            ->assertSee('Total Sesi: 1')
+            ->call('openPaymentPreview')
+            ->assertSet('paymentPreviewTotalSessions', 1)
+            ->assertSet('paymentPreviewTotalAmount', 50000)
+            ->assertCount('paymentPreviewRows', 1)
+            ->assertSet('paymentPreviewRows.0.member_name', 'Member Dalam Periode');
+    }
+
     public function test_substitute_pt_membership_uses_sls_category(): void
     {
         $primaryPt = $this->createUser(['role' => 'pt']);

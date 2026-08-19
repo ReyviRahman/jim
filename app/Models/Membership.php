@@ -156,37 +156,7 @@ class Membership extends Model
 
     public function getPtCategoryLabel(): string
     {
-        $followUpRole = $this->followUp?->role;
-        $followUpTwoRole = $this->followUpTwo?->role;
-
-        if (($followUpRole !== null && $followUpRole !== 'pt') || ($followUpTwoRole !== null && $followUpTwoRole !== 'pt')) {
-            return 'SLS';
-        }
-
-        $pricePaid = (float) $this->price_paid;
-        $netPrice = (float) $this->net_price;
-        $unrecommendedPrice = (float) $this->unrecommended_price;
-
-        $effectiveNetPrice = $netPrice > 0 ? $netPrice : null;
-        $effectiveUnrecommendedPrice = $unrecommendedPrice > 0 ? $unrecommendedPrice : null;
-
-        if ($effectiveNetPrice !== null) {
-            if ($pricePaid > $effectiveNetPrice) {
-                return 'SDR';
-            }
-
-            if ($effectiveUnrecommendedPrice !== null) {
-                return $pricePaid > $effectiveUnrecommendedPrice ? 'IR' : 'SPR';
-            }
-
-            return 'IR';
-        }
-
-        if ($effectiveUnrecommendedPrice !== null) {
-            return $pricePaid > $effectiveUnrecommendedPrice ? 'SDR' : 'SPR';
-        }
-
-        return 'SDR';
+        return $this->pt_id === null ? 'SLS' : $this->getPtCategoryLabelFor((int) $this->pt_id);
     }
 
     public function getPtCategoryLabelFor(int $ptId): string
@@ -195,7 +165,30 @@ class Membership extends Model
             return 'SLS';
         }
 
-        return $this->getPtCategoryLabel();
+        $followUpId = $this->follow_up_id === null ? $ptId : (int) $this->follow_up_id;
+        $followUpIdTwo = $this->follow_up_id_two === null ? $ptId : (int) $this->follow_up_id_two;
+
+        if ($followUpId !== $ptId || $followUpIdTwo !== $ptId) {
+            return 'SLS';
+        }
+
+        $pricePaid = (float) $this->price_paid;
+        $normalPrice = (float) $this->normal_price;
+        $netPrice = (float) $this->net_price;
+
+        if ($normalPrice > 0 && $pricePaid >= $normalPrice) {
+            return 'SDR';
+        }
+
+        if ($netPrice > 0 && $pricePaid >= $netPrice) {
+            return 'IR';
+        }
+
+        if ($normalPrice > 0 || $netPrice > 0 || (float) $this->unrecommended_price > 0) {
+            return 'SPR';
+        }
+
+        return 'SDR';
     }
 
     public function calculateNominalAkhir(): float

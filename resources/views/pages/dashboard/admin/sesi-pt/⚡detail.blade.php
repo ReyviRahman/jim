@@ -9,6 +9,7 @@ use App\Models\PtPaymentBatchItem;
 use App\Models\PtSessionCategory;
 use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Livewire\Component;
@@ -314,7 +315,8 @@ new #[Layout('layouts::admin')] class extends Component
         $this->closePaymentPreview();
     }
 
-    private function payableBookings()
+    /** @return Collection<int, PtBooking> */
+    private function payableBookings(): Collection
     {
         $query = PtBooking::query()
             ->where('pt_id', $this->user->id)
@@ -322,10 +324,16 @@ new #[Layout('layouts::admin')] class extends Component
             ->where('is_free', false);
 
         if ($this->dateStart && $this->dateEnd) {
-            $query->whereBetween('booking_date', [
-                $this->dateStart . ' 00:00:00',
-                $this->dateEnd . ' 23:59:59',
-            ]);
+            $query
+                ->whereBetween('booking_date', [
+                    $this->dateStart.' 00:00:00',
+                    $this->dateEnd.' 23:59:59',
+                ])
+                ->whereHas('membership', function ($membershipQuery): void {
+                    $membershipQuery
+                        ->whereDate('start_date', '<=', $this->dateEnd)
+                        ->whereDate('pt_end_date', '>=', $this->dateStart);
+                });
         }
 
         return $query->with([
