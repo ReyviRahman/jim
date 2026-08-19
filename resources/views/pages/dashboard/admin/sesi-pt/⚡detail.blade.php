@@ -74,8 +74,22 @@ new #[Layout('layouts::admin')] class extends Component
     {
         return Membership::query()
             ->when($this->dateStart && $this->dateEnd, function ($query) {
-                $query->whereDate('start_date', '<=', $this->dateEnd)
-                    ->whereDate('pt_end_date', '>=', $this->dateStart);
+                $query->where(function ($q) {
+                    $q->where(function ($periodQuery) {
+                        $periodQuery->whereDate('start_date', '<=', $this->dateEnd)
+                            ->whereDate('pt_end_date', '>=', $this->dateStart);
+                    })->orWhereExists(function ($bookingQuery) {
+                        $bookingQuery->select(DB::raw(1))
+                            ->from('pt_bookings')
+                            ->whereColumn('pt_bookings.membership_id', 'memberships.id')
+                            ->where('pt_bookings.pt_id', $this->user->id)
+                            ->whereIn('pt_bookings.attendance', ['attended', 'noshow'])
+                            ->whereBetween('pt_bookings.booking_date', [
+                                $this->dateStart.' 00:00:00',
+                                $this->dateEnd.' 23:59:59',
+                            ]);
+                    });
+                });
             })
             ->when($this->search, function ($query) {
                 $query->whereHas('user', function ($q) {
@@ -324,16 +338,10 @@ new #[Layout('layouts::admin')] class extends Component
             ->where('is_free', false);
 
         if ($this->dateStart && $this->dateEnd) {
-            $query
-                ->whereBetween('booking_date', [
-                    $this->dateStart.' 00:00:00',
-                    $this->dateEnd.' 23:59:59',
-                ])
-                ->whereHas('membership', function ($membershipQuery): void {
-                    $membershipQuery
-                        ->whereDate('start_date', '<=', $this->dateEnd)
-                        ->whereDate('pt_end_date', '>=', $this->dateStart);
-                });
+            $query->whereBetween('booking_date', [
+                $this->dateStart.' 00:00:00',
+                $this->dateEnd.' 23:59:59',
+            ]);
         }
 
         return $query->with([

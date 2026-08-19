@@ -104,15 +104,27 @@ class PtSessionPaymentTest extends TestCase
             ->assertSet('filteredPaymentPreviewRows.0.member_name', 'Andi');
     }
 
-    public function test_payment_preview_uses_the_same_membership_date_range_as_the_session_table(): void
+    public function test_attended_sessions_outside_the_membership_period_are_still_counted(): void
     {
         $pt = $this->createUser(['role' => 'pt']);
         $admin = $this->createUser(['role' => 'admin']);
-        $includedMember = $this->createUser(['name' => 'Member Dalam Periode']);
-        $excludedMember = $this->createUser(['name' => 'Member Tanpa Periode']);
+        $expiredMember = $this->createUser(['name' => 'Member Periode Habis']);
+        $outOfRangeMember = $this->createUser(['name' => 'Member Luar Rentang']);
 
-        $includedMembership = Membership::create([
-            'user_id' => $includedMember->id,
+        $expiredMembership = Membership::create([
+            'user_id' => $expiredMember->id,
+            'type' => 'pt',
+            'pt_id' => $pt->id,
+            'base_price' => 100000,
+            'price_paid' => 100000,
+            'total_paid' => 100000,
+            'payment_status' => 'paid',
+            'start_date' => '2026-06-16',
+            'pt_end_date' => '2026-07-16',
+            'status' => 'active',
+        ]);
+        $outOfRangeMembership = Membership::create([
+            'user_id' => $outOfRangeMember->id,
             'type' => 'pt',
             'pt_id' => $pt->id,
             'base_price' => 100000,
@@ -123,32 +135,30 @@ class PtSessionPaymentTest extends TestCase
             'pt_end_date' => '2026-08-31',
             'status' => 'active',
         ]);
-        $excludedMembership = Membership::create([
-            'user_id' => $excludedMember->id,
-            'type' => 'pt',
+
+        PtBooking::create([
+            'membership_id' => $expiredMembership->id,
+            'member_id' => $expiredMember->id,
             'pt_id' => $pt->id,
-            'base_price' => 100000,
-            'price_paid' => 100000,
-            'total_paid' => 100000,
-            'payment_status' => 'paid',
-            'start_date' => null,
-            'pt_end_date' => null,
-            'status' => 'active',
+            'booking_date' => '2026-07-20',
+            'booking_time' => '09:00:00',
+            'status' => 'approved',
+            'attendance' => 'attended',
+            'is_free' => false,
+            'is_paid' => false,
         ]);
 
-        foreach ([$includedMembership, $excludedMembership] as $membership) {
-            PtBooking::create([
-                'membership_id' => $membership->id,
-                'member_id' => $membership->user_id,
-                'pt_id' => $pt->id,
-                'booking_date' => '2026-07-20',
-                'booking_time' => '09:00:00',
-                'status' => 'approved',
-                'attendance' => 'attended',
-                'is_free' => false,
-                'is_paid' => false,
-            ]);
-        }
+        PtBooking::create([
+            'membership_id' => $outOfRangeMembership->id,
+            'member_id' => $outOfRangeMember->id,
+            'pt_id' => $pt->id,
+            'booking_date' => '2026-09-20',
+            'booking_time' => '09:00:00',
+            'status' => 'approved',
+            'attendance' => 'attended',
+            'is_free' => false,
+            'is_paid' => false,
+        ]);
 
         PtSessionCategory::create([
             'pt_id' => $pt->id,
@@ -166,7 +176,7 @@ class PtSessionPaymentTest extends TestCase
             ->assertSet('paymentPreviewTotalSessions', 1)
             ->assertSet('paymentPreviewTotalAmount', 50000)
             ->assertCount('paymentPreviewRows', 1)
-            ->assertSet('paymentPreviewRows.0.member_name', 'Member Dalam Periode');
+            ->assertSet('paymentPreviewRows.0.member_name', 'Member Periode Habis');
     }
 
     public function test_substitute_pt_membership_uses_sls_category(): void
