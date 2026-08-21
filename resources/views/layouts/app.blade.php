@@ -16,13 +16,6 @@
         <div>
             {{ $slot }}
         </div>
-        <script src="https://cdn.jsdelivr.net/npm/flowbite@4.0.1/dist/flowbite.min.js"></script>
-        <script>
-            // Event ini dipicu setiap kali Livewire selesai navigasi (wire:navigate)
-            document.addEventListener('livewire:navigated', () => { 
-                initFlowbite();
-            });
-        </script>
         @livewireScripts
     </body>
 </html>

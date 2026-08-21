@@ -12,7 +12,7 @@ class RekapBonusDetailTableTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_key_bonus_columns_appear_immediately_after_number_column(): void
+    public function test_membership_package_column_appears_immediately_after_member_name(): void
     {
         $admin = $this->createUser('admin');
         $staffUser = $this->createUser('sales');
@@ -23,11 +23,44 @@ class RekapBonusDetailTableTest extends TestCase
             ->assertSeeInOrder([
                 'No',
                 'Nama Member',
+                'Paket Membership',
                 'Nominal',
                 'Nominal Akhir',
                 'Follow Up 1',
                 'Follow Up 2',
                 'Tgl Mulai',
+            ])
+            ->assertSeeHtml('<table class="block w-full table-fixed')
+            ->assertSeeHtml('<col class="w-[3%]">')
+            ->assertSeeHtml('<col class="w-[12%]">')
+            ->assertSeeHtml('<col class="w-[6%]">')
+            ->assertDontSeeHtml('overflow-x-auto');
+    }
+
+    public function test_mobile_bonus_cards_display_labels_for_every_table_value(): void
+    {
+        $admin = $this->createUser('admin');
+        $staffUser = $this->createUser('sales');
+        $member = $this->createUser('member');
+        $membership = $this->createPaidMembership($member, $admin, $staffUser);
+
+        $this->createTransaction($membership, $member, $admin, $staffUser, '2026-07-17');
+        $this->actingAs($admin);
+
+        Livewire::test('pages::dashboard.admin.rekap-bonus.detail', ['user' => $staffUser])
+            ->call('setDateRange', '2026-07-01 to 2026-07-31')
+            ->assertSeeHtml([
+                '<span class="font-medium text-gray-500 xl:hidden">No</span>',
+                '<span class="font-medium text-gray-500 xl:hidden">Nama Member</span>',
+                '<span class="font-medium text-gray-500 xl:hidden">Paket Membership</span>',
+                '<span class="font-medium text-gray-500 xl:hidden">Nominal</span>',
+                '<span class="font-medium text-gray-500 xl:hidden">Nominal Akhir</span>',
+                '<span class="font-medium text-gray-500 xl:hidden">Follow Up 1</span>',
+                '<span class="font-medium text-gray-500 xl:hidden">Follow Up 2</span>',
+                '<span class="font-medium text-gray-500 xl:hidden">Tgl Mulai</span>',
+                '<span class="font-medium text-gray-500 xl:hidden">Tgl Selesai</span>',
+                '<span class="font-medium text-gray-500 xl:hidden">Tgl Bayar</span>',
+                '<span class="font-medium text-gray-500 xl:hidden">Aksi</span>',
             ]);
     }
 

@@ -261,7 +261,7 @@ new #[Layout('layouts::admin')] class extends Component
         </div>
     </div>
 
-    <div class="relative overflow-x-auto bg-neutral-primary-soft shadow-xs rounded-md border border-default mb-6">
+    <div class="relative bg-neutral-primary-soft shadow-xs rounded-md border border-default mb-6">
         <div class="p-4 flex flex-col lg:flex-row items-center justify-between gap-4">
             
             {{-- Search --}}
@@ -304,40 +304,72 @@ new #[Layout('layouts::admin')] class extends Component
             </div>
         </div>
         
-        <table class="w-full text-sm text-left rtl:text-right text-body">
-            <thead class="text-xs text-body bg-neutral-secondary-medium border-b border-default-medium">
+        <div class="border-t border-default-medium p-3 xl:hidden">
+            <div class="flex flex-wrap items-center gap-2 text-xs">
+                <span class="font-medium text-gray-500">Urutkan:</span>
+                <button type="button" wire:click="sort('user_name')" class="rounded-md border px-2.5 py-1.5 font-medium {{ $sortBy === 'user_name' ? 'border-brand bg-brand text-[#34342F]' : 'border-default-medium bg-white text-body' }}">
+                    Nama Member
+                    @if($sortBy === 'user_name')
+                        {{ $sortDirection === 'asc' ? '▲' : '▼' }}
+                    @endif
+                </button>
+                <button type="button" wire:click="sort('package_name')" class="rounded-md border px-2.5 py-1.5 font-medium {{ $sortBy === 'package_name' ? 'border-brand bg-brand text-[#34342F]' : 'border-default-medium bg-white text-body' }}">
+                    Paket Membership
+                    @if($sortBy === 'package_name')
+                        {{ $sortDirection === 'asc' ? '▲' : '▼' }}
+                    @endif
+                </button>
+            </div>
+        </div>
+
+        <div class="overflow-hidden">
+        <table class="block w-full table-fixed text-left text-xs leading-tight text-body xl:table">
+            <colgroup class="hidden xl:table-column-group">
+                <col class="w-[3%]">
+                <col class="w-[12%]">
+                <col class="w-[12%]">
+                <col class="w-[10%]">
+                <col class="w-[10%]">
+                <col class="w-[9%]">
+                <col class="w-[9%]">
+                <col class="w-[10%]">
+                <col class="w-[10%]">
+                <col class="w-[9%]">
+                <col class="w-[6%]">
+            </colgroup>
+            <thead class="hidden border-b border-default-medium bg-neutral-secondary-medium text-[10px] text-body xl:table-header-group 2xl:text-xs">
                 <tr>
-                    <th rowspan="3" class="px-6 py-3 font-medium align-middle border border-default-medium">No</th>
-                    <th rowspan="3" wire:click="sort('user_name')" class="px-6 py-3 font-medium align-middle border border-default-medium cursor-pointer hover:bg-gray-200 select-none">
+                    <th rowspan="3" class="break-words border border-default-medium px-1.5 py-2 align-middle font-medium">No</th>
+                    <th rowspan="3" wire:click="sort('user_name')" class="cursor-pointer break-words border border-default-medium px-1.5 py-2 align-middle font-medium select-none hover:bg-gray-200">
                         Nama Member
                         @if($sortBy === 'user_name')
                             <span class="ml-1">{{ $sortDirection === 'asc' ? '▲' : '▼' }}</span>
                         @endif
                     </th>
-                    <th rowspan="3" class="px-6 py-3 font-medium text-right align-middle border border-default-medium">Nominal</th>
-                    <th rowspan="3" class="px-6 py-3 font-medium text-right align-middle border border-default-medium">Nominal Akhir</th>
-                    <th rowspan="3" class="px-6 py-3 font-medium align-middle border border-default-medium">Follow Up 1</th>
-                    <th rowspan="3" class="px-6 py-3 font-medium align-middle border border-default-medium">Follow Up 2</th>
-                    <th class="px-6 py-3 font-medium text-center border border-default-medium">Tgl Mulai</th>
-                    <th class="px-6 py-3 font-medium text-center border border-default-medium">Tgl Selesai</th>
-                    <th rowspan="3" class="px-6 py-3 font-medium align-middle border border-default-medium">Tgl Bayar</th>
-                    <th rowspan="3" wire:click="sort('package_name')" class="px-6 py-3 font-medium align-middle border border-default-medium cursor-pointer hover:bg-gray-200 select-none">
+                    <th rowspan="3" wire:click="sort('package_name')" class="cursor-pointer break-words border border-default-medium px-1.5 py-2 align-middle font-medium select-none hover:bg-gray-200">
                         Paket Membership
                         @if($sortBy === 'package_name')
                             <span class="ml-1">{{ $sortDirection === 'asc' ? '▲' : '▼' }}</span>
                         @endif
                     </th>
-                    <th rowspan="3" class="px-6 py-3 font-medium align-middle border border-default-medium">Aksi</th>
+                    <th rowspan="3" class="break-words border border-default-medium px-1.5 py-2 text-right align-middle font-medium">Nominal</th>
+                    <th rowspan="3" class="break-words border border-default-medium px-1.5 py-2 text-right align-middle font-medium">Nominal Akhir</th>
+                    <th rowspan="3" class="break-words border border-default-medium px-1.5 py-2 align-middle font-medium">Follow Up 1</th>
+                    <th rowspan="3" class="break-words border border-default-medium px-1.5 py-2 align-middle font-medium">Follow Up 2</th>
+                    <th class="break-words border border-default-medium px-1.5 py-2 text-center font-medium">Tgl Mulai</th>
+                    <th class="break-words border border-default-medium px-1.5 py-2 text-center font-medium">Tgl Selesai</th>
+                    <th rowspan="3" class="break-words border border-default-medium px-1.5 py-2 align-middle font-medium">Tgl Bayar</th>
+                    <th rowspan="3" class="break-words border border-default-medium px-1.5 py-2 align-middle font-medium">Aksi</th>
                 </tr>
                 <tr>
-                    <th colspan="2" class="px-6 py-3 font-medium text-center border border-default-medium">MEMBERSHIP</th>
+                    <th colspan="2" class="break-words border border-default-medium px-1.5 py-2 text-center font-medium">MEMBERSHIP</th>
                 </tr>
                 <tr>
-                    <th class="px-6 py-3 font-medium text-center border border-default-medium">SALES ADMIN</th>
-                    <th class="px-6 py-3 font-medium text-center uppercase border border-default-medium">{{ $staffUser->name }}</th>
+                    <th class="break-words border border-default-medium px-1.5 py-2 text-center font-medium">SALES ADMIN</th>
+                    <th class="break-words border border-default-medium px-1.5 py-2 text-center font-medium uppercase">{{ $staffUser->name }}</th>
                 </tr>
             </thead>
-            <tbody>
+            <tbody class="grid gap-3 bg-gray-50 p-3 xl:table-row-group xl:bg-transparent xl:p-0">
                @forelse ($this->memberships as $membership)
                     @php
                         // Menentukan nama paket (transaction_type + package_name)
@@ -347,13 +379,28 @@ new #[Layout('layouts::admin')] class extends Component
                         $nominalAkhir = $membership->calculateNominalAkhir();
                     @endphp
                     
-                    <tr wire:key="{{ $membership->id }}" class="bg-white border-b border-gray-100 hover:bg-gray-50">
-                        <td class="px-6 py-4">{{ $loop->iteration + ($this->memberships->currentPage() - 1) * $this->memberships->perPage() }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap font-bold text-gray-800">
-                            {{ $membership->user->name ?? '-' }}
+                    <tr wire:key="{{ $membership->id }}" class="grid grid-cols-1 overflow-hidden rounded-md border border-gray-200 bg-white shadow-xs sm:grid-cols-2 xl:table-row xl:rounded-none xl:border-x-0 xl:border-t-0 xl:shadow-none xl:hover:bg-gray-50">
+                        <td class="flex min-w-0 items-start justify-between gap-4 border-b border-gray-100 px-3 py-2 sm:block xl:table-cell xl:border-0 xl:px-1.5 xl:py-2 xl:align-top">
+                            <span class="font-medium text-gray-500 xl:hidden">No</span>
+                            <span class="min-w-0 break-words text-right sm:block sm:text-left xl:text-left">{{ $loop->iteration + ($this->memberships->currentPage() - 1) * $this->memberships->perPage() }}</span>
                         </td>
-                        <td class="px-6 py-4 text-right whitespace-nowrap text-gray-600">
-                            <div>Rp {{ number_format($nominal, 0, ',', '.') }}</div>
+                        <td class="flex min-w-0 items-start justify-between gap-4 border-b border-gray-100 px-3 py-2 sm:block xl:table-cell xl:border-0 xl:px-1.5 xl:py-2 xl:align-top">
+                            <span class="font-medium text-gray-500 xl:hidden">Nama Member</span>
+                            <span class="min-w-0 break-words text-right font-bold text-gray-800 sm:block sm:text-left xl:text-left">
+                                {{ $membership->user->name ?? '-' }}
+                            </span>
+                        </td>
+                        <td class="flex min-w-0 items-start justify-between gap-4 border-b border-gray-100 px-3 py-2 sm:block xl:table-cell xl:border-0 xl:px-1.5 xl:py-2 xl:align-top">
+                            <span class="font-medium text-gray-500 xl:hidden">Paket Membership</span>
+                            <span class="min-w-0 break-words text-right sm:block sm:text-left xl:text-left">
+                                <span class="inline-block max-w-full break-words rounded border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-[10px] font-medium text-gray-700 uppercase shadow-xs">
+                                    {{ $packageName }}
+                                </span>
+                            </span>
+                        </td>
+                        <td class="flex min-w-0 items-start justify-between gap-4 border-b border-gray-100 px-3 py-2 text-right sm:block xl:table-cell xl:border-0 xl:px-1.5 xl:py-2 xl:align-top">
+                            <span class="font-medium text-gray-500 xl:hidden">Nominal</span>
+                            <span class="min-w-0 break-words sm:block">Rp {{ number_format($nominal, 0, ',', '.') }}</span>
 
                             @if(auth()->check() && auth()->user()->role === 'admin')
                                 @php
@@ -361,80 +408,82 @@ new #[Layout('layouts::admin')] class extends Component
                                 @endphp
 
                                 @if($priceLabelData)
-                                    <div class="mt-1 flex justify-end">
-                                        <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full {{ $priceLabelData['color'] }}">
+                                    <div class="mt-1 flex justify-end sm:justify-start xl:justify-end">
+                                        <span class="break-words rounded-full px-1.5 py-0.5 text-[9px] font-semibold {{ $priceLabelData['color'] }}">
                                             {{ $priceLabelData['label'] }}
                                         </span>
                                     </div>
                                 @endif
                             @endif
                         </td>
-                        <td class="px-6 py-4 text-right font-bold text-emerald-600 whitespace-nowrap">
-                            Rp {{ number_format($nominalAkhir, 0, ',', '.') }}
+                        <td class="flex min-w-0 items-start justify-between gap-4 border-b border-gray-100 px-3 py-2 text-right sm:block xl:table-cell xl:border-0 xl:px-1.5 xl:py-2 xl:align-top">
+                            <span class="font-medium text-gray-500 xl:hidden">Nominal Akhir</span>
+                            <span class="min-w-0 break-words font-bold text-emerald-600 sm:block">Rp {{ number_format($nominalAkhir, 0, ',', '.') }}</span>
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            {{ $membership->followUp->name ?? '-' }}
+                        <td class="flex min-w-0 items-start justify-between gap-4 border-b border-gray-100 px-3 py-2 sm:block xl:table-cell xl:border-0 xl:px-1.5 xl:py-2 xl:align-top">
+                            <span class="font-medium text-gray-500 xl:hidden">Follow Up 1</span>
+                            <span class="min-w-0 break-words text-right sm:block sm:text-left xl:text-left">{{ $membership->followUp->name ?? '-' }}</span>
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            {{ $membership->followUpTwo->name ?? '-' }}
+                        <td class="flex min-w-0 items-start justify-between gap-4 border-b border-gray-100 px-3 py-2 sm:block xl:table-cell xl:border-0 xl:px-1.5 xl:py-2 xl:align-top">
+                            <span class="font-medium text-gray-500 xl:hidden">Follow Up 2</span>
+                            <span class="min-w-0 break-words text-right sm:block sm:text-left xl:text-left">{{ $membership->followUpTwo->name ?? '-' }}</span>
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            {{ $membership->start_date ? \Carbon\Carbon::parse($membership->start_date)->translatedFormat('l, d F Y') : 'BELUM AKTIF' }}
+                        <td class="flex min-w-0 items-start justify-between gap-4 border-b border-gray-100 px-3 py-2 sm:block xl:table-cell xl:border-0 xl:px-1.5 xl:py-2 xl:align-top">
+                            <span class="font-medium text-gray-500 xl:hidden">Tgl Mulai</span>
+                            <span class="min-w-0 break-words text-right sm:block sm:text-left xl:text-left">{{ $membership->start_date ? \Carbon\Carbon::parse($membership->start_date)->translatedFormat('l, d F Y') : 'BELUM AKTIF' }}</span>
                         </td>
 
-                        <td class="px-6 py-4 whitespace-nowrap">
+                        <td class="flex min-w-0 items-start justify-between gap-4 border-b border-gray-100 px-3 py-2 sm:block xl:table-cell xl:border-0 xl:px-1.5 xl:py-2 xl:align-top">
                             @php
                                 $endDate = $membership->type === 'pt' ? $membership->pt_end_date : $membership->membership_end_date;
                             @endphp
-                            {{ $endDate ? \Carbon\Carbon::parse($endDate)->translatedFormat('l, d F Y') : 'BELUM AKTIF' }}
+                            <span class="font-medium text-gray-500 xl:hidden">Tgl Selesai</span>
+                            <span class="min-w-0 break-words text-right sm:block sm:text-left xl:text-left">{{ $endDate ? \Carbon\Carbon::parse($endDate)->translatedFormat('l, d F Y') : 'BELUM AKTIF' }}</span>
                         </td>
 
-                        <td class="px-6 py-4 whitespace-nowrap text-yellow-500 font-semibold">
-                            {{ $membership->transactions->sortByDesc('payment_date')->first()?->payment_date?->translatedFormat('d F Y') ?? '-' }}
+                        <td class="flex min-w-0 items-start justify-between gap-4 border-b border-gray-100 px-3 py-2 sm:block xl:table-cell xl:border-0 xl:px-1.5 xl:py-2 xl:align-top">
+                            <span class="font-medium text-gray-500 xl:hidden">Tgl Bayar</span>
+                            <span class="min-w-0 break-words text-right font-semibold text-yellow-500 sm:block sm:text-left xl:text-left">{{ $membership->transactions->sortByDesc('payment_date')->first()?->payment_date?->translatedFormat('d F Y') ?? '-' }}</span>
                         </td>
 
-                        <td class="px-6 py-4 font-medium text-gray-700 whitespace-nowrap">
-                            <span class="px-2 py-0.5 text-xs rounded border border-gray-200 bg-gray-50 shadow-xs uppercase">
-                                {{ $packageName }}
-                            </span>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
+                        <td class="flex min-w-0 items-start justify-between gap-4 px-3 py-2 sm:block xl:table-cell xl:px-1.5 xl:py-2 xl:align-top">
+                            <span class="font-medium text-gray-500 xl:hidden">Aksi</span>
                             @if(auth()->user()->role === 'admin')
-                                <a href="{{ route('admin.membership.edit', $membership->id) }}?redirect_to={{ urlencode('admin.rekap-bonus.detail') }}&redirect_id={{ $staffUser->id }}" class="inline-flex items-center text-brand hover:text-brand-dark font-medium text-sm">
-                                    <svg class="w-4 h-4 me-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10"></path></svg>
+                                <a href="{{ route('admin.membership.edit', $membership->id) }}?redirect_to={{ urlencode('admin.rekap-bonus.detail') }}&redirect_id={{ $staffUser->id }}" class="inline-flex items-center break-words text-right text-xs font-medium text-brand hover:text-brand-dark sm:text-left">
+                                    <svg class="me-1 h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10"></path></svg>
                                     Edit
                                 </a>
                             @endif
                         </td>
                     </tr>
                 @empty
-                    <tr>
-                        <td colspan="11" class="px-6 py-8 text-center text-gray-500">
+                    <tr class="block xl:table-row">
+                        <td colspan="11" class="block px-3 py-8 text-center text-gray-500 xl:table-cell">
                             Belum ada riwayat bonus untuk rentang waktu ini.
                         </td>
                     </tr>
                 @endforelse
             </tbody>
             @if($this->memberships->count() > 0)
-                <tfoot class="bg-gray-100 font-semibold text-gray-900 border-t-2 border-gray-300">
-                    <tr>
-                        <td colspan="3" class="px-6 py-4 text-right">
+            <tfoot class="block border-t-2 border-gray-300 bg-gray-100 font-semibold text-gray-900 xl:table-footer-group">
+                    <tr class="grid grid-cols-1 xl:table-row">
+                        <td colspan="4" class="block px-3 pt-3 text-left xl:table-cell xl:px-1.5 xl:py-2 xl:text-right">
                             Total Keseluruhan:
                         </td>
-                        <td class="px-6 py-4 text-right text-emerald-700 whitespace-nowrap">
+                        <td class="block break-words px-3 pb-3 text-left text-emerald-700 xl:table-cell xl:px-1.5 xl:py-2 xl:text-right">
                             Rp {{ number_format($this->totalNominalAkhir, 0, ',', '.') }}
                         </td>
-                        <td colspan="7" class="px-6 py-4"></td>
+                        <td colspan="6" class="hidden px-1.5 py-2 xl:table-cell"></td>
                     </tr>
                     @if(in_array(auth()->user()->role, ['admin', 'head_coach']))
                         @php
                             $bonus = $this->bonusInfo;
                         @endphp
                         @if($bonus['persen'] > 0)
-                            <tr class="border-t border-gray-200">
-                                <td colspan="3" class="px-6 py-4 text-right text-gray-600">
+                            <tr class="grid grid-cols-1 border-t border-gray-200 xl:table-row">
+                                <td colspan="4" class="block px-3 pt-3 text-left text-gray-600 xl:table-cell xl:px-1.5 xl:py-2 xl:text-right">
                                     Bonus ({{ $bonus['persen'] }}%)
-                                    <span class="text-xs text-gray-400 block">
+                                    <span class="block break-words text-[10px] text-gray-400">
                                         Rentang:
                                         @if(strtolower($bonus['rentang_satu']) === 'min')
                                             ≤ Rp {{ number_format((float) $bonus['rentang_dua'], 0, ',', '.') }}
@@ -445,26 +494,27 @@ new #[Layout('layouts::admin')] class extends Component
                                         @endif
                                     </span>
                                 </td>
-                                <td class="px-6 py-4 text-right text-blue-700 whitespace-nowrap">
+                                <td class="block break-words px-3 pb-3 text-left text-blue-700 xl:table-cell xl:px-1.5 xl:py-2 xl:text-right">
                                     Rp {{ number_format($bonus['total_bonus'], 0, ',', '.') }}
                                 </td>
-                                <td colspan="7" class="px-6 py-4"></td>
+                                <td colspan="6" class="hidden px-1.5 py-2 xl:table-cell"></td>
                             </tr>
                         @else
-                            <tr class="border-t border-gray-200">
-                                <td colspan="3" class="px-6 py-4 text-right text-gray-500">
+                            <tr class="grid grid-cols-1 border-t border-gray-200 xl:table-row">
+                                <td colspan="4" class="block px-3 pt-3 text-left text-gray-500 xl:table-cell xl:px-1.5 xl:py-2 xl:text-right">
                                     Tidak ada rentang bonus yang cocok
                                 </td>
-                                <td class="px-6 py-4 text-right text-gray-400 whitespace-nowrap">
+                                <td class="block break-words px-3 pb-3 text-left text-gray-400 xl:table-cell xl:px-1.5 xl:py-2 xl:text-right">
                                     Rp 0
                                 </td>
-                                <td colspan="7" class="px-6 py-4"></td>
+                                <td colspan="6" class="hidden px-1.5 py-2 xl:table-cell"></td>
                             </tr>
                         @endif
                     @endif
                 </tfoot>
             @endif
         </table>
+        </div>
     </div>
     <div class="mb-6">
         {{ $this->memberships->links() }}

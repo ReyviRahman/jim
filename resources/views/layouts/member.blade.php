@@ -13,7 +13,7 @@
     </head>
     <body>
         <livewire:dashboard.navbar />
-        <aside id="top-bar-sidebar" class="fixed top-0 left-0 z-40 w-64 h-full transition-transform -translate-x-full sm:translate-x-0" aria-label="Sidebar">
+        <aside id="top-bar-sidebar" class="fixed top-0 left-0 z-40 w-64 h-full -translate-x-full transition-transform duration-300 ease-in-out" aria-label="Sidebar" aria-hidden="true">
         <div class="h-full px-3 py-4 overflow-y-auto bg-[#34342F] border-e border-default">
             <a href="https://flowbite.com/" class="flex items-center ps-2.5 mb-5">
                 <img src="https://flowbite.com/docs/images/logo.svg" class="h-6 me-3" alt="Flowbite Logo" />
@@ -54,21 +54,13 @@
         </div>
         </aside>
 
-        <div class="p-4 sm:ml-64 mt-14">
+        <div id="dashboard-content" class="p-4 sm:ml-64 mt-14 transition-[margin] duration-300 ease-in-out">
             <div class="p-4 border-1 border-default rounded-md">
                 {{ $slot }}
             </div>
         </div>
         
-        <script src="https://cdn.jsdelivr.net/npm/flowbite@4.0.1/dist/flowbite.min.js"></script>
-        <script>
-            // Event ini dipicu setiap kali Livewire selesai navigasi (wire:navigate)
-            document.addEventListener('livewire:navigated', () => { 
-                initFlowbite();
-            });
-        </script>
         @livewireScripts
     </body>
 </html>
-
 
