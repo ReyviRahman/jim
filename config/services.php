@@ -46,4 +46,17 @@ return [
         'user_search_endpoint' => env('HIKVISION_USER_SEARCH_ENDPOINT', '/ISAPI/AccessControl/UserInfo/Search?format=json'),
     ],
 
+    'meta_whatsapp' => [
+        'app_id' => env('META_APP_ID'),
+        'app_secret' => env('META_APP_SECRET'),
+        'login_config_id' => env('META_LOGIN_CONFIG_ID'),
+        'graph_version' => env('META_GRAPH_VERSION', 'v25.0'),
+        'graph_base_url' => env('META_GRAPH_BASE_URL', 'https://graph.facebook.com'),
+        'recipient' => env('WHATSAPP_RECIPIENT', '6281372157714'),
+        'template_name' => env('WHATSAPP_TEMPLATE_NAME', 'laporan_transaksi'),
+        'template_language' => env('WHATSAPP_TEMPLATE_LANGUAGE', 'id'),
+        'timeout' => (int) env('META_HTTP_TIMEOUT', 15),
+        'connect_timeout' => (int) env('META_HTTP_CONNECT_TIMEOUT', 5),
+    ],
+
 ];

@@ -2,6 +2,10 @@ import './bootstrap';
 import flatpickr from "flatpickr";
 import Chart from 'chart.js/auto';
 import { initFlowbite } from 'flowbite';
+import {
+    destroyWhatsAppEmbeddedSignup,
+    initializeWhatsAppEmbeddedSignup,
+} from './whatsapp-embedded-signup';
 
 // Jadikan global agar Alpine.js di file Blade bisa memanggil fungsi flatpickr() dan Chart
 window.Chart = Chart;
@@ -236,15 +240,24 @@ function initializePageUi() {
     initializeDashboardSidebar();
     restoreSidebarScrollPosition();
     initializeResponsiveTables();
+    initializeWhatsAppEmbeddedSignup();
 }
 
 document.addEventListener('livewire:init', () => {
-    Livewire.hook('morphed', ({ el }) => initializeResponsiveTables(el));
-    Livewire.hook('partial.morphed', ({ startNode }) => initializeResponsiveTables(startNode.parentElement));
+    Livewire.hook('morphed', ({ el }) => {
+        initializeResponsiveTables(el);
+        initializeWhatsAppEmbeddedSignup();
+    });
+    Livewire.hook('partial.morphed', ({ startNode }) => {
+        initializeResponsiveTables(startNode.parentElement);
+        initializeWhatsAppEmbeddedSignup();
+    });
 }, { once: true });
 
 // Persist sidebar scroll position across wire:navigate
 document.addEventListener('livewire:navigating', () => {
+    destroyWhatsAppEmbeddedSignup();
+
     const sidebar = document.querySelector('#top-bar-sidebar div.overflow-y-auto');
     if (sidebar) {
         sessionStorage.setItem('sidebar_scroll', sidebar.scrollTop);

@@ -92,10 +92,12 @@ new class extends Component {
                                 <span class="block text-white truncate">{{ Auth::user()->email }}</span>
                             </div>
                             <ul class="p-2 text-sm text-white font-medium" aria-labelledby="user-menu-button">
-                                <li>
-                                    <a href="#"
-                                        class="inline-flex items-center w-full p-2 hover:bg-neutral-tertiary-medium hover:text-heading rounded">Settings</a>
-                                </li>
+                                @if(Auth::user()->role === 'admin')
+                                    <li>
+                                        <a href="{{ route('admin.whatsapp.settings') }}" wire:navigate
+                                            class="inline-flex items-center w-full p-2 hover:bg-neutral-tertiary-medium hover:text-heading rounded">Pengaturan WhatsApp</a>
+                                    </li>
+                                @endif
                                 <li>
                                     <button type="button" 
                                         wire:click="logout"

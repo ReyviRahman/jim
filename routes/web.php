@@ -253,5 +253,8 @@ Route::middleware('auth')->group(function () {
     Route::middleware('role:admin')->prefix('dashboard/admin')->group(function () {
         Route::livewire('/rentang-bonus', 'pages::dashboard.admin.rentang-bonus')
             ->name('admin.rentang-bonus.index');
+
+        Route::livewire('/pengaturan/whatsapp', 'pages::dashboard.admin.pengaturan.whatsapp')
+            ->name('admin.whatsapp.settings');
     });
 });

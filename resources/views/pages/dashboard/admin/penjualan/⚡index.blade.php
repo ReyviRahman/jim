@@ -2,6 +2,9 @@
 
 namespace App\Livewire\Admin;
 
+use App\Exceptions\MetaWhatsAppException;
+use App\MetaWhatsAppService;
+use App\Models\WhatsAppIntegration;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Livewire\Attributes\Computed;
@@ -181,6 +184,36 @@ new #[Layout('layouts::admin')] class extends Component
 
     public function updatedPerPage() { $this->resetPage(); }
     public function updatedShift() { $this->resetPage(); }
+
+    #[Computed]
+    public function whatsAppConnected(): bool
+    {
+        return WhatsAppIntegration::current()?->isConnected() ?? false;
+    }
+
+    public function sendWhatsApp(int $transactionId, MetaWhatsAppService $metaWhatsAppService): void
+    {
+        abort_unless(
+            in_array(Auth::user()?->role, ['admin', 'kasir_gym', 'head_coach'], true),
+            403,
+        );
+
+        $transaction = MembershipTransaction::query()
+            ->with(['user', 'admin', 'followUp', 'followUpTwo', 'membership.members'])
+            ->findOrFail($transactionId);
+
+        try {
+            $messageId = $metaWhatsAppService->sendTransaction($transaction);
+
+            session()->flash(
+                'success',
+                "Data transaksi {$transaction->invoice_number} berhasil dikirim. WAMID: {$messageId}",
+            );
+        } catch (MetaWhatsAppException $exception) {
+            unset($this->whatsAppConnected);
+            session()->flash('error', $exception->getMessage());
+        }
+    }
 
     /**
      * Membuat Query dasar untuk dipakai tabel dan Grand Total
@@ -426,6 +459,15 @@ new #[Layout('layouts::admin')] class extends Component
         </div>
     @endif
 
+    @unless($this->whatsAppConnected)
+        <div class="mb-4 flex flex-col gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 sm:flex-row sm:items-center sm:justify-between" role="alert">
+            <span>WhatsApp belum terhubung. Tombol kirim dinonaktifkan sampai koneksi Meta selesai.</span>
+            @if(Auth::user()?->role === 'admin')
+                <a href="{{ route('admin.whatsapp.settings') }}" wire:navigate class="font-semibold underline underline-offset-2">Buka Pengaturan WhatsApp</a>
+            @endif
+        </div>
+    @endunless
+
     {{-- Filter Bar --}}
     <div class="relative overflow-hidden bg-neutral-primary-soft shadow-xs rounded-md border border-default mb-6">
         <div class="p-4 flex flex-col lg:flex-row items-center justify-between gap-4">
@@ -500,6 +542,7 @@ new #[Layout('layouts::admin')] class extends Component
                     <th class="px-6 py-3 font-medium">Nama Kasir</th>
                     <th class="px-6 py-3 font-medium">Admin Follow Up</th>
                     <th class="px-6 py-3 font-medium">Sales Follow Up</th>
+                    <th class="px-6 py-3 font-medium">WhatsApp</th>
                 </tr>
             </thead>
             <tbody>
@@ -549,9 +592,24 @@ new #[Layout('layouts::admin')] class extends Component
                         <td class="px-6 py-4">{{ $transaction->admin->name ?? '-' }}</td>
                         <td class="px-6 py-4">{{ $transaction->followUp->name ?? '-' }}</td>
                         <td class="px-6 py-4">{{ $transaction->followUpTwo->name ?? '-' }}</td>
+                        <td class="px-6 py-4">
+                            <button type="button"
+                                wire:click="sendWhatsApp({{ $transaction->id }})"
+                                wire:loading.attr="disabled"
+                                wire:target="sendWhatsApp({{ $transaction->id }})"
+                                @disabled(! $this->whatsAppConnected)
+                                title="{{ $this->whatsAppConnected ? 'Kirim transaksi ini ke WhatsApp' : 'Hubungkan WhatsApp terlebih dahulu' }}"
+                                class="inline-flex items-center justify-center gap-1.5 rounded-md bg-green-600 px-3 py-2 text-xs font-semibold text-white shadow-xs hover:bg-green-700 focus:outline-none focus:ring-4 focus:ring-green-200 disabled:cursor-not-allowed disabled:opacity-50">
+                                <svg wire:loading.remove wire:target="sendWhatsApp({{ $transaction->id }})" class="h-4 w-4" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.5 11.5 11 14l4.5-5m5.5 3a9 9 0 0 1-13.8 7.6L3 21l1.4-4.2A9 9 0 1 1 21 12Z"/>
+                                </svg>
+                                <span wire:loading.remove wire:target="sendWhatsApp({{ $transaction->id }})">Kirim WA</span>
+                                <span wire:loading wire:target="sendWhatsApp({{ $transaction->id }})">Mengirim...</span>
+                            </button>
+                        </td>
                     </tr>
                 @empty
-                    <tr><td colspan="13" class="px-6 py-8 text-center text-gray-500">Belum ada riwayat penjualan.</td></tr>
+                    <tr><td colspan="14" class="px-6 py-8 text-center text-gray-500">Belum ada riwayat penjualan.</td></tr>
                 @endforelse
             </tbody>
         </table>
