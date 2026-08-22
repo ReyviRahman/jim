@@ -158,7 +158,7 @@ new #[Layout('layouts::admin')] class extends Component
         </div>
     @endif
 
-    <div class="relative overflow-x-auto bg-neutral-primary-soft shadow-xs rounded-md border border-default">
+    <div class="relative overflow-hidden bg-neutral-primary-soft shadow-xs rounded-md border border-default">
         <div class="p-4 flex flex-col md:flex-row items-center justify-between gap-4">
             
             <div class="relative w-full md:w-auto md:flex-1">
@@ -219,7 +219,7 @@ new #[Layout('layouts::admin')] class extends Component
                 </div>
             </div>
         </div>
-        <table class="w-full text-sm text-left rtl:text-right text-body">
+        <table data-responsive-table data-responsive-breakpoint="xl" class="table-fixed w-full text-sm text-left rtl:text-right text-body">
             <thead class="text-sm text-body bg-neutral-secondary-medium border-b border-default-medium">
                 <tr>
                     <th scope="col" class="px-6 py-3 font-medium">No</th>
@@ -238,12 +238,12 @@ new #[Layout('layouts::admin')] class extends Component
                     <tr wire:key="{{ $user->id }}" wire:click="goToDetail({{ $user->id }})" class="bg-neutral-primary-soft border-b border-default hover:bg-neutral-secondary-medium cursor-pointer">
                         
                         {{-- Nomor Urut --}}
-                        <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
+                        <td class="px-6 py-4 font-medium text-heading">
                             {{ $loop->iteration + ($this->users->currentPage() - 1) * $this->users->perPage() }}
                         </td>
 
                         {{-- INFO MEMBER --}}
-                        <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
+                        <td class="px-6 py-4 font-medium text-heading">
                             <div class="flex items-center gap-2">
                                 @if($user->photo)
                                     <img class="w-8 h-8 rounded-full object-cover" src="{{ asset('storage/' . $user->photo) }}" alt="{{ $user->name }}">
@@ -258,7 +258,7 @@ new #[Layout('layouts::admin')] class extends Component
                         </td>
 
                         {{-- INFO PROGRAM / PAKET --}}
-                        <td class="px-6 py-4 text-heading whitespace-nowrap">
+                        <td class="px-6 py-4 text-heading">
                             @if($latest)
                                 <div class="flex flex-col gap-2">
                                     @if(in_array($latest->type, ['membership', 'bundle_pt_membership', 'visit']))
@@ -301,7 +301,7 @@ new #[Layout('layouts::admin')] class extends Component
                         </td>
 
                         {{-- Total Bayar --}}
-                        <td class="px-6 py-4 text-right whitespace-nowrap">
+                        <td class="px-6 py-4 text-right">
                             @if($latest)
                                 @if($latest->discount_applied > 0)
                                     @php
@@ -345,7 +345,7 @@ new #[Layout('layouts::admin')] class extends Component
                         </td>
 
                         {{-- Masa Aktif --}}
-                        <td class="px-6 py-4 whitespace-nowrap text-xs">
+                        <td class="px-6 py-4 text-xs">
                             @if($latest)
                                 <div class="flex flex-col gap-1.5">
                                     <div class="flex items-center text-gray-600">
@@ -379,13 +379,13 @@ new #[Layout('layouts::admin')] class extends Component
                             @endif
                         </td>
 
-                        <td class="px-6 py-4 font-medium text-heading whitespace-nowrap text-center">
+                        <td class="px-6 py-4 font-medium text-heading text-center">
                             <span class="font-semibold">{{ $latest->followUp->name ?? '-' }}</span>
                         </td>
-                        <td class="px-6 py-4 font-medium text-heading whitespace-nowrap text-center">
+                        <td class="px-6 py-4 font-medium text-heading text-center">
                             <span class="font-semibold">{{ $latest->followUpTwo->name ?? '-' }}</span>
                         </td>
-                        <td class="px-6 py-4 text-center whitespace-nowrap">
+                        <td class="px-6 py-4 text-center">
                             @if($latest)
                                 <span x-data>
                                     <a href="{{ route('admin.riwayat.membership.invoice', $latest) }}" @click.stop

@@ -324,8 +324,8 @@ new #[Layout('layouts::admin')] class extends Component
                     placeholder="Cari nama produk atau staff...">
             </div>
         </div>
-        <div class="overflow-x-auto">
-            <table class="w-full text-sm text-left rtl:text-right text-body">
+        <div class="overflow-hidden">
+            <table data-responsive-table data-responsive-breakpoint="lg" class="table-fixed w-full text-sm text-left rtl:text-right text-body">
                 <thead class="text-sm text-body bg-neutral-secondary-medium border-b border-default-medium">
                     <tr>
                         <th scope="col" class="px-4 py-3 font-medium">Tanggal</th>
@@ -353,20 +353,20 @@ new #[Layout('layouts::admin')] class extends Component
                             };
                         @endphp
                         <tr class="{{ $bgColor }} border-b border-default hover:bg-neutral-secondary-medium">
-                            <td class="px-4 py-3 whitespace-nowrap">{{ $sale->waktu_transaksi->format('d M Y H:i') }}</td>
-                            <td class="px-4 py-3 whitespace-nowrap">{{ $sale->nama_staff }}</td>
-                            <td class="px-4 py-3 whitespace-nowrap">{{ $sale->nama_penghutang ?? '-' }}</td>
-                            <td class="px-4 py-3 whitespace-nowrap">{{ $sale->nama_produk ?? '-' }}</td>
-                            <td class="px-4 py-3 text-center whitespace-nowrap">{{ $sale->jumlah_beli }}</td>
-                            <td class="px-4 py-3 text-right whitespace-nowrap">Rp {{ number_format($sale->harga_satuan, 0, ',', '.') }}</td>
-                            <td class="px-4 py-3 text-right whitespace-nowrap font-semibold text-emerald-600">
+                            <td class="px-4 py-3">{{ $sale->waktu_transaksi->format('d M Y H:i') }}</td>
+                            <td class="px-4 py-3">{{ $sale->nama_staff }}</td>
+                            <td class="px-4 py-3">{{ $sale->nama_penghutang ?? '-' }}</td>
+                            <td class="px-4 py-3">{{ $sale->nama_produk ?? '-' }}</td>
+                            <td class="px-4 py-3 text-center">{{ $sale->jumlah_beli }}</td>
+                            <td class="px-4 py-3 text-right">Rp {{ number_format($sale->harga_satuan, 0, ',', '.') }}</td>
+                            <td class="px-4 py-3 text-right font-semibold text-emerald-600">
                                 Rp {{ number_format($sale->total_harga + ($sale->save_deposit ?? 0), 0, ',', '.') }}
                                 @if($sale->save_deposit > 0)
                                     <span class="block text-[10px] text-body font-normal">(termasuk deposit Rp {{ number_format($sale->save_deposit, 0, ',', '.') }})</span>
                                 @endif
                             </td>
-                            <td class="px-4 py-3 whitespace-nowrap">{{ ucfirst($sale->shift) }}</td>
-                            <td class="px-4 py-3 whitespace-nowrap">
+                            <td class="px-4 py-3">{{ ucfirst($sale->shift) }}</td>
+                            <td class="px-4 py-3">
                                 @php
                                     $metode = [
                                         'cash' => 'Cash',
@@ -393,7 +393,7 @@ new #[Layout('layouts::admin')] class extends Component
                                     {{ $metode[$sale->keterangan_bayar] ?? $sale->keterangan_bayar }}
                                 </span>
                             </td>
-                            <td class="px-4 py-3 text-center whitespace-nowrap">
+                            <td class="px-4 py-3 text-center">
                                 @if(auth()->check() && auth()->user()->role === 'admin')
                                     <button type="button" wire:click="confirmDelete({{ $sale->id }})" class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-red-700 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 focus:ring-2 focus:ring-red-300 transition-colors">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
@@ -429,8 +429,8 @@ new #[Layout('layouts::admin')] class extends Component
             </span>
         </div>
         
-        <div class="p-0 overflow-x-auto">
-            <table class="w-full text-sm text-left text-gray-700">
+        <div class="p-0 overflow-hidden">
+            <table data-responsive-table data-responsive-breakpoint="lg" data-responsive-kind="summary" class="table-fixed w-full text-sm text-left text-gray-700">
                 <tbody>
                     <tr class="border-b border-gray-100">
                         <td class="px-4 py-3 font-medium">PENJUALAN (CASH)</td>
@@ -487,7 +487,7 @@ new #[Layout('layouts::admin')] class extends Component
                                                     <span class="text-gray-400 text-[10px] block">Oleh: {{ $exp->nama_penghutang }}</span>
                                                 @endif
                                             </div>
-                                            <span class="font-bold text-red-600 whitespace-nowrap">- Rp {{ number_format($exp->total_harga, 0, ',', '.') }}</span>
+                                            <span class="font-bold text-red-600">- Rp {{ number_format($exp->total_harga, 0, ',', '.') }}</span>
                                         </li>
                                     @endforeach
                                 </ul>

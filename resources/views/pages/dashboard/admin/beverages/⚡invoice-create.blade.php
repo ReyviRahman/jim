@@ -174,8 +174,8 @@ new #[Layout('layouts::admin')] class extends Component
                 </button>
             </div>
 
-            <div class="overflow-x-auto">
-                <table class="w-full text-sm text-left rtl:text-right text-body">
+            <div class="overflow-hidden">
+                <table data-responsive-table data-responsive-breakpoint="lg" class="table-fixed w-full text-sm text-left rtl:text-right text-body">
                     <thead class="text-sm text-body bg-neutral-secondary-medium border-b border-default-medium">
                         <tr>
                             <th scope="col" class="px-4 py-3 font-medium w-48">Nama Barang</th>

@@ -12,6 +12,106 @@ const sidebarStorageKey = 'dashboard_sidebar_open';
 
 let destroyDashboardSidebar = () => {};
 
+function responsiveHeaderText(header) {
+    const clone = header.cloneNode(true);
+
+    clone.querySelectorAll('svg, [aria-hidden="true"], .sr-only').forEach((element) => element.remove());
+
+    return clone.textContent
+        .replace(/[\u25B2\u25BC\u2191\u2193]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function responsiveColumnLabels(table) {
+    const headerRows = Array.from(table.tHead?.rows ?? []);
+    const grid = [];
+
+    headerRows.forEach((row, rowIndex) => {
+        grid[rowIndex] ??= [];
+        let columnIndex = 0;
+
+        Array.from(row.cells).forEach((header) => {
+            while (grid[rowIndex][columnIndex] !== undefined) {
+                columnIndex += 1;
+            }
+
+            const label = header.dataset.responsiveLabel || responsiveHeaderText(header);
+            const columnSpan = Math.max(header.colSpan, 1);
+            const rowSpan = Math.max(header.rowSpan, 1);
+
+            for (let rowOffset = 0; rowOffset < rowSpan; rowOffset += 1) {
+                grid[rowIndex + rowOffset] ??= [];
+
+                for (let columnOffset = 0; columnOffset < columnSpan; columnOffset += 1) {
+                    grid[rowIndex + rowOffset][columnIndex + columnOffset] = label;
+                }
+            }
+
+            columnIndex += columnSpan;
+        });
+    });
+
+    const columnCount = Math.max(0, ...grid.map((row) => row.length));
+
+    return Array.from({ length: columnCount }, (_, columnIndex) => {
+        return [...new Set(grid.map((row) => row[columnIndex]).filter(Boolean))].join(' / ');
+    });
+}
+
+function annotateResponsiveRows(rows, labels) {
+    const occupiedUntilRow = [];
+
+    Array.from(rows).forEach((row, rowIndex) => {
+        let columnIndex = 0;
+
+        Array.from(row.cells).forEach((cell) => {
+            while ((occupiedUntilRow[columnIndex] ?? 0) > rowIndex) {
+                columnIndex += 1;
+            }
+
+            const columnSpan = Math.max(cell.colSpan, 1);
+            const rowSpan = Math.max(cell.rowSpan, 1);
+
+            if (!cell.hasAttribute('data-responsive-label')) {
+                cell.dataset.responsiveLabel = columnSpan === 1 ? (labels[columnIndex] ?? '') : '';
+            }
+
+            if (cell.dataset.responsiveLabel) {
+                cell.setAttribute('aria-label', cell.dataset.responsiveLabel);
+            }
+
+            if (rowSpan > 1) {
+                for (let columnOffset = 0; columnOffset < columnSpan; columnOffset += 1) {
+                    occupiedUntilRow[columnIndex + columnOffset] = rowIndex + rowSpan;
+                }
+            }
+
+            columnIndex += columnSpan;
+        });
+    });
+}
+
+function initializeResponsiveTables(root = document) {
+    const tables = [];
+
+    if (root instanceof Element && root.matches('table[data-responsive-table]')) {
+        tables.push(root);
+    }
+
+    root?.querySelectorAll?.('table[data-responsive-table]').forEach((table) => tables.push(table));
+
+    tables.forEach((table) => {
+        const labels = responsiveColumnLabels(table);
+
+        Array.from(table.tBodies).forEach((body) => annotateResponsiveRows(body.rows, labels));
+
+        if (table.tFoot) {
+            annotateResponsiveRows(table.tFoot.rows, labels);
+        }
+    });
+}
+
 function initializeDashboardSidebar() {
     destroyDashboardSidebar();
 
@@ -113,7 +213,13 @@ function initializePageUi() {
     initFlowbite();
     initializeDashboardSidebar();
     restoreSidebarScrollPosition();
+    initializeResponsiveTables();
 }
+
+document.addEventListener('livewire:init', () => {
+    Livewire.hook('morphed', ({ el }) => initializeResponsiveTables(el));
+    Livewire.hook('partial.morphed', ({ startNode }) => initializeResponsiveTables(startNode.parentElement));
+}, { once: true });
 
 // Persist sidebar scroll position across wire:navigate
 document.addEventListener('livewire:navigating', () => {

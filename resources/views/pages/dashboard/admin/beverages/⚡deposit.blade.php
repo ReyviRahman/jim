@@ -77,8 +77,8 @@ new #[Layout('layouts::admin')] class extends Component
                     placeholder="Cari nama pelanggan...">
             </div>
         </div>
-        <div class="overflow-x-auto">
-            <table class="w-full text-sm text-left rtl:text-right text-body">
+        <div class="overflow-hidden">
+            <table data-responsive-table data-responsive-breakpoint="lg" class="table-fixed w-full text-sm text-left rtl:text-right text-body">
                 <thead class="text-sm text-body bg-neutral-secondary-medium border-b border-default-medium">
                     <tr>
                         <th scope="col" class="px-4 py-3 font-medium">Tanggal</th>
@@ -92,20 +92,20 @@ new #[Layout('layouts::admin')] class extends Component
                 <tbody>
                     @forelse ($this->depositList as $deposit)
                         <tr class="bg-neutral-primary-soft border-b border-default hover:bg-neutral-secondary-medium">
-                            <td class="px-4 py-3 whitespace-nowrap">{{ $deposit->created_at->format('d M Y H:i') }}</td>
-                            <td class="px-4 py-3 whitespace-nowrap font-semibold text-heading">{{ $deposit->nama_pelanggan }}</td>
-                            <td class="px-4 py-3 text-right whitespace-nowrap font-semibold text-emerald-600">Rp {{ number_format($deposit->nominal, 0, ',', '.') }}</td>
-                            <td class="px-4 py-3 text-right whitespace-nowrap font-semibold text-blue-600">Rp {{ number_format($deposit->sisa_nominal, 0, ',', '.') }}</td>
-                            <td class="px-4 py-3 text-center whitespace-nowrap">
+                            <td class="px-4 py-3">{{ $deposit->created_at->format('d M Y H:i') }}</td>
+                            <td class="px-4 py-3 font-semibold text-heading">{{ $deposit->nama_pelanggan }}</td>
+                            <td class="px-4 py-3 text-right font-semibold text-emerald-600">Rp {{ number_format($deposit->nominal, 0, ',', '.') }}</td>
+                            <td class="px-4 py-3 text-right font-semibold text-blue-600">Rp {{ number_format($deposit->sisa_nominal, 0, ',', '.') }}</td>
+                            <td class="px-4 py-3 text-center">
                                 @if ($deposit->is_used || $deposit->sisa_nominal <= 0)
                                     <span class="px-2 py-1 bg-red-100 text-red-700 text-xs font-semibold rounded-md">Habis</span>
                                 @else
                                     <span class="px-2 py-1 bg-emerald-100 text-emerald-700 text-xs font-semibold rounded-md">Aktif</span>
                                 @endif
                             </td>
-                            <td class="px-4 py-3 whitespace-nowrap">
+                            <td class="px-4 py-3">
                                 @if ($deposit->beverageSale)
-                                    <span class="text-xs text-body">{{ $deposit->beverageSale->nama_staff }} — {{ $deposit->beverageSale->waktu_transaksi->format('d M Y H:i') }}</span>
+                                    <span class="text-xs text-body">{{ $deposit->beverageSale->nama_staff }} � {{ $deposit->beverageSale->waktu_transaksi->format('d M Y H:i') }}</span>
                                 @else
                                     <span class="text-xs text-gray-500">-</span>
                                 @endif

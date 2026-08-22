@@ -157,8 +157,8 @@ new #[Layout('layouts::admin')] class extends Component
                     placeholder="Cari nama produk, staff, atau penghutang...">
             </div>
         </div>
-        <div class="overflow-x-auto">
-            <table class="w-full text-sm text-left rtl:text-right text-body">
+        <div class="overflow-hidden">
+            <table data-responsive-table data-responsive-breakpoint="xl" class="table-fixed w-full text-sm text-left rtl:text-right text-body">
                 <thead class="text-sm text-body bg-neutral-secondary-medium border-b border-default-medium">
                     <tr>
                         <th scope="col" class="px-4 py-3 font-medium">Tanggal</th>
@@ -174,14 +174,14 @@ new #[Layout('layouts::admin')] class extends Component
                 <tbody>
                     @forelse ($this->hutangList as $sale)
                         <tr class="bg-neutral-primary-soft border-b border-default hover:bg-neutral-secondary-medium">
-                            <td class="px-4 py-3 whitespace-nowrap">{{ $sale->waktu_transaksi->format('d M Y H:i') }}</td>
-                            <td class="px-4 py-3 whitespace-nowrap">{{ $sale->nama_staff }}</td>
-                            <td class="px-4 py-3 whitespace-nowrap font-semibold text-red-600">{{ $sale->nama_penghutang ?? '-' }}</td>
-                            <td class="px-4 py-3 whitespace-nowrap">{{ $sale->nama_produk ?? '-' }}</td>
-                            <td class="px-4 py-3 text-center whitespace-nowrap">{{ $sale->jumlah_beli }}</td>
-                            <td class="px-4 py-3 text-right whitespace-nowrap font-semibold text-emerald-600">Rp {{ number_format($sale->total_harga, 0, ',', '.') }}</td>
-                            <td class="px-4 py-3 whitespace-nowrap">{{ ucfirst($sale->shift) }}</td>
-                            <td class="px-4 py-3 text-center whitespace-nowrap">
+                            <td class="px-4 py-3">{{ $sale->waktu_transaksi->format('d M Y H:i') }}</td>
+                            <td class="px-4 py-3">{{ $sale->nama_staff }}</td>
+                            <td class="px-4 py-3 font-semibold text-red-600">{{ $sale->nama_penghutang ?? '-' }}</td>
+                            <td class="px-4 py-3">{{ $sale->nama_produk ?? '-' }}</td>
+                            <td class="px-4 py-3 text-center">{{ $sale->jumlah_beli }}</td>
+                            <td class="px-4 py-3 text-right font-semibold text-emerald-600">Rp {{ number_format($sale->total_harga, 0, ',', '.') }}</td>
+                            <td class="px-4 py-3">{{ ucfirst($sale->shift) }}</td>
+                            <td class="px-4 py-3 text-center">
                                 <button type="button" wire:click="openConfirmModal({{ $sale->id }})" @click="showConfirmModal = true"
                                     class="px-3 py-1 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold rounded-md transition-colors">
                                     Bayar Hutang

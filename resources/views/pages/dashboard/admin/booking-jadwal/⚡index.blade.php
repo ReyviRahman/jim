@@ -675,7 +675,7 @@ new #[Layout('layouts::admin')] class extends Component
         <h5 class="text-xl font-semibold text-heading">Booking Jadwal PT</h5>
     </div>
 
-    <div class="relative overflow-x-auto bg-neutral-primary-soft shadow-xs rounded-md border border-default">
+    <div class="relative overflow-hidden bg-neutral-primary-soft shadow-xs rounded-md border border-default">
         <div class="p-4 flex flex-col md:flex-row items-center justify-between gap-4">
             <div class="relative w-full md:w-auto md:flex-1">
                 <div class="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
@@ -730,17 +730,17 @@ new #[Layout('layouts::admin')] class extends Component
             </span>
         </div>
 
-        <div class="overflow-x-auto">
-            <table class="w-full text-sm text-left text-body border-collapse">
+        <div class="overflow-hidden">
+            <table data-responsive-table data-responsive-breakpoint="xl" class="table-fixed w-full text-sm text-left text-body border-collapse">
                 <thead class="text-sm text-body bg-neutral-secondary-medium border-b border-default-medium">
                     <tr>
-                        <th scope="col" class="px-4 py-3 font-medium whitespace-nowrap border-r border-default-medium w-28">Time</th>
+                        <th scope="col" class="px-4 py-3 font-medium border-r border-default-medium w-28">Time</th>
                         @php
                             $weekStart = $this->getWeekStart();
                             $dayLabels = $this->daysOfWeek();
                         @endphp
                         @foreach($dayLabels as $dayKey => $dayName)
-                            <th scope="col" class="px-4 py-3 font-medium text-center border-r border-default-medium min-w-[140px]">
+                            <th scope="col" class="px-4 py-3 font-medium text-center border-r border-default-medium">
                                 {{ $dayName }}
                                 <div class="text-xs font-normal text-body mt-0.5">
                                     {{ $weekStart->copy()->addDays($loop->index)->locale('id')->isoFormat('D MMM') }}
@@ -752,14 +752,14 @@ new #[Layout('layouts::admin')] class extends Component
                 <tbody>
                     @forelse($this->timeSlots() as $slot)
                         <tr class="bg-neutral-primary-soft border-b border-default hover:bg-neutral-secondary-medium/50">
-                            <td class="px-4 py-3 font-medium text-heading whitespace-nowrap border-r border-default-medium bg-neutral-secondary-medium/30">
+                            <td class="px-4 py-3 font-medium text-heading border-r border-default-medium bg-neutral-secondary-medium/30">
                                 {{ $slot['label'] }}
                             </td>
                             @foreach(array_keys($dayLabels) as $dayKey)
                                 @php
                                     $slotBookings = $this->getBookingsForSlot($dayKey, $slot['hour']);
                                 @endphp
-                                <td class="px-2 py-2 border-r border-default align-top min-w-[140px]">
+                                <td class="px-2 py-2 border-r border-default align-top">
                                     <div class="flex flex-col gap-1.5">
                                         @foreach($slotBookings as $booking)
                                             <div wire:click="openDetailModal({{ $booking->id }})"

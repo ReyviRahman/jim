@@ -132,8 +132,8 @@ new #[Layout('layouts::admin')] class extends Component
         <div class="p-4 border-b border-default-medium">
             <h6 class="text-lg font-semibold text-heading">Daftar Invoice</h6>
         </div>
-        <div class="overflow-x-auto">
-            <table class="w-full text-sm text-left rtl:text-right text-body">
+        <div class="overflow-hidden">
+            <table data-responsive-table data-responsive-breakpoint="xl" class="table-fixed w-full text-sm text-left rtl:text-right text-body">
                 <thead class="text-sm text-body bg-neutral-secondary-medium border-b border-default-medium">
                     <tr>
                         <th scope="col" class="px-4 py-3 font-medium">Tanggal Order</th>
@@ -178,33 +178,33 @@ new #[Layout('layouts::admin')] class extends Component
                             @foreach($invoice->items as $itemIndex => $item)
                                 <tr class="border-b border-default hover:bg-neutral-secondary-medium">
                                     @if($itemIndex === 0)
-                                        <td class="px-4 py-3 whitespace-nowrap" rowspan="{{ $itemCount }}">{{ $invoice->tanggal_order->format('d M Y') }}</td>
-                                        <td class="px-4 py-3 whitespace-nowrap" rowspan="{{ $itemCount }}">{{ $invoice->tanggal_menerima?->format('d M Y') ?? '-' }}</td>
-                                        <td class="px-4 py-3 whitespace-nowrap" rowspan="{{ $itemCount }}">{{ $invoice->diterima_oleh ?? '-' }}</td>
-                                        <td class="px-4 py-3 whitespace-nowrap font-semibold" rowspan="{{ $itemCount }}">{{ $invoice->no_faktur }}</td>
+                                        <td class="px-4 py-3" rowspan="{{ $itemCount }}">{{ $invoice->tanggal_order->format('d M Y') }}</td>
+                                        <td class="px-4 py-3" rowspan="{{ $itemCount }}">{{ $invoice->tanggal_menerima?->format('d M Y') ?? '-' }}</td>
+                                        <td class="px-4 py-3" rowspan="{{ $itemCount }}">{{ $invoice->diterima_oleh ?? '-' }}</td>
+                                        <td class="px-4 py-3 font-semibold" rowspan="{{ $itemCount }}">{{ $invoice->no_faktur }}</td>
                                     @endif
 
-                                    <td class="px-4 py-3 whitespace-nowrap">{{ $item->nama_barang }}</td>
-                                    <td class="px-4 py-3 text-center whitespace-nowrap">{{ $item->qty }}</td>
-                                    <td class="px-4 py-3 text-right whitespace-nowrap">Rp {{ number_format($item->harga_perdus, 0, ',', '.') }}</td>
-                                    <td class="px-4 py-3 text-right whitespace-nowrap">Rp {{ number_format($item->biaya_ppn, 0, ',', '.') }}</td>
-                                    <td class="px-4 py-3 text-right whitespace-nowrap">Rp {{ number_format($item->total, 0, ',', '.') }}</td>
+                                    <td class="px-4 py-3">{{ $item->nama_barang }}</td>
+                                    <td class="px-4 py-3 text-center">{{ $item->qty }}</td>
+                                    <td class="px-4 py-3 text-right">Rp {{ number_format($item->harga_perdus, 0, ',', '.') }}</td>
+                                    <td class="px-4 py-3 text-right">Rp {{ number_format($item->biaya_ppn, 0, ',', '.') }}</td>
+                                    <td class="px-4 py-3 text-right">Rp {{ number_format($item->total, 0, ',', '.') }}</td>
 
                                     @if($itemIndex === 0)
-                                        <td class="px-4 py-3 text-right whitespace-nowrap font-semibold text-emerald-600" rowspan="{{ $itemCount }}">
+                                        <td class="px-4 py-3 text-right font-semibold text-emerald-600" rowspan="{{ $itemCount }}">
                                             Rp {{ number_format($grandTotal, 0, ',', '.') }}
                                         </td>
-                                        <td class="px-4 py-3 text-center whitespace-nowrap" rowspan="{{ $itemCount }}">
+                                        <td class="px-4 py-3 text-center" rowspan="{{ $itemCount }}">
                                             <span class="px-2 py-1 rounded-full text-xs font-semibold {{ $statusBadge }}">
                                                 {{ ucfirst($invoice->status) }}
                                             </span>
                                         </td>
-                                        <td class="px-4 py-3 whitespace-nowrap" rowspan="{{ $itemCount }}">
+                                        <td class="px-4 py-3" rowspan="{{ $itemCount }}">
                                             <span class="px-2 py-1 rounded-full text-xs font-semibold {{ $metodeBadge }}">
                                                 {{ $metodeName }}
                                             </span>
                                         </td>
-                                        <td class="px-4 py-3 text-center whitespace-nowrap" rowspan="{{ $itemCount }}">
+                                        <td class="px-4 py-3 text-center" rowspan="{{ $itemCount }}">
                                             @if(auth()->check() && auth()->user()->role === 'admin')
                                                 <div class="flex items-center justify-center gap-1">
                                                     <a href="{{ route('admin.beverages.invoice.edit', $invoice->id) }}" wire:navigate
@@ -225,23 +225,23 @@ new #[Layout('layouts::admin')] class extends Component
                             @endforeach
                         @else
                             <tr class="border-b border-default hover:bg-neutral-secondary-medium">
-                                <td class="px-4 py-3 whitespace-nowrap">{{ $invoice->tanggal_order->format('d M Y') }}</td>
-                                <td class="px-4 py-3 whitespace-nowrap">{{ $invoice->tanggal_menerima?->format('d M Y') ?? '-' }}</td>
-                                <td class="px-4 py-3 whitespace-nowrap">{{ $invoice->diterima_oleh ?? '-' }}</td>
-                                <td class="px-4 py-3 whitespace-nowrap font-semibold">{{ $invoice->no_faktur }}</td>
+                                <td class="px-4 py-3">{{ $invoice->tanggal_order->format('d M Y') }}</td>
+                                <td class="px-4 py-3">{{ $invoice->tanggal_menerima?->format('d M Y') ?? '-' }}</td>
+                                <td class="px-4 py-3">{{ $invoice->diterima_oleh ?? '-' }}</td>
+                                <td class="px-4 py-3 font-semibold">{{ $invoice->no_faktur }}</td>
                                 <td class="px-4 py-3 text-center text-gray-500" colspan="5">Belum ada item</td>
-                                <td class="px-4 py-3 text-right whitespace-nowrap font-semibold text-emerald-600">Rp 0</td>
-                                <td class="px-4 py-3 text-center whitespace-nowrap">
+                                <td class="px-4 py-3 text-right font-semibold text-emerald-600">Rp 0</td>
+                                <td class="px-4 py-3 text-center">
                                     <span class="px-2 py-1 rounded-full text-xs font-semibold {{ $statusBadge }}">
                                         {{ ucfirst($invoice->status) }}
                                     </span>
                                 </td>
-                                <td class="px-4 py-3 whitespace-nowrap">
+                                <td class="px-4 py-3">
                                     <span class="px-2 py-1 rounded-full text-xs font-semibold {{ $metodeBadge }}">
                                         {{ $metodeName }}
                                     </span>
                                 </td>
-                                <td class="px-4 py-3 text-center whitespace-nowrap">
+                                <td class="px-4 py-3 text-center">
                                     @if(auth()->check() && auth()->user()->role === 'admin')
                                         <div class="flex items-center justify-center gap-1">
                                             <a href="{{ route('admin.beverages.invoice.edit', $invoice->id) }}" wire:navigate

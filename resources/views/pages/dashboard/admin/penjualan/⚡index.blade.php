@@ -427,7 +427,7 @@ new #[Layout('layouts::admin')] class extends Component
     @endif
 
     {{-- Filter Bar --}}
-    <div class="relative overflow-x-auto bg-neutral-primary-soft shadow-xs rounded-md border border-default mb-6">
+    <div class="relative overflow-hidden bg-neutral-primary-soft shadow-xs rounded-md border border-default mb-6">
         <div class="p-4 flex flex-col lg:flex-row items-center justify-between gap-4">
             
             {{-- Search --}}
@@ -484,7 +484,7 @@ new #[Layout('layouts::admin')] class extends Component
                 </div>
             </div>
         
-        <table class="w-full text-sm text-left rtl:text-right text-body">
+        <table data-responsive-table data-responsive-breakpoint="xl" class="table-fixed w-full text-sm text-left rtl:text-right text-body">
             <thead class="text-sm text-body bg-neutral-secondary-medium border-b border-default-medium">
                 <tr>
                     <th class="px-6 py-3 font-medium">No</th>
@@ -506,7 +506,7 @@ new #[Layout('layouts::admin')] class extends Component
                 @forelse ($this->transactions as $transaction)
                     <tr wire:key="{{ $transaction->id }}" class="bg-white border-b border-gray-100 hover:bg-gray-50">
                         <td class="px-6 py-4">{{ $loop->iteration + ($this->transactions->currentPage() - 1) * $this->transactions->perPage() }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap">
+                        <td class="px-6 py-4">
                             <div class="flex flex-col gap-1">
                                 {{-- Cek apakah transaksi punya relasi membership dan ada anggotanya --}}
                                 @if($transaction->membership && $transaction->membership->members->count() > 0)
@@ -523,10 +523,10 @@ new #[Layout('layouts::admin')] class extends Component
                                 @endif
                             </div>
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
+                        <td class="px-6 py-4">
                             <div class="font-medium">{{ $transaction->payment_date ? \Carbon\Carbon::parse($transaction->payment_date)->format('d M Y') : '-' }}</div>
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
+                        <td class="px-6 py-4">
                             @if($transaction->transaction_type === 'Pemasukan Lain')
                                 <span class="text-gray-400">-</span>
                             @else
@@ -534,21 +534,21 @@ new #[Layout('layouts::admin')] class extends Component
                             @endif
                         </td>
 
-                        <td class="px-6 py-4 text-right whitespace-nowrap">
+                        <td class="px-6 py-4 text-right">
                             @if($transaction->transaction_type === 'Pemasukan Lain')
                                 <span class="text-gray-400">-</span>
                             @else
                                 {{ $transaction->end_date ? \Carbon\Carbon::parse($transaction->end_date)->format('d M Y') : 'BELUM AKTIF' }}
                             @endif
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap"><span class="px-2 py-0.5 text-[10px] uppercase font-bold rounded-full bg-blue-100 text-blue-800">{{ $transaction->transaction_type }}</span></td>
-                        <td class="px-6 py-4 font-medium text-gray-700 whitespace-nowrap">{{ $transaction->package_name }}</td>
-                        <td class="px-6 py-4 font-medium text-gray-700 whitespace-nowrap">{{ $transaction->notes }}</td>
-                        <td class="px-6 py-4 text-right font-bold text-emerald-600 whitespace-nowrap">Rp {{ number_format($transaction->amount, 0, ',', '.') }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap"><span class="text-xs font-medium border bg-white px-2 py-0.5 rounded shadow-xs">{{ strtoupper($transaction->payment_method) }}</span></td>
-                        <td class="px-6 py-4 whitespace-nowrap">{{ $transaction->admin->name ?? '-' }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap">{{ $transaction->followUp->name ?? '-' }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap">{{ $transaction->followUpTwo->name ?? '-' }}</td>
+                        <td class="px-6 py-4"><span class="px-2 py-0.5 text-[10px] uppercase font-bold rounded-full bg-blue-100 text-blue-800">{{ $transaction->transaction_type }}</span></td>
+                        <td class="px-6 py-4 font-medium text-gray-700">{{ $transaction->package_name }}</td>
+                        <td class="px-6 py-4 font-medium text-gray-700">{{ $transaction->notes }}</td>
+                        <td class="px-6 py-4 text-right font-bold text-emerald-600">Rp {{ number_format($transaction->amount, 0, ',', '.') }}</td>
+                        <td class="px-6 py-4"><span class="text-xs font-medium border bg-white px-2 py-0.5 rounded shadow-xs">{{ strtoupper($transaction->payment_method) }}</span></td>
+                        <td class="px-6 py-4">{{ $transaction->admin->name ?? '-' }}</td>
+                        <td class="px-6 py-4">{{ $transaction->followUp->name ?? '-' }}</td>
+                        <td class="px-6 py-4">{{ $transaction->followUpTwo->name ?? '-' }}</td>
                     </tr>
                 @empty
                     <tr><td colspan="13" class="px-6 py-8 text-center text-gray-500">Belum ada riwayat penjualan.</td></tr>
@@ -574,8 +574,8 @@ new #[Layout('layouts::admin')] class extends Component
             
         </div>
         
-        <div class="p-0 overflow-x-auto">
-            <table class="w-full text-sm text-left text-gray-700">
+        <div class="p-0 overflow-hidden">
+            <table data-responsive-table data-responsive-breakpoint="xl" data-responsive-kind="summary" class="table-fixed w-full text-sm text-left text-gray-700">
                 
                 <tbody>
                     <tr class="border-b border-gray-100">
@@ -634,7 +634,7 @@ new #[Layout('layouts::admin')] class extends Component
                                                 <span class="block font-semibold text-gray-800">{{ $exp->description }}</span>
                                                 <span class="text-gray-500 text-[10px] mt-0.5 block">Admin: {{ $exp->admin->name ?? '-' }}</span>
                                             </div>
-                                            <span class="font-bold text-red-600 whitespace-nowrap">- Rp {{ number_format($exp->amount, 0, ',', '.') }}</span>
+                                            <span class="font-bold text-red-600">- Rp {{ number_format($exp->amount, 0, ',', '.') }}</span>
                                         </li>
                                     @endforeach
                                 </ul>

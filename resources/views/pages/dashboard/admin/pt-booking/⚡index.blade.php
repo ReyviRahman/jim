@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 
 namespace App\Livewire\Admin;
 
@@ -161,7 +161,7 @@ new #[Layout('layouts::admin')] class extends Component
         </div>
     @endif
 
-    <div class="relative overflow-x-auto bg-neutral-primary-soft shadow-xs rounded-base border border-default">
+    <div class="relative overflow-hidden bg-neutral-primary-soft shadow-xs rounded-base border border-default">
         <div class="flex items-center flex-column flex-wrap md:flex-row space-y-4 md:space-y-0 p-4">
             <div>
                 <h5 class="text-xl font-semibold text-heading">PT Booking</h5>
@@ -180,7 +180,7 @@ new #[Layout('layouts::admin')] class extends Component
             </div>
         </div>
 
-        <table class="w-full text-sm text-left rtl:text-right text-body">
+        <table data-responsive-table data-responsive-breakpoint="xl" class="table-fixed w-full text-sm text-left rtl:text-right text-body">
             <thead class="text-sm text-body bg-neutral-secondary-medium border-b border-default-medium">
                 <tr>
                     <th scope="col" class="px-6 py-3 font-medium">No</th>
@@ -197,11 +197,11 @@ new #[Layout('layouts::admin')] class extends Component
                 @forelse ($this->memberships as $membership)
                     <tr wire:key="{{ $membership->id }}" class="bg-neutral-primary-soft border-b border-default hover:bg-neutral-secondary-medium">
                         
-                        <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
+                        <td class="px-6 py-4 font-medium text-heading">
                             {{ $loop->iteration + ($this->memberships->currentPage() - 1) * $this->memberships->perPage() }}
                         </td>
 
-                        <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
+                        <td class="px-6 py-4 font-medium text-heading">
                             <div class="flex items-center gap-2">
                                 @if($membership->user->photo)
                                     <img class="w-8 h-8 rounded-full object-cover" src="{{ asset('storage/' . $membership->user->photo) }}" alt="{{ $membership->user->name }}">
@@ -215,7 +215,7 @@ new #[Layout('layouts::admin')] class extends Component
                             </div>
                         </td>
 
-                        <td class="px-6 py-4 text-heading whitespace-nowrap">
+                        <td class="px-6 py-4 text-heading">
                             <div class="flex flex-col gap-2">
                                 @if($membership->gymPackage)
                                     <div>
@@ -253,7 +253,7 @@ new #[Layout('layouts::admin')] class extends Component
                             </div>
                         </td>
 
-                        <td class="px-6 py-4 text-heading whitespace-nowrap">
+                        <td class="px-6 py-4 text-heading">
                             @if($membership->start_date && $membership->pt_end_date)
                                 <div class="flex flex-col">
                                     <span class="text-xs text-gray-500">{{ $this->getFormattedDate($membership->start_date) }}</span>
@@ -265,21 +265,21 @@ new #[Layout('layouts::admin')] class extends Component
                             @endif
                         </td>
 
-                        <td class="px-6 py-4 text-right whitespace-nowrap">
+                        <td class="px-6 py-4 text-right">
                             <div class="font-bold text-heading text-base">
                                 Rp {{ number_format($membership->price_paid ?? 0, 0, ',', '.') }}
                             </div>
                         </td>
 
-                        <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
+                        <td class="px-6 py-4 font-medium text-heading">
                             <h1 class="font-semibold">{{ $membership->followUp->name ?? '-' }}</h1>
                         </td>
 
-                        <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
+                        <td class="px-6 py-4 font-medium text-heading">
                             <h1 class="font-semibold">{{ $membership->followUpTwo->name ?? '-' }}</h1>
                         </td>
 
-                        <td class="px-6 py-4 text-center whitespace-nowrap">
+                        <td class="px-6 py-4 text-center">
                             @if($membership->ptPackage && !$membership->pt_id)
                                 <button type="button" wire:click="openCoachModal({{ $membership->id }})" 
                                     class="inline-flex items-center gap-1 px-3 py-2 text-sm font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-md hover:bg-indigo-100 focus:ring-2 focus:ring-indigo-300 transition-colors mb-1">

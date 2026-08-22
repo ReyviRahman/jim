@@ -60,8 +60,8 @@ new #[Layout('layouts::admin')] class extends Component
             </div>
         </div>
 
-        <div class="overflow-x-auto">
-            <table class="w-full text-sm text-left rtl:text-right text-body">
+        <div class="overflow-hidden">
+            <table data-responsive-table data-responsive-breakpoint="lg" class="table-fixed w-full text-sm text-left rtl:text-right text-body">
                 <thead class="text-sm text-body bg-neutral-secondary-medium border-b border-default-medium">
                     <tr>
                         <th scope="col" class="px-6 py-3 font-medium">No</th>
@@ -74,19 +74,19 @@ new #[Layout('layouts::admin')] class extends Component
                 <tbody>
                     @forelse ($this->ptUsers as $pt)
                         <tr wire:key="pt-{{ $pt->id }}" class="bg-neutral-primary-soft border-b border-default hover:bg-neutral-secondary-medium">
-                            <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
+                            <td class="px-6 py-4 font-medium text-heading">
                                 {{ $loop->iteration }}
                             </td>
-                            <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
+                            <td class="px-6 py-4 font-medium text-heading">
                                 {{ $pt->name }}
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
+                            <td class="px-6 py-4">
                                 {{ $pt->email ?? '-' }}
                             </td>
-                            <td class="px-6 py-4 text-center whitespace-nowrap">
+                            <td class="px-6 py-4 text-center">
                                 {{ $pt->phone ?? '-' }}
                             </td>
-                            <td class="px-6 py-4 text-center whitespace-nowrap">
+                            <td class="px-6 py-4 text-center">
                                 <div class="flex items-center justify-center gap-2">
                                     <a href="{{ route('admin.sesi-pt.detail', $pt->id) }}" wire:navigate class="inline-flex items-center gap-1 px-3 py-2 text-sm font-medium text-brand-700 bg-brand-50 border border-brand-200 rounded-md hover:bg-brand-100 focus:ring-2 focus:ring-brand-300 transition-colors">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>

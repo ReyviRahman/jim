@@ -508,8 +508,8 @@ new #[Layout('layouts::admin')] class extends Component
             </div>
         </div>
 
-        <div class="overflow-x-auto">
-            <table class="w-full text-sm text-left rtl:text-right text-body">
+        <div class="overflow-hidden">
+            <table data-responsive-table data-responsive-breakpoint="xl" class="table-fixed w-full text-sm text-left rtl:text-right text-body">
                 <thead class="text-sm text-body bg-neutral-secondary-medium border-b border-default-medium">
                     <tr>
                         <th scope="col" class="px-6 py-3 text-center w-10">
@@ -528,21 +528,21 @@ new #[Layout('layouts::admin')] class extends Component
                 <tbody>
                     @forelse ($this->ptBookings as $booking)
                         <tr wire:key="pt-booking-{{ $booking->id }}" class="bg-neutral-primary-soft border-b border-default hover:bg-neutral-secondary-medium">
-                            <td class="px-6 py-4 text-center whitespace-nowrap">
+                            <td class="px-6 py-4 text-center">
                                 @if(in_array($booking->status, ['approved', 'pending']))
                                     <input type="checkbox" wire:model.live="selectedBookings" value="{{ $booking->id }}" class="w-4 h-4 text-brand border-default-medium rounded focus:ring-brand">
                                 @endif
                             </td>
-                            <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
+                            <td class="px-6 py-4 font-medium text-heading">
                                 {{ $loop->iteration }}
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
+                            <td class="px-6 py-4">
                                 {{ $booking->booking_date->locale('id')->isoFormat('dddd, D MMM YYYY') }}
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
+                            <td class="px-6 py-4">
                                 {{ $booking->booking_time->format('H:i') }}
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
+                            <td class="px-6 py-4">
                                 {{ $booking->member?->name ?? '-' }}
                                 @if($booking->membership && $booking->membership->members && $booking->membership->members->count() > 1)
                                     <div class="text-xs text-body font-normal mt-0.5">
@@ -552,10 +552,10 @@ new #[Layout('layouts::admin')] class extends Component
                                     </div>
                                 @endif
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
+                            <td class="px-6 py-4">
                                 {{ $booking->pt?->name ?? '-' }}
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-center">
+                            <td class="px-6 py-4 text-center">
                                 <div class="flex items-center justify-center gap-1 flex-wrap">
                                     @if($booking->isCancellationPending())
                                         <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">Pending Cancel</span>
@@ -575,7 +575,7 @@ new #[Layout('layouts::admin')] class extends Component
                                     @endif
                                 </div>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-center">
+                            <td class="px-6 py-4 text-center">
                                 @if($booking->status === 'approved')
                                     <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium capitalize
                                         @if($booking->attendance === 'attended') bg-green-100 text-green-800
@@ -591,7 +591,7 @@ new #[Layout('layouts::admin')] class extends Component
                                     <span class="text-xs text-gray-400">-</span>
                                 @endif
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-center">
+                            <td class="px-6 py-4 text-center">
                                 <button type="button" wire:click="deleteBooking({{ $booking->id }})" wire:confirm="Hapus booking ini? Data tidak bisa dikembalikan."
                                     class="inline-flex items-center px-2 py-1 text-xs font-medium text-white bg-red-600 rounded hover:bg-red-700 transition-colors">
                                     Hapus

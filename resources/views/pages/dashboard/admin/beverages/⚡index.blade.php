@@ -291,8 +291,8 @@ new #[Layout('layouts::admin')] class extends Component
             </div>
         </div>
 
-        <div class="overflow-x-auto">
-            <table class="w-full text-sm text-left rtl:text-right text-body">
+        <div class="overflow-hidden">
+            <table data-responsive-table data-responsive-breakpoint="xl" class="table-fixed w-full text-sm text-left rtl:text-right text-body">
                 <thead class="text-sm text-body bg-neutral-secondary-medium border-b border-default-medium">
                     <tr>
                         <th scope="col" class="px-4 py-3 font-medium">No</th>
@@ -316,21 +316,21 @@ new #[Layout('layouts::admin')] class extends Component
                             <td class="px-4 py-3 font-medium text-heading">
                                 {{ $loop->iteration + ($this->beveragesWithStock->currentPage() - 1) * $this->beveragesWithStock->perPage() }}
                             </td>
-                            <td class="px-4 py-3 font-medium text-heading whitespace-nowrap">
+                            <td class="px-4 py-3 font-medium text-heading">
                                 {{ $beverage->nama_produk }}
                                 @if ($beverage->trashed())
                                     <span class="ml-2 text-xs text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">Nonaktif</span>
                                 @endif
                             </td>
                             @if($this->isAdmin)
-                            <td class="px-4 py-3 text-right whitespace-nowrap">
+                            <td class="px-4 py-3 text-right">
                                 Rp {{ number_format($beverage->harga_modal, 0, ',', '.') }}
                             </td>
                             @endif
-                            <td class="px-4 py-3 text-right whitespace-nowrap">
+                            <td class="px-4 py-3 text-right">
                                 Rp {{ number_format($beverage->harga_jual, 0, ',', '.') }}
                             </td>
-                            <td class="px-4 py-3 text-center whitespace-nowrap">
+                            <td class="px-4 py-3 text-center">
                                 <span>{{ $beverage->stok_awal }}</span>
                                 {{-- @if(auth()->check() && auth()->user()->role === 'admin')
                                     @if ($editingStokAwalId === $beverage->id)
@@ -355,19 +355,19 @@ new #[Layout('layouts::admin')] class extends Component
                                     <span>{{ $beverage->stok_awal }}</span>
                                 @endif --}}
                             </td>
-                            <td class="px-4 py-3 text-center whitespace-nowrap text-emerald-600 font-semibold">
+                            <td class="px-4 py-3 text-center text-emerald-600 font-semibold">
                                 +{{ $beverage->ditambahkan }}
                             </td>
-                            <td class="px-4 py-3 text-center whitespace-nowrap font-semibold text-heading">
+                            <td class="px-4 py-3 text-center font-semibold text-heading">
                                 {{ $beverage->jumlah_stok }}
                             </td>
-                            <td class="px-4 py-3 text-center whitespace-nowrap text-red-600 font-semibold">
+                            <td class="px-4 py-3 text-center text-red-600 font-semibold">
                                 {{ $beverage->terjual }}
                             </td>
-                            <td class="px-4 py-3 text-right whitespace-nowrap text-emerald-600 font-semibold">
+                            <td class="px-4 py-3 text-right text-emerald-600 font-semibold">
                                 Rp {{ number_format($beverage->total_penjualan, 0, ',', '.') }}
                             </td>
-                            <td class="px-4 py-3 text-center whitespace-nowrap">
+                            <td class="px-4 py-3 text-center">
                                 <span class="{{ $beverage->stok_akhir <= 5 ? 'text-red-600 font-bold' : 'text-emerald-600 font-semibold' }}">
                                     {{ $beverage->stok_akhir }}
                                 </span>
@@ -375,7 +375,7 @@ new #[Layout('layouts::admin')] class extends Component
                                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"></path><path d="M16 16h5v5"></path></svg>
                                 </button> --}}
                             </td>
-                            <td class="px-4 py-3 text-center whitespace-nowrap">
+                            <td class="px-4 py-3 text-center">
                                 <div class="flex items-center justify-center gap-2">
                                     @if(auth()->check() && auth()->user()->role === 'admin')
                                         {{-- Toggle Switch On/Off --}}

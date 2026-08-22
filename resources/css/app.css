@@ -33,4 +33,228 @@
     border-left-color: #FFED00 !important;
 }
 
+/* Interactive tables become labelled cards below their configured breakpoint. */
+table[data-responsive-table] {
+    display: block;
+    width: 100%;
+    table-layout: fixed;
+    font-size: 0.75rem;
+    line-height: 1.25;
+}
+
+table[data-responsive-table] thead {
+    display: none;
+}
+
+table[data-responsive-table] tbody:not(.hidden) {
+    display: grid;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    background: #f9fafb;
+}
+
+table[data-responsive-table] tbody > tr:not(.hidden) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    overflow: hidden;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+    background: #fff;
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
+}
+
+table[data-responsive-table] tbody > tr:not(.hidden) > td:not(.hidden),
+table[data-responsive-table] tfoot > tr:not(.hidden) > td:not(.hidden) {
+    display: grid;
+    min-width: 0;
+    max-width: 100%;
+    grid-template-columns: minmax(7rem, 42%) minmax(0, 1fr);
+    align-items: start;
+    gap: 1rem;
+    padding: 0.5rem 0.75rem !important;
+    border-bottom: 1px solid #f3f4f6;
+    white-space: normal !important;
+    overflow-wrap: anywhere;
+}
+
+table[data-responsive-table] tbody > tr > td:last-child,
+table[data-responsive-table] tfoot > tr > td:last-child {
+    border-bottom: 0;
+}
+
+table[data-responsive-table] td::before {
+    content: attr(data-responsive-label);
+    min-width: 0;
+    color: #6b7280;
+    font-weight: 500;
+    text-align: left;
+    overflow-wrap: anywhere;
+}
+
+table[data-responsive-table] td[data-responsive-label=""]::before,
+table[data-responsive-table] td[colspan]::before {
+    display: none;
+}
+
+table[data-responsive-table] td[colspan] {
+    grid-column: 1 / -1;
+}
+
+table[data-responsive-table] td > *,
+table[data-responsive-table] th > * {
+    min-width: 0;
+    max-width: 100%;
+}
+
+table[data-responsive-table] td .flex,
+table[data-responsive-table] td .inline-flex {
+    flex-wrap: wrap;
+}
+
+table[data-responsive-table] td pre {
+    max-width: 100%;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+table[data-responsive-table] tfoot:not(.hidden) {
+    display: block;
+    padding: 0.75rem;
+    border-top: 2px solid #d1d5db;
+    background: #f3f4f6;
+}
+
+table[data-responsive-table] tfoot > tr:not(.hidden) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+}
+
+table[data-responsive-table][data-responsive-kind="summary"] tbody > tr:not(.hidden) {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+table[data-responsive-table][data-responsive-kind="summary"] tbody > tr > td:not(.hidden) {
+    display: block;
+}
+
+@media (min-width: 40rem) {
+    table[data-responsive-table] tbody > tr:not(.hidden) {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    table[data-responsive-table] tbody > tr:not(.hidden) > td:not(.hidden),
+    table[data-responsive-table] tfoot > tr:not(.hidden) > td:not(.hidden) {
+        display: block;
+    }
+
+    table[data-responsive-table] td::before {
+        display: block;
+        margin-bottom: 0.25rem;
+    }
+
+    table[data-responsive-table] td[data-responsive-label=""]::before,
+    table[data-responsive-table] td[colspan]::before {
+        display: none;
+    }
+}
+
+@media (min-width: 64rem) {
+    table[data-responsive-table][data-responsive-breakpoint="lg"] {
+        display: table;
+        font-size: 0.75rem;
+    }
+
+    table[data-responsive-table][data-responsive-breakpoint="lg"] thead {
+        display: table-header-group;
+    }
+
+    table[data-responsive-table][data-responsive-breakpoint="lg"] tbody:not(.hidden) {
+        display: table-row-group;
+        padding: 0;
+        background: transparent;
+    }
+
+    table[data-responsive-table][data-responsive-breakpoint="lg"] tbody > tr:not(.hidden),
+    table[data-responsive-table][data-responsive-breakpoint="lg"] tfoot > tr:not(.hidden) {
+        display: table-row;
+        border-radius: 0;
+        box-shadow: none;
+    }
+
+    table[data-responsive-table][data-responsive-breakpoint="lg"] tbody > tr:not(.hidden) > td:not(.hidden),
+    table[data-responsive-table][data-responsive-breakpoint="lg"] tfoot > tr:not(.hidden) > td:not(.hidden) {
+        display: table-cell;
+        width: auto;
+        padding: 0.5rem !important;
+        border-bottom: inherit;
+        white-space: normal !important;
+        vertical-align: top;
+        overflow-wrap: anywhere;
+    }
+
+    table[data-responsive-table][data-responsive-breakpoint="lg"] th {
+        padding: 0.5rem !important;
+        white-space: normal !important;
+        overflow-wrap: anywhere;
+    }
+
+    table[data-responsive-table][data-responsive-breakpoint="lg"] td::before {
+        display: none;
+    }
+
+    table[data-responsive-table][data-responsive-breakpoint="lg"] tfoot:not(.hidden) {
+        display: table-footer-group;
+        padding: 0;
+    }
+}
+
+@media (min-width: 80rem) {
+    table[data-responsive-table][data-responsive-breakpoint="xl"] {
+        display: table;
+        font-size: 0.75rem;
+    }
+
+    table[data-responsive-table][data-responsive-breakpoint="xl"] thead {
+        display: table-header-group;
+    }
+
+    table[data-responsive-table][data-responsive-breakpoint="xl"] tbody:not(.hidden) {
+        display: table-row-group;
+        padding: 0;
+        background: transparent;
+    }
+
+    table[data-responsive-table][data-responsive-breakpoint="xl"] tbody > tr:not(.hidden),
+    table[data-responsive-table][data-responsive-breakpoint="xl"] tfoot > tr:not(.hidden) {
+        display: table-row;
+        border-radius: 0;
+        box-shadow: none;
+    }
+
+    table[data-responsive-table][data-responsive-breakpoint="xl"] tbody > tr:not(.hidden) > td:not(.hidden),
+    table[data-responsive-table][data-responsive-breakpoint="xl"] tfoot > tr:not(.hidden) > td:not(.hidden) {
+        display: table-cell;
+        width: auto;
+        padding: 0.375rem 0.5rem !important;
+        border-bottom: inherit;
+        white-space: normal !important;
+        vertical-align: top;
+        overflow-wrap: anywhere;
+    }
+
+    table[data-responsive-table][data-responsive-breakpoint="xl"] th {
+        padding: 0.375rem 0.5rem !important;
+        white-space: normal !important;
+        overflow-wrap: anywhere;
+    }
+
+    table[data-responsive-table][data-responsive-breakpoint="xl"] td::before {
+        display: none;
+    }
+
+    table[data-responsive-table][data-responsive-breakpoint="xl"] tfoot:not(.hidden) {
+        display: table-footer-group;
+        padding: 0;
+    }
+}
 

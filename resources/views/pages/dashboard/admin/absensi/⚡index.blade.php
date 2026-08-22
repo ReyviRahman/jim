@@ -318,8 +318,8 @@ session()->flash('success', "Berhasil Check-In: {$user->name}. {$infoSesi}");
         </div>
     </div>
 
-    <div class="relative overflow-x-auto bg-neutral-primary-soft shadow-xs rounded-md border border-default">
-        <table class="w-full text-sm text-left rtl:text-right text-body">
+    <div class="relative overflow-hidden bg-neutral-primary-soft shadow-xs rounded-md border border-default">
+        <table data-responsive-table data-responsive-breakpoint="lg" class="table-fixed w-full text-sm text-left rtl:text-right text-body">
             <thead class="text-sm text-body bg-neutral-secondary-medium border-b border-default-medium">
                 <tr>
                     <th scope="col" class="px-6 py-3 font-medium">No</th>
@@ -331,11 +331,11 @@ session()->flash('success', "Berhasil Check-In: {$user->name}. {$infoSesi}");
             <tbody>
                 @forelse ($attendances as $attendance)
                     <tr wire:key="{{ $attendance->id }}" class="bg-neutral-primary-soft border-b border-default hover:bg-neutral-secondary-medium">
-                        <td class="px-7 py-4 font-medium text-heading whitespace-nowrap">
+                        <td class="px-7 py-4 font-medium text-heading">
                             {{ $loop->iteration + ($attendances->currentPage() - 1) * $attendances->perPage() }}
                         </td>
                         
-                        <td class="flex items-center px-6 py-4 font-medium text-heading whitespace-nowrap">
+                        <td class="flex items-center px-6 py-4 font-medium text-heading">
                             @if($attendance->user)
                                 @if($attendance->user->photo)
                                     <img class="w-10 h-10 rounded-full object-cover mr-3 border border-gray-200" src="{{ asset('storage/' . $attendance->user->photo) }}" alt="{{ $attendance->user->name }}">
@@ -351,7 +351,7 @@ session()->flash('success', "Berhasil Check-In: {$user->name}. {$infoSesi}");
                             @endif
                         </td>
 
-                        <td class="px-6 py-4 whitespace-nowrap">
+                        <td class="px-6 py-4">
                             @if($attendance->user)
                                 <span class="inline-flex rounded-md border border-blue-200 bg-blue-100 px-2.5 py-1 text-xs font-semibold leading-5 text-blue-800">
                                     {{ match ($attendance->user->role) {
@@ -367,7 +367,7 @@ session()->flash('success', "Berhasil Check-In: {$user->name}. {$infoSesi}");
                             @endif
                         </td>
                         
-                        <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
+                        <td class="px-6 py-4 font-medium text-heading">
                             <div class="flex items-center text-gray-600">
                                 {{ \Carbon\Carbon::parse($attendance->check_in_time)->format('d M Y') }}
                                 <span class="ml-2 font-bold text-gray-800">

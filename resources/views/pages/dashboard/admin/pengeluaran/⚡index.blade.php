@@ -167,7 +167,7 @@ new #[Layout('layouts::admin')] class extends Component
     @endif
 
     {{-- Filter Bar --}}
-    <div class="relative overflow-x-auto bg-neutral-primary-soft shadow-xs rounded-md border border-default mb-6">
+    <div class="relative overflow-hidden bg-neutral-primary-soft shadow-xs rounded-md border border-default mb-6">
         <div class="p-4 flex flex-col lg:flex-row items-center justify-between gap-4">
             
             {{-- Search --}}
@@ -227,7 +227,7 @@ new #[Layout('layouts::admin')] class extends Component
                 </div>
             </div>
         
-        <table class="w-full text-sm text-left rtl:text-right text-body">
+        <table data-responsive-table data-responsive-breakpoint="lg" class="table-fixed w-full text-sm text-left rtl:text-right text-body">
             <thead class="text-sm text-body bg-neutral-secondary-medium border-b border-default-medium">
                 <tr>
                     <th class="px-6 py-3 font-medium">No</th>
@@ -247,7 +247,7 @@ new #[Layout('layouts::admin')] class extends Component
                     <tr wire:key="{{ $expense->id }}" class="bg-white border-b border-gray-100 hover:bg-gray-50">
                         <td class="px-6 py-4">{{ $loop->iteration + ($this->expenses->currentPage() - 1) * $this->expenses->perPage() }}</td>
                         
-                        <td class="px-6 py-4 whitespace-nowrap">
+                        <td class="px-6 py-4">
                             <div class="font-medium">{{ $expense->expense_date ? \Carbon\Carbon::parse($expense->expense_date)->format('d M Y') : '-' }}</div>
                         </td>
                         
@@ -255,17 +255,17 @@ new #[Layout('layouts::admin')] class extends Component
                             <div class="text-gray-800">{{ $expense->description }}</div>
                         </td>
                         
-                        <td class="px-6 py-4 text-right font-bold text-red-600 whitespace-nowrap">
+                        <td class="px-6 py-4 text-right font-bold text-red-600">
                             Rp {{ number_format($expense->amount, 0, ',', '.') }}
                         </td>
                         
-                        <td class="px-6 py-4 whitespace-nowrap">
+                        <td class="px-6 py-4">
                             {{ $expense->admin->name ?? '-' }}
                         </td>
 
                         {{-- Tampilkan Tombol Edit & Delete HANYA JIKA user adalah admin --}}
                         @if(auth()->check() && auth()->user()->role === 'admin')
-                            <td class="px-6 py-4 whitespace-nowrap text-center">
+                            <td class="px-6 py-4 text-center">
                                 <div class="flex items-center justify-center gap-3">
                                     {{-- Tombol Edit: Arahkan ke halaman edit. Sesuaikan nama route-nya --}}
                                     <a href="{{ route('admin.pengeluaran.edit', $expense->id) }}" wire:navigate class="text-blue-600 hover:text-blue-800 font-medium">

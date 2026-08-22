@@ -119,8 +119,8 @@ new #[Layout('layouts::admin')] class extends Component
 
 
     {{-- Tabel Membership --}}
-    <div class="relative overflow-x-auto bg-neutral-primary-soft shadow-xs rounded-md border border-default">
-        <table class="w-full text-sm text-left rtl:text-right text-body">
+    <div class="relative overflow-hidden bg-neutral-primary-soft shadow-xs rounded-md border border-default">
+        <table data-responsive-table data-responsive-breakpoint="xl" class="table-fixed w-full text-sm text-left rtl:text-right text-body">
             <thead class="text-sm text-body bg-neutral-secondary-medium border-b border-default-medium">
                 <tr>
                     <th scope="col" class="px-6 py-3 font-medium">No</th>
@@ -142,11 +142,11 @@ new #[Layout('layouts::admin')] class extends Component
                     <tr wire:key="{{ $membership->id }}" class="bg-neutral-primary-soft border-b border-default hover:bg-neutral-secondary-medium">
                         
                         {{-- Nomor Urut --}}
-                        <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
+                        <td class="px-6 py-4 font-medium text-heading">
                             {{ $loop->iteration }}
                         </td>
 
-                        <td class="px-6 py-4 text-center whitespace-nowrap">
+                        <td class="px-6 py-4 text-center">
                             <a href="{{ route('admin.riwayat.membership.invoice', $membership) }}"
                                 class="inline-flex items-center justify-center rounded-md p-2 text-fg-brand hover:bg-brand-soft hover:text-brand-strong"
                                 title="Unduh Invoice">
@@ -159,7 +159,7 @@ new #[Layout('layouts::admin')] class extends Component
 
                         @if(auth()->check() && auth()->user()->role === 'admin')
                             {{-- AKSI --}}
-                            <td class="px-6 py-4 text-center whitespace-nowrap">
+                            <td class="px-6 py-4 text-center">
                                 <div class="flex items-center justify-center gap-2">
                                     <a href="{{ route('admin.membership.edit', $membership->id) }}" wire:navigate class="inline-flex items-center justify-center text-fg-brand hover:text-brand-strong" title="Edit">
                                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
@@ -181,7 +181,7 @@ new #[Layout('layouts::admin')] class extends Component
                         @endif
 
                         {{-- INFO MEMBER --}}
-                        <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
+                        <td class="px-6 py-4 font-medium text-heading">
                             <div class="flex flex-col gap-1.5">
                                 @forelse($membership->members as $member)
                                     <div class="flex items-center gap-2">
@@ -194,7 +194,7 @@ new #[Layout('layouts::admin')] class extends Component
                         </td>
 
                         {{-- INFO PROGRAM / PAKET & SESI COACH (DIGABUNG) --}}
-                        <td class="px-6 py-4 text-heading whitespace-nowrap">
+                        <td class="px-6 py-4 text-heading">
                             <div class="flex flex-col gap-2">
                                 
                                 {{-- Jika ada Paket Gym (Termasuk Visit) --}}
@@ -237,7 +237,7 @@ new #[Layout('layouts::admin')] class extends Component
                         </td>
 
                         {{-- Total Bayar --}}
-                        <td class="px-6 py-4 text-right whitespace-nowrap">
+                        <td class="px-6 py-4 text-right">
                             @if($membership->discount_applied > 0)
                                 @php
                                     $originalPrice = $membership->price_paid + $membership->discount_applied;
@@ -277,7 +277,7 @@ new #[Layout('layouts::admin')] class extends Component
                             @endif
                         </td>
                         {{-- Masa Aktif --}}
-                        <td class="px-6 py-4 whitespace-nowrap text-xs">
+                        <td class="px-6 py-4 text-xs">
                             <div class="flex flex-col gap-1.5">
                                 <div class="flex items-center text-gray-600">
                                     <svg class="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
@@ -310,7 +310,7 @@ new #[Layout('layouts::admin')] class extends Component
                             </div>
                         </td>
 
-                        <td class="px-6 py-4 whitespace-nowrap text-center">
+                        <td class="px-6 py-4 text-center">
                             @php
                                 $statusColor = match($membership->status) {
                                     'active' => 'bg-green-100 text-green-800',
@@ -332,10 +332,10 @@ new #[Layout('layouts::admin')] class extends Component
                             </span>
                         </td>
 
-                        <td class="px-6 py-4 font-medium text-heading whitespace-nowrap text-center">
+                        <td class="px-6 py-4 font-medium text-heading text-center">
                             <span class="font-semibold">{{ $membership->followUp->name ?? '-' }}</span>
                         </td>
-                        <td class="px-6 py-4 font-medium text-heading whitespace-nowrap text-center">
+                        <td class="px-6 py-4 font-medium text-heading text-center">
                             <span class="font-semibold">{{ $membership->followUpTwo->name ?? '-' }}</span>
                         </td>
                     </tr>

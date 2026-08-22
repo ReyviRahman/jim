@@ -213,7 +213,7 @@ use Livewire\WithPagination;
         <h5 class="text-xl font-semibold text-heading">Jadwal PT</h5>
     </div>
 
-    <div class="relative overflow-x-auto bg-neutral-primary-soft shadow-xs rounded-md border border-default">
+    <div class="relative overflow-hidden bg-neutral-primary-soft shadow-xs rounded-md border border-default">
         <div class="p-4 flex flex-col md:flex-row items-center justify-between gap-4">
             <div class="relative w-full md:w-auto md:flex-1">
                 <div class="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
@@ -236,7 +236,7 @@ use Livewire\WithPagination;
             </div>
         </div>
 
-        <table class="w-full text-sm text-left rtl:text-right text-body">
+        <table data-responsive-table data-responsive-breakpoint="xl" class="table-fixed w-full text-sm text-left rtl:text-right text-body">
             <thead class="text-sm text-body bg-neutral-secondary-medium border-b border-default-medium">
                 <tr>
                     <th scope="col" class="px-6 py-3 font-medium">No</th>
@@ -256,16 +256,16 @@ use Livewire\WithPagination;
                         $schedule = $membership->ptSchedule;
                     @endphp
                     <tr wire:key="{{ $membership->id }}" class="bg-neutral-primary-soft border-b border-default hover:bg-neutral-secondary-medium">
-                        <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
+                        <td class="px-6 py-4 font-medium text-heading">
                             {{ $loop->iteration + ($this->memberships->currentPage() - 1) * $this->memberships->perPage() }}
                         </td>
-                        <td class="px-6 py-4 text-heading whitespace-nowrap">
+                        <td class="px-6 py-4 text-heading">
                             {{ $membership->start_date?->locale('id')->isoFormat('D MMM YYYY') ?? 'BELUM AKTIF' }}
                         </td>
-                        <td class="px-6 py-4 text-heading whitespace-nowrap">
+                        <td class="px-6 py-4 text-heading">
                             {{ $membership->pt_end_date?->locale('id')->isoFormat('D MMM YYYY') ?? 'BELUM AKTIF' }}
                         </td>
-                        <td class="px-6 py-4 text-heading whitespace-nowrap">
+                        <td class="px-6 py-4 text-heading">
                             {{ $membership->total_sessions ?? 0 }} Sesi 
                             @php
                                 $category = $membership->ptPackage->category ?? '-';
@@ -280,7 +280,7 @@ use Livewire\WithPagination;
                                 {{ $display }}
                             </span>
                         </td>
-                        <td class="px-6 py-4 text-heading whitespace-nowrap">
+                        <td class="px-6 py-4 text-heading">
                             {{ $membership->personalTrainer?->name ?? '-' }}
                         </td>
                         <td class="px-6 py-4 font-medium">
@@ -298,7 +298,7 @@ use Livewire\WithPagination;
                                 @endforelse
                             </div>
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
+                        <td class="px-6 py-4">
                             @if($schedule)
                                 <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium capitalize
                                     @if($schedule->type === 'keep') bg-amber-100 text-amber-800
@@ -310,14 +310,14 @@ use Livewire\WithPagination;
                                 <span class="text-xs text-gray-400">-</span>
                             @endif
                         </td>
-                        <td class="px-6 py-4 text-heading whitespace-nowrap">
+                        <td class="px-6 py-4 text-heading">
                             @if($schedule)
                                 <div class="flex flex-nowrap items-center gap-x-1">
                                     @if($schedule->type === 'fleksibel')
                                         <span class="text-xs font-medium text-body">Fleksibel</span>
                                     @else
                                         @foreach($schedule->days as $index => $day)
-                                            <span class="text-xs whitespace-nowrap flex items-center gap-x-1">
+                                            <span class="text-xs flex items-center gap-x-1">
                                                 <span class="font-medium text-body">{{ ucfirst($day->day) }}</span>
                                                 <span class="font-semibold text-heading">{{ $day->time->format('H:i') }}</span>
                                             </span>
@@ -328,7 +328,7 @@ use Livewire\WithPagination;
                                     @endif
                                     
                                     @if($schedule->status !== 'approved')
-                                        <span class="ml-1 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium capitalize whitespace-nowrap
+                                        <span class="ml-1 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium capitalize
                                             @if($schedule->status === 'pending') bg-yellow-100 text-yellow-800
                                             @elseif($schedule->status === 'rejected') bg-red-100 text-red-800
                                             @endif">
@@ -340,7 +340,7 @@ use Livewire\WithPagination;
                                 <span class="text-xs text-gray-400">Belum ada jadwal</span>
                             @endif
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
+                        <td class="px-6 py-4">
                             <div class="flex items-center gap-2">
                                 @if($schedule)
                                     @if($schedule->status === 'pending' && $this->isHeadCoach())

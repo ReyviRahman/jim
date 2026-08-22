@@ -53,7 +53,7 @@ new #[Layout('layouts::admin')] class extends Component
     </div>
 
     <div class="bg-white rounded-md border border-default shadow-xs overflow-hidden">
-        <table class="w-full text-sm text-left text-body">
+        <table data-responsive-table data-responsive-breakpoint="xl" class="table-fixed w-full text-sm text-left text-body">
             <thead class="text-xs text-heading uppercase bg-neutral-primary-soft border-b border-default">
                 <tr>
                     <th class="px-4 py-3">Member</th>
@@ -103,7 +103,7 @@ new #[Layout('layouts::admin')] class extends Component
                         <td class="px-4 py-3 text-right font-medium text-heading">Rp {{ number_format($m->price_paid, 0, ',', '.') }}</td>
                         <td class="px-4 py-3 text-right text-green-600">Rp {{ number_format($m->total_paid, 0, ',', '.') }}</td>
                         <td class="px-4 py-3 text-right text-red-600 font-bold">Rp {{ number_format($m->price_paid - $m->total_paid, 0, ',', '.') }}</td>
-                        <td class="px-4 py-3 text-center whitespace-nowrap">
+                        <td class="px-4 py-3 text-center">
                             {{-- Ganti rute ini sesuai dengan rute halaman pembayaran kamu --}}
                             <a href="{{ route('admin.cicilan.pay', $m->id) }}" wire:navigate class="text-white bg-brand hover:bg-brand-strong focus:ring-4 focus:ring-brand-medium font-medium rounded-md text-xs px-3 py-1.5 transition-colors">
                                 Bayar Cicilan

@@ -276,8 +276,8 @@ new #[Layout('layouts::admin')] class extends Component
             </div>
         @endif
 
-        <div class="relative overflow-x-auto bg-neutral-primary-soft shadow-xs rounded-md border border-default">
-            <table class="w-full text-sm text-left rtl:text-right text-body">
+        <div class="relative overflow-hidden bg-neutral-primary-soft shadow-xs rounded-md border border-default">
+            <table data-responsive-table data-responsive-breakpoint="lg" class="table-fixed w-full text-sm text-left rtl:text-right text-body">
                 <thead class="text-sm text-body bg-neutral-secondary-medium border-b border-default-medium">
                     <tr>
                         <th scope="col" class="px-6 py-3 font-medium">No</th>
@@ -290,11 +290,11 @@ new #[Layout('layouts::admin')] class extends Component
                 <tbody>
                     @forelse ($this->salesKonsultans as $item)
                         <tr wire:key="sk-{{ $item->id }}" class="bg-neutral-primary-soft border-b border-default hover:bg-neutral-secondary-medium">
-                            <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">{{ $loop->iteration }}</td>
-                            <td class="px-6 py-4 text-center whitespace-nowrap">{{ is_numeric($item->rentang_satu) ? number_format((float) $item->rentang_satu, 0, ",", ".") : $item->rentang_satu }}</td>
-                            <td class="px-6 py-4 text-center whitespace-nowrap">{{ is_numeric($item->rentang_dua) ? number_format((float) $item->rentang_dua, 0, ",", ".") : $item->rentang_dua }}</td>
-                            <td class="px-6 py-4 text-center whitespace-nowrap">{{ $item->persen }}%</td>
-                            <td class="px-6 py-4 text-center whitespace-nowrap">
+                            <td class="px-6 py-4 font-medium text-heading">{{ $loop->iteration }}</td>
+                            <td class="px-6 py-4 text-center">{{ is_numeric($item->rentang_satu) ? number_format((float) $item->rentang_satu, 0, ",", ".") : $item->rentang_satu }}</td>
+                            <td class="px-6 py-4 text-center">{{ is_numeric($item->rentang_dua) ? number_format((float) $item->rentang_dua, 0, ",", ".") : $item->rentang_dua }}</td>
+                            <td class="px-6 py-4 text-center">{{ $item->persen }}%</td>
+                            <td class="px-6 py-4 text-center">
                                 <button wire:click="edit({{ $item->id }})" class="font-medium text-fg-brand hover:underline">Edit</button>
                                 <button wire:click="deleteKonsultan({{ $item->id }})" wire:confirm="Yakin ingin menghapus data ini?" class="font-medium text-red-600 hover:underline ms-4">Hapus</button>
                             </td>
@@ -345,8 +345,8 @@ new #[Layout('layouts::admin')] class extends Component
             </div>
         @endif
 
-        <div class="relative overflow-x-auto bg-neutral-primary-soft shadow-xs rounded-md border border-default">
-            <table class="w-full text-sm text-left rtl:text-right text-body">
+        <div class="relative overflow-hidden bg-neutral-primary-soft shadow-xs rounded-md border border-default">
+            <table data-responsive-table data-responsive-breakpoint="lg" class="table-fixed w-full text-sm text-left rtl:text-right text-body">
                 <thead class="text-sm text-body bg-neutral-secondary-medium border-b border-default-medium">
                     <tr>
                         <th scope="col" class="px-6 py-3 font-medium">No</th>
@@ -359,11 +359,11 @@ new #[Layout('layouts::admin')] class extends Component
                 <tbody>
                     @forelse ($this->kasirKonsultans as $item)
                         <tr wire:key="kk-{{ $item->id }}" class="bg-neutral-primary-soft border-b border-default hover:bg-neutral-secondary-medium">
-                            <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">{{ $loop->iteration }}</td>
-                            <td class="px-6 py-4 text-center whitespace-nowrap">{{ is_numeric($item->rentang_satu) ? number_format((float) $item->rentang_satu, 0, ",", ".") : $item->rentang_satu }}</td>
-                            <td class="px-6 py-4 text-center whitespace-nowrap">{{ is_numeric($item->rentang_dua) ? number_format((float) $item->rentang_dua, 0, ",", ".") : $item->rentang_dua }}</td>
-                            <td class="px-6 py-4 text-center whitespace-nowrap">{{ $item->persen }}%</td>
-                            <td class="px-6 py-4 text-center whitespace-nowrap">
+                            <td class="px-6 py-4 font-medium text-heading">{{ $loop->iteration }}</td>
+                            <td class="px-6 py-4 text-center">{{ is_numeric($item->rentang_satu) ? number_format((float) $item->rentang_satu, 0, ",", ".") : $item->rentang_satu }}</td>
+                            <td class="px-6 py-4 text-center">{{ is_numeric($item->rentang_dua) ? number_format((float) $item->rentang_dua, 0, ",", ".") : $item->rentang_dua }}</td>
+                            <td class="px-6 py-4 text-center">{{ $item->persen }}%</td>
+                            <td class="px-6 py-4 text-center">
                                 <button wire:click="editKasir({{ $item->id }})" class="font-medium text-fg-brand hover:underline">Edit</button>
                                 <button wire:click="deleteKasirKonsultan({{ $item->id }})" wire:confirm="Yakin ingin menghapus data ini?" class="font-medium text-red-600 hover:underline ms-4">Hapus</button>
                             </td>
@@ -414,8 +414,8 @@ new #[Layout('layouts::admin')] class extends Component
             </div>
         @endif
 
-        <div class="relative overflow-x-auto bg-neutral-primary-soft shadow-xs rounded-md border border-default">
-            <table class="w-full text-sm text-left rtl:text-right text-body">
+        <div class="relative overflow-hidden bg-neutral-primary-soft shadow-xs rounded-md border border-default">
+            <table data-responsive-table data-responsive-breakpoint="lg" class="table-fixed w-full text-sm text-left rtl:text-right text-body">
                 <thead class="text-sm text-body bg-neutral-secondary-medium border-b border-default-medium">
                     <tr>
                         <th scope="col" class="px-6 py-3 font-medium">No</th>
@@ -428,11 +428,11 @@ new #[Layout('layouts::admin')] class extends Component
                 <tbody>
                     @forelse ($this->coachKonsultans as $item)
                         <tr wire:key="ck-{{ $item->id }}" class="bg-neutral-primary-soft border-b border-default hover:bg-neutral-secondary-medium">
-                            <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">{{ $loop->iteration }}</td>
-                            <td class="px-6 py-4 text-center whitespace-nowrap">{{ is_numeric($item->rentang_satu) ? number_format((float) $item->rentang_satu, 0, ",", ".") : $item->rentang_satu }}</td>
-                            <td class="px-6 py-4 text-center whitespace-nowrap">{{ is_numeric($item->rentang_dua) ? number_format((float) $item->rentang_dua, 0, ",", ".") : $item->rentang_dua }}</td>
-                            <td class="px-6 py-4 text-center whitespace-nowrap">{{ $item->persen }}%</td>
-                            <td class="px-6 py-4 text-center whitespace-nowrap">
+                            <td class="px-6 py-4 font-medium text-heading">{{ $loop->iteration }}</td>
+                            <td class="px-6 py-4 text-center">{{ is_numeric($item->rentang_satu) ? number_format((float) $item->rentang_satu, 0, ",", ".") : $item->rentang_satu }}</td>
+                            <td class="px-6 py-4 text-center">{{ is_numeric($item->rentang_dua) ? number_format((float) $item->rentang_dua, 0, ",", ".") : $item->rentang_dua }}</td>
+                            <td class="px-6 py-4 text-center">{{ $item->persen }}%</td>
+                            <td class="px-6 py-4 text-center">
                                 <button wire:click="editCoach({{ $item->id }})" class="font-medium text-fg-brand hover:underline">Edit</button>
                                 <button wire:click="deleteCoachKonsultan({{ $item->id }})" wire:confirm="Yakin ingin menghapus data ini?" class="font-medium text-red-600 hover:underline ms-4">Hapus</button>
                             </td>

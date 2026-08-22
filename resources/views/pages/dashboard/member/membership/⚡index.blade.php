@@ -35,8 +35,8 @@ new #[Layout('layouts::member')] class extends Component
         <h5 class="text-xl font-semibold text-heading">Riwayat Membership Saya</h5>
     </div>
 
-    <div class="relative overflow-x-auto bg-neutral-primary-soft shadow-xs rounded-md border border-default">
-        <table class="w-full text-sm text-left rtl:text-right text-body">
+    <div class="relative overflow-hidden bg-neutral-primary-soft shadow-xs rounded-md border border-default">
+        <table data-responsive-table data-responsive-breakpoint="xl" class="table-fixed w-full text-sm text-left rtl:text-right text-body">
             <thead class="text-sm text-body bg-neutral-secondary-medium border-b border-default-medium">
                 <tr>
                     <th scope="col" class="px-6 py-3 font-medium">No</th>
@@ -53,12 +53,12 @@ new #[Layout('layouts::member')] class extends Component
                     <tr wire:key="{{ $membership->id }}" class="bg-neutral-primary-soft border-b border-default hover:bg-neutral-secondary-medium">
                         
                         {{-- Nomor --}}
-                        <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
+                        <td class="px-6 py-4 font-medium text-heading">
                             {{ $loop->iteration + ($this->memberships->currentPage() - 1) * $this->memberships->perPage() }}
                         </td>
 
                         {{-- TIPE LAYANAN --}}
-                        <td class="px-6 py-4 whitespace-nowrap">
+                        <td class="px-6 py-4">
                             @if ($membership->type === 'membership')
                                 <span class="bg-emerald-50 text-emerald-700 text-xs font-semibold px-2.5 py-1 rounded-md border border-emerald-200">Gym Bulanan</span>
                             @elseif ($membership->type === 'pt')
@@ -73,7 +73,7 @@ new #[Layout('layouts::member')] class extends Component
                         </td>
                         
                         {{-- DETAIL PROGRAM & GOAL --}}
-                        <td class="px-6 py-4 text-heading whitespace-nowrap">
+                        <td class="px-6 py-4 text-heading">
                             <div class="flex flex-col gap-2">
                                 
                                 {{-- Jika ada Paket Gym / Visit --}}
@@ -108,7 +108,7 @@ new #[Layout('layouts::member')] class extends Component
                         </td>
                         
                         {{-- Sesi Coach --}}
-                        <td class="px-6 py-4 text-center whitespace-nowrap">
+                        <td class="px-6 py-4 text-center">
                             @if($membership->total_sessions)
                                 <span class="font-bold {{ $membership->remaining_sessions <= 2 ? 'text-red-600' : 'text-green-600' }}">
                                     {{ $membership->remaining_sessions }}
@@ -120,7 +120,7 @@ new #[Layout('layouts::member')] class extends Component
                         </td>
 
                         {{-- Total Bayar --}}
-                        <td class="px-6 py-4 text-right whitespace-nowrap">
+                        <td class="px-6 py-4 text-right">
                             @if($membership->discount_applied > 0)
                                 @php
                                     $originalPrice = $membership->price_paid + $membership->discount_applied;
@@ -143,7 +143,7 @@ new #[Layout('layouts::member')] class extends Component
                         </td>
                         
                         {{-- Masa Aktif --}}
-                        <td class="px-6 py-4 whitespace-nowrap text-xs">
+                        <td class="px-6 py-4 text-xs">
                             <div class="flex flex-col gap-1.5">
                                 <div class="flex items-center text-gray-600">
                                     <svg class="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
@@ -174,7 +174,7 @@ new #[Layout('layouts::member')] class extends Component
                         </td>
                         
                         {{-- Status --}}
-                        <td class="px-6 py-4 text-center whitespace-nowrap">
+                        <td class="px-6 py-4 text-center">
                             @if($membership->status === 'active')
                                 <span class="bg-green-100 text-green-800 text-xs font-semibold px-2.5 py-1 rounded-full border border-green-200">Aktif</span>
                             @elseif($membership->status === 'pending')

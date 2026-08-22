@@ -546,7 +546,7 @@ new #[Layout('layouts::admin')] class extends Component
 
                 <div class="p-4">
                     <template x-if="selectedProducts.length > 0">
-                        <table class="w-full text-sm text-left text-body">
+                        <table data-responsive-table data-responsive-breakpoint="lg" class="table-fixed w-full text-sm text-left text-body">
                             <thead class="text-sm bg-neutral-secondary-medium border-b border-default-medium">
                                 <tr>
                                     <th class="px-2 py-2 font-medium">Produk</th>
@@ -932,7 +932,7 @@ new #[Layout('layouts::admin')] class extends Component
                             <div class="mb-4">
                                 <h4 class="font-semibold text-heading mb-2">Daftar Belanja:</h4>
                                 <div class="max-h-48 overflow-y-auto border border-default-medium rounded-md">
-                                    <table class="w-full text-sm">
+                                    <table data-responsive-table data-responsive-breakpoint="lg" class="table-fixed w-full text-sm">
                                         <thead class="bg-neutral-secondary-medium sticky top-0">
                                             <tr>
                                                 <th class="px-2 py-1 text-left font-medium text-heading">Produk</th>

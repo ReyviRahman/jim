@@ -187,7 +187,7 @@ new #[Layout('layouts::admin')] class extends Component
         </div>
     @endif
 
-    <div class="relative overflow-x-auto bg-neutral-primary-soft shadow-xs rounded-base border border-default">
+    <div class="relative overflow-hidden bg-neutral-primary-soft shadow-xs rounded-base border border-default">
         <div class="flex items-center flex-column flex-wrap md:flex-row space-y-4 md:space-y-0 p-4">
             <div>
                 <h5 class="text-xl font-semibold text-heading">Aktivasi Member</h5>
@@ -206,7 +206,7 @@ new #[Layout('layouts::admin')] class extends Component
             </div>
         </div>
 
-        <table class="w-full text-sm text-left rtl:text-right text-body">
+        <table data-responsive-table data-responsive-breakpoint="lg" class="table-fixed w-full text-sm text-left rtl:text-right text-body">
             <thead class="text-sm text-body bg-neutral-secondary-medium border-b border-default-medium">
                 <tr>
                     <th scope="col" class="px-6 py-3 font-medium">No</th>
@@ -222,12 +222,12 @@ new #[Layout('layouts::admin')] class extends Component
                     <tr wire:key="{{ $membership->id }}" wire:click="openActionModal({{ $membership->id }})" class="bg-neutral-primary-soft border-b border-default hover:bg-neutral-secondary-medium cursor-pointer">
                         
                         {{-- Nomor Urut --}}
-                        <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
+                        <td class="px-6 py-4 font-medium text-heading">
                             {{ $loop->iteration + ($this->memberships->currentPage() - 1) * $this->memberships->perPage() }}
                         </td>
 
                         {{-- INFO MEMBER --}}
-                        <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
+                        <td class="px-6 py-4 font-medium text-heading">
                             <div class="flex items-center gap-2">
                                 @if($membership->user->photo)
                                     <img class="w-8 h-8 rounded-full object-cover" src="{{ asset('storage/' . $membership->user->photo) }}" alt="{{ $membership->user->name }}">
@@ -242,7 +242,7 @@ new #[Layout('layouts::admin')] class extends Component
                         </td>
 
                         {{-- INFO PROGRAM / PAKET (DIGABUNG) --}}
-                        <td class="px-6 py-4 text-heading whitespace-nowrap">
+                        <td class="px-6 py-4 text-heading">
                             <div class="flex flex-col gap-2">
                                 
                                 {{-- Jika ada Paket Gym --}}
@@ -285,19 +285,19 @@ new #[Layout('layouts::admin')] class extends Component
                         </td>
 
                         {{-- Total Bayar --}}
-                        <td class="px-6 py-4 text-right whitespace-nowrap">
+                        <td class="px-6 py-4 text-right">
                             <div class="font-bold text-heading text-base">
                                 Rp {{ number_format($membership->price_paid ?? 0, 0, ',', '.') }}
                             </div>
                         </td>
 
                         {{-- Admin Follow Up --}}
-                        <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
+                        <td class="px-6 py-4 font-medium text-heading">
                             <h1 class="font-semibold">{{ $membership->followUp->name ?? '-' }}</h1>
                         </td>
 
                         {{-- Sales Follow Up --}}
-                        <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
+                        <td class="px-6 py-4 font-medium text-heading">
                             <h1 class="font-semibold">{{ $membership->followUpTwo->name ?? '-' }}</h1>
                         </td>
 

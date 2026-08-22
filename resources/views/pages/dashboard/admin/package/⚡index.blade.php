@@ -61,8 +61,8 @@ new #[Layout('layouts::admin')] class extends Component
         </div>
     @endif
 
-    <div class="relative overflow-x-auto bg-neutral-primary-soft shadow-xs rounded-md border border-default">
-        <table class="w-full text-sm text-left rtl:text-right text-body">
+    <div class="relative overflow-hidden bg-neutral-primary-soft shadow-xs rounded-md border border-default">
+        <table data-responsive-table data-responsive-breakpoint="xl" class="table-fixed w-full text-sm text-left rtl:text-right text-body">
             <thead class="text-sm text-body bg-neutral-secondary-medium border-b border-default-medium">
                 <tr>
                     <th scope="col" class="px-6 py-3 font-medium">No</th>
@@ -84,12 +84,12 @@ new #[Layout('layouts::admin')] class extends Component
                     <tr wire:key="package-{{ $package->id }}" class="bg-neutral-primary-soft border-b border-default hover:bg-neutral-secondary-medium">
 
                         {{-- No --}}
-                        <td scope="row" class="px-7 py-4 font-medium text-heading whitespace-nowrap">
+                        <td scope="row" class="px-7 py-4 font-medium text-heading">
                             {{ $loop->iteration }}
                         </td>
 
                         {{-- Aksi --}}
-                        <td class="py-4 text-center whitespace-nowrap">
+                        <td class="py-4 text-center">
                             <div class="flex items-center justify-center gap-2">
                                 <a href="{{ route('admin.packages.edit', $package->id) }}" wire:navigate class="inline-flex items-center justify-center text-fg-brand hover:text-brand-strong" title="Edit">
                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
@@ -110,7 +110,7 @@ new #[Layout('layouts::admin')] class extends Component
                         </td>
 
                         {{-- Tipe Layanan & Sesi PT (DIPERBARUI) --}}
-                        <td class="px-6 py-4 text-center whitespace-nowrap">
+                        <td class="px-6 py-4 text-center">
                             @if($package->type === 'pt')
                                 <span class="inline-flex items-center gap-1 bg-indigo-50 text-indigo-700 text-xs font-semibold px-2.5 py-1 rounded-md border border-indigo-200">
                                     👨‍🏫 Personal Trainer
@@ -131,12 +131,12 @@ new #[Layout('layouts::admin')] class extends Component
                         </td>
 
                         {{-- Nama --}}
-                        <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
+                        <td class="px-6 py-4 font-medium text-heading">
                             {{ $package->name }}
                         </td>
 
                         {{-- Kategori & Kapasitas (DIPERBARUI) --}}
-                        <td class="px-6 py-4 text-center whitespace-nowrap">
+                        <td class="px-6 py-4 text-center">
                             @if($package->category === 'single')
                                 <span class="bg-blue-50 text-blue-700 text-xs font-semibold px-2.5 py-1 rounded-md border border-blue-200">Single</span>
                             @elseif($package->category === 'couple')
@@ -153,12 +153,12 @@ new #[Layout('layouts::admin')] class extends Component
                         </td>
 
                         {{-- Harga (Price) --}}
-                        <td class="px-6 py-4 text-right font-bold text-heading whitespace-nowrap">
+                        <td class="px-6 py-4 text-right font-bold text-heading">
                             Rp {{ number_format($package->price, 0, ',', '.') }}
                         </td>
 
                         {{-- Diskon --}}
-                        <td class="px-6 py-4 font-medium text-center whitespace-nowrap">
+                        <td class="px-6 py-4 font-medium text-center">
                             @if($package->discount > 0)
                                 @php
                                     $percentage = ($package->price > 0) ? ($package->discount / $package->price) * 100 : 0;
@@ -175,7 +175,7 @@ new #[Layout('layouts::admin')] class extends Component
                         </td>
 
                         {{-- Harga Normal --}}
-                        <td class="px-6 py-4 text-right font-medium text-gray-600 whitespace-nowrap">
+                        <td class="px-6 py-4 text-right font-medium text-gray-600">
                             @if($package->normal_price !== null)
                                 Rp {{ number_format($package->normal_price, 0, ',', '.') }}
                             @else
@@ -184,7 +184,7 @@ new #[Layout('layouts::admin')] class extends Component
                         </td>
 
                         {{-- Harga Net --}}
-                        <td class="px-6 py-4 text-right font-medium text-blue-600 whitespace-nowrap">
+                        <td class="px-6 py-4 text-right font-medium text-blue-600">
                             @if($package->net_price !== null)
                                 Rp {{ number_format($package->net_price, 0, ',', '.') }}
                             @else
@@ -193,7 +193,7 @@ new #[Layout('layouts::admin')] class extends Component
                         </td>
 
                         {{-- Harga Tidak Disarankan --}}
-                        <td class="px-6 py-4 text-right font-medium text-red-600 whitespace-nowrap">
+                        <td class="px-6 py-4 text-right font-medium text-red-600">
                             @if($package->unrecommended_price !== null)
                                 Rp {{ number_format($package->unrecommended_price, 0, ',', '.') }}
                             @else

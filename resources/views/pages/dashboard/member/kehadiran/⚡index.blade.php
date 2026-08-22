@@ -33,8 +33,8 @@ new #[Layout('layouts::member')] class extends Component
         <p class="text-sm text-body mt-1">Daftar riwayat kedatangan dan penggunaan sesi kamu di Frans Gym.</p>
     </div>
 
-    <div class="relative overflow-x-auto bg-neutral-primary-soft shadow-xs rounded-md border border-default">
-        <table class="w-full text-sm text-left rtl:text-right text-body">
+    <div class="relative overflow-hidden bg-neutral-primary-soft shadow-xs rounded-md border border-default">
+        <table data-responsive-table data-responsive-breakpoint="lg" class="table-fixed w-full text-sm text-left rtl:text-right text-body">
             
             <thead class="text-sm text-body bg-neutral-secondary-medium border-b border-default-medium">
                 <tr>
@@ -48,7 +48,7 @@ new #[Layout('layouts::member')] class extends Component
                 @forelse ($attendances as $absen)
                     <tr wire:key="{{ $absen->id }}" class="bg-neutral-primary-soft border-b border-default hover:bg-neutral-secondary-medium transition-colors">
                         
-                        <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
+                        <td class="px-6 py-4 font-medium text-heading">
                             <div class="flex items-center text-gray-600">
                                 {{ \Carbon\Carbon::parse($absen->check_in_time)->format('d M Y') }}
                                 <span class="ml-2 font-bold text-gray-800">
@@ -57,23 +57,23 @@ new #[Layout('layouts::member')] class extends Component
                             </div>
                         </td>
 
-                        <td class="px-6 py-4 whitespace-nowrap">
+                        <td class="px-6 py-4">
                             @if($absen->type === 'gym')
                                 <span class="px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-md bg-emerald-100 text-emerald-800 border border-emerald-200">
-                                    🏋️ Gym Mandiri
+                                    ??? Gym Mandiri
                                 </span>
                             @elseif($absen->type === 'pt')
                                 <span class="px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-md bg-indigo-100 text-indigo-800 border border-indigo-200">
-                                    👨‍🏫 Sesi PT
+                                    ????? Sesi PT
                                 </span>
                             @elseif($absen->type === 'visit')
                                 <span class="px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-md bg-orange-100 text-orange-800 border border-orange-200">
-                                    🎟️ Visit Harian
+                                    ??? Visit Harian
                                 </span>
                             @endif
                         </td>
 
-                        <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
+                        <td class="px-6 py-4 font-medium text-heading">
                             @if($absen->membership)
                                 <div class="flex flex-col gap-1">
                                     

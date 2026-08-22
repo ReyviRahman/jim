@@ -50,7 +50,7 @@ new #[Layout('layouts::admin')] class extends Component
         </div>
     @endif
 
-    <div class="relative overflow-x-auto bg-neutral-primary-soft shadow-xs rounded-md border border-default mb-6">
+    <div class="relative overflow-hidden bg-neutral-primary-soft shadow-xs rounded-md border border-default mb-6">
         <div class="p-4 flex flex-col md:flex-row items-center justify-between gap-4">
             <div class="relative w-full md:w-auto md:flex-1">
                 <div class="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
@@ -60,7 +60,7 @@ new #[Layout('layouts::admin')] class extends Component
             </div>
         </div>
 
-        <table class="w-full text-sm text-left rtl:text-right text-body">
+        <table data-responsive-table data-responsive-breakpoint="lg" class="table-fixed w-full text-sm text-left rtl:text-right text-body">
             <thead class="text-xs text-body bg-neutral-secondary-medium border-b border-default-medium">
                 <tr>
                     <th class="px-6 py-3 font-medium">No</th>
@@ -76,7 +76,7 @@ new #[Layout('layouts::admin')] class extends Component
                 @forelse ($this->members as $index => $user)
                     <tr wire:key="{{ $user->id }}" class="bg-white border-b border-gray-100 hover:bg-gray-50">
                         <td class="px-6 py-4">{{ $loop->iteration + ($this->members->currentPage() - 1) * $this->members->perPage() }}</td>
-                        <td class="px-6 py-4 font-bold text-gray-800 whitespace-nowrap">
+                        <td class="px-6 py-4 font-bold text-gray-800">
                             <div class="flex items-center gap-3">
                                 @if($user->photo)
                                     <img class="w-8 h-8 rounded-full object-cover" src="{{ asset('storage/' . $user->photo) }}" alt="{{ $user->name }}">
@@ -88,13 +88,13 @@ new #[Layout('layouts::admin')] class extends Component
                                 {{ $user->name }}
                             </div>
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap">{{ $user->email ?? '-' }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap">{{ $user->phone ?? '-' }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap capitalize">{{ $user->gender ?? '-' }}</td>
-                        <td class="px-6 py-4 text-center whitespace-nowrap">
+                        <td class="px-6 py-4">{{ $user->email ?? '-' }}</td>
+                        <td class="px-6 py-4">{{ $user->phone ?? '-' }}</td>
+                        <td class="px-6 py-4 capitalize">{{ $user->gender ?? '-' }}</td>
+                        <td class="px-6 py-4 text-center">
                             {{ $user->created_at ? \Carbon\Carbon::parse($user->created_at)->format('d M Y') : '-' }}
                         </td>
-                        {{-- <td class="px-6 py-4 text-right whitespace-nowrap">
+                        {{-- <td class="px-6 py-4 text-right">
                             <a href="{{ route('admin.membership.paket', ['users' => [$user->id]]) }}" wire:navigate class="inline-flex items-center text-white bg-brand hover:bg-brand-strong focus:ring-4 focus:ring-brand-medium font-medium rounded-md text-xs px-3 py-2 transition-colors">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-1"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
                                 Daftarkan

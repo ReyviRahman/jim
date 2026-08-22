@@ -592,8 +592,8 @@ new #[Layout('layouts::admin')] class extends Component
     </div>
 
     <div class="bg-neutral-primary-soft shadow-xs rounded-md border border-default">
-        <div class="overflow-x-auto">
-            <table class="w-full text-sm text-left rtl:text-right text-body">
+        <div class="overflow-hidden">
+            <table data-responsive-table data-responsive-breakpoint="xl" class="table-fixed w-full text-sm text-left rtl:text-right text-body">
                 <thead class="text-sm text-body bg-neutral-secondary-medium border-b border-default-medium">
                     <tr>
                         <th scope="col" class="px-6 py-3 font-medium">No</th>
@@ -665,10 +665,10 @@ new #[Layout('layouts::admin')] class extends Component
                                 $totalSessions += $membership->berjalan;
                             @endphp
                             <tr wire:key="pt-membership-direct-{{ $membership->id }}" wire:click="redirectToMembershipDetail({{ $membership->id }})" class="bg-neutral-primary-soft border-b border-default hover:bg-neutral-secondary-medium cursor-pointer">
-                                <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
+                                <td class="px-6 py-4 font-medium text-heading">
                                     {{ $rowNumber++ }}
                                 </td>
-                                <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
+                                <td class="px-6 py-4 font-medium text-heading">
                                     {{ $membership->user->name ?? '-' }}
                                     @if($membership->members && $membership->members->count() > 1)
                                         <div class="text-xs text-body font-normal mt-0.5">
@@ -678,7 +678,7 @@ new #[Layout('layouts::admin')] class extends Component
                                         </div>
                                     @endif
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
+                                <td class="px-6 py-4">
                                     <div>Rp {{ number_format($membership->price_paid ?? 0, 0, ',', '.') }}</div>
                                     @if($priceLabelData)
                                         <div class="mt-1">
@@ -688,52 +688,52 @@ new #[Layout('layouts::admin')] class extends Component
                                         </div>
                                     @endif
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap capitalize">
+                                <td class="px-6 py-4 capitalize">
                                     {{ $category }}
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap font-semibold text-heading">
+                                <td class="px-6 py-4 font-semibold text-heading">
                                     {{ $categoryLabel }}
                                 </td>
-                                <td class="px-6 py-4 text-center whitespace-nowrap">
+                                <td class="px-6 py-4 text-center">
                                     {{ $sesiAwal }}
                                 </td>
-                                {{-- <td class="px-6 py-4 text-center whitespace-nowrap">
+                                {{-- <td class="px-6 py-4 text-center">
                                     {{ $sesiDitambahkan }}
                                 </td> --}}
-                                {{-- <td class="px-6 py-4 text-center whitespace-nowrap">
+                                {{-- <td class="px-6 py-4 text-center">
                                     {{ $membershipTotalSessions }}
                                 </td> --}}
-                                <td class="px-6 py-4 text-center whitespace-nowrap font-semibold text-amber-600">
+                                <td class="px-6 py-4 text-center font-semibold text-amber-600">
                                     {{ $membership->berjalan_belum_dibayar }}
                                 </td>
-                                <td class="px-6 py-4 text-center whitespace-nowrap font-semibold text-emerald-600">
+                                <td class="px-6 py-4 text-center font-semibold text-emerald-600">
                                     {{ $membership->berjalan_dibayar }}
                                 </td>
-                                <td class="px-6 py-4 text-right whitespace-nowrap">
+                                <td class="px-6 py-4 text-right">
                                     Rp {{ number_format($categoryNominal, 0, ',', '.') }}
                                 </td>
-                                <td class="px-6 py-4 text-right whitespace-nowrap">
+                                <td class="px-6 py-4 text-right">
                                     Rp {{ number_format($categoryTotal, 0, ',', '.') }}
                                 </td>
-                                <td class="px-6 py-4 text-center whitespace-nowrap">
+                                <td class="px-6 py-4 text-center">
                                     {{ $hangus }}
                                 </td>
-                                <td class="px-6 py-4 text-center whitespace-nowrap">
+                                <td class="px-6 py-4 text-center">
                                     {{ $membership->sesi_digantikan }}
                                 </td>
-                                <td class="px-6 py-4 text-center whitespace-nowrap">
+                                <td class="px-6 py-4 text-center">
                                     {{ $sisaSesi }}
                                 </td>
-                                {{-- <td class="px-6 py-4 text-center whitespace-nowrap">
+                                {{-- <td class="px-6 py-4 text-center">
                                     {{ $membership->free_total }}
                                 </td> --}}
-                                <td class="px-6 py-4 text-center whitespace-nowrap">
+                                <td class="px-6 py-4 text-center">
                                     {{ $membership->free_berjalan }}
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
+                                <td class="px-6 py-4">
                                     {{ $membership->followUp->name ?? '-' }}
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
+                                <td class="px-6 py-4">
                                     {{ $membership->followUpTwo->name ?? '-' }}
                                 </td>
                             </tr>
@@ -799,10 +799,10 @@ new #[Layout('layouts::admin')] class extends Component
                                 $totalSessions += $membership->berjalan;
                             @endphp
                             <tr wire:key="pt-membership-booking-{{ $membership->id }}" wire:click="redirectToMembershipDetail({{ $membership->id }})" class="bg-neutral-primary-soft border-b border-default hover:bg-neutral-secondary-medium cursor-pointer">
-                                <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
+                                <td class="px-6 py-4 font-medium text-heading">
                                     {{ $rowNumber++ }}
                                 </td>
-                                <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
+                                <td class="px-6 py-4 font-medium text-heading">
                                     {{ $membership->user->name ?? '-' }}
                                     @if($membership->members && $membership->members->count() > 1)
                                         <div class="text-xs text-body font-normal mt-0.5">
@@ -812,7 +812,7 @@ new #[Layout('layouts::admin')] class extends Component
                                         </div>
                                     @endif
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
+                                <td class="px-6 py-4">
                                     <div>Rp {{ number_format($membership->price_paid ?? 0, 0, ',', '.') }}</div>
                                     @if($priceLabel)
                                         <div class="mt-1">
@@ -822,38 +822,38 @@ new #[Layout('layouts::admin')] class extends Component
                                         </div>
                                     @endif
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap capitalize">
+                                <td class="px-6 py-4 capitalize">
                                     {{ $category }}
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap font-semibold text-heading">
+                                <td class="px-6 py-4 font-semibold text-heading">
                                     {{ $categoryLabel }}
                                 </td>
-                                <td class="px-6 py-4 text-center whitespace-nowrap text-gray-400">-</td>
-                                <td class="px-6 py-4 text-center whitespace-nowrap font-semibold text-amber-600">
+                                <td class="px-6 py-4 text-center text-gray-400">-</td>
+                                <td class="px-6 py-4 text-center font-semibold text-amber-600">
                                     {{ $membership->berjalan_belum_dibayar }}
                                 </td>
-                                <td class="px-6 py-4 text-center whitespace-nowrap font-semibold text-emerald-600">
+                                <td class="px-6 py-4 text-center font-semibold text-emerald-600">
                                     {{ $membership->berjalan_dibayar }}
                                 </td>
-                                <td class="px-6 py-4 text-right whitespace-nowrap">
+                                <td class="px-6 py-4 text-right">
                                     Rp {{ number_format($categoryNominal, 0, ',', '.') }}
                                 </td>
-                                <td class="px-6 py-4 text-right whitespace-nowrap">
+                                <td class="px-6 py-4 text-right">
                                     Rp {{ number_format($categoryTotal, 0, ',', '.') }}
                                 </td>
-                                <td class="px-6 py-4 text-center whitespace-nowrap text-gray-400">-</td>
-                                <td class="px-6 py-4 text-center whitespace-nowrap text-gray-400">-</td>
-                                <td class="px-6 py-4 text-center whitespace-nowrap text-gray-400">-</td>
-                                {{-- <td class="px-6 py-4 text-center whitespace-nowrap">
+                                <td class="px-6 py-4 text-center text-gray-400">-</td>
+                                <td class="px-6 py-4 text-center text-gray-400">-</td>
+                                <td class="px-6 py-4 text-center text-gray-400">-</td>
+                                {{-- <td class="px-6 py-4 text-center">
                                     {{ $membership->free_total }}
                                 </td> --}}
-                                <td class="px-6 py-4 text-center whitespace-nowrap">
+                                <td class="px-6 py-4 text-center">
                                     {{ $membership->free_berjalan }}
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
+                                <td class="px-6 py-4">
                                     {{ $membership->followUp->name ?? '-' }}
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
+                                <td class="px-6 py-4">
                                     {{ $membership->followUpTwo->name ?? '-' }}
                                 </td>
                             </tr>
@@ -871,7 +871,7 @@ new #[Layout('layouts::admin')] class extends Component
                 @if ($this->ptMembershipsDirect->count() > 0 || $bookingOnlyWithSessions->count() > 0)
                     <tfoot class="bg-neutral-secondary-medium font-semibold text-heading border-t-2 border-default-medium">
                         <tr>
-                            <td colspan="4" class="px-6 py-4 text-end whitespace-nowrap">
+                            <td colspan="4" class="px-6 py-4 text-end">
                                 <button
                                     type="button"
                                     wire:click="openPaymentPreview"
@@ -882,8 +882,8 @@ new #[Layout('layouts::admin')] class extends Component
                                 </button>
                             </td>
                             <td  class="px-6 py-4 text-right">Sub Total</td>
-                            <td class="px-6 py-4 text-center whitespace-nowrap">Total Sesi: {{ $totalSessions }}</td>
-                            <td class="px-6 py-4 text-right whitespace-nowrap">Rp {{ number_format($totalCategoryTotal, 0, ',', '.') }}</td>
+                            <td class="px-6 py-4 text-center">Total Sesi: {{ $totalSessions }}</td>
+                            <td class="px-6 py-4 text-right">Rp {{ number_format($totalCategoryTotal, 0, ',', '.') }}</td>
                         </tr>
                     </tfoot>
                 @endif
@@ -913,8 +913,8 @@ new #[Layout('layouts::admin')] class extends Component
         @endif
 
         <div class="bg-neutral-primary-soft shadow-xs rounded-md border border-default">
-            <div class="overflow-x-auto">
-                <table class="w-full text-sm text-left rtl:text-right text-body">
+            <div class="overflow-hidden">
+                <table data-responsive-table data-responsive-breakpoint="xl" class="table-fixed w-full text-sm text-left rtl:text-right text-body">
                     <thead class="text-sm text-body bg-neutral-secondary-medium border-b border-default-medium">
                         <tr>
                             <th scope="col" class="px-6 py-3 font-medium">No</th>
@@ -927,19 +927,19 @@ new #[Layout('layouts::admin')] class extends Component
                     <tbody>
                         @forelse ($this->ptSessionCategories as $ptSessionCategory)
                             <tr wire:key="pt-session-category-{{ $ptSessionCategory->id }}" class="bg-neutral-primary-soft border-b border-default hover:bg-neutral-secondary-medium">
-                                <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
+                                <td class="px-6 py-4 font-medium text-heading">
                                     {{ $loop->iteration }}
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
+                                <td class="px-6 py-4">
                                     {{ $ptSessionCategory->category }}
                                 </td>
-                                <td class="px-6 py-4 text-right whitespace-nowrap font-medium text-heading">
+                                <td class="px-6 py-4 text-right font-medium text-heading">
                                     Rp {{ number_format($ptSessionCategory->amount, 0, ',', '.') }}
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
+                                <td class="px-6 py-4">
                                     {{ $ptSessionCategory->description ?? '-' }}
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-center">
+                                <td class="px-6 py-4 text-center">
                                     <div class="flex items-center justify-center gap-3">
                                         <button type="button" wire:click="edit({{ $ptSessionCategory->id }})" class="text-blue-600 hover:text-blue-800 font-medium text-sm">
                                             Edit
@@ -994,8 +994,8 @@ new #[Layout('layouts::admin')] class extends Component
         @endif
 
         <div class="bg-neutral-primary-soft shadow-xs rounded-md border border-default">
-            <div class="overflow-x-auto">
-                <table class="w-full text-sm text-left rtl:text-right text-body">
+            <div class="overflow-hidden">
+                <table data-responsive-table data-responsive-breakpoint="xl" class="table-fixed w-full text-sm text-left rtl:text-right text-body">
                     <thead class="text-sm text-body bg-neutral-secondary-medium border-b border-default-medium">
                         <tr>
                             <th scope="col" class="px-6 py-3 font-medium">No</th>
@@ -1011,13 +1011,13 @@ new #[Layout('layouts::admin')] class extends Component
                     <tbody>
                         @forelse ($this->ptPaymentBatches as $batch)
                             <tr wire:key="pt-payment-batch-{{ $batch->id }}" class="bg-neutral-primary-soft border-b border-default hover:bg-neutral-secondary-medium">
-                                <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
+                                <td class="px-6 py-4 font-medium text-heading">
                                     {{ $loop->iteration }}
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap font-semibold text-heading">
+                                <td class="px-6 py-4 font-semibold text-heading">
                                     #{{ $batch->id }}
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
+                                <td class="px-6 py-4">
                                     @if($batch->date_start && $batch->date_end)
                                         @if($batch->date_start->equalTo($batch->date_end))
                                             {{ $batch->date_start->translatedFormat('d F Y') }}
@@ -1028,10 +1028,10 @@ new #[Layout('layouts::admin')] class extends Component
                                         -
                                     @endif
                                 </td>
-                                <td class="px-6 py-4 text-center whitespace-nowrap">
+                                <td class="px-6 py-4 text-center">
                                     {{ $batch->items->count() }}
                                 </td>
-                                <td class="px-6 py-4 text-right whitespace-nowrap font-medium text-heading">
+                                <td class="px-6 py-4 text-right font-medium text-heading">
                                     @php
                                         $batchTotalAmount = 0;
                                         foreach ($batch->items as $item) {
@@ -1043,13 +1043,13 @@ new #[Layout('layouts::admin')] class extends Component
                                     @endphp
                                     Rp {{ number_format($batchTotalAmount, 0, ',', '.') }}
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
+                                <td class="px-6 py-4">
                                     {{ $batch->paidBy?->name ?? '-' }}
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
+                                <td class="px-6 py-4">
                                     {{ $batch->created_at->translatedFormat('d F Y H:i') }}
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-center">
+                                <td class="px-6 py-4 text-center">
                                     <div class="flex items-center justify-center gap-2">
                                         <button type="button" wire:click="openPaymentDetailModal({{ $batch->id }})" class="inline-flex items-center px-2.5 py-1.5 text-xs font-medium text-white bg-brand rounded hover:bg-brand-strong transition-colors">
                                             Detail
@@ -1147,8 +1147,8 @@ new #[Layout('layouts::admin')] class extends Component
                             placeholder="Cari nama member..."
                         >
                     </div>
-                    <div class="overflow-x-auto border rounded-md border-default-medium">
-                        <table class="w-full text-sm text-left text-body">
+                    <div class="overflow-hidden border rounded-md border-default-medium">
+                        <table data-responsive-table data-responsive-breakpoint="xl" class="table-fixed w-full text-sm text-left text-body">
                             <thead class="border-b bg-neutral-secondary-medium border-default-medium">
                                 <tr>
                                     <th class="px-4 py-3 font-medium">Nama Member</th>
@@ -1164,8 +1164,8 @@ new #[Layout('layouts::admin')] class extends Component
                                         <td class="px-4 py-3 font-medium text-heading">{{ $row['member_name'] }}</td>
                                         <td class="px-4 py-3">{{ $row['category'] }}</td>
                                         <td class="px-4 py-3 text-center">{{ $row['sessions'] }}</td>
-                                        <td class="px-4 py-3 text-right whitespace-nowrap">Rp {{ number_format($row['nominal'], 0, ',', '.') }}</td>
-                                        <td class="px-4 py-3 text-right whitespace-nowrap">Rp {{ number_format($row['total'], 0, ',', '.') }}</td>
+                                        <td class="px-4 py-3 text-right">Rp {{ number_format($row['nominal'], 0, ',', '.') }}</td>
+                                        <td class="px-4 py-3 text-right">Rp {{ number_format($row['total'], 0, ',', '.') }}</td>
                                     </tr>
                                 @empty
                                     <tr>
@@ -1179,7 +1179,7 @@ new #[Layout('layouts::admin')] class extends Component
                                     <td class="px-4 py-3"></td>
                                     <td class="px-4 py-3 text-center">{{ $paymentPreviewTotalSessions }} Sesi</td>
                                     <td class="px-4 py-3"></td>
-                                    <td class="px-4 py-3 text-right whitespace-nowrap">Rp {{ number_format($paymentPreviewTotalAmount, 0, ',', '.') }}</td>
+                                    <td class="px-4 py-3 text-right">Rp {{ number_format($paymentPreviewTotalAmount, 0, ',', '.') }}</td>
                                 </tr>
                             </tfoot>
                         </table>
@@ -1258,7 +1258,7 @@ new #[Layout('layouts::admin')] class extends Component
 
                     @if(count($batchRows) > 0)
                         <div class="mb-4">
-                            <table class="w-full text-sm text-left text-body border border-default-medium">
+                            <table data-responsive-table data-responsive-breakpoint="xl" class="table-fixed w-full text-sm text-left text-body border border-default-medium">
                                 <thead class="text-sm text-body bg-blue-50 border-b border-blue-200">
                                     <tr>
                                         <th scope="col" class="px-4 py-3 font-medium">JENIS</th>
@@ -1269,9 +1269,9 @@ new #[Layout('layouts::admin')] class extends Component
                                 <tbody>
                                     @foreach ($batchRows as $row)
                                         <tr class="bg-white border-b border-default-medium">
-                                            <td class="px-4 py-3 whitespace-nowrap">{{ $row['jenis'] }}</td>
-                                            <td class="px-4 py-3 text-center whitespace-nowrap">{{ $row['jumlah'] }}</td>
-                                            <td class="px-4 py-3 text-right whitespace-nowrap">Rp {{ number_format($row['total'], 0, ',', '.') }}</td>
+                                            <td class="px-4 py-3">{{ $row['jenis'] }}</td>
+                                            <td class="px-4 py-3 text-center">{{ $row['jumlah'] }}</td>
+                                            <td class="px-4 py-3 text-right">Rp {{ number_format($row['total'], 0, ',', '.') }}</td>
                                         </tr>
                                     @endforeach
                                 </tbody>

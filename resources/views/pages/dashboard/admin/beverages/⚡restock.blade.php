@@ -308,8 +308,8 @@ new #[Layout('layouts::admin')] class extends Component
                     </div>
                 </div>
             </div>
-            <div class="overflow-x-auto">
-                <table class="w-full text-sm text-left rtl:text-right text-body">
+            <div class="overflow-hidden">
+                <table data-responsive-table data-responsive-breakpoint="lg" class="table-fixed w-full text-sm text-left rtl:text-right text-body">
                     <thead class="text-sm text-body bg-neutral-secondary-medium border-b border-default-medium">
                         <tr>
                             <th scope="col" class="px-4 py-3 font-medium">Tanggal</th>
@@ -323,23 +323,23 @@ new #[Layout('layouts::admin')] class extends Component
                         @forelse ($this->restocks as $restock)
                             <tr wire:key="{{ $restock->id }}" class="bg-neutral-primary-soft border-b border-default hover:bg-neutral-secondary-medium">
                                 @if ($restock->id === $this->editingId)
-                                    <td class="px-4 py-3 whitespace-nowrap">
+                                    <td class="px-4 py-3">
                                         <input type="date" wire:model.live="edit_tanggal" class="block w-full px-2 py-1 bg-white border border-default-medium text-heading text-xs rounded-base">
                                     </td>
-                                    <td class="px-4 py-3 whitespace-nowrap">{{ $restock->beverage->nama_produk ?? '-' }}</td>
-                                    <td class="px-4 py-3 whitespace-nowrap">
+                                    <td class="px-4 py-3">{{ $restock->beverage->nama_produk ?? '-' }}</td>
+                                    <td class="px-4 py-3">
                                         <input type="text" inputmode="numeric" pattern="[0-9]*" wire:model.live="edit_jumlah_tambah" class="block w-20 px-2 py-1 bg-white border border-default-medium text-heading text-xs rounded-base text-center">
                                     </td>
-                                    <td class="px-4 py-3 whitespace-nowrap">
+                                    <td class="px-4 py-3">
                                         <input type="text" wire:model.live="edit_keterangan" class="block w-full px-2 py-1 bg-white border border-default-medium text-heading text-xs rounded-base" placeholder="Keterangan">
                                     </td>
                                 @else
-                                    <td class="px-4 py-3 whitespace-nowrap">{{ $restock->tanggal->format('d M Y') }}</td>
-                                    <td class="px-4 py-3 whitespace-nowrap">{{ $restock->beverage->nama_produk ?? '-' }}</td>
-                                    <td class="px-4 py-3 text-center whitespace-nowrap text-emerald-600 font-semibold">+{{ $restock->jumlah_tambah }}</td>
-                                    <td class="px-4 py-3 whitespace-nowrap text-xs">{{ $restock->keterangan ?? '-' }}</td>
+                                    <td class="px-4 py-3">{{ $restock->tanggal->format('d M Y') }}</td>
+                                    <td class="px-4 py-3">{{ $restock->beverage->nama_produk ?? '-' }}</td>
+                                    <td class="px-4 py-3 text-center text-emerald-600 font-semibold">+{{ $restock->jumlah_tambah }}</td>
+                                    <td class="px-4 py-3 text-xs">{{ $restock->keterangan ?? '-' }}</td>
                                 @endif
-                                <td class="px-4 py-3 text-center whitespace-nowrap">
+                                <td class="px-4 py-3 text-center">
                                     @if(auth()->check() && auth()->user()->role === 'admin')
                                         @if ($restock->id === $this->editingId)
                                             <div class="flex items-center justify-center gap-1">

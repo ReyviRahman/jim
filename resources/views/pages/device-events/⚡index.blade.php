@@ -191,8 +191,8 @@ new #[Layout('layouts::empty')] class extends Component
         </div>
 
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-            <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200">
+            <div class="overflow-hidden">
+                <table data-responsive-table data-responsive-breakpoint="xl" class="table-fixed min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
                             <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Waktu</th>
@@ -213,19 +213,19 @@ new #[Layout('layouts::empty')] class extends Component
                     <tbody class="bg-white divide-y divide-gray-200">
                         @forelse ($events as $event)
                             <tr wire:key="{{ $event->id }}">
-                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                                <td class="px-4 py-3 text-sm text-gray-900">
                                     {{ $event->created_at->format('d M Y H:i:s') }}
                                 </td>
-                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                                <td class="px-4 py-3 text-sm text-gray-900">
                                     {{ $event->device_code }}
                                 </td>
-                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
+                                <td class="px-4 py-3 text-sm text-gray-700">
                                     {{ $event->event_type ?? '-' }}
                                 </td>
-                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
+                                <td class="px-4 py-3 text-sm text-gray-700">
                                     {{ $event->employee_no ?? '-' }}
                                 </td>
-                                <td class="px-4 py-3 whitespace-nowrap text-sm">
+                                <td class="px-4 py-3 text-sm">
                                     @if ($event->is_found)
                                         <span class="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
                                             Ya
@@ -236,25 +236,25 @@ new #[Layout('layouts::empty')] class extends Component
                                         </span>
                                     @endif
                                 </td>
-                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
+                                <td class="px-4 py-3 text-sm text-gray-700">
                                     {{ $event->name ?? '-' }}
                                 </td>
-                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
+                                <td class="px-4 py-3 text-sm text-gray-700">
                                     {{ $event->card_no ?? '-' }}
                                 </td>
-                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
+                                <td class="px-4 py-3 text-sm text-gray-700">
                                     {{ $event->door_no ?? '-' }}
                                 </td>
-                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
+                                <td class="px-4 py-3 text-sm text-gray-700">
                                     {{ $event->swipe_result ?? '-' }}
                                 </td>
-                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
+                                <td class="px-4 py-3 text-sm text-gray-700">
                                     {{ $event->attendance_status ?? '-' }}
                                 </td>
-                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
+                                <td class="px-4 py-3 text-sm text-gray-700">
                                     {{ $event->verify_mode ?? '-' }}
                                 </td>
-                                <td class="px-4 py-3 whitespace-nowrap text-sm">
+                                <td class="px-4 py-3 text-sm">
                                     @if ($event->status === 'received')
                                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                                             Received

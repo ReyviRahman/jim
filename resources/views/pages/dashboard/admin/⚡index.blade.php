@@ -257,8 +257,8 @@ new #[Layout('layouts::admin')] class extends Component
             <h5 class="text-lg font-semibold text-heading">Membership Dobel (User dengan &gt;1 Membership Aktif)</h5>
         </div>
 
-        <div class="relative overflow-x-auto bg-neutral-primary-soft shadow-xs rounded-md border border-default">
-            <table class="w-full text-sm text-left rtl:text-right text-body">
+        <div class="relative overflow-hidden bg-neutral-primary-soft shadow-xs rounded-md border border-default">
+            <table data-responsive-table data-responsive-breakpoint="xl" class="table-fixed w-full text-sm text-left rtl:text-right text-body">
                 <thead class="text-sm text-body bg-neutral-secondary-medium border-b border-default-medium">
                     <tr>
                         <th scope="col" class="px-6 py-3 font-medium">No</th>
@@ -274,10 +274,10 @@ new #[Layout('layouts::admin')] class extends Component
                 <tbody>
                     @forelse ($this->doubleMemberships as $membership)
                         <tr wire:key="double-{{ $membership->id }}" class="bg-neutral-primary-soft border-b border-default hover:bg-neutral-secondary-medium">
-                            <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
+                            <td class="px-6 py-4 font-medium text-heading">
                                 {{ $loop->iteration }}
                             </td>
-                            <td class="px-6 py-4 font-medium text-heading whitespace-nowrap">
+                            <td class="px-6 py-4 font-medium text-heading">
                                 <div class="flex flex-col gap-1.5">
                                     @forelse($membership->members as $member)
                                         <div class="flex items-center gap-2">
@@ -288,7 +288,7 @@ new #[Layout('layouts::admin')] class extends Component
                                     @endforelse
                                 </div>
                             </td>
-                            <td class="px-6 py-4 text-heading whitespace-nowrap">
+                            <td class="px-6 py-4 text-heading">
                                 <div class="flex flex-col gap-2">
                                     @if(in_array($membership->type, ['membership', 'bundle_pt_membership', 'visit']))
                                         <div>
@@ -322,7 +322,7 @@ new #[Layout('layouts::admin')] class extends Component
                                     @endif
                                 </div>
                             </td>
-                            <td class="px-6 py-4 text-right whitespace-nowrap">
+                            <td class="px-6 py-4 text-right">
                                 @if($membership->discount_applied > 0)
                                     @php
                                         $originalPrice = $membership->price_paid + $membership->discount_applied;
@@ -356,7 +356,7 @@ new #[Layout('layouts::admin')] class extends Component
                                     @endif
                                 @endif
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-xs">
+                            <td class="px-6 py-4 text-xs">
                                 <div class="flex flex-col gap-1.5">
                                     <div class="flex items-center text-gray-600">
                                         <svg class="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
@@ -382,7 +382,7 @@ new #[Layout('layouts::admin')] class extends Component
                                     @endif
                                 </div>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-center">
+                            <td class="px-6 py-4 text-center">
                                 @php
                                     $statusColor = match($membership->status) {
                                         'active' => 'bg-green-100 text-green-800',
@@ -403,10 +403,10 @@ new #[Layout('layouts::admin')] class extends Component
                                     {{ $statusLabel }}
                                 </span>
                             </td>
-                            <td class="px-6 py-4 font-medium text-heading whitespace-nowrap text-center">
+                            <td class="px-6 py-4 font-medium text-heading text-center">
                                 <span class="font-semibold">{{ $membership->followUp->name ?? '-' }}</span>
                             </td>
-                            <td class="px-6 py-4 font-medium text-heading whitespace-nowrap text-center">
+                            <td class="px-6 py-4 font-medium text-heading text-center">
                                 <span class="font-semibold">{{ $membership->followUpTwo->name ?? '-' }}</span>
                             </td>
                         </tr>
