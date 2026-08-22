@@ -33,8 +33,7 @@ class RekapBonusDetailTableTest extends TestCase
             ->assertSeeHtml('<table class="block w-full table-fixed')
             ->assertSeeHtml('<col class="w-[3%]">')
             ->assertSeeHtml('<col class="w-[12%]">')
-            ->assertSeeHtml('<col class="w-[6%]">')
-            ->assertDontSeeHtml('overflow-x-auto');
+            ->assertSeeHtml('<col class="w-[6%]">');
     }
 
     public function test_mobile_bonus_cards_display_labels_for_every_table_value(): void
@@ -84,6 +83,17 @@ class RekapBonusDetailTableTest extends TestCase
         ]);
 
         $this->assertSame(1_400_000.0, $membership->calculateNominalAkhir());
+    }
+
+    public function test_same_gym_cashier_receives_full_nominal_for_unrecommended_price(): void
+    {
+        $gymCashier = $this->createUser('kasir_gym');
+        $membership = $this->makeMembership($gymCashier, $gymCashier->id, [
+            'price_paid' => 1_100_000,
+            'total_paid' => 1_100_000,
+        ]);
+
+        $this->assertSame(1_100_000.0, $membership->calculateNominalAkhir());
     }
 
     public function test_same_non_coach_still_receives_half_for_unrecommended_price(): void
@@ -153,6 +163,58 @@ class RekapBonusDetailTableTest extends TestCase
 
         Livewire::test('pages::dashboard.admin.rekap-bonus.detail', ['user' => $coach])
             ->assertSee('Rp 1.100.000')
+            ->assertDontSee('Rp 550.000');
+    }
+
+    public function test_detail_page_displays_full_nominal_and_total_for_same_gym_cashier(): void
+    {
+        $admin = $this->createUser('admin');
+        $gymCashier = $this->createUser('kasir_gym');
+        $member = $this->createUser('member');
+
+        $membership = Membership::create([
+            'user_id' => $member->id,
+            'type' => 'membership',
+            'admin_id' => $admin->id,
+            'follow_up_id' => $gymCashier->id,
+            'follow_up_id_two' => $gymCashier->id,
+            'base_price' => 1_600_000,
+            'discount_applied' => 500_000,
+            'normal_price' => 1_600_000,
+            'net_price' => 1_400_000,
+            'unrecommended_price' => 1_100_000,
+            'price_paid' => 1_100_000,
+            'total_paid' => 1_100_000,
+            'payment_status' => 'paid',
+            'start_date' => '2026-08-22',
+            'status' => 'active',
+            'transaction_type' => 'MEMBERSHIP',
+            'package_name' => 'Test Gym Cashier',
+        ]);
+
+        $membership->transactions()->create([
+            'invoice_number' => 'INV-REKAP-BONUS-KASIR-TEST',
+            'user_id' => $member->id,
+            'admin_id' => $admin->id,
+            'follow_up_id' => $gymCashier->id,
+            'follow_up_id_two' => $gymCashier->id,
+            'transaction_type' => 'MEMBERSHIP',
+            'package_name' => 'Test Gym Cashier',
+            'amount' => 1_100_000,
+            'payment_method' => 'cash',
+            'payment_date' => '2026-08-22',
+        ]);
+
+        $this->actingAs($admin);
+
+        Livewire::test('pages::dashboard.admin.rekap-bonus.detail', ['user' => $gymCashier])
+            ->call('setDateRange', '2026-08-01 to 2026-08-31')
+            ->assertSeeInOrder([
+                'Nominal Akhir',
+                'Rp 1.100.000',
+                'Total Keseluruhan:',
+                'Rp 1.100.000',
+            ])
             ->assertDontSee('Rp 550.000');
     }
 

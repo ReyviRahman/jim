@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\BonusPaymentPdfController;
 use App\Http\Controllers\Admin\MembershipInvoiceController;
 use App\Http\Controllers\Admin\SesiPtSlipController;
 use App\Http\Controllers\BeverageApiController;
@@ -141,6 +142,10 @@ Route::middleware('auth')->group(function () {
 
         Route::livewire('/rekap-bonus/{user}/detail', 'pages::dashboard.admin.rekap-bonus.detail')
             ->name('admin.rekap-bonus.detail');
+
+        Route::get('/rekap-bonus/{user}/payments/{paymentId}/pdf', BonusPaymentPdfController::class)
+            ->whereNumber('paymentId')
+            ->name('admin.rekap-bonus.payment.pdf');
 
         Route::livewire('/booking-jadwal', 'pages::dashboard.admin.booking-jadwal.index')
             ->name('admin.booking-jadwal.index');

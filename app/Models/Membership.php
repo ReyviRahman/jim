@@ -195,12 +195,12 @@ class Membership extends Model
     {
         $nominal = $this->total_paid ?? 0;
 
-        $isSameCoach = $this->follow_up_id !== null
+        $isSameEligibleFollowUp = $this->follow_up_id !== null
             && $this->follow_up_id_two !== null
             && (int) $this->follow_up_id === (int) $this->follow_up_id_two
-            && $this->followUp?->role === 'pt';
+            && in_array($this->followUp?->role, ['pt', 'kasir_gym'], true);
 
-        if ($isSameCoach) {
+        if ($isSameEligibleFollowUp) {
             return $nominal;
         }
 
