@@ -172,15 +172,7 @@ new #[Layout('layouts::admin')] class extends Component
 
     private function getBaseQuery(): Builder
     {
-        return Membership::where(function ($query) {
-                $query->where('follow_up_id', $this->staffUser->id)
-                      ->orWhere('follow_up_id_two', $this->staffUser->id);
-            })
-            ->where('type', '!=', 'visit')
-            ->when(
-                $this->staffUser->role === 'pt',
-                fn (Builder $query): Builder => $query->where('type', 'pt')
-            )
+        return Membership::forBonusRecipient($this->staffUser)
             ->where('payment_status', 'paid')
             ->when($this->search, function ($query) {
                 $query->where(function ($q) {

@@ -38,23 +38,15 @@ class RekapBonusExport implements FromView, ShouldAutoSize, WithStyles
         $staffUser = User::findOrFail($this->staffUserId);
 
         // Tambahkan 'followUp', 'followUpTwo' di dalam array with()
-        $memberships = Membership::with([
-            'user',
-            'gymPackage',
-            'ptPackage',
-            'followUp',
-            'followUpTwo',
-            'transactions',
-        ])
-            ->where(function ($query) {
-                $query->where('follow_up_id', $this->staffUserId)
-                    ->orWhere('follow_up_id_two', $this->staffUserId);
-            })
-            ->where('type', '!=', 'visit')
-            ->when(
-                $staffUser->role === 'pt',
-                fn (Builder $query): Builder => $query->where('type', 'pt')
-            )
+        $memberships = Membership::forBonusRecipient($staffUser)
+            ->with([
+                'user',
+                'gymPackage',
+                'ptPackage',
+                'followUp',
+                'followUpTwo',
+                'transactions',
+            ])
             ->where('payment_status', 'paid')
             ->when($this->search, function ($query) {
                 $query->where(function ($q) {

@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Exports\RekapBonusExport;
+use App\Models\CoachKonsultan;
 use App\Models\Membership;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -107,16 +109,46 @@ class RekapBonusDetailTableTest extends TestCase
         $this->assertSame(550_000.0, $membership->calculateNominalAkhir());
     }
 
-    public function test_different_follow_ups_still_split_recommended_nominal(): void
+    public function test_different_follow_ups_split_every_role_and_price_category(): void
     {
-        $firstCoach = $this->createUser('pt');
-        $secondCoach = $this->createUser('pt');
-        $membership = $this->makeMembership($firstCoach, $secondCoach->id, [
+        foreach (['pt', 'kasir_gym', 'sales'] as $role) {
+            $firstFollowUp = $this->createUser($role);
+            $secondFollowUp = $this->createUser('sales');
+
+            foreach ([
+                'recommended' => 1_400_000,
+                'unrecommended' => 1_100_000,
+            ] as $priceCategory => $amount) {
+                $membership = $this->makeMembership($firstFollowUp, $secondFollowUp->id, [
+                    'price_paid' => $amount,
+                    'total_paid' => $amount,
+                ]);
+
+                $this->assertSame(
+                    (float) ($amount / 2),
+                    $membership->calculateNominalAkhir(),
+                    "Role {$role} dengan harga {$priceCategory} harus dibagi dua ketika follow-up berbeda."
+                );
+            }
+        }
+    }
+
+    public function test_single_empty_follow_up_keeps_full_recommended_nominal(): void
+    {
+        $sales = $this->createUser('sales');
+        $membership = new Membership([
+            'follow_up_id' => $sales->id,
+            'follow_up_id_two' => null,
+            'base_price' => 1_600_000,
+            'normal_price' => 1_600_000,
+            'net_price' => 1_400_000,
+            'unrecommended_price' => 1_100_000,
             'price_paid' => 1_400_000,
             'total_paid' => 1_400_000,
         ]);
+        $membership->setRelation('followUp', $sales);
 
-        $this->assertSame(700_000.0, $membership->calculateNominalAkhir());
+        $this->assertSame(1_400_000.0, $membership->calculateNominalAkhir());
     }
 
     public function test_detail_page_displays_full_nominal_and_total_for_same_coach(): void
@@ -246,38 +278,87 @@ class RekapBonusDetailTableTest extends TestCase
             ->assertDontSee('17 August 2026');
     }
 
-    public function test_pt_bonus_detail_only_displays_pt_membership_type(): void
+    public function test_pt_bonus_data_includes_pt_and_membership_types_with_both_follow_ups_everywhere(): void
     {
         $admin = $this->createUser('admin');
         $coach = $this->createUser('pt');
-        $ptMember = $this->createUser('member');
-        $gymMember = $this->createUser('member');
+        $otherCoach = $this->createUser('pt');
+        $eligibleMember = $this->createUser('member');
+        $firstOnlyMember = $this->createUser('member');
+        $secondOnlyMember = $this->createUser('member');
+        $membershipMember = $this->createUser('member');
+        $bundleMember = $this->createUser('member');
 
-        $ptMembership = $this->createPaidMembership($ptMember, $admin, $coach, 'pt');
-        $gymMembership = $this->createPaidMembership($gymMember, $admin, $coach);
+        $eligiblePtMembership = $this->createPaidMembership($eligibleMember, $admin, $coach, 'pt');
+        $firstOnlyMembership = $this->createPaidMembership($firstOnlyMember, $admin, $coach, 'pt', [
+            'follow_up_id_two' => $otherCoach->id,
+        ]);
+        $secondOnlyMembership = $this->createPaidMembership($secondOnlyMember, $admin, $coach, 'pt', [
+            'follow_up_id' => $otherCoach->id,
+            'follow_up_id_two' => $coach->id,
+        ]);
+        $eligibleGymMembership = $this->createPaidMembership($membershipMember, $admin, $coach);
+        $bundleMembership = $this->createPaidMembership($bundleMember, $admin, $coach, 'bundle_pt_membership');
 
-        $this->createTransaction($ptMembership, $ptMember, $admin, $coach, '2026-07-17');
-        $this->createTransaction($gymMembership, $gymMember, $admin, $coach, '2026-07-17');
+        $this->createTransaction($eligiblePtMembership, $eligibleMember, $admin, $coach, '2026-07-17');
+        $this->createTransaction($firstOnlyMembership, $firstOnlyMember, $admin, $coach, '2026-07-17');
+        $this->createTransaction($secondOnlyMembership, $secondOnlyMember, $admin, $coach, '2026-07-17');
+        $this->createTransaction($eligibleGymMembership, $membershipMember, $admin, $coach, '2026-07-17');
+        $this->createTransaction($bundleMembership, $bundleMember, $admin, $coach, '2026-07-17');
+        CoachKonsultan::create([
+            'rentang_satu' => '0',
+            'rentang_dua' => '60000000',
+            'persen' => 2,
+        ]);
 
         $this->actingAs($admin);
 
-        Livewire::test('pages::dashboard.admin.rekap-bonus.detail', ['user' => $coach])
+        $component = Livewire::test('pages::dashboard.admin.rekap-bonus.detail', ['user' => $coach])
             ->call('setDateRange', '2026-07-01 to 2026-07-31')
-            ->assertSee($ptMember->name)
-            ->assertDontSee($gymMember->name);
+            ->assertSee($eligibleMember->name)
+            ->assertSee($membershipMember->name)
+            ->assertDontSee($firstOnlyMember->name)
+            ->assertDontSee($secondOnlyMember->name)
+            ->assertDontSee($bundleMember->name)
+            ->call('openBonusPaymentModal')
+            ->assertSet('showBonusPaymentModal', true)
+            ->assertSet('bonusPaymentTotalNominalAkhir', 1_000_000.0);
+
+        $this->assertSame(1_000_000.0, (float) $component->instance()->totalNominalAkhir());
+
+        $this->assertEqualsCanonicalizing(
+            [$eligiblePtMembership->id, $eligibleGymMembership->id],
+            collect($component->get('bonusPaymentRows'))->pluck('membership_id')->all()
+        );
+
+        $exportData = (new RekapBonusExport(
+            $coach->id,
+            '',
+            '2026-07-01',
+            '2026-07-31'
+        ))->view()->getData();
+
+        $this->assertEqualsCanonicalizing(
+            [$eligiblePtMembership->id, $eligibleGymMembership->id],
+            $exportData['memberships']->pluck('id')->all()
+        );
+        $this->assertSame(1_000_000.0, (float) $exportData['totalNominalAkhir']);
     }
 
+    /** @param array<string, mixed> $overrides */
     private function createPaidMembership(
         User $member,
         User $admin,
         User $staffUser,
-        string $type = 'membership'
+        string $type = 'membership',
+        array $overrides = []
     ): Membership {
         return Membership::create([
             'user_id' => $member->id,
             'type' => $type,
             'admin_id' => $admin->id,
             'follow_up_id' => $staffUser->id,
+            'follow_up_id_two' => $staffUser->id,
             'base_price' => 500_000,
             'price_paid' => 500_000,
             'total_paid' => 500_000,
@@ -286,6 +367,7 @@ class RekapBonusDetailTableTest extends TestCase
             'status' => 'active',
             'transaction_type' => 'MEMBERSHIP',
             'package_name' => 'Test Target Period',
+            ...$overrides,
         ]);
     }
 
@@ -300,7 +382,8 @@ class RekapBonusDetailTableTest extends TestCase
             'invoice_number' => 'INV-'.$membership->id.'-'.$paymentDate,
             'user_id' => $member->id,
             'admin_id' => $admin->id,
-            'follow_up_id' => $staffUser->id,
+            'follow_up_id' => $membership->follow_up_id,
+            'follow_up_id_two' => $membership->follow_up_id_two,
             'transaction_type' => 'MEMBERSHIP',
             'package_name' => 'Test Target Period',
             'amount' => 500_000,

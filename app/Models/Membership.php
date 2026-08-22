@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -126,6 +127,23 @@ class Membership extends Model
     public function ptBookings(): HasMany
     {
         return $this->hasMany(PtBooking::class)->orderBy('booking_date')->orderBy('booking_time');
+    }
+
+    public function scopeForBonusRecipient(Builder $query, User $staffUser): Builder
+    {
+        $query->where('type', '!=', 'visit');
+
+        if ($staffUser->role === 'pt') {
+            return $query
+                ->whereIn('type', ['pt', 'membership'])
+                ->whereBelongsTo($staffUser, 'followUp')
+                ->whereBelongsTo($staffUser, 'followUpTwo');
+        }
+
+        return $query->where(function (Builder $query) use ($staffUser): void {
+            $query->whereBelongsTo($staffUser, 'followUp')
+                ->orWhereBelongsTo($staffUser, 'followUpTwo');
+        });
     }
 
     public function getPriceLabel(): ?array
