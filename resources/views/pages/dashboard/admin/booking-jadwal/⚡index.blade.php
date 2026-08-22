@@ -759,25 +759,25 @@ new #[Layout('layouts::admin')] class extends Component
                                 @php
                                     $slotBookings = $this->getBookingsForSlot($dayKey, $slot['hour']);
                                 @endphp
-                                <td class="px-2 py-2 border-r border-default align-top">
-                                    <div class="flex flex-col gap-1.5">
+                                <td class="min-w-0 max-w-full overflow-hidden px-2 py-2 border-r border-default align-top">
+                                    <div class="flex w-full min-w-0 max-w-full flex-col gap-1.5">
                                         @foreach($slotBookings as $booking)
                                             <div wire:click="openDetailModal({{ $booking->id }})"
-                                                class="cursor-pointer p-2 rounded border text-xs transition-colors
+                                                class="w-full min-w-0 max-w-full overflow-hidden cursor-pointer p-2 rounded border text-xs transition-colors
                                                 @if($booking->status === 'cancelled') bg-gray-50 border-gray-200 opacity-60
                                                 @elseif($booking->isRejected()) bg-red-50 border-red-200
                                                 @elseif($booking->isPending()) bg-orange-50 border-orange-200
                                                 @elseif($booking->isCancellationPending()) bg-yellow-50 border-yellow-200
                                                 @else bg-green-50 border-green-200
                                                 @endif">
-                                                <div class="font-semibold text-heading truncate">{{ $booking->member?->name ?? '-' }}</div>
+                                                <div class="w-full min-w-0 max-w-full whitespace-normal wrap-anywhere font-semibold text-heading">{{ $booking->member?->name ?? '-' }}</div>
                                                 @if($booking->membership && $booking->membership->members)
                                                     @foreach($booking->membership->members->where('id', '!=', $booking->member_id) as $member)
-                                                        <div class="font-semibold text-heading truncate">{{ $member->name }}</div>
+                                                        <div class="w-full min-w-0 max-w-full whitespace-normal wrap-anywhere font-semibold text-heading">{{ $member->name }}</div>
                                                     @endforeach
                                                 @endif
-                                                <div class="text-body mt-0.5 truncate">{{ $booking->pt?->name ?? '-' }}</div>
-                                                <div class="mt-1 flex items-center gap-1">
+                                                <div class="mt-0.5 w-full min-w-0 max-w-full whitespace-normal wrap-anywhere text-body">{{ $booking->pt?->name ?? '-' }}</div>
+                                                <div class="mt-1 flex min-w-0 max-w-full flex-wrap items-center gap-1">
                                                     @if($booking->isCancellationPending())
                                                         <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-yellow-100 text-yellow-800">Pending Cancel</span>
                                                     @else
@@ -811,7 +811,7 @@ new #[Layout('layouts::admin')] class extends Component
                                         @endforeach
 
                                         <div wire:click="openInsertModal('{{ $dayKey }}', {{ $slot['hour'] }})"
-                                            class="cursor-pointer hover:bg-brand/10 rounded flex items-center justify-center transition-colors
+                                            class="w-full min-w-0 max-w-full overflow-hidden cursor-pointer hover:bg-brand/10 rounded flex items-center justify-center transition-colors
                                             @if($slotBookings->isEmpty()) min-h-[60px] bg-brand/5 @else py-1 border border-dashed border-brand/30 @endif">
                                             <svg class="w-5 h-5 text-brand" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
                                         </div>

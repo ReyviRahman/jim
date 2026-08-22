@@ -10,6 +10,27 @@ use Tests\TestCase;
 
 class ResponsiveTableLayoutTest extends TestCase
 {
+    public function test_booking_schedule_cards_wrap_arbitrarily_long_names(): void
+    {
+        $contents = file_get_contents(resource_path('views/pages/dashboard/admin/booking-jadwal/⚡index.blade.php'));
+
+        $this->assertIsString($contents);
+        $this->assertStringNotContainsString('truncate', $contents);
+        $this->assertStringContainsString(
+            'class="w-full min-w-0 max-w-full overflow-hidden cursor-pointer p-2 rounded border text-xs transition-colors',
+            $contents,
+        );
+        $this->assertSame(
+            3,
+            substr_count($contents, 'w-full min-w-0 max-w-full whitespace-normal wrap-anywhere'),
+            'Member and trainer names must wrap even when they contain no natural break points.',
+        );
+        $this->assertStringContainsString(
+            'class="mt-1 flex min-w-0 max-w-full flex-wrap items-center gap-1"',
+            $contents,
+        );
+    }
+
     #[DataProvider('interactiveTableViews')]
     public function test_interactive_tables_use_the_responsive_layout_contract(string $view): void
     {
