@@ -92,7 +92,8 @@ table[data-responsive-table] td::before {
 }
 
 table[data-responsive-table] td[data-responsive-label=""]::before,
-table[data-responsive-table] td[colspan]::before {
+table[data-responsive-table] td[colspan]::before,
+table[data-responsive-table][data-responsive-explicit-labels] td::before {
     display: none;
 }
 
@@ -138,101 +139,34 @@ table[data-responsive-table][data-responsive-kind="summary"] tbody > tr > td:not
 }
 
 @media (min-width: 40rem) {
-    table[data-responsive-table] tbody > tr:not(.hidden) {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+    table[data-responsive-table] {
+        display: table;
+        font-size: 0.75rem;
+    }
+
+    table[data-responsive-table] colgroup {
+        display: table-column-group;
+    }
+
+    table[data-responsive-table] thead {
+        display: table-header-group;
+    }
+
+    table[data-responsive-table] tbody:not(.hidden) {
+        display: table-row-group;
+        padding: 0;
+        background: transparent;
+    }
+
+    table[data-responsive-table] tbody > tr:not(.hidden),
+    table[data-responsive-table] tfoot > tr:not(.hidden) {
+        display: table-row;
+        border-radius: 0;
+        box-shadow: none;
     }
 
     table[data-responsive-table] tbody > tr:not(.hidden) > td:not(.hidden),
-    table[data-responsive-table] tfoot > tr:not(.hidden) > td:not(.hidden) {
-        display: block;
-    }
-
-    table[data-responsive-table] td::before {
-        display: block;
-        margin-bottom: 0.25rem;
-    }
-
-    table[data-responsive-table] td[data-responsive-label=""]::before,
-    table[data-responsive-table] td[colspan]::before {
-        display: none;
-    }
-}
-
-@media (min-width: 64rem) {
-    table[data-responsive-table][data-responsive-breakpoint="lg"] {
-        display: table;
-        font-size: 0.75rem;
-    }
-
-    table[data-responsive-table][data-responsive-breakpoint="lg"] thead {
-        display: table-header-group;
-    }
-
-    table[data-responsive-table][data-responsive-breakpoint="lg"] tbody:not(.hidden) {
-        display: table-row-group;
-        padding: 0;
-        background: transparent;
-    }
-
-    table[data-responsive-table][data-responsive-breakpoint="lg"] tbody > tr:not(.hidden),
-    table[data-responsive-table][data-responsive-breakpoint="lg"] tfoot > tr:not(.hidden) {
-        display: table-row;
-        border-radius: 0;
-        box-shadow: none;
-    }
-
-    table[data-responsive-table][data-responsive-breakpoint="lg"] tbody > tr:not(.hidden) > td:not(.hidden),
-    table[data-responsive-table][data-responsive-breakpoint="lg"] tfoot > tr:not(.hidden) > td:not(.hidden) {
-        display: table-cell;
-        width: auto;
-        padding: 0.5rem !important;
-        border-bottom: inherit;
-        white-space: normal !important;
-        vertical-align: top;
-        overflow-wrap: anywhere;
-    }
-
-    table[data-responsive-table][data-responsive-breakpoint="lg"] th {
-        padding: 0.5rem !important;
-        white-space: normal !important;
-        overflow-wrap: anywhere;
-    }
-
-    table[data-responsive-table][data-responsive-breakpoint="lg"] td::before {
-        display: none;
-    }
-
-    table[data-responsive-table][data-responsive-breakpoint="lg"] tfoot:not(.hidden) {
-        display: table-footer-group;
-        padding: 0;
-    }
-}
-
-@media (min-width: 80rem) {
-    table[data-responsive-table][data-responsive-breakpoint="xl"] {
-        display: table;
-        font-size: 0.75rem;
-    }
-
-    table[data-responsive-table][data-responsive-breakpoint="xl"] thead {
-        display: table-header-group;
-    }
-
-    table[data-responsive-table][data-responsive-breakpoint="xl"] tbody:not(.hidden) {
-        display: table-row-group;
-        padding: 0;
-        background: transparent;
-    }
-
-    table[data-responsive-table][data-responsive-breakpoint="xl"] tbody > tr:not(.hidden),
-    table[data-responsive-table][data-responsive-breakpoint="xl"] tfoot > tr:not(.hidden) {
-        display: table-row;
-        border-radius: 0;
-        box-shadow: none;
-    }
-
-    table[data-responsive-table][data-responsive-breakpoint="xl"] tbody > tr:not(.hidden) > td:not(.hidden),
-    table[data-responsive-table][data-responsive-breakpoint="xl"] tfoot > tr:not(.hidden) > td:not(.hidden) {
+    table[data-responsive-table] tfoot > tr:not(.hidden) > td {
         display: table-cell;
         width: auto;
         padding: 0.375rem 0.5rem !important;
@@ -242,19 +176,28 @@ table[data-responsive-table][data-responsive-kind="summary"] tbody > tr > td:not
         overflow-wrap: anywhere;
     }
 
-    table[data-responsive-table][data-responsive-breakpoint="xl"] th {
+    table[data-responsive-table] th {
         padding: 0.375rem 0.5rem !important;
         white-space: normal !important;
         overflow-wrap: anywhere;
     }
 
-    table[data-responsive-table][data-responsive-breakpoint="xl"] td::before {
+    table[data-responsive-table] td::before,
+    table[data-responsive-table] td > [class~="md:hidden"],
+    table[data-responsive-table] td > [class~="lg:hidden"],
+    table[data-responsive-table] td > [class~="xl:hidden"] {
         display: none;
     }
 
-    table[data-responsive-table][data-responsive-breakpoint="xl"] tfoot:not(.hidden) {
+    table[data-responsive-table] tfoot {
         display: table-footer-group;
         padding: 0;
     }
-}
 
+    table[data-responsive-table] [data-responsive-compact-column] {
+        width: 2.25rem !important;
+        max-width: 2.25rem;
+        padding-inline: 0.25rem !important;
+        text-align: center !important;
+    }
+}

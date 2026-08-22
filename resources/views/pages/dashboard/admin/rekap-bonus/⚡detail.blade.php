@@ -803,7 +803,7 @@ new #[Layout('layouts::admin')] class extends Component
             </div>
         </div>
         
-        <div class="border-t border-default-medium p-3 xl:hidden">
+        <div class="border-t border-default-medium p-3 sm:hidden">
             <div class="flex flex-wrap items-center gap-2 text-xs">
                 <span class="font-medium text-gray-500">Urutkan:</span>
                 <button type="button" wire:click="sort('user_name')" class="rounded-md border px-2.5 py-1.5 font-medium {{ $sortBy === 'user_name' ? 'border-brand bg-brand text-[#34342F]' : 'border-default-medium bg-white text-body' }}">
@@ -822,7 +822,7 @@ new #[Layout('layouts::admin')] class extends Component
         </div>
 
         <div class="overflow-hidden">
-        <table class="block w-full table-fixed text-left text-xs leading-tight text-body xl:table">
+        <table data-responsive-table data-responsive-explicit-labels data-responsive-breakpoint="sm" class="block w-full table-fixed text-left text-xs leading-tight text-body xl:table">
             <colgroup class="hidden xl:table-column-group">
                 <col class="w-[3%]">
                 <col class="w-[12%]">
@@ -1046,7 +1046,7 @@ new #[Layout('layouts::admin')] class extends Component
             </div>
 
             <div class="overflow-hidden rounded-md border border-default bg-neutral-primary-soft shadow-xs">
-                    <table class="block w-full table-fixed text-left text-xs text-body lg:table">
+                    <table data-responsive-table data-responsive-explicit-labels data-responsive-breakpoint="sm" class="block w-full table-fixed text-left text-xs text-body lg:table">
                         <colgroup class="hidden lg:table-column-group">
                             <col class="w-[5%]">
                             <col class="w-[12%]">
@@ -1200,7 +1200,7 @@ new #[Layout('layouts::admin')] class extends Component
                     </div>
 
                     <div class="overflow-hidden rounded-md border border-default-medium">
-                        <table class="block w-full table-fixed text-left text-xs text-body md:table md:text-sm">
+                        <table data-responsive-table data-responsive-explicit-labels data-responsive-breakpoint="sm" class="block w-full table-fixed text-left text-xs text-body md:table md:text-sm">
                             <colgroup class="hidden md:table-column-group">
                                 <col class="w-[23%]">
                                 <col class="w-[25%]">
@@ -1274,7 +1274,7 @@ new #[Layout('layouts::admin')] class extends Component
                         </table>
                     </div>
 
-                    <div class="grid gap-3 md:hidden">
+                    <div class="grid gap-3 sm:hidden">
                         <div class="rounded-md border border-gray-200 bg-gray-100 p-3">
                             <p class="text-xs text-gray-500">Total Keseluruhan</p>
                             <p class="mt-1 font-semibold text-emerald-700">Rp {{ number_format($bonusPaymentTotalNominalAkhir, 0, ',', '.') }}</p>
@@ -1418,7 +1418,7 @@ new #[Layout('layouts::admin')] class extends Component
                     </div>
 
                     <div class="overflow-hidden rounded-md border border-default-medium">
-                        <table class="block w-full table-fixed text-left text-xs text-body md:table md:text-sm">
+                        <table data-responsive-table data-responsive-explicit-labels data-responsive-breakpoint="sm" class="block w-full table-fixed text-left text-xs text-body md:table md:text-sm">
                             <colgroup class="hidden md:table-column-group">
                                 <col class="w-[23%]">
                                 <col class="w-[25%]">

@@ -31,6 +31,24 @@ class ResponsiveTableLayoutTest extends TestCase
         );
     }
 
+    public function test_card_layout_is_limited_to_phone_widths_and_number_columns_are_compact(): void
+    {
+        $css = file_get_contents(resource_path('css/app.css'));
+        $javascript = file_get_contents(resource_path('js/app.js'));
+
+        $this->assertIsString($css);
+        $this->assertIsString($javascript);
+        $this->assertMatchesRegularExpression(
+            '/@media \(min-width: 40rem\).*?table\[data-responsive-table\]\s*\{\s*display: table;/s',
+            $css,
+            'Every responsive table must return to table layout at the sm/tablet breakpoint.',
+        );
+        $this->assertStringContainsString('[data-responsive-compact-column]', $css);
+        $this->assertStringContainsString('width: 2.25rem !important;', $css);
+        $this->assertStringContainsString('const responsiveCompactColumnPattern = /^(?:no\.?|nomor|#)$/i;', $javascript);
+        $this->assertStringContainsString("'data-responsive-compact-column'", $javascript);
+    }
+
     #[DataProvider('interactiveTableViews')]
     public function test_interactive_tables_use_the_responsive_layout_contract(string $view): void
     {
@@ -58,21 +76,11 @@ class ResponsiveTableLayoutTest extends TestCase
                 "Every table in [$view] must use fixed column layout.",
             );
 
-            if ($view === 'dashboard/admin/rekap-bonus/⚡detail.blade.php') {
-                $this->assertMatchesRegularExpression(
-                    '/\b(md|lg|xl):table\b/',
-                    $tableTag,
-                    'The existing Rekap Bonus tables must retain their explicit responsive display breakpoint.',
-                );
-
-                continue;
-            }
-
             $this->assertStringContainsString('data-responsive-table', $tableTag);
             $this->assertMatchesRegularExpression(
-                '/data-responsive-breakpoint="(?:lg|xl)"/',
+                '/data-responsive-breakpoint="(?:sm|lg|xl)"/',
                 $tableTag,
-                "Responsive table in [$view] must declare its desktop breakpoint.",
+                "Responsive table in [$view] must declare its layout metadata.",
             );
         }
     }
@@ -84,6 +92,7 @@ class ResponsiveTableLayoutTest extends TestCase
             array_values(self::interactiveTableViews()),
         );
         $discoveredViews = [];
+        $discoveredTableCount = 0;
         $pagesPath = resource_path('views/pages');
         $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($pagesPath));
 
@@ -103,6 +112,7 @@ class ResponsiveTableLayoutTest extends TestCase
                 continue;
             }
 
+            $discoveredTableCount += preg_match_all('/<table\b/i', $contents);
             $discoveredViews[] = str_replace('\\', '/', substr($file->getPathname(), strlen($pagesPath) + 1));
         }
 
@@ -111,6 +121,7 @@ class ResponsiveTableLayoutTest extends TestCase
 
         $this->assertSame($expectedViews, $discoveredViews);
         $this->assertCount(37, $discoveredViews);
+        $this->assertSame(49, $discoveredTableCount);
     }
 
     /**

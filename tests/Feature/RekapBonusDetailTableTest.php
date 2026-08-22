@@ -32,7 +32,7 @@ class RekapBonusDetailTableTest extends TestCase
                 'Follow Up 2',
                 'Tgl Mulai',
             ])
-            ->assertSeeHtml('<table class="block w-full table-fixed')
+            ->assertSeeHtml('<table data-responsive-table data-responsive-explicit-labels data-responsive-breakpoint="sm" class="block w-full table-fixed')
             ->assertSeeHtml('<col class="w-[3%]">')
             ->assertSeeHtml('<col class="w-[12%]">')
             ->assertSeeHtml('<col class="w-[6%]">');

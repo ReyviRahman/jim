@@ -9,6 +9,7 @@ window.flatpickr = flatpickr;
 
 const sidebarBreakpoint = window.matchMedia('(min-width: 640px)');
 const sidebarStorageKey = 'dashboard_sidebar_open';
+const responsiveCompactColumnPattern = /^(?:no\.?|nomor|#)$/i;
 
 let destroyDashboardSidebar = () => {};
 
@@ -59,7 +60,7 @@ function responsiveColumnLabels(table) {
     });
 }
 
-function annotateResponsiveRows(rows, labels) {
+function annotateResponsiveRows(rows, labels, compactColumnIndexes) {
     const occupiedUntilRow = [];
 
     Array.from(rows).forEach((row, rowIndex) => {
@@ -80,6 +81,11 @@ function annotateResponsiveRows(rows, labels) {
             if (cell.dataset.responsiveLabel) {
                 cell.setAttribute('aria-label', cell.dataset.responsiveLabel);
             }
+
+            cell.toggleAttribute(
+                'data-responsive-compact-column',
+                columnSpan === 1 && compactColumnIndexes.has(columnIndex),
+            );
 
             if (rowSpan > 1) {
                 for (let columnOffset = 0; columnOffset < columnSpan; columnOffset += 1) {
@@ -103,11 +109,27 @@ function initializeResponsiveTables(root = document) {
 
     tables.forEach((table) => {
         const labels = responsiveColumnLabels(table);
+        const compactColumnIndexes = new Set(
+            labels.flatMap((label, columnIndex) => {
+                const labelParts = label.split('/').map((part) => part.trim());
 
-        Array.from(table.tBodies).forEach((body) => annotateResponsiveRows(body.rows, labels));
+                return labelParts.some((part) => responsiveCompactColumnPattern.test(part))
+                    ? [columnIndex]
+                    : [];
+            }),
+        );
+
+        table.querySelectorAll('thead th').forEach((header) => {
+            header.toggleAttribute(
+                'data-responsive-compact-column',
+                responsiveCompactColumnPattern.test(responsiveHeaderText(header)),
+            );
+        });
+
+        Array.from(table.tBodies).forEach((body) => annotateResponsiveRows(body.rows, labels, compactColumnIndexes));
 
         if (table.tFoot) {
-            annotateResponsiveRows(table.tFoot.rows, labels);
+            annotateResponsiveRows(table.tFoot.rows, labels, compactColumnIndexes);
         }
     });
 }
