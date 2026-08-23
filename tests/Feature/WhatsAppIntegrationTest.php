@@ -276,6 +276,7 @@ class WhatsAppIntegrationTest extends TestCase
         $this->assertStringContainsString("featureType: 'whatsapp_business_app_onboarding'", $javascript);
         $this->assertStringContainsString("sessionInfoVersion: '3'", $javascript);
         $this->assertStringContainsString("response_type: 'code'", $javascript);
+        $this->assertSame(2, substr_count($javascript, 'fedCM: false'));
         $this->assertStringContainsString('hasSubmitted', $javascript);
         $this->assertStringContainsString("window.removeEventListener('message', handleMetaMessage)", $javascript);
         $this->assertStringContainsString('data-whatsapp-embedded-signup', $view);

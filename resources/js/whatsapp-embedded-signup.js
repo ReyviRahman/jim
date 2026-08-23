@@ -38,6 +38,7 @@ function loadFacebookSdk(appId, graphVersion) {
         window.FB.init({
             appId,
             cookie: true,
+            fedCM: false,
             xfbml: false,
             version: graphVersion,
         });
@@ -62,6 +63,7 @@ function loadFacebookSdk(appId, graphVersion) {
             window.FB.init({
                 appId,
                 cookie: true,
+                fedCM: false,
                 xfbml: false,
                 version: graphVersion,
             });
