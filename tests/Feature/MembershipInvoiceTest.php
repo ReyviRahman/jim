@@ -208,7 +208,7 @@ class MembershipInvoiceTest extends TestCase
     public function test_head_coach_can_download_membership_invoice(): void
     {
         $membership = $this->createMembershipWithInstallments();
-        $headCoach = $this->createUser('head_coach');
+        $headCoach = User::factory()->headCoach()->create();
 
         $this->actingAs($headCoach)
             ->get(route('admin.riwayat.membership.invoice', $membership))

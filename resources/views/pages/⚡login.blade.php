@@ -46,13 +46,13 @@ new class extends Component {
             session()->regenerate();
 
             // 5. Cek Role & Redirect
+            if ($user->isHeadCoach()) {
+                return $this->redirectRoute('admin.cicilan.index', navigate: true);
+            }
+
             if ($user->role === 'admin') {
                 return $this->redirectRoute('admin.absensi.index', navigate: true);
             }
-
-            if ($user->role === 'head_coach') {
-                return $this->redirectRoute('admin.cicilan.index', navigate: true);
-            } 
 
             if ($user->role === 'kasir_gym') {
                 return $this->redirectRoute('admin.absensi.index', navigate: true);

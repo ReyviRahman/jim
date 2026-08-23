@@ -33,7 +33,7 @@ class AdminBookingAttendanceTest extends TestCase
 
     public function test_attendance_button_is_hidden_and_action_is_denied_for_non_admin(): void
     {
-        $headCoach = $this->createUser(['role' => 'head_coach']);
+        $headCoach = User::factory()->headCoach()->create();
         $booking = $this->createBooking();
 
         $this->actingAs($headCoach);
@@ -46,6 +46,67 @@ class AdminBookingAttendanceTest extends TestCase
 
         $this->assertSame('not_yet', $booking->fresh()->attendance);
         $this->assertSame(10, $booking->membership->fresh()->remaining_sessions);
+    }
+
+    public function test_head_coach_email_can_approve_booking_but_legacy_role_cannot(): void
+    {
+        $headCoach = User::factory()->headCoach()->create();
+        $headCoachBooking = $this->createBooking(['status' => 'pending']);
+
+        Livewire::actingAs($headCoach)
+            ->test('pages::dashboard.admin.booking-jadwal.index')
+            ->call('approveBooking', $headCoachBooking->id);
+
+        $this->assertSame('approved', $headCoachBooking->fresh()->status);
+
+        $legacyRoleUser = User::factory()->create(['role' => 'head_coach']);
+        $legacyBooking = $this->createBooking(['status' => 'pending']);
+
+        Livewire::actingAs($legacyRoleUser)
+            ->test('pages::dashboard.admin.booking-jadwal.index')
+            ->call('approveBooking', $legacyBooking->id)
+            ->assertSee('Anda tidak memiliki izin untuk melakukan tindakan ini.');
+
+        $this->assertSame('pending', $legacyBooking->fresh()->status);
+    }
+
+    public function test_inserted_booking_is_auto_approved_only_for_head_coach_email(): void
+    {
+        $headCoach = User::factory()->headCoach()->create();
+        $headCoachTemplate = $this->createBooking();
+        $headCoachMembership = $headCoachTemplate->membership;
+        $headCoachTemplate->delete();
+
+        Livewire::actingAs($headCoach)
+            ->test('pages::dashboard.admin.booking-jadwal.index')
+            ->set('insertMembershipId', $headCoachMembership->id)
+            ->set('insertPtId', $headCoachMembership->pt_id)
+            ->set('insertDate', today()->toDateString())
+            ->set('insertTime', '11:00:00')
+            ->call('saveInsertBooking');
+
+        $this->assertSame(
+            'approved',
+            PtBooking::where('membership_id', $headCoachMembership->id)->firstOrFail()->status,
+        );
+
+        $legacyRoleUser = User::factory()->create(['role' => 'head_coach']);
+        $legacyTemplate = $this->createBooking();
+        $legacyMembership = $legacyTemplate->membership;
+        $legacyTemplate->delete();
+
+        Livewire::actingAs($legacyRoleUser)
+            ->test('pages::dashboard.admin.booking-jadwal.index')
+            ->set('insertMembershipId', $legacyMembership->id)
+            ->set('insertPtId', $legacyMembership->pt_id)
+            ->set('insertDate', today()->toDateString())
+            ->set('insertTime', '12:00:00')
+            ->call('saveInsertBooking');
+
+        $this->assertSame(
+            'pending',
+            PtBooking::where('membership_id', $legacyMembership->id)->firstOrFail()->status,
+        );
     }
 
     public function test_admin_cannot_mark_a_non_approved_booking_as_attended(): void

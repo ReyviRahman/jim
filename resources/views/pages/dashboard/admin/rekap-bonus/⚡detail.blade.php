@@ -701,7 +701,12 @@ new #[Layout('layouts::admin')] class extends Component
 
     private function authorizeViewBonusPaymentHistory(): void
     {
-        abort_unless(in_array(auth()->user()?->role, ['admin', 'head_coach'], true), 403);
+        $authenticatedUser = auth()->user();
+
+        abort_unless(
+            $authenticatedUser?->role === 'admin' || $authenticatedUser?->isHeadCoach(),
+            403,
+        );
     }
 
     private function authorizeBonusPayment(): void
@@ -974,7 +979,7 @@ new #[Layout('layouts::admin')] class extends Component
                         </td>
                         <td colspan="6" class="hidden px-1.5 py-2 xl:table-cell"></td>
                     </tr>
-                    @if(in_array(auth()->user()->role, ['admin', 'head_coach']))
+                    @if(auth()->user()->role === 'admin' || auth()->user()->isHeadCoach())
                         @php
                             $bonus = $this->bonusInfo;
                         @endphp
@@ -1031,7 +1036,7 @@ new #[Layout('layouts::admin')] class extends Component
         {{ $this->memberships->links() }}
     </div>
 
-    @if(in_array(auth()->user()->role, ['admin', 'head_coach'], true))
+    @if(auth()->user()->role === 'admin' || auth()->user()->isHeadCoach())
         <section
             id="riwayat-pembayaran-bonus"
             class="mb-8 scroll-mt-6"

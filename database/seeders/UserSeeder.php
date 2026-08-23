@@ -40,9 +40,9 @@ class UserSeeder extends Seeder
 
         User::create([
             'name' => 'Head Coach',
-            'email' => 'HeadcoachFG@gmail.com', // Email untuk login admin
+            'email' => User::HEAD_COACH_EMAIL,
             'password' => Hash::make('zavier123'),
-            'role' => 'head_coach',
+            'role' => 'pt',
             'shift' => 'Siang',
             'occupation' => 'Gym Manager',
             'age' => 30,

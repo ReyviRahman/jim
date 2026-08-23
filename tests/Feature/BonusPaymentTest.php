@@ -18,7 +18,7 @@ class BonusPaymentTest extends TestCase
     public function test_only_admin_sees_button_below_bonus_and_can_open_payment_modal(): void
     {
         $admin = $this->createUser('admin');
-        $headCoach = $this->createUser('head_coach');
+        $headCoach = User::factory()->headCoach()->create();
         $cashier = $this->createUser('kasir_gym');
         $sales = $this->createUser('sales');
         $member = $this->createUser('member', 'Member Admin');
@@ -220,7 +220,7 @@ class BonusPaymentTest extends TestCase
     public function test_bonus_payment_history_is_visible_to_admin_and_head_coach_only(): void
     {
         $admin = $this->createUser('admin', 'Admin Pembayar');
-        $headCoach = $this->createUser('head_coach');
+        $headCoach = User::factory()->headCoach()->create();
         $cashier = $this->createUser('kasir_gym');
         $sales = $this->createUser('sales');
         $payment = $this->createBonusPayment($sales, $admin, [
@@ -286,7 +286,7 @@ class BonusPaymentTest extends TestCase
     public function test_admin_and_head_coach_can_download_scoped_payment_pdf(): void
     {
         $admin = $this->createUser('admin');
-        $headCoach = $this->createUser('head_coach');
+        $headCoach = User::factory()->headCoach()->create();
         $cashier = $this->createUser('kasir_gym');
         $sales = $this->createUser('sales', 'Sales Bonus');
         $otherSales = $this->createUser('sales');
@@ -386,7 +386,7 @@ class BonusPaymentTest extends TestCase
     public function test_delete_rejects_non_admin_and_cross_staff_payment_ids(): void
     {
         $admin = $this->createUser('admin');
-        $headCoach = $this->createUser('head_coach');
+        $headCoach = User::factory()->headCoach()->create();
         $cashier = $this->createUser('kasir_gym');
         $sales = $this->createUser('sales');
         $otherSales = $this->createUser('sales');
@@ -549,7 +549,7 @@ class BonusPaymentTest extends TestCase
     public function test_deduction_edit_validation_and_head_coach_authorization(): void
     {
         $admin = $this->createUser('admin');
-        $headCoach = $this->createUser('head_coach');
+        $headCoach = User::factory()->headCoach()->create();
         $sales = $this->createUser('sales');
         $payment = $this->createBonusPayment($sales, $admin, ['bonus_amount' => 20_000]);
 

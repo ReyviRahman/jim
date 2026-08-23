@@ -9,9 +9,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Str;
 
 class User extends Authenticatable
 {
+    public const HEAD_COACH_EMAIL = 'HeadcoachFG@gmail.com';
+
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
 
@@ -32,6 +35,11 @@ class User extends Authenticatable
             'joined_at' => 'date',
             'password' => 'hashed',
         ];
+    }
+
+    public function isHeadCoach(): bool
+    {
+        return Str::lower($this->email) === Str::lower(self::HEAD_COACH_EMAIL);
     }
 
     // --- RELASI BARU ---

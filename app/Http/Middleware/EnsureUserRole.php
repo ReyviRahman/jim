@@ -4,7 +4,6 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
 
 class EnsureUserRole
@@ -13,12 +12,17 @@ class EnsureUserRole
     public function handle(Request $request, Closure $next, ...$roles): Response
     {
         // 1. Cek apakah user sudah login
-        if (! Auth::check()) {
+        $user = $request->user();
+
+        if ($user === null) {
             return redirect()->route('login');
         }
 
-        // 2. Cek apakah role user ada di dalam daftar roles yang diizinkan
-        if (! in_array(Auth::user()->role, $roles)) {
+        // Token head_coach mewakili akun khusus berbasis email, bukan role database.
+        $allowedRoles = array_diff($roles, ['head_coach']);
+        $hasHeadCoachAccess = in_array('head_coach', $roles, true) && $user->isHeadCoach();
+
+        if (! in_array($user->role, $allowedRoles, true) && ! $hasHeadCoachAccess) {
             return redirect()->route('home'); // Atau bisa pakai abort(403) agar lebih tepat
         }
 

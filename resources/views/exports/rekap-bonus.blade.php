@@ -1,6 +1,7 @@
 <table>
     @php
-        $canSeeAdminColumns = in_array(auth()->user()->role, ['admin', 'head_coach']);
+        $user = auth()->user();
+        $canSeeAdminColumns = $user->role === 'admin' || $user->isHeadCoach();
     @endphp
 
     {{-- BARIS 1: JUDUL BESAR --}}

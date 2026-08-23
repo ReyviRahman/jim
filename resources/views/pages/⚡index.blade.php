@@ -75,7 +75,7 @@ new #[Layout('layouts::empty')] #[Title('FRANS GYM | Pusat Kebugaran Terbaik di 
                         </div>
                         <ul class="p-2 text-sm text-white font-medium" aria-labelledby="user-menu-button">
                             <li>
-                                <a href="{{ match(Auth::user()->role) { 'admin' => route('admin.absensi.index'), 'head_coach' => route('admin.cicilan.index'), 'pt' => route('pt.absensi'), 'kasir_gym' => route('admin.absensi.index'), 'kasir_minum' => route('admin.beverages.index'), default => route('member.dashboard') } }}" class="inline-flex items-center w-full p-2 hover:bg-neutral-tertiary-medium hover:text-brand rounded transition-colors">Dashboard</a>
+                                <a href="{{ Auth::user()->isHeadCoach() ? route('admin.cicilan.index') : match(Auth::user()->role) { 'admin' => route('admin.absensi.index'), 'pt' => route('pt.absensi'), 'kasir_gym' => route('admin.absensi.index'), 'kasir_minum' => route('admin.beverages.index'), default => route('member.dashboard') } }}" class="inline-flex items-center w-full p-2 hover:bg-neutral-tertiary-medium hover:text-brand rounded transition-colors">Dashboard</a>
                             </li>
                             <li>
                                 <a href="#" class="inline-flex items-center w-full p-2 hover:bg-neutral-tertiary-medium hover:text-brand rounded transition-colors">Settings</a>

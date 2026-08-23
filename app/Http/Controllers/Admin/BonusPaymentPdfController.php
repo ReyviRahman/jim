@@ -13,7 +13,12 @@ class BonusPaymentPdfController extends Controller
 {
     public function __invoke(User $user, int $paymentId): Response
     {
-        abort_unless(in_array(auth()->user()?->role, ['admin', 'head_coach'], true), 403);
+        $authenticatedUser = auth()->user();
+
+        abort_unless(
+            $authenticatedUser?->role === 'admin' || $authenticatedUser?->isHeadCoach(),
+            403,
+        );
 
         $payment = BonusPayment::query()
             ->whereBelongsTo($user, 'staffUser')

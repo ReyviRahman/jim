@@ -33,10 +33,13 @@ class WhatsAppSalesMessagingTest extends TestCase
         ]);
     }
 
-    #[DataProvider('authorizedRoles')]
-    public function test_authorized_sales_roles_can_send_the_selected_transaction(string $role): void
+    #[DataProvider('authorizedActors')]
+    public function test_authorized_sales_actors_can_send_the_selected_transaction(string $role, bool $isHeadCoach): void
     {
-        $actor = User::factory()->create(['role' => $role, 'shift' => 'Pagi']);
+        $actorFactory = $isHeadCoach
+            ? User::factory()->headCoach()
+            : User::factory()->state(['role' => $role]);
+        $actor = $actorFactory->create(['shift' => 'Pagi']);
         $transaction = $this->createTransaction($actor, 'INV-SELECTED-'.$role, 175000);
         $this->createConnectedIntegration($actor);
 
@@ -110,17 +113,22 @@ class WhatsAppSalesMessagingTest extends TestCase
         });
     }
 
-    public function test_unauthorized_role_cannot_call_send_action(): void
+    public function test_unauthorized_accounts_cannot_call_send_action(): void
     {
-        $member = User::factory()->create(['role' => 'member']);
+        $unauthorizedUsers = [
+            User::factory()->create(['role' => 'member']),
+            User::factory()->create(['role' => 'head_coach']),
+        ];
         $admin = User::factory()->create(['role' => 'admin']);
         $transaction = $this->createTransaction($admin, 'INV-DENIED', 50000);
         $this->createConnectedIntegration($admin);
 
-        Livewire::actingAs($member)
-            ->test('pages::dashboard.admin.penjualan.index')
-            ->call('sendWhatsApp', $transaction->id)
-            ->assertForbidden();
+        foreach ($unauthorizedUsers as $unauthorizedUser) {
+            Livewire::actingAs($unauthorizedUser)
+                ->test('pages::dashboard.admin.penjualan.index')
+                ->call('sendWhatsApp', $transaction->id)
+                ->assertForbidden();
+        }
 
         Http::assertNothingSent();
     }
@@ -175,12 +183,12 @@ class WhatsAppSalesMessagingTest extends TestCase
     /**
      * @return array<string, array{string}>
      */
-    public static function authorizedRoles(): array
+    public static function authorizedActors(): array
     {
         return [
-            'admin' => ['admin'],
-            'cashier' => ['kasir_gym'],
-            'head coach' => ['head_coach'],
+            'admin' => ['admin', false],
+            'cashier' => ['kasir_gym', false],
+            'head coach' => ['pt', true],
         ];
     }
 

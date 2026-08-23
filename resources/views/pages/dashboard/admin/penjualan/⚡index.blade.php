@@ -194,7 +194,8 @@ new #[Layout('layouts::admin')] class extends Component
     public function sendWhatsApp(int $transactionId, MetaWhatsAppService $metaWhatsAppService): void
     {
         abort_unless(
-            in_array(Auth::user()?->role, ['admin', 'kasir_gym', 'head_coach'], true),
+            in_array(Auth::user()?->role, ['admin', 'kasir_gym'], true)
+                || Auth::user()?->isHeadCoach(),
             403,
         );
 

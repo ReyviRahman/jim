@@ -46,7 +46,9 @@ new #[Layout('layouts::admin')] class extends Component
 
     public function canManageApprovals(): bool
     {
-        return in_array(Auth::user()->role, ['admin', 'head_coach']);
+        $user = Auth::user();
+
+        return $user->role === 'admin' || $user->isHeadCoach();
     }
 
     public function mount()
@@ -597,7 +599,7 @@ new #[Layout('layouts::admin')] class extends Component
             'pt_id' => $this->insertPtId,
             'booking_date' => $this->insertDate,
             'booking_time' => $this->insertTime,
-            'status' => Auth::user()->role === 'head_coach' ? 'approved' : 'pending',
+            'status' => Auth::user()->isHeadCoach() ? 'approved' : 'pending',
             'attendance' => 'not_yet',
             'is_free' => $this->insertIsFree,
         ]);

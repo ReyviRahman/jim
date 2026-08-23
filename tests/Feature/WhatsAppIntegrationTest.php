@@ -39,7 +39,7 @@ class WhatsAppIntegrationTest extends TestCase
     public function test_settings_route_is_admin_only_and_does_not_expose_secrets(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);
-        $headCoach = User::factory()->create(['role' => 'head_coach']);
+        $headCoach = User::factory()->headCoach()->create();
 
         WhatsAppIntegration::query()->create([
             'waba_id' => '111111',
@@ -66,7 +66,7 @@ class WhatsAppIntegrationTest extends TestCase
 
     public function test_non_admin_cannot_mount_the_connection_component(): void
     {
-        $headCoach = User::factory()->create(['role' => 'head_coach']);
+        $headCoach = User::factory()->headCoach()->create();
 
         Livewire::actingAs($headCoach)
             ->test('pages::dashboard.admin.pengaturan.whatsapp')

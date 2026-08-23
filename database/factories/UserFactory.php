@@ -45,4 +45,15 @@ class UserFactory extends Factory
             'email_verified_at' => null,
         ]);
     }
+
+    /**
+     * Indicate that the user is the designated Head Coach account.
+     */
+    public function headCoach(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'email' => User::HEAD_COACH_EMAIL,
+            'role' => 'pt',
+        ]);
+    }
 }

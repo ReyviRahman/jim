@@ -199,7 +199,8 @@ new #[Layout('layouts::admin')] class extends Component
     private function authorizeRemainingSessionsEdit(): void
     {
         abort_unless(
-            auth()->check() && in_array(auth()->user()->role, ['admin', 'head_coach'], true),
+            auth()->check()
+                && (auth()->user()->role === 'admin' || auth()->user()->isHeadCoach()),
             403
         );
     }

@@ -21,10 +21,11 @@
             </a>
 
             @php
-                $userRole = auth()->check() ? auth()->user()->role : '';
+                $user = auth()->user();
+                $userRole = $user?->role ?? '';
                 $isAdmin = $userRole === 'admin';
                 $isKasir = $userRole === 'kasir_gym';
-                $isHeadCoach = $userRole === 'head_coach';
+                $isHeadCoach = $user?->isHeadCoach() ?? false;
                 $isKasirMinum = $userRole === 'kasir_minum';
                 $isAdminOrKasir = $isAdmin || $isKasir;
             @endphp

@@ -365,7 +365,7 @@ new #[Layout('layouts::admin')] class extends Component
                     @endif
                 </div>
 
-                @if(auth()->check() && auth()->user()->role !== 'head_coach')
+                @if(auth()->check() && ! auth()->user()->isHeadCoach())
                     <div class="p-6 border-t border-default-medium flex flex-wrap gap-3 justify-end">
                         <button type="button" wire:click="closeDetailModal()"
                             class="px-4 py-2 text-heading bg-neutral-secondary-medium border border-default-medium rounded-md hover:bg-neutral-secondary-strong font-medium text-sm">

@@ -44,7 +44,7 @@ use Livewire\WithPagination;
 
     public function isHeadCoach(): bool
     {
-        return Auth::user()?->role === 'head_coach';
+        return Auth::user()?->isHeadCoach() ?? false;
     }
 
     public function openScheduleModal($membershipId)

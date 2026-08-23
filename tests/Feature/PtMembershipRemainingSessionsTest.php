@@ -37,7 +37,7 @@ class PtMembershipRemainingSessionsTest extends TestCase
 
     public function test_remaining_sessions_can_be_zero(): void
     {
-        $this->actingAs($this->createUser(['role' => 'head_coach']));
+        $this->actingAs(User::factory()->headCoach()->create());
         $membership = $this->createMembership();
 
         Livewire::test('pages::dashboard.admin.sesi-pt.membership-detail', ['membership' => $membership])
