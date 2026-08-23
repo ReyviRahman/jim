@@ -82,6 +82,10 @@ Route::middleware('auth')->group(function () {
         Route::livewire('/absensi', 'pages::dashboard.admin.absensi')
             ->name('admin.absensi.index');
 
+        Route::livewire('/absensi-karyawan', 'pages::dashboard.admin.absensi')
+            ->defaults('employeesOnly', true)
+            ->name('admin.absensi-karyawan.index');
+
         Route::livewire('/penjualan', 'pages::dashboard.admin.penjualan.index')->name('admin.penjualan.index');
         Route::livewire('/pengeluaran', 'pages::dashboard.admin.pengeluaran.index')->name('admin.pengeluaran.index');
         Route::livewire('/pengeluaran/create', 'pages::dashboard.admin.pengeluaran.create')->name('admin.pengeluaran.create');
