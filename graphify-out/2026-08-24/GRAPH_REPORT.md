@@ -1,25 +1,25 @@
 # Graph Report - jim  (2026-08-24)
 
 ## Corpus Check
-- 358 files · ~513,290 words
+- 358 files · ~512,813 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 2023 nodes · 2765 edges · 293 communities (245 shown, 48 thin omitted)
+- 2020 nodes · 2756 edges · 292 communities (248 shown, 44 thin omitted)
 - Extraction: 96% EXTRACTED · 4% INFERRED · 0% AMBIGUOUS · INFERRED: 107 edges (avg confidence: 0.8)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `8dda5a81`
+- Built from commit: `d373d882`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
 ## Community Hubs (Navigation)
 - DeviceEventWebhookTest
-- MetaWhatsAppService
+- WhatsAppIntegration
 - AdminMembershipAdminFeeTest
 - AGENTS.md
-- SyncHikvisionMember.php
+- HikvisionUserService
 - Membership
 - CLAUDE.md
 - Maatwebsite\Excel\Concerns\Exportable
@@ -36,7 +36,7 @@
 - Quick Reference
 - Illuminate\Database\Seeder
 - BonusPaymentTest
-- Illuminate\Database\Eloquent\Model
+- Illuminate\Database\Eloquent\Factories\HasFactory
 - TestCase
 - Dashboard Admin Bar Chart
 - Beverage
@@ -44,11 +44,11 @@
 - rekap-bonus/⚡detail.blade.php
 - DeviceEventMonitoringTest
 - RekapBonusDetailTableTest
-- WhatsAppIntegration
-- MembershipInvoiceTest
+- Maatwebsite\Excel\Concerns\WithEvents
+- Illuminate\Database\Eloquent\Model
 - PtBooking
 - rentang-bonus/⚡index.blade.php
-- Controller
+- BeverageSale.php
 - scripts
 - Tailwind CSS Development
 - ⚡membership-detail.blade.php
@@ -56,8 +56,8 @@
 - sesi-pt/⚡detail.blade.php
 - composer.json
 - Panduan Koneksi Hikvision melalui Tunnel
-- WhatsAppSalesMessagingTest
-- GymPackage
+- Membership.php
+- BeverageSaleExportDetail
 - Architecture Best Practices
 - Security Best Practices
 - Architecture Best Practices
@@ -125,12 +125,12 @@
 - dashboard/⚡navbar.blade.php
 - graphify reference: query, path, explain
 - pt-berjalan/⚡index.blade.php
-- BuildMembershipInvoiceData
+- BeverageInvoiceExport
 - CoachKonsultan
 - psr-4
 - invoice.blade.php
 - pt-booking/⚡index.blade.php
-- PtMembershipInitialSessionsTest
+- SalesKonsultan
 - membership/⚡edit.blade.php
 - graphify reference: add a URL and watch a folder
 - graphify reference: commit hook and native CLAUDE.md integration
@@ -170,7 +170,6 @@
 - device-events/⚡index.blade.php
 - pages/⚡index.blade.php
 - ⚡login.blade.php
-- ResponsiveTableLayoutTest
 
 ## God Nodes (most connected - your core abstractions)
 1. `User` - 112 edges
@@ -185,57 +184,61 @@
 10. `Quick Reference` - 20 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `BeverageStockExport` --references--> `BeverageStockCombinedSheet`  [EXTRACTED]
-  app/Exports/BeverageStockExport.php → app/Exports/BeverageStockCombinedSheet.php
-- `BeverageApiController` --inherits--> `Controller`  [EXTRACTED]
-  app/Http/Controllers/BeverageApiController.php → app/Http/Controllers/Controller.php
-- `BeverageSaleController` --inherits--> `Controller`  [EXTRACTED]
-  app/Http/Controllers/BeverageSaleController.php → app/Http/Controllers/Controller.php
-- `DeviceEventController` --inherits--> `Controller`  [EXTRACTED]
-  app/Http/Controllers/DeviceEventController.php → app/Http/Controllers/Controller.php
-- `MembershipInvoiceVerificationController` --inherits--> `Controller`  [EXTRACTED]
-  app/Http/Controllers/MembershipInvoiceVerificationController.php → app/Http/Controllers/Controller.php
+- `AdminAttendanceTableTest` --inherits--> `TestCase`  [EXTRACTED]
+  tests/Feature/AdminAttendanceTableTest.php → tests/TestCase.php
+- `AdminBookingAttendanceTest` --inherits--> `TestCase`  [EXTRACTED]
+  tests/Feature/AdminBookingAttendanceTest.php → tests/TestCase.php
+- `AdminMembershipAdminFeeTest` --inherits--> `TestCase`  [EXTRACTED]
+  tests/Feature/AdminMembershipAdminFeeTest.php → tests/TestCase.php
+- `BonusPaymentTest` --inherits--> `TestCase`  [EXTRACTED]
+  tests/Feature/BonusPaymentTest.php → tests/TestCase.php
+- `CheckExpiredMembershipsTest` --inherits--> `TestCase`  [EXTRACTED]
+  tests/Feature/CheckExpiredMembershipsTest.php → tests/TestCase.php
 
 ## Import Cycles
 - None detected.
 
-## Communities (293 total, 48 thin omitted)
+## Communities (292 total, 44 thin omitted)
 
 ### Community 0 - "DeviceEventWebhookTest"
-Cohesion: 0.07
-Nodes (12): BeverageApiController, BeverageSaleController, DeviceEventController, EnsureUserRole, Attendance, DeviceEvent, Carbon, Closure (+4 more)
+Cohesion: 0.05
+Nodes (19): BuildMembershipInvoiceData, BonusPaymentPdfController, MembershipInvoiceController, SesiPtSlipController, BeverageApiController, BeverageSaleController, Controller, DeviceEventController (+11 more)
 
-### Community 1 - "MetaWhatsAppService"
-Cohesion: 0.10
-Nodes (9): MetaWhatsAppException, HikvisionUserService, MetaWhatsAppService, MembershipTransaction, Carbon\CarbonInterface, Illuminate\Http\Client\ConnectionException, Illuminate\Http\Client\PendingRequest, Illuminate\Http\Client\RequestException (+1 more)
+### Community 1 - "WhatsAppIntegration"
+Cohesion: 0.09
+Nodes (9): MetaWhatsAppException, MetaWhatsAppService, self, WhatsAppIntegration, Illuminate\Http\Client\ConnectionException, Illuminate\Http\Client\PendingRequest, Illuminate\Http\Client\RequestException, RuntimeException (+1 more)
+
+### Community 2 - "AdminMembershipAdminFeeTest"
+Cohesion: 0.09
+Nodes (5): GymPackage, MembershipTransaction, Livewire\Features\SupportTesting\Testable, AdminMembershipAdminFeeTest, MembershipInvoiceTest
 
 ### Community 3 - "AGENTS.md"
 Cohesion: 0.05
 Nodes (37): APIs & Eloquent Resources, Application Structure & Architecture, Architecture, Artisan, Code Style, Conventions, Database, Deployment (+29 more)
 
-### Community 4 - "SyncHikvisionMember.php"
-Cohesion: 0.13
-Nodes (11): SyncHikvisionMember, MembershipExpiredNotification, Illuminate\Bus\Queueable, Illuminate\Contracts\Queue\ShouldBeUnique, Illuminate\Contracts\Queue\ShouldQueue, Illuminate\Foundation\Queue\Queueable, Illuminate\Mail\Mailable, Illuminate\Mail\Mailables\Content (+3 more)
+### Community 4 - "HikvisionUserService"
+Cohesion: 0.10
+Nodes (13): HikvisionUserService, SyncHikvisionMember, MembershipExpiredNotification, Carbon\CarbonInterface, Illuminate\Bus\Queueable, Illuminate\Contracts\Queue\ShouldBeUnique, Illuminate\Contracts\Queue\ShouldQueue, Illuminate\Foundation\Queue\Queueable (+5 more)
 
 ### Community 5 - "Membership"
-Cohesion: 0.10
-Nodes (3): Membership, Period, Illuminate\Database\Eloquent\Relations\HasMany
+Cohesion: 0.09
+Nodes (5): Membership, Illuminate\Database\Eloquent\Relations\BelongsToMany, Illuminate\Database\Eloquent\Relations\HasMany, Illuminate\Notifications\Notifiable, CheckExpiredMembershipsTest
 
 ### Community 6 - "CLAUDE.md"
 Cohesion: 0.06
 Nodes (31): APIs & Eloquent Resources, Application Structure & Architecture, Artisan, Conventions, Database, Deployment, Do Things the Laravel Way, Documentation Files (+23 more)
 
 ### Community 7 - "Maatwebsite\Excel\Concerns\Exportable"
-Cohesion: 0.05
-Nodes (26): CheckExpiredMemberships, AdminExport, BeverageInvoiceExport, BeverageSaleExport, BeverageSaleExportDetail, BeverageSaleExport, BeverageStockExport, MemberExport (+18 more)
+Cohesion: 0.15
+Nodes (8): AdminExport, MemberExport, MembershipExport, PtScheduleExport, Maatwebsite\Excel\Concerns\Exportable, Maatwebsite\Excel\Concerns\FromQuery, Maatwebsite\Excel\Concerns\WithHeadings, Maatwebsite\Excel\Concerns\WithMapping
 
 ### Community 8 - "Illuminate\Database\Eloquent\Relations\BelongsTo"
-Cohesion: 0.10
-Nodes (5): BonusPayment, BonusPaymentItem, MembershipUser, PtSession, Illuminate\Database\Eloquent\Relations\BelongsTo
+Cohesion: 0.11
+Nodes (5): Attendance, BonusPaymentItem, MembershipUser, PtSession, Illuminate\Database\Eloquent\Relations\BelongsTo
 
 ### Community 9 - "User"
-Cohesion: 0.14
-Nodes (5): User, Illuminate\Database\Eloquent\Relations\BelongsToMany, Illuminate\Foundation\Auth\User, Illuminate\Notifications\Notifiable, HeadCoachAccessTest
+Cohesion: 0.15
+Nodes (4): User, Illuminate\Foundation\Auth\User, HeadCoachAccessTest, WhatsAppSalesMessagingTest
 
 ### Community 10 - "devDependencies"
 Cohesion: 0.07
@@ -261,6 +264,10 @@ Nodes (24): For /graphify add and --watch, For /graphify query, For the commit h
 Cohesion: 0.08
 Nodes (23): 10. Routing & Controllers → `rules/routing.md`, 11. HTTP Client → `rules/http-client.md`, 12. Events, Notifications & Mail → `rules/events-notifications.md`, `rules/mail.md`, 13. Error Handling → `rules/error-handling.md`, 14. Task Scheduling → `rules/scheduling.md`, 15. Architecture → `rules/architecture.md`, 16. Migrations → `rules/migrations.md`, 17. Collections → `rules/collections.md` (+15 more)
 
+### Community 16 - "PtPaymentBatch"
+Cohesion: 0.13
+Nodes (5): PtPaymentBatch, PtPaymentBatchItem, PtSessionCategory, PtSessionCategoryFactory, PtSessionPaymentTest
+
 ### Community 17 - "admin/booking-jadwal/⚡index.blade.php"
 Cohesion: 0.08
 Nodes (23): approveBooking({{ $booking->id }}), approveCancellation({{ $booking->id }}), closeCancelModal, closeChangeCoachModal, closeInsertModal, closeRejectModal, markAsAttended({{ $booking->id }}), markAsNoshow({{ $booking->id }}) (+15 more)
@@ -270,48 +277,48 @@ Cohesion: 0.08
 Nodes (23): 10. Routing & Controllers → `rules/routing.md`, 11. HTTP Client → `rules/http-client.md`, 12. Events, Notifications & Mail → `rules/events-notifications.md`, `rules/mail.md`, 13. Error Handling → `rules/error-handling.md`, 14. Task Scheduling → `rules/scheduling.md`, 15. Architecture → `rules/architecture.md`, 16. Migrations → `rules/migrations.md`, 17. Collections → `rules/collections.md` (+15 more)
 
 ### Community 19 - "Illuminate\Database\Seeder"
-Cohesion: 0.11
-Nodes (12): self, SalesKonsultan, BeverageSeeder, CoachKonsultanSeeder, DatabaseSeeder, GymPackageSeeder, KasirKonsultanSeeder, SalesKonsultanSeeder (+4 more)
+Cohesion: 0.14
+Nodes (10): BeverageSeeder, CoachKonsultanSeeder, DatabaseSeeder, GymPackageSeeder, KasirKonsultanSeeder, SalesKonsultanSeeder, UserSeeder, Factory (+2 more)
 
-### Community 21 - "Illuminate\Database\Eloquent\Model"
+### Community 21 - "Illuminate\Database\Eloquent\Factories\HasFactory"
 Cohesion: 0.11
-Nodes (9): BeverageInvoice, BeverageInvoiceItem, DepositBeverage, Expense, KasirKonsultan, self, PtScheduleDay, Illuminate\Database\Eloquent\Factories\HasFactory (+1 more)
+Nodes (6): BeverageInvoice, BeverageInvoiceItem, BeverageRestock, KasirKonsultan, self, Illuminate\Database\Eloquent\Factories\HasFactory
 
 ### Community 22 - "TestCase"
-Cohesion: 0.18
-Nodes (6): Illuminate\Foundation\Testing\RefreshDatabase, Illuminate\Foundation\Testing\TestCase, CheckExpiredMembershipsTest, ExampleTest, MemberAccountIndexTest, TestCase
+Cohesion: 0.16
+Nodes (6): Illuminate\Foundation\Testing\RefreshDatabase, Illuminate\Foundation\Testing\TestCase, ExampleTest, MemberAccountIndexTest, PtMembershipInitialSessionsTest, TestCase
 
 ### Community 23 - "Dashboard Admin Bar Chart"
 Cohesion: 0.09
 Nodes (21): Commit Strategy, Concrete Deliverables, Context, Core Objective, Dashboard Admin Bar Chart, Definition of Done, Execution Strategy, Final Checklist (+13 more)
 
 ### Community 24 - "Beverage"
-Cohesion: 0.11
-Nodes (6): SyncBeverageStock, BeverageStockCombinedSheet, Beverage, BeverageRestock, BeverageStokSnapshot, Illuminate\Database\Eloquent\SoftDeletes
+Cohesion: 0.12
+Nodes (5): SyncBeverageStock, Beverage, BeverageStokSnapshot, DepositBeverage, Illuminate\Database\Eloquent\SoftDeletes
 
 ### Community 25 - "app.js"
 Cohesion: 0.20
 Nodes (16): annotateResponsiveRows(), destroyDashboardSidebar(), initializeDashboardSidebar(), initializePageUi(), initializeResponsiveTables(), responsiveColumnLabels(), responsiveHeaderText(), restoreSidebarScrollPosition() (+8 more)
 
 ### Community 26 - "rekap-bonus/⚡detail.blade.php"
-Cohesion: 0.17
-Nodes (10): closeBonusPaymentDetail, closeBonusPaymentModal, confirmBonusPayment, deleteBonusPayment({{ $payment->id }}), openBonusPaymentDetail({{ $payment->id }}), openBonusPaymentModal, exportExcel, setFilterTime( (+2 more)
+Cohesion: 0.11
+Nodes (11): closeBonusPaymentDetail, closeBonusPaymentModal, confirmBonusPayment, deleteBonusPayment({{ $payment->id }}), openBonusPaymentDetail({{ $payment->id }}), openBonusPaymentModal, exportExcel, setFilterTime( (+3 more)
 
-### Community 29 - "WhatsAppIntegration"
-Cohesion: 0.13
-Nodes (3): self, WhatsAppIntegration, WhatsAppIntegrationTest
+### Community 29 - "Maatwebsite\Excel\Concerns\WithEvents"
+Cohesion: 0.18
+Nodes (5): BeverageStockCombinedSheet, BeverageStockExport, PenjualanExport, Maatwebsite\Excel\Concerns\WithEvents, Maatwebsite\Excel\Concerns\WithTitle
 
-### Community 31 - "PtBooking"
-Cohesion: 0.12
-Nodes (4): PtBooking, PtPaymentBatchItem, PtSessionCategory, PtSessionPaymentTest
+### Community 30 - "Illuminate\Database\Eloquent\Model"
+Cohesion: 0.16
+Nodes (5): BonusPayment, Expense, Period, PtScheduleDay, Illuminate\Database\Eloquent\Model
 
 ### Community 32 - "rentang-bonus/⚡index.blade.php"
 Cohesion: 0.12
 Nodes (15): deleteCoachKonsultan({{ $item->id }}), deleteKasirKonsultan({{ $item->id }}), deleteKonsultan({{ $item->id }}), edit({{ $item->id }}), editCoach({{ $item->id }}), editKasir({{ $item->id }}), openCoachModal, openKasirModal (+7 more)
 
-### Community 33 - "Controller"
-Cohesion: 0.19
-Nodes (5): BonusPaymentPdfController, MembershipInvoiceController, SesiPtSlipController, Controller, Symfony\Component\HttpFoundation\Response
+### Community 33 - "BeverageSale.php"
+Cohesion: 0.21
+Nodes (4): BeverageSaleExport, BeverageSaleExport, Maatwebsite\Excel\Concerns\FromCollection, Maatwebsite\Excel\Concerns\ShouldAutoSize
 
 ### Community 34 - "scripts"
 Cohesion: 0.13
@@ -340,6 +347,14 @@ Nodes (13): autoload-dev, psr-4, description, keywords, license, minimum-stabili
 ### Community 40 - "Panduan Koneksi Hikvision melalui Tunnel"
 Cohesion: 0.14
 Nodes (13): Alur koneksi, Instal dan autentikasi, Jalankan tunnel, Keamanan, Memeriksa ngrok, Menjalankan sinkronisasi massal, Named Tunnel (disarankan untuk produksi), Opsi 1 — ngrok (+5 more)
+
+### Community 41 - "Membership.php"
+Cohesion: 0.21
+Nodes (4): CheckExpiredMemberships, Carbon\Carbon, Illuminate\Console\Command, Illuminate\Database\Eloquent\Builder
+
+### Community 42 - "BeverageSaleExportDetail"
+Cohesion: 0.18
+Nodes (4): BeverageSaleExportDetail, RekapBonusExport, Maatwebsite\Excel\Concerns\WithStyles, PhpOffice\PhpSpreadsheet\Worksheet\Worksheet
 
 ### Community 43 - "Architecture Best Practices"
 Cohesion: 0.17
@@ -585,10 +600,6 @@ Nodes (5): For /graphify explain, For /graphify path, graphify reference: query,
 Cohesion: 0.33
 Nodes (3): delete({{ $this->selectedMembership->id }}), openCoachModalFromDetail({{ $this->selectedMembership->id }}), openDetailModal({{ $membership->id }})
 
-### Community 110 - "BuildMembershipInvoiceData"
-Cohesion: 0.36
-Nodes (3): BuildMembershipInvoiceData, MembershipInvoiceVerificationController, Illuminate\Contracts\View\View
-
 ### Community 112 - "psr-4"
 Cohesion: 0.40
 Nodes (5): autoload, psr-4, App\\, Database\\Factories\\, Database\\Seeders\\
@@ -636,17 +647,17 @@ Nodes (3): post-autoload-dump, Illuminate\\Foundation\\ComposerScripts::postAuto
 ## Knowledge Gaps
 - **778 isolated node(s):** `php`, `$schema`, `name`, `type`, `description` (+773 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **48 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **44 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `User` connect `User` to `DeviceEventWebhookTest`, `MetaWhatsAppService`, `AdminMembershipAdminFeeTest`, `SyncHikvisionMember.php`, `Membership`, `Maatwebsite\Excel\Concerns\Exportable`, `Illuminate\Database\Eloquent\Relations\BelongsTo`, `PtPaymentBatch`, `Illuminate\Database\Seeder`, `BonusPaymentTest`, `Illuminate\Database\Eloquent\Model`, `TestCase`, `DeviceEventMonitoringTest`, `RekapBonusDetailTableTest`, `WhatsAppIntegration`, `MembershipInvoiceTest`, `PtBooking`, `Controller`, `WhatsAppSalesMessagingTest`, `GymPackage`, `AdminBookingAttendanceTest`, `PtMembershipRemainingSessionsTest`, `AdminAttendanceTableTest`, `PtMembershipInitialSessionsTest`?**
-  _High betweenness centrality (0.054) - this node is a cross-community bridge._
-- **Why does `Membership` connect `Membership` to `DeviceEventWebhookTest`, `AdminMembershipAdminFeeTest`, `Maatwebsite\Excel\Concerns\Exportable`, `Illuminate\Database\Eloquent\Relations\BelongsTo`, `User`, `Illuminate\Database\Seeder`, `BonusPaymentTest`, `Illuminate\Database\Eloquent\Model`, `TestCase`, `RekapBonusDetailTableTest`, `MembershipInvoiceTest`, `PtBooking`, `Controller`, `GymPackage`, `AdminBookingAttendanceTest`, `PtMembershipRemainingSessionsTest`, `PtSchedule`, `BuildMembershipInvoiceData`, `PtMembershipInitialSessionsTest`?**
-  _High betweenness centrality (0.022) - this node is a cross-community bridge._
-- **Why does `TestCase` connect `TestCase` to `DeviceEventWebhookTest`, `MetaWhatsAppService`, `AdminMembershipAdminFeeTest`, `Maatwebsite\Excel\Concerns\Exportable`, `User`, `PtPaymentBatch`, `BonusPaymentTest`, `DeviceEventMonitoringTest`, `RekapBonusDetailTableTest`, `WhatsAppIntegration`, `MembershipInvoiceTest`, `PtBooking`, `ResponsiveTableLayoutTest`, `WhatsAppSalesMessagingTest`, `GymPackage`, `AdminBookingAttendanceTest`, `PtMembershipRemainingSessionsTest`, `PtSchedule`, `AdminAttendanceTableTest`, `PtMembershipInitialSessionsTest`?**
-  _High betweenness centrality (0.007) - this node is a cross-community bridge._
+- **Why does `User` connect `User` to `DeviceEventWebhookTest`, `WhatsAppIntegration`, `AdminMembershipAdminFeeTest`, `HikvisionUserService`, `Membership`, `Maatwebsite\Excel\Concerns\Exportable`, `Illuminate\Database\Eloquent\Relations\BelongsTo`, `PtPaymentBatch`, `Illuminate\Database\Seeder`, `BonusPaymentTest`, `Illuminate\Database\Eloquent\Factories\HasFactory`, `TestCase`, `DeviceEventMonitoringTest`, `RekapBonusDetailTableTest`, `Membership.php`, `BeverageSaleExportDetail`, `AdminBookingAttendanceTest`, `PtMembershipRemainingSessionsTest`, `AdminAttendanceTableTest`?**
+  _High betweenness centrality (0.046) - this node is a cross-community bridge._
+- **Why does `Membership` connect `Membership` to `DeviceEventWebhookTest`, `AdminMembershipAdminFeeTest`, `Illuminate\Database\Eloquent\Relations\BelongsTo`, `Membership.php`, `BeverageSaleExportDetail`, `User`, `PtPaymentBatch`, `AdminBookingAttendanceTest`, `PtMembershipRemainingSessionsTest`, `BonusPaymentTest`, `TestCase`, `RekapBonusDetailTableTest`, `Illuminate\Database\Eloquent\Model`?**
+  _High betweenness centrality (0.025) - this node is a cross-community bridge._
+- **Why does `TestCase` connect `TestCase` to `DeviceEventWebhookTest`, `WhatsAppIntegration`, `AdminMembershipAdminFeeTest`, `HikvisionUserService`, `Membership`, `AdminAttendanceTableTest`, `Illuminate\Database\Eloquent\Relations\BelongsTo`, `Membership.php`, `User`, `PtPaymentBatch`, `AdminBookingAttendanceTest`, `PtMembershipRemainingSessionsTest`, `BonusPaymentTest`, `rekap-bonus/⚡detail.blade.php`, `DeviceEventMonitoringTest`, `RekapBonusDetailTableTest`?**
+  _High betweenness centrality (0.008) - this node is a cross-community bridge._
 - **Are the 24 inferred relationships involving `User` (e.g. with `.query()` and `.query()`) actually correct?**
   _`User` has 24 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 13 inferred relationships involving `Membership` (e.g. with `.handle()` and `.query()`) actually correct?**
@@ -654,4 +665,4 @@ _Questions this graph is uniquely positioned to answer:_
 - **What connects `php`, `$schema`, `name` to the rest of the system?**
   _778 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `DeviceEventWebhookTest` be split into smaller, more focused modules?**
-  _Cohesion score 0.06874717322478517 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.05143638850889193 - nodes in this community are weakly interconnected._

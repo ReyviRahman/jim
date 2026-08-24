@@ -7,6 +7,7 @@ use App\Models\PtBooking;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Uri;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -49,6 +50,54 @@ new #[Layout('layouts::admin')] class extends Component
         $user = Auth::user();
 
         return $user->role === 'admin' || $user->isHeadCoach();
+    }
+
+    public function whatsAppUrl(PtBooking $booking, User $member): ?string
+    {
+        $isBookingMember = (int) $booking->member_id === $member->id;
+        $isMembershipMember = $booking->membership?->members->contains('id', $member->id) ?? false;
+
+        if (! $isBookingMember && ! $isMembershipMember) {
+            return null;
+        }
+
+        $phoneNumber = $this->normalizeWhatsAppNumber($member->phone);
+
+        if ($phoneNumber === null) {
+            return null;
+        }
+
+        $message = implode("\n", [
+            "Halo {$member->name},",
+            '',
+            'Berikut detail jadwal booking PT Anda:',
+            'Tanggal: '.$booking->booking_date->locale('id')->isoFormat('dddd, D MMMM YYYY'),
+            'Waktu: '.$booking->booking_time->format('H:i'),
+            'Coach: '.($booking->pt?->name ?? '-'),
+            '',
+            'Terima kasih.',
+        ]);
+
+        return Uri::of("https://wa.me/{$phoneNumber}")
+            ->withQuery(['text' => $message])
+            ->value();
+    }
+
+    private function normalizeWhatsAppNumber(?string $phoneNumber): ?string
+    {
+        $digits = preg_replace('/\D+/', '', $phoneNumber ?? '');
+
+        if (empty($digits)) {
+            return null;
+        }
+
+        if (str_starts_with($digits, '0')) {
+            $digits = '62'.substr($digits, 1);
+        } elseif (str_starts_with($digits, '8')) {
+            $digits = '62'.$digits;
+        }
+
+        return preg_match('/^628\d{8,11}$/', $digits) === 1 ? $digits : null;
     }
 
     public function mount()
@@ -764,7 +813,8 @@ new #[Layout('layouts::admin')] class extends Component
                                 <td class="min-w-0 max-w-full overflow-hidden px-2 py-2 border-r border-default align-top">
                                     <div class="flex w-full min-w-0 max-w-full flex-col gap-1.5">
                                         @foreach($slotBookings as $booking)
-                                            <div wire:click="openDetailModal({{ $booking->id }})"
+                                            <div wire:key="booking-{{ $booking->id }}"
+                                                wire:click="openDetailModal({{ $booking->id }})"
                                                 class="w-full min-w-0 max-w-full overflow-hidden cursor-pointer p-2 rounded border text-xs transition-colors
                                                 @if($booking->status === 'cancelled') bg-gray-50 border-gray-200 opacity-60
                                                 @elseif($booking->isRejected()) bg-red-50 border-red-200
@@ -772,10 +822,51 @@ new #[Layout('layouts::admin')] class extends Component
                                                 @elseif($booking->isCancellationPending()) bg-yellow-50 border-yellow-200
                                                 @else bg-green-50 border-green-200
                                                 @endif">
-                                                <div class="w-full min-w-0 max-w-full whitespace-normal wrap-anywhere font-semibold text-heading">{{ $booking->member?->name ?? '-' }}</div>
+                                                @php
+                                                    $memberWhatsAppUrl = $booking->member
+                                                        ? $this->whatsAppUrl($booking, $booking->member)
+                                                        : null;
+                                                @endphp
+                                                <div class="flex w-full min-w-0 max-w-full items-start gap-1.5">
+                                                    <div class="w-full min-w-0 max-w-full whitespace-normal wrap-anywhere font-semibold text-heading">{{ $booking->member?->name ?? '-' }}</div>
+                                                    @if($memberWhatsAppUrl)
+                                                        <a href="{{ $memberWhatsAppUrl }}"
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            x-on:click.stop
+                                                            title="Kirim WhatsApp ke {{ $booking->member->name }}"
+                                                            aria-label="Kirim WhatsApp ke {{ $booking->member->name }}"
+                                                            class="inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-green-600 text-white shadow-xs transition-colors hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-300">
+                                                            <svg class="size-3.5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                                <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.5 11.5 11 14l4.5-5m5.5 3a9 9 0 0 1-13.8 7.6L3 21l1.4-4.2A9 9 0 1 1 21 12Z"/>
+                                                            </svg>
+                                                            <span class="sr-only">Kirim WhatsApp ke {{ $booking->member->name }}</span>
+                                                        </a>
+                                                    @endif
+                                                </div>
                                                 @if($booking->membership && $booking->membership->members)
                                                     @foreach($booking->membership->members->where('id', '!=', $booking->member_id) as $member)
-                                                        <div class="w-full min-w-0 max-w-full whitespace-normal wrap-anywhere font-semibold text-heading">{{ $member->name }}</div>
+                                                        @php
+                                                            $memberWhatsAppUrl = $this->whatsAppUrl($booking, $member);
+                                                        @endphp
+                                                        <div wire:key="booking-{{ $booking->id }}-member-{{ $member->id }}"
+                                                            class="flex w-full min-w-0 max-w-full items-start gap-1.5">
+                                                            <div class="w-full min-w-0 max-w-full whitespace-normal wrap-anywhere font-semibold text-heading">{{ $member->name }}</div>
+                                                            @if($memberWhatsAppUrl)
+                                                                <a href="{{ $memberWhatsAppUrl }}"
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    x-on:click.stop
+                                                                    title="Kirim WhatsApp ke {{ $member->name }}"
+                                                                    aria-label="Kirim WhatsApp ke {{ $member->name }}"
+                                                                    class="inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-green-600 text-white shadow-xs transition-colors hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-300">
+                                                                    <svg class="size-3.5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                                        <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.5 11.5 11 14l4.5-5m5.5 3a9 9 0 0 1-13.8 7.6L3 21l1.4-4.2A9 9 0 1 1 21 12Z"/>
+                                                                    </svg>
+                                                                    <span class="sr-only">Kirim WhatsApp ke {{ $member->name }}</span>
+                                                                </a>
+                                                            @endif
+                                                        </div>
                                                     @endforeach
                                                 @endif
                                                 <div class="mt-0.5 w-full min-w-0 max-w-full whitespace-normal wrap-anywhere text-body">{{ $booking->pt?->name ?? '-' }}</div>

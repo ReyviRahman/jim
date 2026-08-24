@@ -124,6 +124,80 @@ class AdminBookingAttendanceTest extends TestCase
         $this->assertSame(10, $booking->membership->fresh()->remaining_sessions);
     }
 
+    public function test_booking_cards_normalize_supported_whatsapp_number_formats(): void
+    {
+        $admin = $this->createUser(['role' => 'admin']);
+        $numberFormats = [
+            ['stored' => '081234567890', 'expected' => '6281234567890'],
+            ['stored' => '81234567891', 'expected' => '6281234567891'],
+            ['stored' => '6281234567892', 'expected' => '6281234567892'],
+            ['stored' => '+62 812-3456-7893', 'expected' => '6281234567893'],
+        ];
+
+        foreach ($numberFormats as $numberFormat) {
+            $booking = $this->createBooking();
+            $booking->member->update(['phone' => $numberFormat['stored']]);
+
+            $this->assertSame($numberFormat['stored'], $booking->member->fresh()->phone);
+        }
+
+        $component = Livewire::actingAs($admin)
+            ->test('pages::dashboard.admin.booking-jadwal.index');
+
+        foreach ($numberFormats as $numberFormat) {
+            $component->assertSeeHtml('href="https://wa.me/'.$numberFormat['expected'].'?text=');
+        }
+    }
+
+    public function test_booking_card_renders_a_prefilled_whatsapp_link_for_each_member(): void
+    {
+        $admin = $this->createUser(['role' => 'admin']);
+        $booking = $this->createBooking();
+        $booking->member->update([
+            'name' => 'Member Utama',
+            'phone' => '081234567890',
+        ]);
+
+        $additionalMember = $this->createUser([
+            'name' => 'Member Tambahan',
+            'phone' => '082345678901',
+        ]);
+
+        $booking->membership->members()->attach([
+            $booking->member_id,
+            $additionalMember->id,
+        ]);
+
+        $booking->load(['member', 'pt']);
+        $encodedDate = rawurlencode('Tanggal: '.$booking->booking_date->locale('id')->isoFormat('dddd, D MMMM YYYY'));
+        $encodedTime = rawurlencode('Waktu: '.$booking->booking_time->format('H:i'));
+        $encodedCoach = rawurlencode('Coach: '.$booking->pt->name);
+
+        Livewire::actingAs($admin)
+            ->test('pages::dashboard.admin.booking-jadwal.index')
+            ->assertSeeHtml('href="https://wa.me/6281234567890?text=Halo%20Member%20Utama%2C%0A%0A')
+            ->assertSeeHtml('href="https://wa.me/6282345678901?text=Halo%20Member%20Tambahan%2C%0A%0A')
+            ->assertSeeHtml($encodedDate)
+            ->assertSeeHtml($encodedTime)
+            ->assertSeeHtml($encodedCoach)
+            ->assertSeeHtml('target="_blank"')
+            ->assertSeeHtml('rel="noopener noreferrer"')
+            ->assertSeeHtml('x-on:click.stop')
+            ->assertSeeHtml('aria-label="Kirim WhatsApp ke Member Utama"')
+            ->assertSeeHtml('aria-label="Kirim WhatsApp ke Member Tambahan"');
+    }
+
+    public function test_booking_card_omits_whatsapp_link_for_an_invalid_number(): void
+    {
+        $admin = $this->createUser(['role' => 'admin']);
+        $booking = $this->createBooking();
+        $booking->member->update(['phone' => '074123456789']);
+
+        Livewire::actingAs($admin)
+            ->test('pages::dashboard.admin.booking-jadwal.index')
+            ->assertDontSeeHtml('https://wa.me/');
+    }
+
     /**
      * @param  array<string, mixed>  $attributes
      */
