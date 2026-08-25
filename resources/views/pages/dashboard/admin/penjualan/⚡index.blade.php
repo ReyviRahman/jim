@@ -256,7 +256,13 @@ new #[Layout('layouts::admin')] class extends Component
      */
     private function getBaseQuery()
     {
-        $query = MembershipTransaction::with(['user', 'admin', 'membership.members']);
+        $query = MembershipTransaction::with([
+            'user',
+            'admin',
+            'membership.members',
+            'membership.gymPackage',
+            'membership.ptPackage',
+        ]);
 
         // 1. Logika Pencarian
         if (!empty($this->search)) {
@@ -431,13 +437,34 @@ new #[Layout('layouts::admin')] class extends Component
 
     private function serviceTypeLabel(MembershipTransaction $transaction): string
     {
-        return match ($transaction->membership?->type) {
+        $membership = $transaction->membership;
+        $serviceLabel = match ($membership?->type) {
             'membership' => 'MEMBERSHIP',
-            'pt' => 'PT',
+            'pt' => 'MEMBER PT',
             'bundle_pt_membership' => 'BUNDLE PT + MEMBERSHIP',
             'visit' => 'VISIT',
             default => 'PEMASUKAN LAIN',
         };
+
+        if (! $membership || ! in_array($membership->type, ['membership', 'pt', 'bundle_pt_membership'], true)) {
+            return $serviceLabel;
+        }
+
+        $category = $membership?->ptPackage?->category
+            ?? $membership?->gymPackage?->category;
+        $serviceDetails = [$serviceLabel];
+
+        if (filled($category)) {
+            $serviceDetails[] = Str::upper((string) $category);
+        }
+
+        $totalSessions = (int) ($membership->total_sessions ?? 0);
+
+        if ($totalSessions > 0) {
+            $serviceDetails[] = $totalSessions.' SESI';
+        }
+
+        return implode(' ', $serviceDetails);
     }
 
     private function paymentMethodLabel(?string $paymentMethod): string

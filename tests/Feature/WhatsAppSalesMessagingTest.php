@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\GymPackage;
 use App\Models\Membership;
 use App\Models\MembershipTransaction;
 use App\Models\User;
@@ -180,6 +181,76 @@ class WhatsAppSalesMessagingTest extends TestCase
         );
 
         $this->assertStringContainsString('- JENIS LAYANAN : '.$expectedLabel, $message);
+    }
+
+    #[DataProvider('ptMembershipCategories')]
+    public function test_pt_service_label_includes_membership_category_and_total_sessions(
+        string $category,
+        int $totalSessions,
+        string $expectedLabel,
+    ): void {
+        $admin = $this->createActor('admin');
+        $payer = $this->createPayer('Member PT '.$category, '081266660000');
+        $ptPackage = GymPackage::query()->create([
+            'type' => 'pt',
+            'name' => 'Paket PT '.ucfirst($category),
+            'category' => $category,
+            'max_members' => $category === 'couple' ? 2 : 1,
+            'pt_sessions' => 10,
+            'price' => 500000,
+            'discount' => 0,
+            'is_active' => true,
+        ]);
+        $membership = $this->createMembership($admin, $payer, [
+            'type' => 'pt',
+            'pt_package_id' => $ptPackage->id,
+            'total_sessions' => $totalSessions,
+            'remaining_sessions' => $totalSessions,
+        ]);
+        $transaction = $this->createTransaction($admin, $payer, ['membership_id' => $membership->id]);
+
+        $message = $this->extractGroupMessage(
+            $this->salesComponent($admin)->html(),
+            $transaction,
+        );
+
+        $this->assertStringContainsString('- JENIS LAYANAN : '.$expectedLabel, $message);
+    }
+
+    #[DataProvider('gymMembershipCategories')]
+    public function test_membership_service_label_includes_category_without_a_session_suffix(
+        string $category,
+        string $expectedLabel,
+    ): void {
+        $admin = $this->createActor('admin');
+        $payer = $this->createPayer('Member Gym '.$category, '081266661111');
+        $gymPackage = GymPackage::query()->create([
+            'type' => 'gym',
+            'name' => 'Paket Gym '.ucfirst($category),
+            'category' => $category,
+            'max_members' => $category === 'couple' ? 2 : 1,
+            'pt_sessions' => null,
+            'price' => 300000,
+            'discount' => 0,
+            'is_active' => true,
+        ]);
+        $membership = $this->createMembership($admin, $payer, [
+            'type' => 'membership',
+            'gym_package_id' => $gymPackage->id,
+            'total_sessions' => null,
+            'remaining_sessions' => null,
+        ]);
+        $transaction = $this->createTransaction($admin, $payer, ['membership_id' => $membership->id]);
+
+        $message = $this->extractGroupMessage(
+            $this->salesComponent($admin)->html(),
+            $transaction,
+        );
+
+        $this->assertStringContainsString(
+            "- JENIS LAYANAN : {$expectedLabel}\n\n- TOTAL PEMBAYARAN :",
+            $message,
+        );
     }
 
     #[DataProvider('membershipPaymentStatuses')]
@@ -420,9 +491,27 @@ class WhatsAppSalesMessagingTest extends TestCase
     {
         return [
             'membership' => ['membership', 'MEMBERSHIP'],
-            'personal training' => ['pt', 'PT'],
+            'personal training' => ['pt', 'MEMBER PT'],
             'bundle' => ['bundle_pt_membership', 'BUNDLE PT + MEMBERSHIP'],
             'visit' => ['visit', 'VISIT'],
+        ];
+    }
+
+    /** @return array<string, array{string, int, string}> */
+    public static function ptMembershipCategories(): array
+    {
+        return [
+            'single five sessions' => ['single', 5, 'MEMBER PT SINGLE 5 SESI'],
+            'couple five sessions' => ['couple', 5, 'MEMBER PT COUPLE 5 SESI'],
+        ];
+    }
+
+    /** @return array<string, array{string, string}> */
+    public static function gymMembershipCategories(): array
+    {
+        return [
+            'single' => ['single', 'MEMBERSHIP SINGLE'],
+            'couple' => ['couple', 'MEMBERSHIP COUPLE'],
         ];
     }
 
