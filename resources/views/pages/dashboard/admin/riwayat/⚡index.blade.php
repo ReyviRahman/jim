@@ -6,7 +6,12 @@ use Livewire\Component;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Computed; 
 use Livewire\WithPagination;
+use App\Models\Membership;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
+use Illuminate\Database\Query\Builder as QueryBuilder;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 new #[Layout('layouts::admin')] class extends Component
@@ -81,21 +86,65 @@ new #[Layout('layouts::admin')] class extends Component
         $this->resetPage();
     }
 
-    private function applyDateFilter($query)
+    private function applyDateFilter(EloquentBuilder $query): void
     {
+        $createdAtColumn = $query->getModel()->qualifyColumn('created_at');
+
         if ($this->filterTime === 'today') {
-            $query->whereDate('created_at', today());
+            $query->whereDate($createdAtColumn, today());
         } elseif ($this->filterTime === 'week') {
-            $query->whereBetween('created_at', [now()->startOfWeek(), now()->endOfWeek()]);
+            $query->whereBetween($createdAtColumn, [now()->startOfWeek(), now()->endOfWeek()]);
         } elseif ($this->filterTime === 'month') {
-            $query->whereMonth('created_at', now()->month)
-                  ->whereYear('created_at', now()->year);
+            $query->whereMonth($createdAtColumn, now()->month)
+                  ->whereYear($createdAtColumn, now()->year);
         } elseif ($this->filterTime === 'custom' && $this->dateStart && $this->dateEnd) {
-            $query->whereBetween('created_at', [
+            $query->whereBetween($createdAtColumn, [
                 $this->dateStart . ' 00:00:00',
                 $this->dateEnd . ' 23:59:59'
             ]);
         }
+    }
+
+    private function membershipAccessQuery(): QueryBuilder
+    {
+        $paidMemberships = DB::table('memberships')
+            ->select([
+                'memberships.user_id as history_user_id',
+                'memberships.id as membership_id',
+                'memberships.created_at',
+            ]);
+
+        $memberMemberships = DB::table('membership_users')
+            ->join('memberships', 'memberships.id', '=', 'membership_users.membership_id')
+            ->whereColumn('memberships.user_id', '!=', 'membership_users.user_id')
+            ->select([
+                'membership_users.user_id as history_user_id',
+                'memberships.id as membership_id',
+                'memberships.created_at',
+            ]);
+
+        return $paidMemberships->unionAll($memberMemberships);
+    }
+
+    private function latestMembershipsQuery(): QueryBuilder
+    {
+        $rankedMemberships = DB::query()
+            ->fromSub($this->membershipAccessQuery(), 'membership_access')
+            ->select([
+                'membership_access.history_user_id',
+                'membership_access.membership_id',
+                'membership_access.created_at',
+            ])
+            ->selectRaw('ROW_NUMBER() OVER (PARTITION BY membership_access.history_user_id ORDER BY membership_access.created_at DESC, membership_access.membership_id DESC) AS membership_rank');
+
+        return DB::query()
+            ->fromSub($rankedMemberships, 'ranked_memberships')
+            ->select([
+                'ranked_memberships.history_user_id',
+                'ranked_memberships.membership_id',
+                'ranked_memberships.created_at',
+            ])
+            ->where('ranked_memberships.membership_rank', 1);
     }
 
     public function goToDetail($userId)
@@ -104,17 +153,22 @@ new #[Layout('layouts::admin')] class extends Component
     }
 
     #[Computed]
-    public function users()
+    public function users(): LengthAwarePaginator
     {
-        return User::where('role', 'member')
-            ->where(function ($q) {
-                $q->whereHas('paidMemberships')
-                  ->orWhereHas('memberships');
+        return User::query()
+            ->select([
+                'users.*',
+                'latest_memberships.membership_id as latest_membership_id',
+                'latest_memberships.created_at as latest_membership_date',
+            ])
+            ->joinSub($this->latestMembershipsQuery(), 'latest_memberships', function ($join): void {
+                $join->on('latest_memberships.history_user_id', '=', 'users.id');
             })
+            ->where('users.role', 'member')
             ->when($this->search, function ($q) {
                 $q->where(function ($sq) {
-                    $sq->where('name', 'like', '%' . $this->search . '%')
-                       ->orWhere('email', 'like', '%' . $this->search . '%');
+                    $sq->where('users.name', 'like', '%' . $this->search . '%')
+                       ->orWhere('users.email', 'like', '%' . $this->search . '%');
                 });
             })
             ->when($this->filterTime !== 'all', function ($q) {
@@ -124,18 +178,40 @@ new #[Layout('layouts::admin')] class extends Component
                 });
             })
             ->when($this->sortBy === 'latest_membership_date', function ($q) {
-                $q->orderBy(DB::raw('(
-                    SELECT MAX(memberships.created_at)
-                    FROM memberships
-                    WHERE memberships.user_id = users.id
-                       OR memberships.id IN (
-                           SELECT membership_users.membership_id
-                           FROM membership_users
-                           WHERE membership_users.user_id = users.id
-                       )
-                )'), $this->sortDirection);
+                $q->orderBy('latest_memberships.created_at', $this->sortDirection)
+                    ->orderBy('latest_memberships.membership_id', $this->sortDirection)
+                    ->orderBy('users.id', $this->sortDirection);
             })
             ->paginate(10);
+    }
+
+    /** @return Collection<int, Membership> */
+    #[Computed]
+    public function latestMemberships(): Collection
+    {
+        $membershipIds = $this->users
+            ->getCollection()
+            ->pluck('latest_membership_id')
+            ->filter()
+            ->map(static fn ($membershipId): int => (int) $membershipId)
+            ->unique()
+            ->values();
+
+        if ($membershipIds->isEmpty()) {
+            return collect();
+        }
+
+        return Membership::query()
+            ->with([
+                'gymPackage:id,name',
+                'ptPackage:id,name',
+                'personalTrainer:id,name',
+                'followUp:id,name',
+                'followUpTwo:id,name',
+            ])
+            ->whereKey($membershipIds)
+            ->get()
+            ->keyBy('id');
     }
 };
 ?>
@@ -233,8 +309,9 @@ new #[Layout('layouts::admin')] class extends Component
                 </tr>
             </thead>
             <tbody>
+                @php $latestMemberships = $this->latestMemberships; @endphp
                 @forelse ($this->users as $user)
-                    @php $latest = $user->latestMembership; @endphp
+                    @php $latest = $latestMemberships->get((int) $user->latest_membership_id); @endphp
                     <tr wire:key="{{ $user->id }}" wire:click="goToDetail({{ $user->id }})" class="bg-neutral-primary-soft border-b border-default hover:bg-neutral-secondary-medium cursor-pointer">
                         
                         {{-- Nomor Urut --}}
