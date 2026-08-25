@@ -1072,7 +1072,7 @@ new #[Layout('layouts::admin')] class extends Component
                                                         : null;
                                                 @endphp
                                                 <div class="flex w-full min-w-0 max-w-full items-start gap-1.5">
-                                                    <div data-booking-card-name="member" class="w-full min-w-0 max-w-full whitespace-normal wrap-anywhere font-semibold text-heading">{{ Str::of($booking->member?->name ?? '-')->squish()->before(' ') }}</div>
+                                                    <div data-booking-card-name="member" class="w-full min-w-0 max-w-full whitespace-normal wrap-anywhere font-semibold text-heading">{{ Str::of($booking->member?->name ?? '-')->squish() }}</div>
                                                     @if($memberWhatsAppUrl)
                                                         <a href="{{ $memberWhatsAppUrl }}"
                                                             target="_blank"
@@ -1095,7 +1095,7 @@ new #[Layout('layouts::admin')] class extends Component
                                                         @endphp
                                                         <div wire:key="booking-{{ $booking->id }}-member-{{ $member->id }}"
                                                             class="flex w-full min-w-0 max-w-full items-start gap-1.5">
-                                                            <div data-booking-card-name="member" class="w-full min-w-0 max-w-full whitespace-normal wrap-anywhere font-semibold text-heading">{{ Str::of($member->name)->squish()->before(' ') }}</div>
+                                                            <div data-booking-card-name="member" class="w-full min-w-0 max-w-full whitespace-normal wrap-anywhere font-semibold text-heading">{{ Str::of($member->name)->squish() }}</div>
                                                             @if($memberWhatsAppUrl)
                                                                 <a href="{{ $memberWhatsAppUrl }}"
                                                                     target="_blank"

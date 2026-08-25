@@ -546,7 +546,7 @@ class AdminBookingAttendanceTest extends TestCase
         $this->assertSame(2, substr_count($component->html(), $encodedSession));
     }
 
-    public function test_booking_cards_show_only_first_names_for_members_and_coach(): void
+    public function test_booking_cards_show_full_member_names_and_only_first_coach_name(): void
     {
         $admin = $this->createUser(['role' => 'admin']);
         $booking = $this->createBooking();
@@ -565,11 +565,11 @@ class AdminBookingAttendanceTest extends TestCase
             ->html();
 
         $this->assertMatchesRegularExpression(
-            '/data-booking-card-name="member"[^>]*>\s*Andi\s*<\/div>/',
+            '/data-booking-card-name="member"[^>]*>\s*Andi Pratama\s*<\/div>/',
             $html,
         );
         $this->assertMatchesRegularExpression(
-            '/data-booking-card-name="member"[^>]*>\s*Budi\s*<\/div>/',
+            '/data-booking-card-name="member"[^>]*>\s*Budi Santoso\s*<\/div>/',
             $html,
         );
         $this->assertMatchesRegularExpression(
