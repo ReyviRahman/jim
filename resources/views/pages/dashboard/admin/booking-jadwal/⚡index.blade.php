@@ -9,6 +9,7 @@ use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Support\Uri;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
@@ -940,7 +941,7 @@ new #[Layout('layouts::admin')] class extends Component
         <h5 class="text-xl font-semibold text-heading">Booking Jadwal PT</h5>
     </div>
 
-    <div class="relative overflow-hidden bg-neutral-primary-soft shadow-xs rounded-md border border-default">
+    <div x-data="bookingDayFilter" class="relative overflow-hidden bg-neutral-primary-soft shadow-xs rounded-md border border-default">
         <div class="p-4 flex flex-col md:flex-row items-center justify-between gap-4">
             <div class="relative w-full md:w-auto md:flex-1">
                 <div class="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
@@ -974,41 +975,68 @@ new #[Layout('layouts::admin')] class extends Component
         </div>
 
         <div class="p-4 border-t border-default-medium flex flex-col md:flex-row items-center justify-between gap-4">
-            <div class="flex items-center gap-2">
-                <button wire:click="previousWeek" class="inline-flex items-center gap-1 px-3 py-2 text-sm font-medium text-body bg-neutral-secondary-medium border border-default-medium rounded hover:bg-neutral-secondary-dark transition-colors">
+            <div class="flex w-full flex-wrap items-center gap-2 md:w-auto">
+                <button wire:click="previousWeek" x-on:click="showAllDays" class="inline-flex items-center gap-1 px-3 py-2 text-sm font-medium text-body bg-neutral-secondary-medium border border-default-medium rounded hover:bg-neutral-secondary-dark transition-colors">
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
                     Minggu Lalu
                 </button>
                 <button wire:click="thisWeek" class="inline-flex items-center gap-1 px-3 py-2 text-sm font-medium text-white bg-brand border border-brand rounded hover:bg-brand-dark transition-colors">
                     Minggu Ini
                 </button>
-                <button wire:click="nextWeek" class="inline-flex items-center gap-1 px-3 py-2 text-sm font-medium text-body bg-neutral-secondary-medium border border-default-medium rounded hover:bg-neutral-secondary-dark transition-colors">
+                <button wire:click="nextWeek" x-on:click="showAllDays" class="inline-flex items-center gap-1 px-3 py-2 text-sm font-medium text-body bg-neutral-secondary-medium border border-default-medium rounded hover:bg-neutral-secondary-dark transition-colors">
                     Minggu Depan
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
                 </button>
                 <input type="date" wire:model.live.debounce.300ms="dateFrom"
+                    x-on:change="showAllDays"
                     class="px-3 py-2 text-sm font-medium text-heading bg-neutral-secondary-medium border border-default-medium rounded focus:ring-brand focus:border-brand shadow-xs"
                     title="Pilih tanggal untuk loncat ke minggu tersebut">
             </div>
-            <span class="text-sm font-medium text-heading">
-                {{ $this->getWeekStart()->locale('id')->isoFormat('D MMM YYYY') }} - {{ $this->getWeekStart()->copy()->addDays(6)->locale('id')->isoFormat('D MMM YYYY') }}
-            </span>
+            <div class="flex w-full flex-col items-center gap-2 sm:flex-row sm:justify-between md:w-auto md:justify-end">
+                <div class="inline-flex overflow-hidden rounded border border-default-medium bg-neutral-secondary-medium shadow-xs"
+                    role="group" aria-label="Filter hari jadwal">
+                    <button type="button" wire:click="thisWeek" x-on:click="showToday"
+                        x-bind:aria-pressed="dayView === 'today'"
+                        class="px-3 py-2 text-sm font-medium text-body transition-colors hover:bg-neutral-secondary-dark aria-pressed:bg-brand aria-pressed:text-heading">
+                        Today
+                    </button>
+                    <button type="button" x-on:click="showAllDays"
+                        x-bind:aria-pressed="dayView === 'all'"
+                        class="border-l border-default-medium px-3 py-2 text-sm font-medium text-body transition-colors hover:bg-neutral-secondary-dark aria-pressed:bg-brand aria-pressed:text-heading">
+                        All Day
+                    </button>
+                </div>
+                <span class="text-sm font-medium text-heading">
+                    {{ $this->getWeekStart()->locale('id')->isoFormat('D MMM YYYY') }} - {{ $this->getWeekStart()->copy()->addDays(6)->locale('id')->isoFormat('D MMM YYYY') }}
+                </span>
+            </div>
         </div>
 
         <div class="overflow-hidden">
-            <table data-responsive-table data-responsive-breakpoint="xl" class="table-fixed w-full text-sm text-left text-body border-collapse">
+            @php
+                $weekStart = $this->getWeekStart();
+                $dayLabels = $this->daysOfWeek();
+            @endphp
+            <table data-responsive-table data-responsive-breakpoint="xl" data-booking-schedule
+                x-bind:data-day-view="dayView"
+                class="table-fixed w-full text-sm text-left text-body border-collapse">
+                <caption data-booking-schedule-today-header x-show="dayView === 'today'"
+                    class="text-left text-sm font-semibold text-heading sm:hidden">
+                    {{ now()->locale('id')->isoFormat('dddd, D MMMM YYYY') }}
+                </caption>
                 <thead class="text-sm text-body bg-neutral-secondary-medium border-b border-default-medium">
                     <tr>
                         <th scope="col" class="px-4 py-3 font-medium border-r border-default-medium w-28">Time</th>
-                        @php
-                            $weekStart = $this->getWeekStart();
-                            $dayLabels = $this->daysOfWeek();
-                        @endphp
                         @foreach($dayLabels as $dayKey => $dayName)
-                            <th scope="col" class="px-4 py-3 font-medium text-center border-r border-default-medium">
+                            @php
+                                $dayDate = $weekStart->copy()->addDays($loop->index);
+                            @endphp
+                            <th scope="col" data-today="{{ $dayDate->isToday() ? 'true' : 'false' }}"
+                                x-show="isDayVisible($el.dataset.today)"
+                                class="px-4 py-3 font-medium text-center border-r border-default-medium">
                                 {{ $dayName }}
                                 <div class="text-xs font-normal text-body mt-0.5">
-                                    {{ $weekStart->copy()->addDays($loop->index)->locale('id')->isoFormat('D MMM') }}
+                                    {{ $dayDate->locale('id')->isoFormat('D MMM') }}
                                 </div>
                             </th>
                         @endforeach
@@ -1024,7 +1052,9 @@ new #[Layout('layouts::admin')] class extends Component
                                 @php
                                     $slotBookings = $this->getBookingsForSlot($dayKey, $slot['hour']);
                                 @endphp
-                                <td class="min-w-0 max-w-full overflow-hidden px-2 py-2 border-r border-default align-top">
+                                <td data-today="{{ $weekStart->copy()->addDays($loop->index)->isToday() ? 'true' : 'false' }}"
+                                    x-show="isDayVisible($el.dataset.today)"
+                                    class="min-w-0 max-w-full overflow-hidden px-2 py-2 border-r border-default align-top">
                                     <div class="flex w-full min-w-0 max-w-full flex-col gap-1.5">
                                         @foreach($slotBookings as $booking)
                                             <div wire:key="booking-{{ $booking->id }}"
@@ -1042,7 +1072,7 @@ new #[Layout('layouts::admin')] class extends Component
                                                         : null;
                                                 @endphp
                                                 <div class="flex w-full min-w-0 max-w-full items-start gap-1.5">
-                                                    <div class="w-full min-w-0 max-w-full whitespace-normal wrap-anywhere font-semibold text-heading">{{ $booking->member?->name ?? '-' }}</div>
+                                                    <div data-booking-card-name="member" class="w-full min-w-0 max-w-full whitespace-normal wrap-anywhere font-semibold text-heading">{{ Str::of($booking->member?->name ?? '-')->squish()->before(' ') }}</div>
                                                     @if($memberWhatsAppUrl)
                                                         <a href="{{ $memberWhatsAppUrl }}"
                                                             target="_blank"
@@ -1065,7 +1095,7 @@ new #[Layout('layouts::admin')] class extends Component
                                                         @endphp
                                                         <div wire:key="booking-{{ $booking->id }}-member-{{ $member->id }}"
                                                             class="flex w-full min-w-0 max-w-full items-start gap-1.5">
-                                                            <div class="w-full min-w-0 max-w-full whitespace-normal wrap-anywhere font-semibold text-heading">{{ $member->name }}</div>
+                                                            <div data-booking-card-name="member" class="w-full min-w-0 max-w-full whitespace-normal wrap-anywhere font-semibold text-heading">{{ Str::of($member->name)->squish()->before(' ') }}</div>
                                                             @if($memberWhatsAppUrl)
                                                                 <a href="{{ $memberWhatsAppUrl }}"
                                                                     target="_blank"
@@ -1083,7 +1113,7 @@ new #[Layout('layouts::admin')] class extends Component
                                                         </div>
                                                     @endforeach
                                                 @endif
-                                                <div class="mt-0.5 w-full min-w-0 max-w-full whitespace-normal wrap-anywhere text-body">{{ $booking->pt?->name ?? '-' }}</div>
+                                                <div data-booking-card-name="coach" class="mt-0.5 w-full min-w-0 max-w-full whitespace-normal wrap-anywhere text-body">{{ Str::of($booking->pt?->name ?? '-')->squish()->before(' ') }}</div>
                                                 <div class="mt-1 flex min-w-0 max-w-full flex-wrap items-center gap-1">
                                                     @if($booking->isCancellationPending())
                                                         <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-yellow-100 text-yellow-800">Pending Cancel</span>
@@ -1100,8 +1130,6 @@ new #[Layout('layouts::admin')] class extends Component
                                                     @endif
                                                     @if($booking->is_free)
                                                         <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-100 text-purple-800">Free</span>
-                                                    @else
-                                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-100 text-blue-800">Sesi ke-{{ $booking->session_number }}</span>
                                                     @endif
                                                     @if($booking->status === 'approved')
                                                         <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium capitalize

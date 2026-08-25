@@ -546,7 +546,39 @@ class AdminBookingAttendanceTest extends TestCase
         $this->assertSame(2, substr_count($component->html(), $encodedSession));
     }
 
-    public function test_booking_cards_and_whatsapp_messages_show_numbered_and_free_sessions(): void
+    public function test_booking_cards_show_only_first_names_for_members_and_coach(): void
+    {
+        $admin = $this->createUser(['role' => 'admin']);
+        $booking = $this->createBooking();
+        $booking->member->update(['name' => 'Andi Pratama']);
+        $booking->pt->update(['name' => 'Citra Lestari']);
+
+        $additionalMember = $this->createUser(['name' => 'Budi Santoso']);
+
+        $booking->membership->members()->attach([
+            $booking->member_id,
+            $additionalMember->id,
+        ]);
+
+        $html = Livewire::actingAs($admin)
+            ->test('pages::dashboard.admin.booking-jadwal.index')
+            ->html();
+
+        $this->assertMatchesRegularExpression(
+            '/data-booking-card-name="member"[^>]*>\s*Andi\s*<\/div>/',
+            $html,
+        );
+        $this->assertMatchesRegularExpression(
+            '/data-booking-card-name="member"[^>]*>\s*Budi\s*<\/div>/',
+            $html,
+        );
+        $this->assertMatchesRegularExpression(
+            '/data-booking-card-name="coach"[^>]*>\s*Citra\s*<\/div>/',
+            $html,
+        );
+    }
+
+    public function test_booking_cards_hide_session_numbers_while_whatsapp_messages_keep_them(): void
     {
         $admin = $this->createUser(['role' => 'admin']);
         $firstBooking = $this->createBooking([
@@ -568,15 +600,14 @@ class AdminBookingAttendanceTest extends TestCase
         ]);
         $secondBooking->save();
 
-        Livewire::actingAs($admin)
+        $component = Livewire::actingAs($admin)
             ->test('pages::dashboard.admin.booking-jadwal.index')
-            ->assertSee('Sesi ke-1')
             ->assertSee('Free')
-            ->assertSee('Sesi ke-2')
-            ->assertDontSee('Sesi ke-3')
             ->assertSeeHtml(rawurlencode('Sesi ke-1'))
             ->assertSeeHtml(rawurlencode('Sesi Free'))
             ->assertSeeHtml(rawurlencode('Sesi ke-2'));
+
+        $this->assertStringNotContainsString('data-booking-card-session-number', $component->html());
     }
 
     public function test_booking_card_omits_whatsapp_link_for_an_invalid_number(): void

@@ -138,6 +138,55 @@ table[data-responsive-table][data-responsive-kind="summary"] tbody > tr > td:not
     display: block;
 }
 
+@media (max-width: 39.999rem) {
+    table[data-responsive-table][data-booking-schedule][data-day-view="today"] {
+        padding: 0.75rem;
+        background: #f9fafb;
+    }
+
+    table[data-responsive-table][data-booking-schedule][data-day-view="today"] [data-booking-schedule-today-header] {
+        display: block;
+        width: 100%;
+        padding: 0.75rem;
+        border: 1px solid #e5e7eb;
+        border-bottom: 0;
+        border-radius: 0.5rem 0.5rem 0 0;
+        background: #f3f4f6;
+    }
+
+    table[data-responsive-table][data-booking-schedule][data-day-view="today"] tbody:not(.hidden) {
+        gap: 0;
+        overflow: hidden;
+        padding: 0;
+        border: 1px solid #e5e7eb;
+        border-radius: 0 0 0.5rem 0.5rem;
+        background: #fff;
+        box-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
+    }
+
+    table[data-responsive-table][data-booking-schedule][data-day-view="today"] tbody > tr:not(.hidden) {
+        grid-template-columns: minmax(6.5rem, 35%) minmax(0, 1fr);
+        border: 0;
+        border-bottom: 1px solid #e5e7eb;
+        border-radius: 0;
+        box-shadow: none;
+    }
+
+    table[data-responsive-table][data-booking-schedule][data-day-view="today"] tbody > tr:last-child {
+        border-bottom: 0;
+    }
+
+    table[data-responsive-table][data-booking-schedule][data-day-view="today"] tbody > tr:not(.hidden) > td:not(.hidden) {
+        display: block;
+        padding: 0.75rem !important;
+        border: 0;
+    }
+
+    table[data-responsive-table][data-booking-schedule][data-day-view="today"] td::before {
+        display: none;
+    }
+}
+
 @media (min-width: 40rem) {
     table[data-responsive-table] {
         display: table;

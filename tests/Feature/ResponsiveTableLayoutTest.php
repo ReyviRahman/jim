@@ -31,6 +31,53 @@ class ResponsiveTableLayoutTest extends TestCase
         );
     }
 
+    public function test_booking_schedule_day_filter_uses_responsive_defaults(): void
+    {
+        $contents = file_get_contents(resource_path('views/pages/dashboard/admin/booking-jadwal/⚡index.blade.php'));
+        $javascript = file_get_contents(resource_path('js/app.js'));
+
+        $this->assertIsString($contents);
+        $this->assertIsString($javascript);
+        $this->assertStringContainsString('x-data="bookingDayFilter"', $contents);
+        $this->assertStringContainsString('>Today</button>', preg_replace('/\s+/', '', $contents));
+        $this->assertStringContainsString('>AllDay</button>', preg_replace('/\s+/', '', $contents));
+        $this->assertSame(2, substr_count($contents, 'x-show="isDayVisible($el.dataset.today)"'));
+        $this->assertStringContainsString("window.matchMedia('(min-width: 40rem)')", $javascript);
+        $this->assertStringContainsString(
+            "dayView: bookingScheduleDesktopBreakpoint.matches ? 'all' : 'today'",
+            $javascript,
+        );
+    }
+
+    public function test_booking_schedule_today_filter_groups_mobile_rows_into_one_card(): void
+    {
+        $contents = file_get_contents(resource_path('views/pages/dashboard/admin/booking-jadwal/⚡index.blade.php'));
+        $css = file_get_contents(resource_path('css/app.css'));
+
+        $this->assertIsString($contents);
+        $this->assertIsString($css);
+        $this->assertStringContainsString('data-booking-schedule', $contents);
+        $this->assertStringContainsString('x-bind:data-day-view="dayView"', $contents);
+        $this->assertSame(1, substr_count($contents, 'data-booking-schedule-today-header'));
+        $this->assertStringContainsString(
+            'data-booking-schedule-today-header x-show="dayView === \'today\'"',
+            $contents,
+        );
+        $this->assertStringContainsString("{{ now()->locale('id')->isoFormat('dddd, D MMMM YYYY') }}", $contents);
+        $this->assertMatchesRegularExpression(
+            '/@media \(max-width: 39\.999rem\).*?\[data-booking-schedule\]\[data-day-view="today"\] tbody:not\(\.hidden\)\s*\{.*?gap: 0;.*?border-radius: 0 0 0\.5rem 0\.5rem;/s',
+            $css,
+        );
+        $this->assertMatchesRegularExpression(
+            '/\[data-booking-schedule\]\[data-day-view="today"\] tbody > tr:not\(\.hidden\)\s*\{.*?border-radius: 0;.*?box-shadow: none;/s',
+            $css,
+        );
+        $this->assertMatchesRegularExpression(
+            '/\[data-booking-schedule\]\[data-day-view="today"\] td::before\s*\{\s*display: none;/s',
+            $css,
+        );
+    }
+
     public function test_card_layout_is_limited_to_phone_widths_and_number_columns_are_compact(): void
     {
         $css = file_get_contents(resource_path('css/app.css'));

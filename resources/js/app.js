@@ -12,10 +12,29 @@ window.Chart = Chart;
 window.flatpickr = flatpickr;
 
 const sidebarBreakpoint = window.matchMedia('(min-width: 640px)');
+const bookingScheduleDesktopBreakpoint = window.matchMedia('(min-width: 40rem)');
 const sidebarStorageKey = 'dashboard_sidebar_open';
 const responsiveCompactColumnPattern = /^(?:no\.?|nomor|#)$/i;
 
 let destroyDashboardSidebar = () => {};
+
+document.addEventListener('alpine:init', () => {
+    window.Alpine.data('bookingDayFilter', () => ({
+        dayView: bookingScheduleDesktopBreakpoint.matches ? 'all' : 'today',
+
+        showAllDays() {
+            this.dayView = 'all';
+        },
+
+        showToday() {
+            this.dayView = 'today';
+        },
+
+        isDayVisible(isToday) {
+            return this.dayView === 'all' || isToday === 'true';
+        },
+    }));
+}, { once: true });
 
 function openWhatsAppAfterInvoiceDownload(event) {
     if (
