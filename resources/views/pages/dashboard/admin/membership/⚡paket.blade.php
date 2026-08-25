@@ -12,9 +12,14 @@ use App\Models\MembershipTransaction;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
+use Livewire\WithFileUploads;
 
 new #[Layout('layouts::admin')] class extends Component
 {
+    use WithFileUploads;
+
     public $selectedUsers; 
     public $mainUser; 
 
@@ -46,6 +51,7 @@ new #[Layout('layouts::admin')] class extends Component
     public $payment_type = 'paid'; // 'paid' (Lunas) atau 'partial' (Nyicil)
     public $amount_paid = 0; // Uang yang dibayar SEKARANG
     public $payment_method = 'cash';
+    public $payment_proof;
     public $payment_date = '';
     public $transaction_type = '';
     public $package_name = '';
@@ -61,6 +67,45 @@ new #[Layout('layouts::admin')] class extends Component
     public $split_transfer = '';
     public $split_qris = '';
     public $split_debit = '';
+    public $split_payment_proofs = [
+        'transfer' => null,
+        'qris' => null,
+        'debit' => null,
+    ];
+
+    public function updatedPaymentMethod(): void
+    {
+        $this->reset('payment_proof');
+        $this->resetValidation('payment_proof');
+    }
+
+    public function updatedIsSplitPayment(): void
+    {
+        $this->reset('payment_proof', 'split_payment_proofs');
+        $this->resetValidation();
+    }
+
+    private function paymentProofRules(bool $required = true): array
+    {
+        return [
+            $required ? 'required' : 'nullable',
+            'image',
+            'mimes:jpg,jpeg,png,webp',
+            'extensions:jpg,jpeg,png,webp',
+            'max:10240',
+        ];
+    }
+
+    private function storePaymentProof(TemporaryUploadedFile $proof): string
+    {
+        $path = $proof->store('membership-payment-proofs/'.now()->format('Y/m'), 'public');
+
+        if (! $path) {
+            throw new \RuntimeException('Bukti pembayaran gagal disimpan.');
+        }
+
+        return $path;
+    }
 
     public function mount()
     {
@@ -336,8 +381,26 @@ new #[Layout('layouts::admin')] class extends Component
             'admin_fee' => 'nullable|numeric|min:0',
         ];
 
-        if (!$this->is_split_payment) {
+        $messages = [
+            'amount_paid.max' => 'Nominal cicilan tidak boleh lebih atau sama dengan total tagihan.',
+            'amount_paid.min' => 'Nominal cicilan harus lebih dari 0.',
+            'manual_discount.max' => 'Diskon tidak boleh melebihi total harga paket.',
+        ];
+
+        if (! $this->is_split_payment) {
             $rules['payment_method'] = 'required|in:cash,transfer,qris,debit';
+
+            if ($this->payment_method !== 'cash') {
+                $rules['payment_proof'] = $this->paymentProofRules();
+                $messages['payment_proof.required'] = 'Bukti pembayaran wajib diunggah untuk metode non-Cash.';
+            }
+        } else {
+            foreach (['transfer', 'qris', 'debit'] as $method) {
+                if ((int) $this->{'split_'.$method} > 0) {
+                    $rules['split_payment_proofs.'.$method] = $this->paymentProofRules();
+                    $messages['split_payment_proofs.'.$method.'.required'] = 'Bukti pembayaran '.strtoupper($method).' wajib diunggah.';
+                }
+            }
         }
 
         // Validasi Nominal Nyicil
@@ -356,11 +419,7 @@ new #[Layout('layouts::admin')] class extends Component
             $rules['pt_end_date'] = $this->is_active ? 'required|date|after_or_equal:start_date' : 'nullable|date';
         }
 
-        $this->validate($rules, [
-            'amount_paid.max' => 'Nominal cicilan tidak boleh lebih atau sama dengan total tagihan.',
-            'amount_paid.min' => 'Nominal cicilan harus lebih dari 0.',
-            'manual_discount.max' => 'Diskon tidak boleh melebihi total harga paket.',
-        ]);
+        $this->validate($rules, $messages);
 
         // Validasi Split Payment
         if ($this->is_split_payment) {
@@ -394,6 +453,8 @@ new #[Layout('layouts::admin')] class extends Component
         } elseif ($this->registration_type === 'pt' && $this->pt_package_id) {
             $pkt = GymPackage::find($this->pt_package_id);
         }
+
+        $storedProofPaths = [];
 
         // 👇 MULAI DATABASE TRANSACTION DI SINI 👇
         try {
@@ -453,6 +514,13 @@ new #[Layout('layouts::admin')] class extends Component
 
                 foreach ($splitMethods as $method => $amount) {
                     if ($amount > 0) {
+                        $paymentProofPath = null;
+
+                        if ($method !== 'cash') {
+                            $paymentProofPath = $this->storePaymentProof($this->split_payment_proofs[$method]);
+                            $storedProofPaths[] = $paymentProofPath;
+                        }
+
                         MembershipTransaction::create([
                             'invoice_number' => 'INV-' . date('Ymd') . '-' . strtoupper(uniqid()),
                             'membership_id' => $membership->id,
@@ -465,6 +533,7 @@ new #[Layout('layouts::admin')] class extends Component
                             'package_name' => $this->package_name,
                             'amount' => $amount,
                             'payment_method' => $method,
+                            'payment_proof_path' => $paymentProofPath,
                             'payment_date' => $this->payment_date,
                             'start_date' => $this->start_date,
                             'end_date' => in_array($this->registration_type, ['pt']) ? $this->pt_end_date : $this->membership_end_date,
@@ -473,6 +542,13 @@ new #[Layout('layouts::admin')] class extends Component
                     }
                 }
             } else {
+                $paymentProofPath = null;
+
+                if ($this->payment_method !== 'cash') {
+                    $paymentProofPath = $this->storePaymentProof($this->payment_proof);
+                    $storedProofPaths[] = $paymentProofPath;
+                }
+
                 MembershipTransaction::create([
                     'invoice_number' => 'INV-' . date('Ymd') . '-' . strtoupper(uniqid()),
                     'membership_id' => $membership->id,
@@ -485,6 +561,7 @@ new #[Layout('layouts::admin')] class extends Component
                     'package_name' => $this->package_name,
                     'amount' => $actualAmountPaid,
                     'payment_method' => $this->payment_method,
+                    'payment_proof_path' => $paymentProofPath,
                     'payment_date' => $this->payment_date,
                     'start_date' => $this->start_date,
                     'end_date' => in_array($this->registration_type, ['pt']) ? $this->pt_end_date : $this->membership_end_date,
@@ -498,9 +575,10 @@ new #[Layout('layouts::admin')] class extends Component
             session()->flash('success', 'Transaksi berhasil disimpan dan uang masuk sudah dicatat.');
             return $this->redirectRoute('admin.penjualan.index', navigate: true); 
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             // Jika ada gagal/error/putus di tengah jalan, batalkan semua insert data
             DB::rollBack();
+            Storage::disk('public')->delete($storedProofPaths);
             
             // Tampilkan pesan error ke layar agar kasir tahu
             session()->flash('error', 'Terjadi kesalahan sistem saat memproses transaksi: ' . $e->getMessage());
@@ -1064,6 +1142,15 @@ new #[Layout('layouts::admin')] class extends Component
                                 }">
                                     <input type="text" x-model="formatted" @input="update($event)" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2 shadow-xs" placeholder="0">
                                 </div>
+                                @if((int) $split_transfer > 0)
+                                    <x-payment-proof-upload
+                                        class="mt-3"
+                                        model="split_payment_proofs.transfer"
+                                        error-key="split_payment_proofs.transfer"
+                                        :proof="$split_payment_proofs['transfer'] ?? null"
+                                        label="Bukti Transfer"
+                                    />
+                                @endif
                             </div>
                             <div>
                                 <label class="block mb-1 text-xs font-medium text-heading">QRIS (Rp)</label>
@@ -1076,6 +1163,15 @@ new #[Layout('layouts::admin')] class extends Component
                                 }">
                                     <input type="text" x-model="formatted" @input="update($event)" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2 shadow-xs" placeholder="0">
                                 </div>
+                                @if((int) $split_qris > 0)
+                                    <x-payment-proof-upload
+                                        class="mt-3"
+                                        model="split_payment_proofs.qris"
+                                        error-key="split_payment_proofs.qris"
+                                        :proof="$split_payment_proofs['qris'] ?? null"
+                                        label="Bukti QRIS"
+                                    />
+                                @endif
                             </div>
                             <div>
                                 <label class="block mb-1 text-xs font-medium text-heading">Debit (Rp)</label>
@@ -1088,6 +1184,15 @@ new #[Layout('layouts::admin')] class extends Component
                                 }">
                                     <input type="text" x-model="formatted" @input="update($event)" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2 shadow-xs" placeholder="0">
                                 </div>
+                                @if((int) $split_debit > 0)
+                                    <x-payment-proof-upload
+                                        class="mt-3"
+                                        model="split_payment_proofs.debit"
+                                        error-key="split_payment_proofs.debit"
+                                        :proof="$split_payment_proofs['debit'] ?? null"
+                                        label="Bukti Debit"
+                                    />
+                                @endif
                             </div>
                         </div>
                         @php
@@ -1101,7 +1206,7 @@ new #[Layout('layouts::admin')] class extends Component
                         {{-- Metode Bayar --}}
                         <div>
                             <label class="block mb-1 text-sm font-medium text-heading">Metode Pembayaran</label>
-                            <select wire:model="payment_method" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2 shadow-xs">
+                            <select wire:model.live="payment_method" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2 shadow-xs">
                                 <option value="cash">💵 Cash / Tunai</option>
                                 <option value="transfer">🏦 Transfer Bank</option>
                                 <option value="qris">📱 QRIS</option>
@@ -1109,6 +1214,9 @@ new #[Layout('layouts::admin')] class extends Component
                             </select>
                             @error('payment_method') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                         </div>
+                        @if($payment_method !== 'cash')
+                            <x-payment-proof-upload wire:key="package-payment-proof-{{ $payment_method }}" model="payment_proof" :proof="$payment_proof" />
+                        @endif
                     @endif
                     <div>
                         <label class="block mb-1 text-sm font-medium text-heading">Tanggal Pembayaran</label>

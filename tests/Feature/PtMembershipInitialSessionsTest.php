@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Membership;
+use App\Models\PtBooking;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -88,6 +89,29 @@ class PtMembershipInitialSessionsTest extends TestCase
             ->assertHasErrors(['initialSessions' => 'integer']);
     }
 
+    public function test_session_summary_separates_regular_and_free_attended_sessions(): void
+    {
+        $membership = $this->createMembership(['sesi_ditambahkan' => 7]);
+
+        $this->createBooking($membership, false, 'attended', '08:00:00');
+        $this->createBooking($membership, false, 'attended', '09:00:00');
+        $this->createBooking($membership, true, 'attended', '10:00:00');
+        $this->createBooking($membership, true, 'attended', '11:00:00');
+        $this->createBooking($membership, true, 'attended', '12:00:00');
+        $this->createBooking($membership, true, 'noshow', '13:00:00');
+
+        Livewire::test('pages::dashboard.admin.sesi-pt.membership-detail', ['membership' => $membership])
+            ->assertSet('totalSesiBerjalan', 2)
+            ->assertSet('totalSesiFreeBerjalan', 3)
+            ->assertSeeInOrder([
+                'Sesi Berjalan',
+                '2',
+                'Free Berjalan',
+                '3',
+            ])
+            ->assertDontSee('Sesi Ditambahkan');
+    }
+
     /**
      * @param  array<string, mixed>  $attributes
      */
@@ -111,6 +135,20 @@ class PtMembershipInitialSessionsTest extends TestCase
             'sesi_ditambahkan' => 0,
             'status' => 'active',
             ...$attributes,
+        ]);
+    }
+
+    private function createBooking(Membership $membership, bool $isFree, string $attendance, string $bookingTime): PtBooking
+    {
+        return PtBooking::create([
+            'membership_id' => $membership->id,
+            'member_id' => $membership->user_id,
+            'pt_id' => $membership->pt_id,
+            'booking_date' => today(),
+            'booking_time' => $bookingTime,
+            'status' => 'approved',
+            'attendance' => $attendance,
+            'is_free' => $isFree,
         ]);
     }
 

@@ -172,19 +172,56 @@ class AdminBookingAttendanceTest extends TestCase
         $encodedDate = rawurlencode('Tanggal: '.$booking->booking_date->locale('id')->isoFormat('dddd, D MMMM YYYY'));
         $encodedTime = rawurlencode('Waktu: '.$booking->booking_time->format('H:i'));
         $encodedCoach = rawurlencode('Coach: '.$booking->pt->name);
+        $encodedSession = rawurlencode('Sesi ke-1');
 
-        Livewire::actingAs($admin)
+        $component = Livewire::actingAs($admin)
             ->test('pages::dashboard.admin.booking-jadwal.index')
             ->assertSeeHtml('href="https://wa.me/6281234567890?text=Halo%20Member%20Utama%2C%0A%0A')
             ->assertSeeHtml('href="https://wa.me/6282345678901?text=Halo%20Member%20Tambahan%2C%0A%0A')
             ->assertSeeHtml($encodedDate)
             ->assertSeeHtml($encodedTime)
             ->assertSeeHtml($encodedCoach)
+            ->assertSeeHtml($encodedSession)
             ->assertSeeHtml('target="_blank"')
             ->assertSeeHtml('rel="noopener noreferrer"')
             ->assertSeeHtml('x-on:click.stop')
             ->assertSeeHtml('aria-label="Kirim WhatsApp ke Member Utama"')
             ->assertSeeHtml('aria-label="Kirim WhatsApp ke Member Tambahan"');
+
+        $this->assertSame(2, substr_count($component->html(), $encodedSession));
+    }
+
+    public function test_booking_cards_and_whatsapp_messages_show_numbered_and_free_sessions(): void
+    {
+        $admin = $this->createUser(['role' => 'admin']);
+        $firstBooking = $this->createBooking([
+            'booking_time' => '09:00:00',
+        ]);
+        $firstBooking->member->update(['phone' => '081234567890']);
+
+        $freeBooking = $firstBooking->replicate();
+        $freeBooking->fill([
+            'booking_time' => '10:00:00',
+            'is_free' => true,
+        ]);
+        $freeBooking->save();
+
+        $secondBooking = $firstBooking->replicate();
+        $secondBooking->fill([
+            'booking_time' => '11:00:00',
+            'is_free' => false,
+        ]);
+        $secondBooking->save();
+
+        Livewire::actingAs($admin)
+            ->test('pages::dashboard.admin.booking-jadwal.index')
+            ->assertSee('Sesi ke-1')
+            ->assertSee('Free')
+            ->assertSee('Sesi ke-2')
+            ->assertDontSee('Sesi ke-3')
+            ->assertSeeHtml(rawurlencode('Sesi ke-1'))
+            ->assertSeeHtml(rawurlencode('Sesi Free'))
+            ->assertSeeHtml(rawurlencode('Sesi ke-2'));
     }
 
     public function test_booking_card_omits_whatsapp_link_for_an_invalid_number(): void

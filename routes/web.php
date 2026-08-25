@@ -2,9 +2,11 @@
 
 use App\Http\Controllers\Admin\BonusPaymentPdfController;
 use App\Http\Controllers\Admin\MembershipInvoiceController;
+use App\Http\Controllers\Admin\MembershipTransactionInvoiceController;
 use App\Http\Controllers\Admin\SesiPtSlipController;
 use App\Http\Controllers\BeverageApiController;
 use App\Http\Controllers\MembershipInvoiceVerificationController;
+use App\Http\Controllers\MembershipTransactionInvoiceVerificationController;
 use Illuminate\Support\Facades\Route;
 
 // --- HALAMAN PUBLIK (Bisa diakses siapa saja) ---
@@ -17,6 +19,10 @@ Route::livewire('/device-events', 'pages::device-events')
 Route::get('/invoice/membership/{membership}/verify', MembershipInvoiceVerificationController::class)
     ->middleware(['signed', 'throttle:60,1'])
     ->name('membership.invoice.verify');
+
+Route::get('/invoice/transaction/{membershipTransaction}/verify', MembershipTransactionInvoiceVerificationController::class)
+    ->middleware(['signed', 'throttle:60,1'])
+    ->name('transaction.invoice.verify');
 
 // --- API ROUTES ---
 Route::middleware('auth')->group(function () {
@@ -87,6 +93,8 @@ Route::middleware('auth')->group(function () {
             ->name('admin.absensi-karyawan.index');
 
         Route::livewire('/penjualan', 'pages::dashboard.admin.penjualan.index')->name('admin.penjualan.index');
+        Route::get('/penjualan/{membershipTransaction}/invoice', [MembershipTransactionInvoiceController::class, 'download'])
+            ->name('admin.penjualan.invoice');
         Route::livewire('/pengeluaran', 'pages::dashboard.admin.pengeluaran.index')->name('admin.pengeluaran.index');
         Route::livewire('/pengeluaran/create', 'pages::dashboard.admin.pengeluaran.create')->name('admin.pengeluaran.create');
 

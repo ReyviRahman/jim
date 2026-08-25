@@ -8,12 +8,17 @@ use App\Models\MembershipTransaction;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
+use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
+use Livewire\WithFileUploads;
 
 new #[Layout('layouts::admin')] class extends Component
 {
+    use WithFileUploads;
+
     public $membershipId;
 
     public $membership;
@@ -94,6 +99,8 @@ new #[Layout('layouts::admin')] class extends Component
 
     public array $transactions = [];
 
+    public array $transaction_payment_proofs = [];
+
     public $showPaymentWarning = false;
 
     public $paymentWarningMessage = '';
@@ -103,6 +110,39 @@ new #[Layout('layouts::admin')] class extends Component
     public $redirectTo = '';
 
     public $redirectId = '';
+
+    public function updatedTransactions(mixed $value, ?string $key): void
+    {
+        if (! $key || ! str_ends_with($key, '.payment_method')) {
+            return;
+        }
+
+        $index = (int) explode('.', $key, 2)[0];
+        $this->transaction_payment_proofs[$index] = null;
+        $this->resetValidation('transaction_payment_proofs.'.$index);
+    }
+
+    private function paymentProofRules(bool $required): array
+    {
+        return [
+            $required ? 'required' : 'nullable',
+            'image',
+            'mimes:jpg,jpeg,png,webp',
+            'extensions:jpg,jpeg,png,webp',
+            'max:10240',
+        ];
+    }
+
+    private function storePaymentProof(TemporaryUploadedFile $proof): string
+    {
+        $path = $proof->store('membership-payment-proofs/'.now()->format('Y/m'), 'public');
+
+        if (! $path) {
+            throw new \RuntimeException('Bukti pembayaran gagal disimpan.');
+        }
+
+        return $path;
+    }
 
     public function mount($id)
     {
@@ -198,6 +238,8 @@ new #[Layout('layouts::admin')] class extends Component
                 'package_name' => $txn->package_name,
                 'amount' => $txn->amount,
                 'payment_method' => $txn->payment_method,
+                'original_payment_method' => $txn->payment_method,
+                'payment_proof_path' => $txn->payment_proof_path,
                 'payment_date' => $txn->payment_date ? Carbon::parse($txn->payment_date)->format('Y-m-d') : '',
                 'start_date' => $txn->start_date ? Carbon::parse($txn->start_date)->format('Y-m-d') : '',
                 'end_date' => $txn->end_date ? Carbon::parse($txn->end_date)->format('Y-m-d') : '',
@@ -508,6 +550,34 @@ new #[Layout('layouts::admin')] class extends Component
             'unrecommended_price_ref' => 'nullable|numeric|min:0',
         ];
 
+        $messages = [
+            'amount_paid.max' => 'Nominal cicilan tidak boleh lebih atau sama dengan total tagihan.',
+            'amount_paid.min' => 'Nominal cicilan harus lebih dari 0.',
+            'manual_discount.max' => 'Diskon tidak boleh melebihi total harga paket.',
+        ];
+
+        $existingTransactions = $this->membership->transactions()->get()->keyBy('id');
+
+        foreach ($this->transactions as $index => $transactionData) {
+            $existingTransaction = $existingTransactions->get((int) ($transactionData['id'] ?? 0));
+
+            if (! $existingTransaction) {
+                $this->addError('transactions.'.$index.'.id', 'Data transaksi tidak valid.');
+
+                return;
+            }
+
+            $newPaymentMethod = $transactionData['payment_method'] ?? '';
+            $rules['transactions.'.$index.'.payment_method'] = 'required|in:cash,transfer,qris,debit';
+
+            if ($newPaymentMethod !== 'cash') {
+                $requiresNewProof = $existingTransaction->payment_method !== $newPaymentMethod;
+                $proofKey = 'transaction_payment_proofs.'.$index;
+                $rules[$proofKey] = $this->paymentProofRules($requiresNewProof);
+                $messages[$proofKey.'.required'] = 'Bukti pembayaran baru wajib diunggah ketika metode pembayaran diubah.';
+            }
+        }
+
         if ($this->payment_type === 'partial') {
             $rules['amount_paid'] = 'required|numeric|min:1|max:'.($this->price_paid - 1);
         }
@@ -523,11 +593,7 @@ new #[Layout('layouts::admin')] class extends Component
             $rules['pt_end_date'] = $this->is_active ? 'required|date|after_or_equal:start_date' : 'nullable|date';
         }
 
-        $this->validate($rules, [
-            'amount_paid.max' => 'Nominal cicilan tidak boleh lebih atau sama dengan total tagihan.',
-            'amount_paid.min' => 'Nominal cicilan harus lebih dari 0.',
-            'manual_discount.max' => 'Diskon tidak boleh melebihi total harga paket.',
-        ]);
+        $this->validate($rules, $messages);
 
         $this->calculateTotal();
 
@@ -561,6 +627,9 @@ new #[Layout('layouts::admin')] class extends Component
 
         $this->showPartialToPaidWarning = false;
 
+        $storedProofPaths = [];
+        $obsoleteProofPaths = [];
+
         try {
             DB::beginTransaction();
 
@@ -593,23 +662,42 @@ new #[Layout('layouts::admin')] class extends Component
 
             $this->membership->members()->sync($this->selectedUsers->pluck('id')->toArray());
 
-            foreach ($this->transactions as $txnData) {
-                $txn = MembershipTransaction::find($txnData['id']);
-                if ($txn) {
-                    $txn->update([
-                        'admin_id' => $this->admin_id,
-                        'follow_up_id' => $this->follow_up_id ?: null,
-                        'follow_up_id_two' => $this->follow_up_id_two ?: null,
-                        'transaction_type' => $txnData['transaction_type'],
-                        'package_name' => $this->package_name,
-                        'amount' => $txnData['amount'],
-                        'payment_method' => $txnData['payment_method'],
-                        'payment_date' => $txnData['payment_date'],
-                        'start_date' => $this->start_date ?: null,
-                        'end_date' => in_array($this->registration_type, ['pt']) ? ($this->pt_end_date ?: null) : ($this->membership_end_date ?: null),
-                        'notes' => $txnData['notes'],
-                    ]);
+            foreach ($this->transactions as $index => $txnData) {
+                $txn = $this->membership->transactions()->findOrFail($txnData['id']);
+                $paymentProofPath = $txn->payment_proof_path;
+                $newPaymentProof = $this->transaction_payment_proofs[$index] ?? null;
+
+                if ($txnData['payment_method'] === 'cash') {
+                    if ($paymentProofPath) {
+                        $obsoleteProofPaths[] = $paymentProofPath;
+                    }
+
+                    $paymentProofPath = null;
+                } elseif ($newPaymentProof instanceof TemporaryUploadedFile) {
+                    $newPaymentProofPath = $this->storePaymentProof($newPaymentProof);
+                    $storedProofPaths[] = $newPaymentProofPath;
+
+                    if ($paymentProofPath) {
+                        $obsoleteProofPaths[] = $paymentProofPath;
+                    }
+
+                    $paymentProofPath = $newPaymentProofPath;
                 }
+
+                $txn->update([
+                    'admin_id' => $this->admin_id,
+                    'follow_up_id' => $this->follow_up_id ?: null,
+                    'follow_up_id_two' => $this->follow_up_id_two ?: null,
+                    'transaction_type' => $txnData['transaction_type'],
+                    'package_name' => $this->package_name,
+                    'amount' => $txnData['amount'],
+                    'payment_method' => $txnData['payment_method'],
+                    'payment_proof_path' => $paymentProofPath,
+                    'payment_date' => $txnData['payment_date'],
+                    'start_date' => $this->start_date ?: null,
+                    'end_date' => in_array($this->registration_type, ['pt']) ? ($this->pt_end_date ?: null) : ($this->membership_end_date ?: null),
+                    'notes' => $txnData['notes'],
+                ]);
             }
 
             $calculatedTotalPaid = collect($this->transactions)->sum(fn ($t) => (float) $t['amount']);
@@ -621,21 +709,22 @@ new #[Layout('layouts::admin')] class extends Component
             ]);
 
             DB::commit();
-
-            session()->flash('success', 'Data membership dan transaksi berhasil diperbarui.');
-
-            if ($this->redirectTo && $this->redirectId) {
-                return $this->redirectRoute($this->redirectTo, ['user' => $this->redirectId], navigate: true);
-            }
-
-            return $this->redirectRoute('admin.riwayat.index', navigate: true);
-
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             DB::rollBack();
+            Storage::disk('public')->delete($storedProofPaths);
             session()->flash('error', 'Terjadi kesalahan sistem: '.$e->getMessage());
 
             return;
         }
+
+        Storage::disk('public')->delete(array_values(array_unique($obsoleteProofPaths)));
+        session()->flash('success', 'Data membership dan transaksi berhasil diperbarui.');
+
+        if ($this->redirectTo && $this->redirectId) {
+            return $this->redirectRoute($this->redirectTo, ['user' => $this->redirectId], navigate: true);
+        }
+
+        return $this->redirectRoute('admin.riwayat.index', navigate: true);
     }
 }
 ?>
@@ -1129,7 +1218,7 @@ new #[Layout('layouts::admin')] class extends Component
                                     <div class="space-y-4">
                                         <h6 class="text-sm font-semibold text-heading mb-4">Edit Transaksi</h6>
                                         @foreach($transactions as $index => $txn)
-                                            <div class="mb-6 p-4 bg-gray-50 rounded-md border border-gray-200 {{ $index > 0 ? 'mt-4' : '' }}">
+                                            <div wire:key="membership-transaction-{{ $txn['id'] }}" class="mb-6 p-4 bg-gray-50 rounded-md border border-gray-200 {{ $index > 0 ? 'mt-4' : '' }}">
                                                 <div class="flex items-center justify-between mb-3">
                                                     <h6 class="text-sm font-semibold text-heading">
                                                         Transaksi #{{ $index + 1 }}
@@ -1178,13 +1267,34 @@ new #[Layout('layouts::admin')] class extends Component
 
                                                     <div>
                                                         <label class="block mb-1 text-sm font-medium text-heading">Metode Pembayaran</label>
-                                                        <select wire:model="transactions.{{ $index }}.payment_method" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2 shadow-xs">
+                                                        <select wire:model.live="transactions.{{ $index }}.payment_method" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2 shadow-xs">
                                                             <option value="cash">💵 Cash / Tunai</option>
                                                             <option value="transfer">🏦 Transfer Bank</option>
                                                             <option value="qris">📱 QRIS</option>
                                                             <option value="debit">💳 Debit</option>
                                                         </select>
                                                     </div>
+
+                                                    @if($txn['payment_method'] !== 'cash')
+                                                        @php
+                                                            $existingProofPath = $txn['payment_proof_path'] ?? null;
+                                                            $proofIsRequired = ($txn['original_payment_method'] ?? null) !== $txn['payment_method'];
+                                                        @endphp
+                                                        <div class="md:col-span-2">
+                                                            <x-payment-proof-upload
+                                                                wire:key="transaction-payment-proof-{{ $txn['id'] }}-{{ $txn['payment_method'] }}"
+                                                                model="transaction_payment_proofs.{{ $index }}"
+                                                                error-key="transaction_payment_proofs.{{ $index }}"
+                                                                :proof="$transaction_payment_proofs[$index] ?? null"
+                                                                :existing-url="$existingProofPath ? asset('storage/'.$existingProofPath) : null"
+                                                                :required="$proofIsRequired"
+                                                                label="Bukti Pembayaran {{ strtoupper($txn['payment_method']) }}"
+                                                            />
+                                                            @if(! $existingProofPath && ! $proofIsRequired)
+                                                                <p class="mt-2 text-xs text-amber-700">Transaksi lama ini belum memiliki bukti. Anda dapat menambahkannya tanpa diwajibkan.</p>
+                                                            @endif
+                                                        </div>
+                                                    @endif
 
                                                     <div>
                                                         <label class="block mb-1 text-sm font-medium text-heading">Tanggal Pembayaran</label>

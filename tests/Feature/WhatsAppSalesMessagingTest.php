@@ -7,6 +7,8 @@ use App\Models\MembershipTransaction;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Uri;
+use Livewire\Features\SupportTesting\Testable;
 use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
@@ -23,198 +25,386 @@ class WhatsAppSalesMessagingTest extends TestCase
     }
 
     #[DataProvider('validPhoneNumbers')]
-    public function test_it_normalizes_supported_indonesian_phone_numbers(string $phoneNumber, string $expectedNumber): void
+    public function test_private_invoice_link_normalizes_supported_indonesian_phone_numbers(string $phoneNumber, string $expectedNumber): void
     {
         $admin = $this->createActor('admin');
         $payer = $this->createPayer('Pembayar Normalisasi', $phoneNumber);
-        $this->createTransaction($admin, $payer);
+        $transaction = $this->createTransaction($admin, $payer);
 
-        $component = Livewire::actingAs($admin)
-            ->test('pages::dashboard.admin.penjualan.index');
+        $html = $this->salesComponent($admin)->html();
 
-        $links = $this->extractWhatsAppLinks($component->html());
+        $invoiceWhatsAppUrl = $this->extractLinkAttribute(
+            $html,
+            'sales-invoice-link-'.$transaction->id,
+            'data-sales-invoice-whatsapp-url',
+        );
 
-        $this->assertCount(1, $links);
-        $this->assertStringStartsWith("https://wa.me/{$expectedNumber}?text=", $links[0]);
+        $this->assertNotNull($invoiceWhatsAppUrl);
+        $this->assertStringStartsWith("https://wa.me/{$expectedNumber}?text=", $invoiceWhatsAppUrl);
+        $this->assertStringStartsWith('https://wa.me/?text=', (string) $this->extractLinkAttribute(
+            $html,
+            'sales-whatsapp-link-'.$transaction->id,
+            'href',
+        ));
         Http::assertNothingSent();
     }
 
-    public function test_membership_link_contains_only_the_approved_payment_summary(): void
+    public function test_membership_group_message_matches_the_follow_up_template_and_lists_every_member(): void
     {
-        $admin = $this->createActor('admin', 'Kasir Internal Rahasia');
-        $payer = $this->createPayer('Budi Santoso', '081234567890');
+        $admin = $this->createActor('admin');
+        $followUpOne = $this->createActor('sales', 'Ratna');
+        $followUpTwo = $this->createActor('kasir_gym', 'Olga');
+        $payer = $this->createPayer('Vini Oktavia Marpaung', '085212750259');
+        $alphabeticallyFirstMember = $this->createPayer('Alya Putri', '081222223333');
+        $alphabeticallyLastMember = $this->createPayer('Zeta Putri', '081244445555');
+        $membership = $this->createMembership($admin, $payer, [
+            'payment_status' => 'paid',
+            'status' => 'active',
+            'is_active' => true,
+        ]);
+        $membership->members()->attach([
+            $payer->id,
+            $alphabeticallyLastMember->id,
+            $alphabeticallyFirstMember->id,
+        ]);
+        $transaction = $this->createTransaction($admin, $payer, [
+            'membership_id' => $membership->id,
+            'follow_up_id' => $followUpOne->id,
+            'follow_up_id_two' => $followUpTwo->id,
+            'transaction_type' => 'Renew Membership',
+            'package_name' => '3 Bulan',
+            'amount' => 450000,
+            'payment_method' => 'transfer',
+            'payment_date' => '2026-08-22',
+            'start_date' => '2026-09-07',
+            'end_date' => '2026-12-07',
+            'notes' => 'SUDAH TRANSFER',
+        ]);
+
+        $message = $this->extractGroupMessage(
+            $this->salesComponent($admin)->html(),
+            $transaction,
+        );
+
+        $this->assertSame(implode("\n", [
+            'ASSALAMUALAIKUM WR.WB.',
+            '',
+            '- FOLLOW UP 1 : RATNA',
+            '- FOLLOW UP 2 : OLGA',
+            '- STATUS : RENEW MEMBERSHIP',
+            '- MASA AKTIF : 3 BULAN (07/09/2026 - 07/12/2026)',
+            '',
+            '1. VINI OKTAVIA MARPAUNG',
+            '   NO WA : 085212750259',
+            '2. ALYA PUTRI',
+            '   NO WA : 081222223333',
+            '3. ZETA PUTRI',
+            '   NO WA : 081244445555',
+            '',
+            '- JENIS LAYANAN : MEMBERSHIP',
+            '',
+            '- TOTAL PEMBAYARAN :',
+            '',
+            '- Rp450.000 (TF BCA)',
+            '',
+            '- WAKTU KUNJUNGAN : SABTU, 22 AGUSTUS 2026',
+            '',
+            '- STATUS : LUNAS',
+            '',
+            '- NOTE :',
+            '',
+            'SUDAH TRANSFER',
+            '',
+            'SUDAH DIAKTIFKAN DISISTEM',
+        ]), $message);
+        Http::assertNothingSent();
+    }
+
+    public function test_follow_up_one_and_two_are_both_rendered_when_they_are_the_same_person(): void
+    {
+        $admin = $this->createActor('admin');
+        $followUp = $this->createActor('sales', 'Ratna Bersama');
+        $payer = $this->createPayer('Member Follow Up', '081255556666');
         $membership = $this->createMembership($admin, $payer);
         $transaction = $this->createTransaction($admin, $payer, [
-            'invoice_number' => 'INV-RAHASIA-991',
             'membership_id' => $membership->id,
-            'transaction_type' => 'Membership Baru',
-            'package_name' => 'Gold Couple 6 Bulan',
-            'amount' => 1250000,
-            'payment_method' => 'transfer',
-            'start_date' => today()->addDay(),
-            'end_date' => today()->addMonths(6),
-            'notes' => 'Catatan internal tidak boleh terkirim',
+            'follow_up_id' => $followUp->id,
+            'follow_up_id_two' => $followUp->id,
         ]);
 
-        $message = $this->extractWhatsAppMessages(
-            Livewire::actingAs($admin)->test('pages::dashboard.admin.penjualan.index')->html(),
-        )[0];
+        $message = $this->extractGroupMessage(
+            $this->salesComponent($admin)->html(),
+            $transaction,
+        );
 
-        $expectedMessage = implode("\n", [
-            'Halo Budi Santoso,',
-            '',
-            'Terima kasih, pembayaran Anda telah kami terima.',
-            '',
-            'Detail pembayaran:',
-            'Paket: Gold Couple 6 Bulan',
-            'Tanggal pembayaran: '.$transaction->payment_date->locale('id')->isoFormat('D MMMM YYYY'),
-            'Nominal: Rp 1.250.000',
-            'Metode pembayaran: TRANSFER',
-            'Masa aktif: '.$transaction->start_date->locale('id')->isoFormat('D MMMM YYYY').' s.d. '.$transaction->end_date->locale('id')->isoFormat('D MMMM YYYY'),
-            '',
-            'Terima kasih.',
-        ]);
-
-        $this->assertSame($expectedMessage, $message);
-        $this->assertStringNotContainsString($transaction->invoice_number, $message);
-        $this->assertStringNotContainsString('Catatan internal', $message);
-        $this->assertStringNotContainsString('Kasir Internal Rahasia', $message);
-        Http::assertNothingSent();
+        $this->assertStringContainsString('- FOLLOW UP 1 : RATNA BERSAMA', $message);
+        $this->assertStringContainsString('- FOLLOW UP 2 : RATNA BERSAMA', $message);
     }
 
-    public function test_couple_or_group_membership_links_only_to_the_payer(): void
+    public function test_share_url_preserves_newlines_symbols_and_utf8_text(): void
     {
         $admin = $this->createActor('admin');
-        $payer = $this->createPayer('Pembayar Utama', '081211112222');
-        $additionalMember = $this->createPayer('Anggota Tambahan', '081233334444');
-        $membership = $this->createMembership($admin, $payer);
-        $membership->members()->attach([$payer->id, $additionalMember->id]);
-        $this->createTransaction($admin, $payer, [
-            'membership_id' => $membership->id,
-            'transaction_type' => 'Membership Couple',
+        $payer = $this->createPayer('Member Encoding', '081255550000');
+        $transaction = $this->createTransaction($admin, $payer, [
+            'notes' => 'Pembayaran valid & siap – terima kasih',
         ]);
 
-        $html = Livewire::actingAs($admin)
-            ->test('pages::dashboard.admin.penjualan.index')
-            ->html();
-        $links = $this->extractWhatsAppLinks($html);
-        $messages = $this->extractWhatsAppMessages($html);
+        $shareUrl = $this->extractLinkAttribute(
+            $this->salesComponent($admin)->html(),
+            'sales-whatsapp-link-'.$transaction->id,
+            'href',
+        );
 
-        $this->assertCount(1, $links);
-        $this->assertStringStartsWith('https://wa.me/6281211112222?', $links[0]);
-        $this->assertStringNotContainsString('6281233334444', $links[0]);
-        $this->assertStringContainsString('Halo Pembayar Utama,', $messages[0]);
-        $this->assertStringNotContainsString('Anggota Tambahan', $messages[0]);
-        Http::assertNothingSent();
+        $this->assertNotNull($shareUrl);
+        $this->assertStringStartsWith('https://wa.me/?text=', $shareUrl);
+        $this->assertStringContainsString('%0A', $shareUrl);
+        $this->assertStringContainsString('%26', $shareUrl);
+        $this->assertStringContainsString('%E2%80%93', $shareUrl);
+        $this->assertStringContainsString(
+            'Pembayaran valid & siap – terima kasih',
+            (string) Uri::of($shareUrl)->query()->get('text'),
+        );
     }
 
-    public function test_other_income_uses_category_and_omits_active_period(): void
+    #[DataProvider('serviceTypes')]
+    public function test_group_message_maps_each_membership_service_type(string $membershipType, string $expectedLabel): void
     {
         $admin = $this->createActor('admin');
-        $payer = $this->createPayer('Pelanggan Harian', '+62 812-5555-6666');
+        $payer = $this->createPayer('Member Layanan', '081266667777');
+        $membership = $this->createMembership($admin, $payer, ['type' => $membershipType]);
+        $transaction = $this->createTransaction($admin, $payer, ['membership_id' => $membership->id]);
+
+        $message = $this->extractGroupMessage(
+            $this->salesComponent($admin)->html(),
+            $transaction,
+        );
+
+        $this->assertStringContainsString('- JENIS LAYANAN : '.$expectedLabel, $message);
+    }
+
+    #[DataProvider('membershipPaymentStatuses')]
+    public function test_group_message_uses_current_payment_and_activation_status(
+        string $paymentStatus,
+        string $membershipStatus,
+        bool $isActive,
+        string $expectedPaymentLabel,
+        string $expectedActivationLabel,
+    ): void {
+        $admin = $this->createActor('admin');
+        $payer = $this->createPayer('Member Status', '081277778888');
+        $membership = $this->createMembership($admin, $payer, [
+            'payment_status' => $paymentStatus,
+            'status' => $membershipStatus,
+            'is_active' => $isActive,
+        ]);
+        $transaction = $this->createTransaction($admin, $payer, ['membership_id' => $membership->id]);
+
+        $message = $this->extractGroupMessage(
+            $this->salesComponent($admin)->html(),
+            $transaction,
+        );
+
+        $this->assertStringContainsString('- STATUS : '.$expectedPaymentLabel, $message);
+        $this->assertStringEndsWith($expectedActivationLabel, $message);
+    }
+
+    public function test_other_income_uses_payer_and_fallback_values_without_membership_activation_line(): void
+    {
+        $admin = $this->createActor('admin');
+        $payer = $this->createPayer('Pelanggan Harian', '02123456789');
         $transaction = $this->createTransaction($admin, $payer, [
             'package_name' => 'Sewa Locker',
             'amount' => 75000,
             'payment_method' => 'cash',
+            'payment_date' => '2026-08-22',
+            'notes' => null,
         ]);
 
-        $message = $this->extractWhatsAppMessages(
-            Livewire::actingAs($admin)->test('pages::dashboard.admin.penjualan.index')->html(),
-        )[0];
+        $html = $this->salesComponent($admin)->html();
+        $message = $this->extractGroupMessage($html, $transaction);
 
-        $this->assertStringContainsString('Kategori: Sewa Locker', $message);
-        $this->assertStringContainsString('Tanggal pembayaran: '.$transaction->payment_date->locale('id')->isoFormat('D MMMM YYYY'), $message);
-        $this->assertStringContainsString('Nominal: Rp 75.000', $message);
-        $this->assertStringContainsString('Metode pembayaran: CASH', $message);
-        $this->assertStringNotContainsString('Paket:', $message);
-        $this->assertStringNotContainsString('Masa aktif:', $message);
+        $this->assertStringStartsWith('https://wa.me/?text=', (string) $this->extractLinkAttribute(
+            $html,
+            'sales-whatsapp-link-'.$transaction->id,
+            'href',
+        ));
+        $this->assertNull($this->extractLinkAttribute(
+            $html,
+            'sales-invoice-link-'.$transaction->id,
+            'data-sales-invoice-whatsapp-url',
+        ));
+        $this->assertStringContainsString('- FOLLOW UP 1 : -', $message);
+        $this->assertStringContainsString('- FOLLOW UP 2 : -', $message);
+        $this->assertStringContainsString('- MASA AKTIF : BELUM AKTIF', $message);
+        $this->assertStringContainsString('1. PELANGGAN HARIAN', $message);
+        $this->assertStringContainsString('- JENIS LAYANAN : PEMASUKAN LAIN', $message);
+        $this->assertStringContainsString('- Rp75.000 (CASH)', $message);
+        $this->assertStringContainsString("- NOTE :\n\n-", $message);
+        $this->assertStringNotContainsString('DIAKTIFKAN DISISTEM', $message);
         Http::assertNothingSent();
     }
 
     public function test_membership_without_active_dates_says_not_active_yet(): void
     {
         $admin = $this->createActor('admin');
-        $payer = $this->createPayer('Member Belum Aktif', '81277778888');
+        $payer = $this->createPayer('Member Belum Aktif', '081288889999');
         $membership = $this->createMembership($admin, $payer);
-        $this->createTransaction($admin, $payer, [
+        $transaction = $this->createTransaction($admin, $payer, [
             'membership_id' => $membership->id,
-            'transaction_type' => 'Membership Baru',
             'start_date' => null,
             'end_date' => null,
         ]);
 
-        $message = $this->extractWhatsAppMessages(
-            Livewire::actingAs($admin)->test('pages::dashboard.admin.penjualan.index')->html(),
-        )[0];
+        $message = $this->extractGroupMessage(
+            $this->salesComponent($admin)->html(),
+            $transaction,
+        );
 
-        $this->assertStringContainsString('Masa aktif: Belum aktif', $message);
-        $this->assertStringNotContainsString(' s.d. ', $message);
+        $this->assertStringContainsString('- MASA AKTIF : BELUM AKTIF', $message);
+        $this->assertStringNotContainsString('BELUM AKTIF (', $message);
     }
 
-    #[DataProvider('invalidPhoneNumbers')]
-    public function test_invalid_phone_numbers_do_not_render_wa_me_links(string $phoneNumber): void
+    public function test_split_payment_messages_remain_scoped_to_the_clicked_transaction_row(): void
     {
         $admin = $this->createActor('admin');
-        $payer = $this->createPayer('Nomor Tidak Valid', $phoneNumber);
-        $this->createTransaction($admin, $payer);
+        $payer = $this->createPayer('Member Split', '081299990000');
+        $membership = $this->createMembership($admin, $payer);
+        $transferTransaction = $this->createTransaction($admin, $payer, [
+            'membership_id' => $membership->id,
+            'invoice_number' => 'INV-SPLIT-TRANSFER',
+            'amount' => 300000,
+            'payment_method' => 'transfer',
+        ]);
+        $qrisTransaction = $this->createTransaction($admin, $payer, [
+            'membership_id' => $membership->id,
+            'invoice_number' => 'INV-SPLIT-QRIS',
+            'amount' => 150000,
+            'payment_method' => 'qris',
+        ]);
 
-        $component = Livewire::actingAs($admin)
-            ->test('pages::dashboard.admin.penjualan.index')
-            ->assertSee('Tidak tersedia');
+        $html = $this->salesComponent($admin)->html();
+        $transferMessage = $this->extractGroupMessage($html, $transferTransaction);
+        $qrisMessage = $this->extractGroupMessage($html, $qrisTransaction);
 
-        $this->assertSame([], $this->extractWhatsAppLinks($component->html()));
-        $this->assertStringNotContainsString('wa.me/', $component->html());
-        Http::assertNothingSent();
+        $this->assertStringContainsString('- Rp300.000 (TF BCA)', $transferMessage);
+        $this->assertStringNotContainsString('Rp150.000', $transferMessage);
+        $this->assertStringContainsString('- Rp150.000 (QRIS)', $qrisMessage);
+        $this->assertStringNotContainsString('Rp300.000', $qrisMessage);
+    }
+
+    public function test_share_link_does_not_depend_on_group_configuration_or_a_valid_payer_phone(): void
+    {
+        $admin = $this->createActor('admin');
+        $payer = $this->createPayer('Member Tanpa Nomor Valid', '02123456789');
+        $transaction = $this->createTransaction($admin, $payer);
+
+        $component = $this->salesComponent($admin);
+
+        $this->assertStringStartsWith('https://wa.me/?text=', (string) $this->extractLinkAttribute(
+            $component->html(),
+            'sales-whatsapp-link-'.$transaction->id,
+            'href',
+        ));
+        $this->assertNull($this->extractLinkAttribute(
+            $component->html(),
+            'sales-invoice-link-'.$transaction->id,
+            'data-sales-invoice-whatsapp-url',
+        ));
     }
 
     #[DataProvider('authorizedActors')]
-    public function test_existing_sales_roles_can_render_the_wa_me_link(string $role, bool $isHeadCoach): void
+    public function test_existing_sales_roles_can_open_the_prefilled_whatsapp_picker(string $role, bool $isHeadCoach): void
     {
         $actor = $isHeadCoach
             ? User::factory()->headCoach()->create(['shift' => 'Pagi'])
             : $this->createActor($role);
         $payer = $this->createPayer('Pembayar Role', '081299998888');
-        $this->createTransaction($actor, $payer);
+        $transaction = $this->createTransaction($actor, $payer);
 
-        $links = $this->extractWhatsAppLinks(
-            Livewire::actingAs($actor)->test('pages::dashboard.admin.penjualan.index')->html(),
-        );
+        $html = $this->salesComponent($actor)
+            ->assertSeeHtml('target="_blank"')
+            ->assertSeeHtml('rel="noopener noreferrer"')
+            ->assertSeeHtml('title="Buka WhatsApp dengan pesan siap, lalu pilih grup"')
+            ->assertSeeHtml('aria-label="Buka WhatsApp dengan pesan siap untuk Pembayar Role, lalu pilih grup"')
+            ->html();
 
-        $this->assertCount(1, $links);
-        $this->assertStringStartsWith('https://wa.me/6281299998888?', $links[0]);
-
+        $this->assertStringStartsWith('https://wa.me/?text=', (string) $this->extractLinkAttribute(
+            $html,
+            'sales-whatsapp-link-'.$transaction->id,
+            'href',
+        ));
         Http::assertNothingSent();
     }
 
-    public function test_sales_link_has_new_tab_security_and_no_meta_action_contract(): void
+    public function test_each_invoice_download_link_keeps_its_members_private_whatsapp_url(): void
     {
         $admin = $this->createActor('admin');
-        $payer = $this->createPayer('Pembayar Aman', '081288887777');
-        $transaction = $this->createTransaction($admin, $payer);
+        $firstPayer = $this->createPayer('Member Invoice Pertama', '081211112222');
+        $secondPayer = $this->createPayer('Member Invoice Kedua', '081233334444');
+        $firstTransaction = $this->createTransaction($admin, $firstPayer);
+        $secondTransaction = $this->createTransaction($admin, $secondPayer);
 
-        Livewire::actingAs($admin)
-            ->test('pages::dashboard.admin.penjualan.index')
-            ->assertSeeHtml('target="_blank"')
-            ->assertSeeHtml('rel="noopener noreferrer"')
-            ->assertSeeHtml('title="Kirim pesan WhatsApp ke Pembayar Aman"')
-            ->assertSeeHtml('aria-label="Kirim pesan WhatsApp ke Pembayar Aman"')
-            ->assertSeeHtml('data-testid="sales-whatsapp-link-'.$transaction->id.'"');
+        $html = $this->salesComponent($admin)->html();
 
+        $this->assertStringStartsWith('https://wa.me/?text=', (string) $this->extractLinkAttribute(
+            $html,
+            'sales-whatsapp-link-'.$firstTransaction->id,
+            'href',
+        ));
+        $this->assertStringStartsWith('https://wa.me/?text=', (string) $this->extractLinkAttribute(
+            $html,
+            'sales-whatsapp-link-'.$secondTransaction->id,
+            'href',
+        ));
+        $this->assertStringStartsWith('https://wa.me/6281211112222?', (string) $this->extractLinkAttribute(
+            $html,
+            'sales-invoice-link-'.$firstTransaction->id,
+            'data-sales-invoice-whatsapp-url',
+        ));
+        $this->assertStringStartsWith('https://wa.me/6281233334444?', (string) $this->extractLinkAttribute(
+            $html,
+            'sales-invoice-link-'.$secondTransaction->id,
+            'data-sales-invoice-whatsapp-url',
+        ));
+        Http::assertNothingSent();
+    }
+
+    public function test_group_share_needs_no_browser_handler_and_invoice_whatsapp_remains_private(): void
+    {
+        $javascript = file_get_contents(resource_path('js/app.js'));
+
+        $this->assertIsString($javascript);
+        $this->assertStringNotContainsString('data-sales-whatsapp-group-message', $javascript);
+        $this->assertStringNotContainsString('navigator.clipboard?.writeText', $javascript);
+        $this->assertStringNotContainsString("document.execCommand('copy')", $javascript);
+        $this->assertStringNotContainsString('openSalesWhatsAppGroup', $javascript);
+        $this->assertStringNotContainsString('chat.whatsapp.com', $javascript);
+        $this->assertStringContainsString("closest('a[data-sales-invoice-whatsapp-url]')", $javascript);
+        $this->assertStringContainsString("whatsAppUrl.hostname !== 'wa.me'", $javascript);
+        $this->assertStringContainsString("window.open(whatsAppUrl.toString(), '_blank', 'noopener,noreferrer')", $javascript);
+        $this->assertStringContainsString("document.addEventListener('click', openWhatsAppAfterInvoiceDownload)", $javascript);
+    }
+
+    public function test_sales_view_keeps_icon_only_actions_and_no_meta_send_contract(): void
+    {
         $view = file_get_contents(resource_path('views/pages/dashboard/admin/penjualan/⚡index.blade.php'));
+        $envExample = file_get_contents(base_path('.env.example'));
+        $servicesConfig = file_get_contents(config_path('services.php'));
 
         $this->assertIsString($view);
-        $this->assertStringContainsString('>WhatsApp</th>', $view);
+        $this->assertIsString($envExample);
+        $this->assertIsString($servicesConfig);
+        $this->assertStringContainsString('>Aksi</th>', $view);
         $this->assertStringContainsString('colspan="14"', $view);
+        $this->assertStringNotContainsString('<span>Kirim WA</span>', $view);
         $this->assertStringNotContainsString('sendWhatsApp', $view);
         $this->assertStringNotContainsString('whatsAppConnected', $view);
         $this->assertStringNotContainsString('WhatsApp belum terhubung', $view);
-
-        Http::assertNothingSent();
+        $this->assertStringNotContainsString('WHATSAPP_SALES_GROUP_URL', $envExample);
+        $this->assertStringNotContainsString("'whatsapp_sales'", $servicesConfig);
     }
 
-    /**
-     * @return array<string, array{string, string}>
-     */
+    /** @return array<string, array{string, string}> */
     public static function validPhoneNumbers(): array
     {
         return [
@@ -225,21 +415,29 @@ class WhatsAppSalesMessagingTest extends TestCase
         ];
     }
 
-    /**
-     * @return array<string, array{string}>
-     */
-    public static function invalidPhoneNumbers(): array
+    /** @return array<string, array{string, string}> */
+    public static function serviceTypes(): array
     {
         return [
-            'too short' => ['08123'],
-            'landline prefix' => ['02123456789'],
-            'non Indonesian' => ['+1 202-555-0182'],
+            'membership' => ['membership', 'MEMBERSHIP'],
+            'personal training' => ['pt', 'PT'],
+            'bundle' => ['bundle_pt_membership', 'BUNDLE PT + MEMBERSHIP'],
+            'visit' => ['visit', 'VISIT'],
         ];
     }
 
-    /**
-     * @return array<string, array{string, bool}>
-     */
+    /** @return array<string, array{string, string, bool, string, string}> */
+    public static function membershipPaymentStatuses(): array
+    {
+        return [
+            'paid and active' => ['paid', 'active', true, 'LUNAS', 'SUDAH DIAKTIFKAN DISISTEM'],
+            'partial and pending' => ['partial', 'pending', false, 'CICILAN', 'BELUM DIAKTIFKAN DISISTEM'],
+            'unpaid and pending' => ['unpaid', 'pending', false, 'BELUM LUNAS', 'BELUM DIAKTIFKAN DISISTEM'],
+            'paid but completed' => ['paid', 'completed', false, 'LUNAS', 'BELUM DIAKTIFKAN DISISTEM'],
+        ];
+    }
+
+    /** @return array<string, array{string, bool}> */
     public static function authorizedActors(): array
     {
         return [
@@ -267,9 +465,10 @@ class WhatsAppSalesMessagingTest extends TestCase
         ]);
     }
 
-    private function createMembership(User $admin, User $payer): Membership
+    /** @param array<string, mixed> $attributes */
+    private function createMembership(User $admin, User $payer, array $attributes = []): Membership
     {
-        return Membership::query()->create([
+        return Membership::query()->create(array_merge([
             'user_id' => $payer->id,
             'admin_id' => $admin->id,
             'type' => 'membership',
@@ -278,20 +477,16 @@ class WhatsAppSalesMessagingTest extends TestCase
             'price_paid' => 1250000,
             'total_paid' => 1250000,
             'payment_status' => 'paid',
-            'start_date' => today(),
-            'membership_end_date' => today()->addMonths(6),
+            'start_date' => '2026-09-07',
+            'membership_end_date' => '2026-12-07',
             'status' => 'active',
-        ]);
+            'is_active' => true,
+        ], $attributes));
     }
 
-    /**
-     * @param  array<string, mixed>  $attributes
-     */
-    private function createTransaction(
-        User $admin,
-        User $payer,
-        array $attributes = [],
-    ): MembershipTransaction {
+    /** @param array<string, mixed> $attributes */
+    private function createTransaction(User $admin, User $payer, array $attributes = []): MembershipTransaction
+    {
         return MembershipTransaction::query()->create(array_merge([
             'invoice_number' => fake()->unique()->bothify('INV-WA-########'),
             'membership_id' => null,
@@ -302,35 +497,44 @@ class WhatsAppSalesMessagingTest extends TestCase
             'package_name' => 'Biaya Harian',
             'amount' => 175000,
             'payment_method' => 'qris',
-            'payment_date' => today(),
+            'payment_date' => '2026-08-22',
+            'start_date' => '2026-09-07',
+            'end_date' => '2026-12-07',
             'notes' => 'Marker internal',
         ], $attributes));
     }
 
-    /**
-     * @return list<string>
-     */
-    private function extractWhatsAppLinks(string $html): array
+    private function extractGroupMessage(string $html, MembershipTransaction $transaction): string
+    {
+        $shareUrl = $this->extractLinkAttribute(
+            $html,
+            'sales-whatsapp-link-'.$transaction->id,
+            'href',
+        );
+
+        $this->assertNotNull($shareUrl);
+
+        return (string) Uri::of($shareUrl)->query()->get('text');
+    }
+
+    private function salesComponent(User $actor): Testable
+    {
+        return Livewire::actingAs($actor)
+            ->test('pages::dashboard.admin.penjualan.index')
+            ->set('filterTime', 'all');
+    }
+
+    private function extractLinkAttribute(string $html, string $testId, string $attribute): ?string
     {
         $decodedHtml = html_entity_decode($html, ENT_QUOTES | ENT_HTML5);
-        preg_match_all(
-            '/href="(https:\/\/wa\.me\/[^\"]+)"\s+data-testid="sales-whatsapp-link-\d+"/',
+        $testIdPattern = preg_quote($testId, '/');
+        $attributePattern = preg_quote($attribute, '/');
+        preg_match(
+            '/<a\b(?=[^>]*data-testid="'.$testIdPattern.'")(?=[^>]*'.$attributePattern.'="([^"]*)")[^>]*>/s',
             $decodedHtml,
             $matches,
         );
 
-        return $matches[1];
-    }
-
-    /**
-     * @return list<string>
-     */
-    private function extractWhatsAppMessages(string $html): array
-    {
-        return array_map(function (string $url): string {
-            parse_str((string) parse_url($url, PHP_URL_QUERY), $query);
-
-            return (string) ($query['text'] ?? '');
-        }, $this->extractWhatsAppLinks($html));
+        return $matches[1] ?? null;
     }
 }

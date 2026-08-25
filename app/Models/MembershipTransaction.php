@@ -18,6 +18,7 @@ class MembershipTransaction extends Model
         'package_name',
         'amount',
         'payment_method',
+        'payment_proof_path',
         'payment_date',
         'start_date',
         'end_date',

@@ -5,27 +5,37 @@ namespace App\Livewire\Pages\Dashboard\Admin\SesiPt;
 use App\Models\Membership;
 use App\Models\PtBooking;
 use App\Models\User;
-use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
-use Livewire\Component;
-use Livewire\Attributes\Layout;
 use Livewire\Attributes\Computed;
+use Livewire\Attributes\Layout;
+use Livewire\Component;
 
 new #[Layout('layouts::admin')] class extends Component
 {
     public Membership $membership;
 
     public bool $showBookingModal = false;
+
     public bool $showInitialSessionsModal = false;
+
     public string $initialSessions = '';
+
     public bool $showRemainingSessionsModal = false;
+
     public string $remainingSessions = '';
+
     public string $bookingDate = '';
+
     public string $bookingTime = '';
+
     public string $bookingAttendance = 'attended';
+
     public int $bookingQuantity = 1;
+
     public string $bookingError = '';
+
     public string $bookingPtId = '';
+
     public bool $bookingIsFree = false;
 
     public array $selectedBookings = [];
@@ -60,6 +70,16 @@ new #[Layout('layouts::admin')] class extends Component
     {
         return $this->membership->ptBookings()
             ->where('attendance', 'attended')
+            ->where('is_free', false)
+            ->count();
+    }
+
+    #[Computed]
+    public function totalSesiFreeBerjalan(): int
+    {
+        return $this->membership->ptBookings()
+            ->where('attendance', 'attended')
+            ->where('is_free', true)
             ->count();
     }
 
@@ -74,8 +94,9 @@ new #[Layout('layouts::admin')] class extends Component
 
     public function openCreateBookingModal(): void
     {
-        if ($this->membership->remaining_sessions <= 0 && !$this->bookingIsFree) {
+        if ($this->membership->remaining_sessions <= 0 && ! $this->bookingIsFree) {
             $this->bookingError = 'Tidak bisa menambah booking. Sisa sesi membership sudah habis.';
+
             return;
         }
 
@@ -244,6 +265,7 @@ new #[Layout('layouts::admin')] class extends Component
 
         if (! $this->bookingIsFree && $this->membership->remaining_sessions < $validated['bookingQuantity']) {
             $this->addError('booking', 'Sisa sesi membership tidak mencukupi untuk jumlah booking yang diminta.');
+
             return;
         }
 
@@ -300,6 +322,7 @@ new #[Layout('layouts::admin')] class extends Component
     {
         if (empty($this->selectedBookings)) {
             session()->flash('error', 'Pilih minimal satu booking terlebih dahulu.');
+
             return;
         }
 
@@ -332,6 +355,7 @@ new #[Layout('layouts::admin')] class extends Component
     {
         if (empty($this->selectedBookings)) {
             session()->flash('error', 'Pilih minimal satu booking terlebih dahulu.');
+
             return;
         }
 
@@ -387,8 +411,6 @@ new #[Layout('layouts::admin')] class extends Component
 
         return ! empty($selectableIds) && empty(array_diff($selectableIds, $currentSelected));
     }
-
-
 };
 ?>
 
@@ -428,16 +450,16 @@ new #[Layout('layouts::admin')] class extends Component
             <p class="text-2xl font-bold text-heading mt-1">{{ $membership->total_sessions ?? 0 }}</p>
         </div>
         <div class="bg-neutral-primary-soft shadow-xs rounded-md border border-default p-4">
-            <p class="text-xs text-body font-medium uppercase tracking-wide">Sesi Ditambahkan</p>
-            <p class="text-2xl font-bold text-heading mt-1">{{ $membership->sesi_ditambahkan ?? 0 }}</p>
-        </div>
-        <div class="bg-neutral-primary-soft shadow-xs rounded-md border border-default p-4">
             <p class="text-xs text-body font-medium uppercase tracking-wide">Sesi Hangus</p>
             <p class="text-2xl font-bold text-heading mt-1">{{ $this->totalSesiHangus }}</p>
         </div>
         <div class="bg-neutral-primary-soft shadow-xs rounded-md border border-default p-4">
             <p class="text-xs text-body font-medium uppercase tracking-wide">Sesi Berjalan</p>
             <p class="text-2xl font-bold text-heading mt-1">{{ $this->totalSesiBerjalan }}</p>
+        </div>
+        <div class="bg-neutral-primary-soft shadow-xs rounded-md border border-default p-4">
+            <p class="text-xs text-body font-medium uppercase tracking-wide">Free Berjalan</p>
+            <p class="text-2xl font-bold text-heading mt-1">{{ $this->totalSesiFreeBerjalan }}</p>
         </div>
         <div class="bg-neutral-primary-soft shadow-xs rounded-md border border-default p-4">
             <div class="flex items-center justify-between gap-2">

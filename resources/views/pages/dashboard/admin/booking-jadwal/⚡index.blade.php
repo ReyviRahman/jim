@@ -15,34 +15,53 @@ use Livewire\Component;
 new #[Layout('layouts::admin')] class extends Component
 {
     public $search = '';
+
     public $statusFilter = '';
+
     public $ptFilter = '';
+
     public $dateFrom = '';
+
     public $dateTo = '';
 
     public $showCancelModal = false;
+
     public $cancelBookingId = null;
+
     public $cancelReason = '';
 
     public $showRejectModal = false;
+
     public $rejectBookingId = null;
+
     public $rejectReason = '';
 
     public $showDetailModal = false;
+
     public $selectedBookingId = null;
 
     public $showInsertModal = false;
+
     public $insertMembershipId = null;
+
     public $insertMembershipSearch = '';
+
     public $insertType = 'fleksibel';
+
     public $insertDate = '';
+
     public $insertTime = '';
+
     public $insertPtId = '';
+
     public $insertIsFree = false;
 
     public $showChangeCoachModal = false;
+
     public $changeCoachBookingId = null;
+
     public $newCoachId = '';
+
     public $newIsFree = false;
 
     public function canManageApprovals(): bool
@@ -74,6 +93,7 @@ new #[Layout('layouts::admin')] class extends Component
             'Tanggal: '.$booking->booking_date->locale('id')->isoFormat('dddd, D MMMM YYYY'),
             'Waktu: '.$booking->booking_time->format('H:i'),
             'Coach: '.($booking->pt?->name ?? '-'),
+            $booking->is_free ? 'Sesi Free' : 'Sesi ke-'.$booking->session_number,
             '',
             'Terima kasih.',
         ]);
@@ -179,8 +199,24 @@ new #[Layout('layouts::admin')] class extends Component
     {
         $weekStart = $this->getWeekStart();
         $weekEnd = $weekStart->copy()->addDays(6);
+        $bookingTable = (new PtBooking)->getTable();
+
+        $sessionNumber = PtBooking::query()
+            ->from($bookingTable.' as earlier_bookings')
+            ->selectRaw('COUNT(*) + 1')
+            ->whereColumn('earlier_bookings.membership_id', $bookingTable.'.membership_id')
+            ->where('earlier_bookings.is_free', false)
+            ->where(function ($query) use ($bookingTable) {
+                $query->whereColumn('earlier_bookings.booking_date', '<', $bookingTable.'.booking_date')
+                    ->orWhere(function ($query) use ($bookingTable) {
+                        $query->whereColumn('earlier_bookings.booking_date', $bookingTable.'.booking_date')
+                            ->whereColumn('earlier_bookings.booking_time', '<', $bookingTable.'.booking_time');
+                    });
+            });
 
         $query = PtBooking::with(['member', 'pt', 'membership.ptPackage', 'membership.members', 'cancelledBy'])
+            ->addSelect(['session_number' => $sessionNumber])
+            ->withCasts(['session_number' => 'integer'])
             ->whereBetween('booking_date', [$weekStart->format('Y-m-d'), $weekEnd->format('Y-m-d')])
             ->orderBy('booking_date')
             ->orderBy('booking_time');
@@ -191,9 +227,9 @@ new #[Layout('layouts::admin')] class extends Component
                 $q->whereHas('member', function ($sub) use ($search) {
                     $sub->where('name', 'like', $search);
                 })
-                ->orWhereHas('membership.members', function ($sub) use ($search) {
-                    $sub->where('name', 'like', $search);
-                });
+                    ->orWhereHas('membership.members', function ($sub) use ($search) {
+                        $sub->where('name', 'like', $search);
+                    });
             });
         }
 
@@ -274,6 +310,7 @@ new #[Layout('layouts::admin')] class extends Component
     {
         if (! $this->canManageApprovals()) {
             session()->flash('error', 'Anda tidak memiliki izin untuk melakukan tindakan ini.');
+
             return;
         }
 
@@ -281,6 +318,7 @@ new #[Layout('layouts::admin')] class extends Component
 
         if (! $booking || ! $booking->isCancellationPending()) {
             session()->flash('error', 'Booking tidak ditemukan atau tidak ada request pembatalan.');
+
             return;
         }
 
@@ -296,6 +334,7 @@ new #[Layout('layouts::admin')] class extends Component
     {
         if (! $this->canManageApprovals()) {
             session()->flash('error', 'Anda tidak memiliki izin untuk melakukan tindakan ini.');
+
             return;
         }
 
@@ -303,11 +342,13 @@ new #[Layout('layouts::admin')] class extends Component
 
         if (! $booking || ! $booking->isCancellationPending()) {
             session()->flash('error', 'Booking tidak ditemukan atau tidak ada request pembatalan.');
+
             return;
         }
 
         if ($booking->isAttended()) {
             session()->flash('error', 'Booking sudah diabsen, tidak bisa menolak pembatalan.');
+
             return;
         }
 
@@ -350,6 +391,7 @@ new #[Layout('layouts::admin')] class extends Component
         if (! $booking || $booking->status !== 'approved') {
             session()->flash('error', 'Booking tidak ditemukan atau status tidak valid.');
             $this->closeCancelModal();
+
             return;
         }
 
@@ -384,6 +426,7 @@ new #[Layout('layouts::admin')] class extends Component
         if (! $this->canManageApprovals()) {
             session()->flash('error', 'Anda tidak memiliki izin untuk melakukan tindakan ini.');
             $this->closeRejectModal();
+
             return;
         }
 
@@ -400,6 +443,7 @@ new #[Layout('layouts::admin')] class extends Component
         if (! $booking || ! $booking->isPending()) {
             session()->flash('error', 'Booking tidak ditemukan atau status tidak valid.');
             $this->closeRejectModal();
+
             return;
         }
 
@@ -419,6 +463,7 @@ new #[Layout('layouts::admin')] class extends Component
 
         if (! $booking || $booking->status !== 'approved' || $booking->attendance !== 'not_yet') {
             session()->flash('error', 'Booking tidak valid untuk ditandai hangus.');
+
             return;
         }
 
@@ -471,6 +516,7 @@ new #[Layout('layouts::admin')] class extends Component
 
         if (! $booking || $booking->attendance !== 'noshow') {
             session()->flash('error', 'Booking tidak valid untuk direstore.');
+
             return;
         }
 
@@ -507,7 +553,7 @@ new #[Layout('layouts::admin')] class extends Component
         $date = $this->getWeekStart()->copy()->addDays($dayOffset);
 
         $this->insertDate = $date->format('Y-m-d');
-        $this->insertTime = str_pad((string) $hour, 2, '0', STR_PAD_LEFT) . ':00:00';
+        $this->insertTime = str_pad((string) $hour, 2, '0', STR_PAD_LEFT).':00:00';
         $this->insertMembershipId = null;
         $this->insertMembershipSearch = '';
         $this->insertType = 'fleksibel';
@@ -534,10 +580,10 @@ new #[Layout('layouts::admin')] class extends Component
             ->where('is_free', false)
             ->where(function ($query) {
                 $query->where('booking_date', '<', $this->insertDate)
-                      ->orWhere(function ($q) {
-                          $q->where('booking_date', $this->insertDate)
+                    ->orWhere(function ($q) {
+                        $q->where('booking_date', $this->insertDate)
                             ->where('booking_time', '<', $this->insertTime);
-                      });
+                    });
             })
             ->count();
 
@@ -548,6 +594,7 @@ new #[Layout('layouts::admin')] class extends Component
     {
         if (! $this->canManageApprovals()) {
             session()->flash('error', 'Anda tidak memiliki izin untuk melakukan tindakan ini.');
+
             return;
         }
 
@@ -555,6 +602,7 @@ new #[Layout('layouts::admin')] class extends Component
 
         if (! $booking || ! $booking->isPending()) {
             session()->flash('error', 'Booking tidak ditemukan atau status tidak valid.');
+
             return;
         }
 
@@ -569,11 +617,13 @@ new #[Layout('layouts::admin')] class extends Component
 
         if (! $booking) {
             session()->flash('error', 'Booking tidak ditemukan.');
+
             return;
         }
 
         if (Auth::user()->role === 'kasir_gym' && $booking->status === 'approved') {
             session()->flash('error', 'Anda tidak memiliki izin untuk menghapus booking approved.');
+
             return;
         }
 
@@ -639,6 +689,7 @@ new #[Layout('layouts::admin')] class extends Component
 
         if (! $membership || $membership->remaining_sessions <= 0) {
             $this->addError('insertBooking', 'Membership tidak valid atau sisa sesi sudah habis.');
+
             return;
         }
 
@@ -663,6 +714,7 @@ new #[Layout('layouts::admin')] class extends Component
 
         if (! $booking) {
             session()->flash('error', 'Booking tidak ditemukan.');
+
             return;
         }
 
@@ -694,6 +746,7 @@ new #[Layout('layouts::admin')] class extends Component
         if (! $booking) {
             session()->flash('error', 'Booking tidak ditemukan.');
             $this->closeChangeCoachModal();
+
             return;
         }
 
@@ -886,6 +939,8 @@ new #[Layout('layouts::admin')] class extends Component
                                                     @endif
                                                     @if($booking->is_free)
                                                         <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-100 text-purple-800">Free</span>
+                                                    @else
+                                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-100 text-blue-800">Sesi ke-{{ $booking->session_number }}</span>
                                                     @endif
                                                     @if($booking->status === 'approved')
                                                         <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium capitalize

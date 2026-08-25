@@ -12,11 +12,19 @@ use Carbon\Carbon;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\PenjualanExport;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Number;
+use Illuminate\Support\Str;
 use Illuminate\Support\Uri;
 use App\Models\User;
+use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
+use Livewire\WithFileUploads;
 
 new #[Layout('layouts::admin')] class extends Component
 {
+    use WithFileUploads;
     use WithPagination;
 
     public $search = '';
@@ -32,11 +40,40 @@ new #[Layout('layouts::admin')] class extends Component
     public $incomeCategory = '';
     public $incomeAmount = '';
     public $incomePaymentMethod = 'qris';
+    public $incomePaymentProof;
 
     public $searchUser = '';
     public $selectedUserId = null;
     public $selectedUserName = '';
     public $adminId;
+
+    public function updatedIncomePaymentMethod(): void
+    {
+        $this->reset('incomePaymentProof');
+        $this->resetValidation('incomePaymentProof');
+    }
+
+    private function paymentProofRules(): array
+    {
+        return [
+            'required',
+            'image',
+            'mimes:jpg,jpeg,png,webp',
+            'extensions:jpg,jpeg,png,webp',
+            'max:10240',
+        ];
+    }
+
+    private function storePaymentProof(TemporaryUploadedFile $proof): string
+    {
+        $path = $proof->store('membership-payment-proofs/'.now()->format('Y/m'), 'public');
+
+        if (! $path) {
+            throw new \RuntimeException('Bukti pembayaran gagal disimpan.');
+        }
+
+        return $path;
+    }
 
     public function mount()
     {
@@ -61,7 +98,7 @@ new #[Layout('layouts::admin')] class extends Component
     {
         $this->reset([
             'incomeCategory', 'incomeAmount', 'searchUser', 
-            'selectedUserId', 'selectedUserName'
+            'selectedUserId', 'selectedUserName', 'incomePaymentProof'
         ]);
         $this->incomePaymentMethod = 'qris';
         
@@ -81,6 +118,7 @@ new #[Layout('layouts::admin')] class extends Component
     public function closeIncomeModal()
     {
         $this->showIncomeModal = false;
+        $this->reset('incomePaymentProof');
         $this->resetValidation();
     }
 
@@ -119,32 +157,62 @@ new #[Layout('layouts::admin')] class extends Component
 
     public function saveIncome()
     {
-        $this->validate([
+        $rules = [
             'selectedUserId' => 'required',
             'adminId' => 'required', // Tambahkan validasi admin_id
             'incomeCategory' => 'required|string|max:255',
             'incomeAmount' => 'required|numeric|min:0',
             'incomePaymentMethod' => 'required|in:transfer,debit,qris,cash',
-        ], [
+        ];
+
+        if ($this->incomePaymentMethod !== 'cash') {
+            $rules['incomePaymentProof'] = $this->paymentProofRules();
+        }
+
+        $this->validate($rules, [
             'selectedUserId.required' => 'Silakan cari dan pilih User terlebih dahulu.',
             'adminId.required' => 'Silakan pilih Admin pencatat.',
+            'incomePaymentProof.required' => 'Bukti pembayaran wajib diunggah untuk metode non-Cash.',
         ]);
 
         $invoiceNumber = 'INV-INC-' . time() . '-' . strtoupper(\Illuminate\Support\Str::random(3));
 
-        MembershipTransaction::create([
-            'invoice_number' => $invoiceNumber,
-            'user_id' => $this->selectedUserId,
-            'membership_id' => null,
-            'admin_id' => $this->adminId,
-            'shift' => User::find($this->adminId)?->shift,
-            'transaction_type' => 'Pemasukan Lain',
-            'package_name' => $this->incomeCategory,
-            'amount' => $this->incomeAmount,
-            'payment_method' => $this->incomePaymentMethod,
-            'payment_date' => now(),
-            'notes' => 'Data Pemasukan Tambahan',
-        ]);
+        $storedProofPath = null;
+
+        try {
+            DB::beginTransaction();
+
+            if ($this->incomePaymentMethod !== 'cash') {
+                $storedProofPath = $this->storePaymentProof($this->incomePaymentProof);
+            }
+
+            MembershipTransaction::create([
+                'invoice_number' => $invoiceNumber,
+                'user_id' => $this->selectedUserId,
+                'membership_id' => null,
+                'admin_id' => $this->adminId,
+                'shift' => User::find($this->adminId)?->shift,
+                'transaction_type' => 'Pemasukan Lain',
+                'package_name' => $this->incomeCategory,
+                'amount' => $this->incomeAmount,
+                'payment_method' => $this->incomePaymentMethod,
+                'payment_proof_path' => $storedProofPath,
+                'payment_date' => now(),
+                'notes' => 'Data Pemasukan Tambahan',
+            ]);
+
+            DB::commit();
+        } catch (\Throwable $exception) {
+            DB::rollBack();
+
+            if ($storedProofPath) {
+                Storage::disk('public')->delete($storedProofPath);
+            }
+
+            session()->flash('error', 'Terjadi kesalahan sistem: '.$exception->getMessage());
+
+            return;
+        }
 
         $this->closeIncomeModal();
         session()->flash('success', 'Data pemasukan lain berhasil dicatat!');
@@ -249,6 +317,151 @@ new #[Layout('layouts::admin')] class extends Component
                 $transaction->id => $this->buildWhatsAppUrl($transaction),
             ])
             ->all();
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    #[Computed]
+    public function whatsAppShareUrls(): array
+    {
+        return $this->transactions->getCollection()
+            ->mapWithKeys(fn (MembershipTransaction $transaction): array => [
+                $transaction->id => Uri::of('https://wa.me/')
+                    ->withQuery(['text' => $this->buildWhatsAppGroupMessage($transaction)])
+                    ->value(),
+            ])
+            ->all();
+    }
+
+    private function buildWhatsAppGroupMessage(MembershipTransaction $transaction): string
+    {
+        $messageLines = [
+            'ASSALAMUALAIKUM WR.WB.',
+            '',
+            '- FOLLOW UP 1 : '.Str::upper($this->singleLineMessageValue($transaction->followUp?->name)),
+            '- FOLLOW UP 2 : '.Str::upper($this->singleLineMessageValue($transaction->followUpTwo?->name)),
+            '- STATUS : '.Str::upper($this->singleLineMessageValue($transaction->transaction_type)),
+            '- MASA AKTIF : '.$this->activePeriodLabel($transaction),
+            '',
+        ];
+
+        foreach ($this->whatsAppGroupMembers($transaction) as $index => $member) {
+            $messageLines[] = ($index + 1).'. '.Str::upper($this->singleLineMessageValue($member->name));
+            $messageLines[] = '   NO WA : '.$this->singleLineMessageValue($member->phone);
+        }
+
+        $messageLines = [
+            ...$messageLines,
+            '',
+            '- JENIS LAYANAN : '.$this->serviceTypeLabel($transaction),
+            '',
+            '- TOTAL PEMBAYARAN :',
+            '',
+            '- Rp'.Number::format((float) $transaction->amount, locale: 'id').' ('.$this->paymentMethodLabel($transaction->payment_method).')',
+            '',
+            '- WAKTU KUNJUNGAN : '.($transaction->payment_date
+                ? Str::upper($transaction->payment_date->locale('id')->translatedFormat('l, d F Y'))
+                : '-'),
+            '',
+            '- STATUS : '.$this->paymentStatusLabel($transaction),
+            '',
+            '- NOTE :',
+            '',
+            filled($transaction->notes) ? trim((string) $transaction->notes) : '-',
+        ];
+
+        if ($transaction->membership_id !== null) {
+            $messageLines[] = '';
+            $messageLines[] = $transaction->membership?->status === 'active' && $transaction->membership?->is_active
+                ? 'SUDAH DIAKTIFKAN DISISTEM'
+                : 'BELUM DIAKTIFKAN DISISTEM';
+        }
+
+        return implode("\n", $messageLines);
+    }
+
+    private function singleLineMessageValue(?string $value): string
+    {
+        return filled($value) ? Str::squish($value) : '-';
+    }
+
+    private function activePeriodLabel(MembershipTransaction $transaction): string
+    {
+        if ($transaction->membership_id === null
+            || ! $transaction->start_date
+            || ! $transaction->end_date
+            || $transaction->end_date->lt($transaction->start_date)) {
+            return 'BELUM AKTIF';
+        }
+
+        $interval = $transaction->start_date->diff($transaction->end_date);
+        $months = ($interval->y * 12) + $interval->m;
+        $days = (int) $interval->d;
+        $durationParts = [];
+
+        if ($months > 0) {
+            $durationParts[] = $months.' BULAN';
+        }
+
+        if ($days > 0 || $months === 0) {
+            $durationParts[] = max(1, $days).' HARI';
+        }
+
+        return implode(' ', $durationParts)
+            .' ('.$transaction->start_date->format('d/m/Y')
+            .' - '.$transaction->end_date->format('d/m/Y').')';
+    }
+
+    /** @return Collection<int, User> */
+    private function whatsAppGroupMembers(MembershipTransaction $transaction): Collection
+    {
+        $payer = $transaction->user;
+        $additionalMembers = $transaction->membership?->members
+            ?->reject(fn (User $member): bool => $payer && $member->is($payer))
+            ->sortBy(fn (User $member): string => Str::lower($member->name))
+            ?? collect();
+
+        return collect([$payer])
+            ->filter()
+            ->merge($additionalMembers)
+            ->unique('id')
+            ->values();
+    }
+
+    private function serviceTypeLabel(MembershipTransaction $transaction): string
+    {
+        return match ($transaction->membership?->type) {
+            'membership' => 'MEMBERSHIP',
+            'pt' => 'PT',
+            'bundle_pt_membership' => 'BUNDLE PT + MEMBERSHIP',
+            'visit' => 'VISIT',
+            default => 'PEMASUKAN LAIN',
+        };
+    }
+
+    private function paymentMethodLabel(?string $paymentMethod): string
+    {
+        return match ($paymentMethod) {
+            'cash' => 'CASH',
+            'transfer' => 'TF BCA',
+            'qris' => 'QRIS',
+            'debit' => 'DEBIT',
+            default => Str::upper($this->singleLineMessageValue($paymentMethod)),
+        };
+    }
+
+    private function paymentStatusLabel(MembershipTransaction $transaction): string
+    {
+        if ($transaction->membership_id === null) {
+            return 'LUNAS';
+        }
+
+        return match ($transaction->membership?->payment_status) {
+            'paid' => 'LUNAS',
+            'partial' => 'CICILAN',
+            default => 'BELUM LUNAS',
+        };
     }
 
     private function buildWhatsAppUrl(MembershipTransaction $transaction): ?string
@@ -570,11 +783,12 @@ new #[Layout('layouts::admin')] class extends Component
                     <th class="px-6 py-3 font-medium">Nama Kasir</th>
                     <th class="px-6 py-3 font-medium">Admin Follow Up</th>
                     <th class="px-6 py-3 font-medium">Sales Follow Up</th>
-                    <th class="px-6 py-3 font-medium">WhatsApp</th>
+                    <th class="px-6 py-3 font-medium">Aksi</th>
                 </tr>
             </thead>
             <tbody>
                 @php($whatsAppUrls = $this->whatsAppUrls)
+                @php($whatsAppShareUrls = $this->whatsAppShareUrls)
 
                 @forelse ($this->transactions as $transaction)
                     <tr wire:key="{{ $transaction->id }}" class="bg-white border-b border-gray-100 hover:bg-gray-50">
@@ -624,27 +838,55 @@ new #[Layout('layouts::admin')] class extends Component
                         <td class="px-6 py-4">{{ $transaction->followUpTwo->name ?? '-' }}</td>
                         <td class="px-6 py-4">
                             @php($whatsAppUrl = $whatsAppUrls[$transaction->id] ?? null)
+                            @php($whatsAppShareUrl = $whatsAppShareUrls[$transaction->id])
 
-                            @if($whatsAppUrl)
-                                <a href="{{ $whatsAppUrl }}"
+                            <div class="flex flex-wrap items-center gap-2">
+                                <a href="{{ $whatsAppShareUrl }}"
                                     data-testid="sales-whatsapp-link-{{ $transaction->id }}"
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    title="Kirim pesan WhatsApp ke {{ $transaction->user->name }}"
-                                    aria-label="Kirim pesan WhatsApp ke {{ $transaction->user->name }}"
-                                    class="inline-flex items-center justify-center gap-1.5 rounded-md bg-green-600 px-3 py-2 text-xs font-semibold text-white shadow-xs hover:bg-green-700 focus:outline-none focus:ring-4 focus:ring-green-200">
+                                    title="Buka WhatsApp dengan pesan siap, lalu pilih grup"
+                                    aria-label="Buka WhatsApp dengan pesan siap untuk {{ $transaction->user->name }}, lalu pilih grup"
+                                    class="inline-flex h-9 w-9 items-center justify-center rounded-md bg-green-600 text-white shadow-xs hover:bg-green-700 focus:outline-none focus:ring-4 focus:ring-green-200">
                                     <svg class="h-4 w-4" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                         <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.5 11.5 11 14l4.5-5m5.5 3a9 9 0 0 1-13.8 7.6L3 21l1.4-4.2A9 9 0 1 1 21 12Z"/>
                                     </svg>
-                                    <span>Kirim WA</span>
                                 </a>
-                            @else
-                                <span aria-disabled="true"
-                                    title="Nomor WhatsApp pembayar tidak tersedia"
-                                    class="inline-flex cursor-not-allowed items-center justify-center rounded-md bg-gray-100 px-3 py-2 text-xs font-semibold text-gray-400">
-                                    Tidak tersedia
-                                </span>
-                            @endif
+
+                                @if($transaction->payment_proof_path)
+                                    <a
+                                        href="{{ asset('storage/'.$transaction->payment_proof_path) }}"
+                                        data-testid="sales-payment-proof-link-{{ $transaction->id }}"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        title="Lihat bukti pembayaran {{ $transaction->invoice_number }}"
+                                        aria-label="Lihat bukti pembayaran {{ $transaction->invoice_number }}"
+                                        class="inline-flex h-9 w-9 items-center justify-center rounded-md bg-blue-50 text-blue-700 shadow-xs hover:bg-blue-100 focus:outline-none focus:ring-4 focus:ring-blue-200"
+                                    >
+                                        <svg class="h-4 w-4" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                            <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5Zm0 11 4-4 3 3 2-2 3 3 4-4M16 8h.01"/>
+                                        </svg>
+                                    </a>
+                                @endif
+
+                                <a
+                                    href="{{ route('admin.penjualan.invoice', $transaction) }}"
+                                    data-testid="sales-invoice-link-{{ $transaction->id }}"
+                                    @if($whatsAppUrl)
+                                        data-sales-invoice-whatsapp-url="{{ $whatsAppUrl }}"
+                                        title="Unduh invoice {{ $transaction->invoice_number }} dan buka WhatsApp ke {{ $transaction->user->name }} di tab baru"
+                                        aria-label="Unduh invoice {{ $transaction->invoice_number }} dan buka WhatsApp ke {{ $transaction->user->name }} di tab baru"
+                                    @else
+                                        title="Unduh invoice {{ $transaction->invoice_number }}"
+                                        aria-label="Unduh invoice {{ $transaction->invoice_number }}"
+                                    @endif
+                                    class="inline-flex h-9 w-9 items-center justify-center rounded-md bg-yellow-50 text-yellow-700 shadow-xs hover:bg-yellow-100 focus:outline-none focus:ring-4 focus:ring-yellow-200"
+                                >
+                                    <svg class="h-4 w-4" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v12m0 0 4-4m-4 4-4-4M5 15v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"/>
+                                    </svg>
+                                </a>
+                            </div>
                         </td>
                     </tr>
                 @empty
@@ -820,7 +1062,7 @@ new #[Layout('layouts::admin')] class extends Component
                     </div>
                     <div>
                         <label for="incomePaymentMethod" class="block mb-2 text-sm font-medium text-gray-900">Metode Bayar</label>
-                        <select wire:model="incomePaymentMethod" id="incomePaymentMethod" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-600 focus:border-blue-600 block w-full p-2.5">
+                        <select wire:model.live="incomePaymentMethod" id="incomePaymentMethod" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-600 focus:border-blue-600 block w-full p-2.5">
                             <option value="qris">QRIS</option>
                             <option value="transfer">Transfer</option>
                             <option value="debit">Debit</option>
@@ -828,6 +1070,11 @@ new #[Layout('layouts::admin')] class extends Component
                         </select>
                         @error('incomePaymentMethod') <span class="text-xs text-red-500">{{ $message }}</span> @enderror
                     </div>
+                    @if($incomePaymentMethod !== 'cash')
+                        <div class="sm:col-span-2">
+                            <x-payment-proof-upload wire:key="income-payment-proof-{{ $incomePaymentMethod }}" model="incomePaymentProof" :proof="$incomePaymentProof" />
+                        </div>
+                    @endif
                     <div class="sm:col-span-2">
                         <label for="adminId" class="block mb-2 text-sm font-medium text-gray-900">Pilih Admin Pencatat</label>
                         <select wire:model="adminId" id="adminId" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-600 focus:border-blue-600 block w-full p-2.5">

@@ -17,6 +17,40 @@ const responsiveCompactColumnPattern = /^(?:no\.?|nomor|#)$/i;
 
 let destroyDashboardSidebar = () => {};
 
+function openWhatsAppAfterInvoiceDownload(event) {
+    if (
+        event.defaultPrevented
+        || event.button !== 0
+        || event.ctrlKey
+        || event.metaKey
+        || event.shiftKey
+        || event.altKey
+        || !(event.target instanceof Element)
+    ) {
+        return;
+    }
+
+    const invoiceLink = event.target.closest('a[data-sales-invoice-whatsapp-url]');
+
+    if (!invoiceLink) {
+        return;
+    }
+
+    try {
+        const whatsAppUrl = new URL(invoiceLink.dataset.salesInvoiceWhatsappUrl);
+
+        if (whatsAppUrl.protocol !== 'https:' || whatsAppUrl.hostname !== 'wa.me') {
+            return;
+        }
+
+        window.open(whatsAppUrl.toString(), '_blank', 'noopener,noreferrer');
+    } catch {
+        return;
+    }
+}
+
+document.addEventListener('click', openWhatsAppAfterInvoiceDownload);
+
 function responsiveHeaderText(header) {
     const clone = header.cloneNode(true);
 

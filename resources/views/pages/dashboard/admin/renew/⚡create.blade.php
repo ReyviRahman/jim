@@ -12,9 +12,14 @@ use App\Models\MembershipTransaction;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
+use Livewire\WithFileUploads;
 
 new #[Layout('layouts::admin')] class extends Component
 {
+    use WithFileUploads;
+
     public MembershipModel $oldMembership;
     public $selectedUsers; 
     public $mainUser; 
@@ -49,6 +54,7 @@ new #[Layout('layouts::admin')] class extends Component
     public $payment_type = 'paid'; 
     public $amount_paid = 0; 
     public $payment_method = 'cash';
+    public $payment_proof;
     public $payment_date = '';
     public $transaction_type = '';
     public $package_name = '';
@@ -57,6 +63,34 @@ new #[Layout('layouts::admin')] class extends Component
     public $admin_id = '';
     public $follow_up_id = '';
     public $follow_up_id_two = '';
+
+    public function updatedPaymentMethod(): void
+    {
+        $this->reset('payment_proof');
+        $this->resetValidation('payment_proof');
+    }
+
+    private function paymentProofRules(): array
+    {
+        return [
+            'required',
+            'image',
+            'mimes:jpg,jpeg,png,webp',
+            'extensions:jpg,jpeg,png,webp',
+            'max:10240',
+        ];
+    }
+
+    private function storePaymentProof(TemporaryUploadedFile $proof): string
+    {
+        $path = $proof->store('membership-payment-proofs/'.now()->format('Y/m'), 'public');
+
+        if (! $path) {
+            throw new \RuntimeException('Bukti pembayaran gagal disimpan.');
+        }
+
+        return $path;
+    }
 
     public function mount($id)
     {
@@ -293,6 +327,10 @@ new #[Layout('layouts::admin')] class extends Component
             'admin_fee' => 'nullable|numeric|min:0',
         ];
 
+        if ($this->payment_method !== 'cash') {
+            $rules['payment_proof'] = $this->paymentProofRules();
+        }
+
         if ($this->payment_type === 'partial') {
             $rules['amount_paid'] = 'required|numeric|min:1|max:' . ($this->price_paid - 1);
         }
@@ -312,6 +350,7 @@ new #[Layout('layouts::admin')] class extends Component
             'amount_paid.max' => 'Nominal cicilan tidak boleh lebih atau sama dengan total tagihan.',
             'amount_paid.min' => 'Nominal cicilan harus lebih dari 0.',
             'manual_discount.max' => 'Diskon tidak boleh melebihi total harga paket.',
+            'payment_proof.required' => 'Bukti pembayaran wajib diunggah untuk metode non-Cash.',
         ]);
         
         // Validasi admin_id
@@ -341,6 +380,8 @@ new #[Layout('layouts::admin')] class extends Component
         } elseif ($this->registration_type === 'pt' && $this->pt_package_id) {
             $pkt = GymPackage::find($this->pt_package_id);
         }
+
+        $storedProofPaths = [];
 
         try {
             DB::beginTransaction();
@@ -405,6 +446,13 @@ new #[Layout('layouts::admin')] class extends Component
                 ]);
             }
 
+            $paymentProofPath = null;
+
+            if ($this->payment_method !== 'cash') {
+                $paymentProofPath = $this->storePaymentProof($this->payment_proof);
+                $storedProofPaths[] = $paymentProofPath;
+            }
+
             MembershipTransaction::create([
                 'invoice_number' => 'INV-' . date('Ymd') . '-' . strtoupper(uniqid()),
                 'membership_id' => $newMembership->id,
@@ -417,6 +465,7 @@ new #[Layout('layouts::admin')] class extends Component
                 'package_name' => $this->package_name,
                 'amount' => $actualAmountPaid,
                 'payment_method' => $this->payment_method,
+                'payment_proof_path' => $paymentProofPath,
                 'payment_date' => $this->payment_date,
                 'start_date' => $this->start_date,
                 'end_date' => in_array($this->registration_type, ['pt']) ? $this->pt_end_date : $this->membership_end_date,
@@ -428,8 +477,9 @@ new #[Layout('layouts::admin')] class extends Component
             session()->flash('success', 'Paket berhasil diperpanjang! Transaksi sudah dicatat.');
             return $this->redirectRoute('admin.membership.index', navigate: true); 
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             DB::rollBack();
+            Storage::disk('public')->delete($storedProofPaths);
             session()->flash('error', 'Terjadi kesalahan sistem saat memperpanjang paket: ' . $e->getMessage());
         }
     }
@@ -802,7 +852,7 @@ new #[Layout('layouts::admin')] class extends Component
                     {{-- Metode Bayar --}}
                     <div>
                         <label class="block mb-1 text-sm font-medium text-heading">Metode Pembayaran</label>
-                        <select wire:model="payment_method" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2 shadow-xs">
+                        <select wire:model.live="payment_method" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2 shadow-xs">
                             <option value="cash">💵 Cash / Tunai</option>
                             <option value="transfer">🏦 Transfer Bank</option>
                             <option value="qris">📱 QRIS</option>
@@ -810,6 +860,9 @@ new #[Layout('layouts::admin')] class extends Component
                         </select>
                         @error('payment_method') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                     </div>
+                    @if($payment_method !== 'cash')
+                        <x-payment-proof-upload wire:key="renew-payment-proof-{{ $payment_method }}" model="payment_proof" :proof="$payment_proof" />
+                    @endif
                     <div>
                         <label class="block mb-1 text-sm font-medium text-heading">Tanggal Pembayaran</label>
                         <input type="date" wire:model="payment_date" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2 shadow-xs">
