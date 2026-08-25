@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Membership;
 use App\Models\PtBooking;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -107,6 +108,360 @@ class AdminBookingAttendanceTest extends TestCase
             'pending',
             PtBooking::where('membership_id', $legacyMembership->id)->firstOrFail()->status,
         );
+    }
+
+    public function test_flexible_booking_persists_one_booking_with_its_selected_values(): void
+    {
+        $admin = $this->createUser(['role' => 'admin']);
+        $membership = $this->createMembership(['remaining_sessions' => 5]);
+
+        Livewire::actingAs($admin)
+            ->test('pages::dashboard.admin.booking-jadwal.index')
+            ->set('insertMembershipId', $membership->id)
+            ->set('insertPtId', $membership->pt_id)
+            ->set('insertType', 'fleksibel')
+            ->set('insertDate', '2026-09-10')
+            ->set('insertTime', '11:30:00')
+            ->set('insertIsFree', true)
+            ->call('saveInsertBooking')
+            ->assertSee('Booking berhasil ditambahkan.');
+
+        $booking = PtBooking::whereBelongsTo($membership)->sole();
+
+        $this->assertSame('2026-09-10', $booking->booking_date->toDateString());
+        $this->assertSame('11:30', $booking->booking_time->format('H:i'));
+        $this->assertSame('fleksibel', $booking->type);
+        $this->assertSame('pending', $booking->status);
+        $this->assertTrue($booking->is_free);
+    }
+
+    public function test_keep_booking_requires_a_day_and_time_for_every_selected_day(): void
+    {
+        Carbon::setTestNow('2026-08-24 08:00:00');
+
+        $admin = $this->createUser(['role' => 'admin']);
+        $membership = $this->createMembership(['remaining_sessions' => 5]);
+        $component = Livewire::actingAs($admin)
+            ->test('pages::dashboard.admin.booking-jadwal.index')
+            ->call('openInsertModal', 'senin', 9)
+            ->set('insertMembershipId', $membership->id)
+            ->set('insertPtId', $membership->pt_id)
+            ->set('insertType', 'keep')
+            ->call('saveInsertBooking')
+            ->assertHasErrors('insertSelectedDays');
+
+        $component
+            ->set('insertSelectedDays', ['senin', 'selasa'])
+            ->set('insertDayTimes', ['senin' => '09:00'])
+            ->call('saveInsertBooking')
+            ->assertHasErrors('insertDayTimes.selasa');
+
+        $this->assertSame(0, PtBooking::whereBelongsTo($membership)->count());
+    }
+
+    public function test_keep_booking_creates_the_weekly_pattern_up_to_remaining_sessions(): void
+    {
+        Carbon::setTestNow('2026-08-24 08:00:00');
+
+        $headCoach = User::factory()->headCoach()->create();
+        $membership = $this->createMembership([
+            'remaining_sessions' => 5,
+            'pt_end_date' => '2026-10-31',
+        ]);
+
+        Livewire::actingAs($headCoach)
+            ->test('pages::dashboard.admin.booking-jadwal.index')
+            ->call('openInsertModal', 'senin', 9)
+            ->set('insertMembershipId', $membership->id)
+            ->set('insertPtId', $membership->pt_id)
+            ->set('insertType', 'keep')
+            ->set('insertSelectedDays', ['senin', 'selasa'])
+            ->set('insertDayTimes', [
+                'senin' => '09:00',
+                'selasa' => '10:00',
+            ])
+            ->call('saveInsertBooking')
+            ->assertSee('5 booking Keep berhasil ditambahkan.');
+
+        $bookings = PtBooking::whereBelongsTo($membership)
+            ->orderBy('booking_date')
+            ->orderBy('booking_time')
+            ->get();
+
+        $this->assertSame([
+            ['2026-08-24', '09:00'],
+            ['2026-08-25', '10:00'],
+            ['2026-08-31', '09:00'],
+            ['2026-09-01', '10:00'],
+            ['2026-09-07', '09:00'],
+        ], $bookings->map(fn (PtBooking $booking): array => [
+            $booking->booking_date->toDateString(),
+            $booking->booking_time->format('H:i'),
+        ])->all());
+        $this->assertTrue($bookings->every(fn (PtBooking $booking): bool => $booking->membership_id === $membership->id));
+        $this->assertTrue($bookings->every(fn (PtBooking $booking): bool => $booking->member_id === $membership->user_id));
+        $this->assertTrue($bookings->every(fn (PtBooking $booking): bool => $booking->pt_id === $membership->pt_id));
+        $this->assertTrue($bookings->every(fn (PtBooking $booking): bool => $booking->type === 'keep'));
+        $this->assertTrue($bookings->every(fn (PtBooking $booking): bool => $booking->status === 'approved'));
+        $this->assertTrue($bookings->every(fn (PtBooking $booking): bool => $booking->attendance === 'not_yet'));
+        $this->assertTrue($bookings->every(fn (PtBooking $booking): bool => $booking->is_free === false));
+    }
+
+    public function test_keep_booking_uses_the_complete_displayed_week_even_when_dates_are_in_the_past(): void
+    {
+        Carbon::setTestNow('2026-08-26 12:00:00');
+
+        $admin = $this->createUser(['role' => 'admin']);
+        $membership = $this->createMembership([
+            'remaining_sessions' => 10,
+            'pt_end_date' => '2026-10-31',
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test('pages::dashboard.admin.booking-jadwal.index')
+            ->call('openInsertModal', 'rabu', 13)
+            ->set('insertMembershipId', $membership->id)
+            ->set('insertPtId', $membership->pt_id)
+            ->set('insertType', 'keep')
+            ->set('insertSelectedDays', ['senin', 'selasa', 'rabu'])
+            ->set('insertDayTimes', [
+                'senin' => '09:00',
+                'selasa' => '09:00',
+                'rabu' => '09:00',
+            ])
+            ->call('saveInsertBooking')
+            ->assertSee('10 booking Keep berhasil ditambahkan.');
+
+        $this->assertSame([
+            '2026-08-24',
+            '2026-08-25',
+            '2026-08-26',
+            '2026-08-31',
+            '2026-09-01',
+            '2026-09-02',
+            '2026-09-07',
+            '2026-09-08',
+            '2026-09-09',
+            '2026-09-14',
+        ], PtBooking::whereBelongsTo($membership)
+            ->orderBy('booking_date')
+            ->get()
+            ->map(fn (PtBooking $booking): string => $booking->booking_date->toDateString())
+            ->all());
+    }
+
+    public function test_keep_booking_uses_a_historical_week_and_stops_inclusively_at_pt_end_date(): void
+    {
+        Carbon::setTestNow('2026-09-09 12:00:00');
+
+        $admin = $this->createUser(['role' => 'admin']);
+        $membership = $this->createMembership([
+            'remaining_sessions' => 10,
+            'pt_end_date' => '2026-08-25',
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test('pages::dashboard.admin.booking-jadwal.index')
+            ->set('dateFrom', '2026-08-24')
+            ->set('dateTo', '2026-08-30')
+            ->call('openInsertModal', 'senin', 9)
+            ->set('insertMembershipId', $membership->id)
+            ->set('insertPtId', $membership->pt_id)
+            ->set('insertType', 'keep')
+            ->set('insertSelectedDays', ['senin', 'selasa', 'rabu'])
+            ->set('insertDayTimes', [
+                'senin' => '09:00',
+                'selasa' => '09:00',
+                'rabu' => '09:00',
+            ])
+            ->call('saveInsertBooking')
+            ->assertSee('2 booking Keep berhasil ditambahkan sampai masa PT berakhir.');
+
+        $this->assertSame([
+            '2026-08-24',
+            '2026-08-25',
+        ], PtBooking::whereBelongsTo($membership)
+            ->orderBy('booking_date')
+            ->get()
+            ->map(fn (PtBooking $booking): string => $booking->booking_date->toDateString())
+            ->all());
+    }
+
+    public function test_keep_booking_creates_nothing_when_every_occurrence_is_after_pt_end_date(): void
+    {
+        Carbon::setTestNow('2026-08-24 08:00:00');
+
+        $admin = $this->createUser(['role' => 'admin']);
+        $membership = $this->createMembership([
+            'remaining_sessions' => 3,
+            'pt_end_date' => '2026-08-23',
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test('pages::dashboard.admin.booking-jadwal.index')
+            ->call('openInsertModal', 'senin', 9)
+            ->set('insertMembershipId', $membership->id)
+            ->set('insertPtId', $membership->pt_id)
+            ->set('insertType', 'keep')
+            ->set('insertSelectedDays', ['senin'])
+            ->set('insertDayTimes', ['senin' => '09:00'])
+            ->call('saveInsertBooking')
+            ->assertHasErrors('insertBooking')
+            ->assertSet('showInsertModal', true);
+
+        $this->assertSame(0, PtBooking::whereBelongsTo($membership)->count());
+    }
+
+    public function test_keep_booking_reserves_only_active_non_free_sessions_and_skips_duplicates(): void
+    {
+        Carbon::setTestNow('2026-08-24 08:00:00');
+
+        $admin = $this->createUser(['role' => 'admin']);
+        $membership = $this->createMembership([
+            'remaining_sessions' => 5,
+            'pt_end_date' => '2026-10-31',
+        ]);
+
+        $this->createBookingForMembership($membership, [
+            'booking_date' => '2026-08-24',
+            'booking_time' => '09:00:00',
+            'status' => 'pending',
+        ]);
+        $this->createBookingForMembership($membership, [
+            'booking_date' => '2026-08-28',
+            'booking_time' => '15:00:00',
+            'status' => 'approved',
+        ]);
+
+        foreach ([
+            ['status' => 'cancelled', 'attendance' => 'not_yet', 'is_free' => false],
+            ['status' => 'rejected', 'attendance' => 'not_yet', 'is_free' => false],
+            ['status' => 'approved', 'attendance' => 'attended', 'is_free' => false],
+            ['status' => 'approved', 'attendance' => 'noshow', 'is_free' => false],
+            ['status' => 'approved', 'attendance' => 'not_yet', 'is_free' => true],
+        ] as $index => $attributes) {
+            $this->createBookingForMembership($membership, [
+                'booking_date' => Carbon::parse('2026-09-10')->addDays($index)->toDateString(),
+                'booking_time' => '15:00:00',
+                ...$attributes,
+            ]);
+        }
+
+        Livewire::actingAs($admin)
+            ->test('pages::dashboard.admin.booking-jadwal.index')
+            ->call('openInsertModal', 'senin', 9)
+            ->set('insertMembershipId', $membership->id)
+            ->set('insertPtId', $membership->pt_id)
+            ->set('insertType', 'keep')
+            ->set('insertSelectedDays', ['senin', 'selasa'])
+            ->set('insertDayTimes', [
+                'senin' => '09:00',
+                'selasa' => '10:00',
+            ])
+            ->call('saveInsertBooking')
+            ->assertSee('3 booking Keep berhasil ditambahkan.');
+
+        $keepBookings = PtBooking::whereBelongsTo($membership)
+            ->where('type', 'keep')
+            ->orderBy('booking_date')
+            ->get();
+
+        $this->assertSame([
+            '2026-08-25',
+            '2026-08-31',
+            '2026-09-01',
+        ], $keepBookings->map(fn (PtBooking $booking): string => $booking->booking_date->toDateString())->all());
+        $this->assertSame(5, PtBooking::whereBelongsTo($membership)
+            ->whereIn('status', ['pending', 'approved'])
+            ->where('attendance', 'not_yet')
+            ->where('is_free', false)
+            ->count());
+    }
+
+    public function test_keep_booking_rejects_free_sessions_and_repeated_submit_cannot_overbook(): void
+    {
+        Carbon::setTestNow('2026-08-24 08:00:00');
+
+        $admin = $this->createUser(['role' => 'admin']);
+        $membership = $this->createMembership([
+            'remaining_sessions' => 3,
+            'pt_end_date' => '2026-10-31',
+        ]);
+        $component = Livewire::actingAs($admin)
+            ->test('pages::dashboard.admin.booking-jadwal.index')
+            ->call('openInsertModal', 'senin', 9)
+            ->set('insertMembershipId', $membership->id)
+            ->set('insertPtId', $membership->pt_id)
+            ->set('insertType', 'keep')
+            ->set('insertSelectedDays', ['senin'])
+            ->set('insertDayTimes', ['senin' => '09:00'])
+            ->set('insertIsFree', true)
+            ->call('saveInsertBooking')
+            ->assertHasErrors('insertIsFree');
+
+        $component
+            ->set('insertIsFree', false)
+            ->call('saveInsertBooking')
+            ->assertSee('3 booking Keep berhasil ditambahkan.')
+            ->assertSet('showInsertModal', false)
+            ->assertSet('insertSelectedDays', [])
+            ->assertSet('insertDayTimes', []);
+
+        $component
+            ->call('openInsertModal', 'senin', 9)
+            ->set('insertMembershipId', $membership->id)
+            ->set('insertPtId', $membership->pt_id)
+            ->set('insertType', 'keep')
+            ->set('insertSelectedDays', ['senin'])
+            ->set('insertDayTimes', ['senin' => '09:00'])
+            ->call('saveInsertBooking')
+            ->assertHasNoErrors('insertBooking')
+            ->assertSet('showInsertModal', true)
+            ->assertSet('showInsertErrorModal', true)
+            ->assertSet('insertErrorMessage', 'Semua sisa sesi membership sudah memiliki booking aktif.')
+            ->assertSet('insertMembershipId', $membership->id)
+            ->assertSet('insertType', 'keep')
+            ->assertSet('insertSelectedDays', ['senin'])
+            ->assertSet('insertDayTimes', ['senin' => '09:00'])
+            ->assertSee('Booking Tidak Dapat Dibuat')
+            ->assertSee('Mengerti');
+
+        $component
+            ->call('closeInsertErrorModal')
+            ->assertSet('showInsertErrorModal', false)
+            ->assertSet('insertErrorMessage', '')
+            ->assertSet('showInsertModal', true)
+            ->assertSet('insertMembershipId', $membership->id)
+            ->assertSet('insertSelectedDays', ['senin'])
+            ->assertSet('insertDayTimes', ['senin' => '09:00']);
+
+        $component
+            ->set('insertType', 'fleksibel')
+            ->set('insertDate', '2026-08-25')
+            ->set('insertTime', '14:00:00')
+            ->call('saveInsertBooking')
+            ->assertHasNoErrors('insertBooking')
+            ->assertSet('showInsertModal', true)
+            ->assertSet('showInsertErrorModal', true)
+            ->assertSet('insertErrorMessage', 'Semua sisa sesi membership sudah memiliki booking aktif.')
+            ->assertSet('insertMembershipId', $membership->id)
+            ->assertSet('insertType', 'fleksibel')
+            ->assertSet('insertDate', '2026-08-25')
+            ->assertSet('insertTime', '14:00:00')
+            ->assertSee('Booking Tidak Dapat Dibuat');
+
+        $component
+            ->call('closeInsertErrorModal')
+            ->call('closeInsertModal')
+            ->assertSet('showInsertErrorModal', false)
+            ->assertSet('insertErrorMessage', '')
+            ->assertSet('showInsertModal', false)
+            ->assertSet('insertMembershipId', null)
+            ->assertSet('insertType', 'fleksibel')
+            ->assertSet('insertSelectedDays', [])
+            ->assertSet('insertDayTimes', []);
+
+        $this->assertSame(3, PtBooking::whereBelongsTo($membership)->count());
     }
 
     public function test_admin_cannot_mark_a_non_approved_booking_as_attended(): void
@@ -240,9 +595,18 @@ class AdminBookingAttendanceTest extends TestCase
      */
     private function createBooking(array $attributes = []): PtBooking
     {
+        return $this->createBookingForMembership($this->createMembership(), $attributes);
+    }
+
+    /**
+     * @param  array<string, mixed>  $attributes
+     */
+    private function createMembership(array $attributes = []): Membership
+    {
         $member = $this->createUser();
         $personalTrainer = $this->createUser(['role' => 'pt']);
-        $membership = Membership::create([
+
+        return Membership::create([
             'user_id' => $member->id,
             'pt_id' => $personalTrainer->id,
             'type' => 'pt',
@@ -255,12 +619,19 @@ class AdminBookingAttendanceTest extends TestCase
             'total_sessions' => 10,
             'remaining_sessions' => 10,
             'status' => 'active',
+            ...$attributes,
         ]);
+    }
 
+    /**
+     * @param  array<string, mixed>  $attributes
+     */
+    private function createBookingForMembership(Membership $membership, array $attributes = []): PtBooking
+    {
         return PtBooking::create([
             'membership_id' => $membership->id,
-            'member_id' => $member->id,
-            'pt_id' => $personalTrainer->id,
+            'member_id' => $membership->user_id,
+            'pt_id' => $membership->pt_id,
             'booking_date' => today(),
             'booking_time' => '10:00:00',
             'status' => 'approved',
@@ -268,6 +639,13 @@ class AdminBookingAttendanceTest extends TestCase
             'is_free' => false,
             ...$attributes,
         ]);
+    }
+
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+
+        parent::tearDown();
     }
 
     /**

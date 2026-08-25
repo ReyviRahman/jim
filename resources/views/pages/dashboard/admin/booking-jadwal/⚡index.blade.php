@@ -2,14 +2,18 @@
 
 namespace App\Livewire\Admin;
 
+use App\Actions\CreateKeepPtBookings;
 use App\Models\Membership;
 use App\Models\PtBooking;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Uri;
+use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 
 new #[Layout('layouts::admin')] class extends Component
@@ -42,6 +46,10 @@ new #[Layout('layouts::admin')] class extends Component
 
     public $showInsertModal = false;
 
+    public $showInsertErrorModal = false;
+
+    public $insertErrorMessage = '';
+
     public $insertMembershipId = null;
 
     public $insertMembershipSearch = '';
@@ -51,6 +59,13 @@ new #[Layout('layouts::admin')] class extends Component
     public $insertDate = '';
 
     public $insertTime = '';
+
+    #[Locked]
+    public $insertWeekStart = '';
+
+    public $insertSelectedDays = [];
+
+    public $insertDayTimes = [];
 
     public $insertPtId = '';
 
@@ -547,6 +562,18 @@ new #[Layout('layouts::admin')] class extends Component
         $this->resetErrorBag();
     }
 
+    public function updatedInsertType($type)
+    {
+        if ($type === 'keep') {
+            $this->insertIsFree = false;
+        } else {
+            $this->insertSelectedDays = [];
+            $this->insertDayTimes = [];
+        }
+
+        $this->resetValidation();
+    }
+
     public function openInsertModal($dayKey, $hour)
     {
         $dayOffset = array_search($dayKey, array_keys($this->daysOfWeek()));
@@ -554,10 +581,16 @@ new #[Layout('layouts::admin')] class extends Component
 
         $this->insertDate = $date->format('Y-m-d');
         $this->insertTime = str_pad((string) $hour, 2, '0', STR_PAD_LEFT).':00:00';
+        $this->insertWeekStart = $this->getWeekStart()->toDateString();
         $this->insertMembershipId = null;
         $this->insertMembershipSearch = '';
         $this->insertType = 'fleksibel';
+        $this->insertSelectedDays = [];
+        $this->insertDayTimes = [];
         $this->insertPtId = '';
+        $this->insertIsFree = false;
+        $this->showInsertErrorModal = false;
+        $this->insertErrorMessage = '';
         $this->resetErrorBag();
         $this->showInsertModal = true;
     }
@@ -570,8 +603,27 @@ new #[Layout('layouts::admin')] class extends Component
         $this->insertType = 'fleksibel';
         $this->insertDate = '';
         $this->insertTime = '';
+        $this->insertWeekStart = '';
+        $this->insertSelectedDays = [];
+        $this->insertDayTimes = [];
         $this->insertPtId = '';
         $this->insertIsFree = false;
+        $this->showInsertErrorModal = false;
+        $this->insertErrorMessage = '';
+        $this->resetValidation();
+    }
+
+    public function closeInsertErrorModal(): void
+    {
+        $this->showInsertErrorModal = false;
+        $this->insertErrorMessage = '';
+    }
+
+    private function showInsertCapacityError(): void
+    {
+        $this->resetValidation('insertBooking');
+        $this->insertErrorMessage = 'Semua sisa sesi membership sudah memiliki booking aktif.';
+        $this->showInsertErrorModal = true;
     }
 
     public function getMembershipSessionNumber(int $membershipId): int
@@ -638,13 +690,6 @@ new #[Layout('layouts::admin')] class extends Component
         $this->insertMembershipSearch = '';
 
         $membership = Membership::find($id);
-        $sessionNumber = $this->getMembershipSessionNumber($id);
-
-        if ($membership && $sessionNumber == $membership->remaining_sessions) {
-            $this->insertType = 'fleksibel';
-        } else {
-            $this->insertType = 'keep';
-        }
 
         if ($membership && $membership->pt_id) {
             $this->insertPtId = $membership->pt_id;
@@ -675,34 +720,150 @@ new #[Layout('layouts::admin')] class extends Component
             ->get();
     }
 
-    public function saveInsertBooking()
+    public function saveInsertBooking(CreateKeepPtBookings $createKeepPtBookings)
     {
-        $this->validate([
-            'insertMembershipId' => 'required|exists:memberships,id',
-            'insertPtId' => 'required|exists:users,id',
-        ], [
+        $rules = [
+            'insertMembershipId' => ['required', 'integer', Rule::exists((new Membership)->getTable(), 'id')],
+            'insertPtId' => ['required', 'integer', Rule::exists((new User)->getTable(), 'id')],
+            'insertType' => ['required', Rule::in(['fleksibel', 'keep'])],
+            'insertIsFree' => ['boolean'],
+        ];
+
+        if ($this->insertType === 'keep') {
+            $rules['insertWeekStart'] = ['required', 'date'];
+            $rules['insertSelectedDays'] = ['required', 'array', 'min:1'];
+            $rules['insertSelectedDays.*'] = ['required', 'string', 'distinct', Rule::in(array_keys($this->daysOfWeek()))];
+            $rules['insertDayTimes'] = ['required', 'array'];
+
+            foreach ((array) $this->insertSelectedDays as $day) {
+                if (is_string($day) && array_key_exists($day, $this->daysOfWeek())) {
+                    $rules['insertDayTimes.'.$day] = ['required', 'date_format:H:i'];
+                }
+            }
+        } else {
+            $rules['insertDate'] = ['required', 'date'];
+            $rules['insertTime'] = ['required', 'date_format:H:i,H:i:s'];
+        }
+
+        $validated = $this->validate($rules, [
             'insertMembershipId.required' => 'Pilih membership terlebih dahulu.',
+            'insertMembershipId.exists' => 'Membership tidak valid.',
             'insertPtId.required' => 'Pilih coach terlebih dahulu.',
+            'insertPtId.exists' => 'Coach tidak valid.',
+            'insertType.required' => 'Pilih tipe booking terlebih dahulu.',
+            'insertType.in' => 'Tipe booking tidak valid.',
+            'insertDate.required' => 'Tanggal booking wajib tersedia.',
+            'insertDate.date' => 'Tanggal booking tidak valid.',
+            'insertTime.required' => 'Waktu booking wajib tersedia.',
+            'insertTime.date_format' => 'Waktu booking tidak valid.',
+            'insertWeekStart.required' => 'Minggu awal booking wajib tersedia.',
+            'insertWeekStart.date' => 'Minggu awal booking tidak valid.',
+            'insertSelectedDays.required' => 'Pilih minimal satu hari untuk booking Keep.',
+            'insertSelectedDays.min' => 'Pilih minimal satu hari untuk booking Keep.',
+            'insertSelectedDays.*.in' => 'Hari booking Keep tidak valid.',
+            'insertSelectedDays.*.distinct' => 'Hari booking Keep tidak boleh duplikat.',
+            'insertDayTimes.required' => 'Waktu untuk hari terpilih wajib diisi.',
+            'insertDayTimes.*.required' => 'Waktu untuk hari terpilih wajib diisi.',
+            'insertDayTimes.*.date_format' => 'Format waktu harus berupa jam dan menit.',
         ]);
 
-        $membership = Membership::find($this->insertMembershipId);
-
-        if (! $membership || $membership->remaining_sessions <= 0) {
-            $this->addError('insertBooking', 'Membership tidak valid atau sisa sesi sudah habis.');
+        if ($validated['insertType'] === 'keep' && $this->insertIsFree) {
+            $this->addError('insertIsFree', 'Sesi Gratis tidak tersedia untuk booking Keep.');
 
             return;
         }
 
-        PtBooking::create([
-            'membership_id' => $membership->id,
-            'member_id' => $membership->user_id,
-            'pt_id' => $this->insertPtId,
-            'booking_date' => $this->insertDate,
-            'booking_time' => $this->insertTime,
-            'status' => Auth::user()->isHeadCoach() ? 'approved' : 'pending',
-            'attendance' => 'not_yet',
-            'is_free' => $this->insertIsFree,
-        ]);
+        $status = Auth::user()->isHeadCoach() ? 'approved' : 'pending';
+
+        if ($validated['insertType'] === 'keep') {
+            $dayTimes = collect($validated['insertSelectedDays'])
+                ->mapWithKeys(fn (string $day): array => [$day => $validated['insertDayTimes'][$day]])
+                ->all();
+            $result = $createKeepPtBookings->execute(
+                membershipId: (int) $validated['insertMembershipId'],
+                ptId: (int) $validated['insertPtId'],
+                weekStart: Carbon::parse($validated['insertWeekStart']),
+                dayTimes: $dayTimes,
+                status: $status,
+            );
+
+            if ($result['created_count'] === 0) {
+                if ($result['stop_reason'] === 'no_capacity') {
+                    $this->showInsertCapacityError();
+
+                    return;
+                }
+
+                $message = match ($result['stop_reason']) {
+                    'pt_end_date' => 'Tidak ada jadwal Keep yang dapat dibuat sebelum masa PT berakhir.',
+                    'invalid_pattern' => 'Pola hari dan waktu booking Keep tidak valid.',
+                    default => 'Membership tidak valid atau sisa sesi sudah habis.',
+                };
+
+                $this->addError('insertBooking', $message);
+
+                return;
+            }
+
+            $createdCount = $result['created_count'];
+            $message = $result['stop_reason'] === 'pt_end_date'
+                ? "{$createdCount} booking Keep berhasil ditambahkan sampai masa PT berakhir."
+                : "{$createdCount} booking Keep berhasil ditambahkan.";
+
+            $this->closeInsertModal();
+            session()->flash('success', $message);
+
+            return;
+        }
+
+        $result = DB::transaction(function () use ($validated, $status): string {
+            $membership = Membership::query()
+                ->lockForUpdate()
+                ->find($validated['insertMembershipId']);
+
+            if (! $membership || ! $membership->is_active || $membership->status !== 'active' || ($membership->remaining_sessions ?? 0) <= 0) {
+                return 'invalid_membership';
+            }
+
+            if (! $validated['insertIsFree']) {
+                $reservedSessions = PtBooking::query()
+                    ->whereBelongsTo($membership)
+                    ->whereIn('status', ['pending', 'approved'])
+                    ->where('attendance', 'not_yet')
+                    ->where('is_free', false)
+                    ->count();
+
+                if ($reservedSessions >= $membership->remaining_sessions) {
+                    return 'no_capacity';
+                }
+            }
+
+            PtBooking::create([
+                'membership_id' => $membership->id,
+                'member_id' => $membership->user_id,
+                'pt_id' => $validated['insertPtId'],
+                'booking_date' => $validated['insertDate'],
+                'booking_time' => $validated['insertTime'],
+                'status' => $status,
+                'type' => 'fleksibel',
+                'attendance' => 'not_yet',
+                'is_free' => $validated['insertIsFree'],
+            ]);
+
+            return 'created';
+        }, attempts: 3);
+
+        if ($result !== 'created') {
+            if ($result === 'no_capacity') {
+                $this->showInsertCapacityError();
+
+                return;
+            }
+
+            $this->addError('insertBooking', 'Membership tidak valid atau sisa sesi sudah habis.');
+
+            return;
+        }
 
         $this->closeInsertModal();
         session()->flash('success', 'Booking berhasil ditambahkan.');
@@ -1355,7 +1516,7 @@ new #[Layout('layouts::admin')] class extends Component
 
     @if($showInsertModal)
         <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" wire:click.self="closeInsertModal">
-            <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 p-6" @click.stop>
+            <div class="bg-white rounded-lg shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto mx-4 p-6" @click.stop>
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="text-lg font-semibold text-gray-900">Tambah Booking</h3>
                     <button type="button" wire:click="closeInsertModal" class="text-gray-400 hover:text-gray-600">
@@ -1382,10 +1543,12 @@ new #[Layout('layouts::admin')] class extends Component
                                     <span>{{ $selectedMembership->user?->name ?? '-' }} — {{ $selectedMembership->personalTrainer?->name ?? '-' }} (Sisa: {{ $selectedMembership->remaining_sessions }})</span>
                                     <button type="button" wire:click="$set('insertMembershipId', null)" class="text-blue-600 hover:text-blue-800 text-xs underline">Ganti</button>
                                 </div>
-                                @php $sessionNumber = $this->getMembershipSessionNumber($insertMembershipId); @endphp
-                                <div class="mt-1.5 text-xs text-gray-600">
-                                    Booking ini akan menjadi <span class="font-semibold text-gray-900">Sesi ke-{{ $sessionNumber }}</span>
-                                </div>
+                                @if($insertType === 'fleksibel')
+                                    @php $sessionNumber = $this->getMembershipSessionNumber($insertMembershipId); @endphp
+                                    <div class="mt-1.5 text-xs text-gray-600">
+                                        Booking ini akan menjadi <span class="font-semibold text-gray-900">Sesi ke-{{ $sessionNumber }}</span>
+                                    </div>
+                                @endif
                             @endif
                         @endif
 
@@ -1425,34 +1588,83 @@ new #[Layout('layouts::admin')] class extends Component
 
                     <div>
                         <label for="insertType" class="block text-sm font-medium text-gray-700 mb-1">Tipe Booking <span class="text-red-500">*</span></label>
-                        <select id="insertType" wire:model="insertType"
+                        <select id="insertType" wire:model.live="insertType"
                             class="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500">
                             <option value="fleksibel">Fleksibel</option>
                             <option value="keep">Keep</option>
                         </select>
+                        @error('insertType') <span class="text-sm text-red-600">{{ $message }}</span> @enderror
                     </div>
 
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Tanggal</label>
-                            <input type="text" readonly value="{{ \Carbon\Carbon::parse($insertDate)->locale('id')->isoFormat('dddd, D MMM YYYY') }}"
-                                class="block w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-md text-sm text-gray-700">
+                    @if($insertType === 'fleksibel')
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Tanggal</label>
+                                <input type="text" readonly value="{{ \Carbon\Carbon::parse($insertDate)->locale('id')->isoFormat('dddd, D MMM YYYY') }}"
+                                    class="block w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-md text-sm text-gray-700">
+                                @error('insertDate') <span class="text-sm text-red-600">{{ $message }}</span> @enderror
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Waktu</label>
+                                <input type="text" readonly value="{{ \Carbon\Carbon::parse($insertTime)->format('H:i') }}"
+                                    class="block w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-md text-sm text-gray-700">
+                                @error('insertTime') <span class="text-sm text-red-600">{{ $message }}</span> @enderror
+                            </div>
                         </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Waktu</label>
-                            <input type="text" readonly value="{{ \Carbon\Carbon::parse($insertTime)->format('H:i') }}"
-                                class="block w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-md text-sm text-gray-700">
-                        </div>
-                    </div>
 
-                    <div>
-                        <label class="flex items-center gap-2 cursor-pointer">
-                            <input type="checkbox" wire:model="insertIsFree" value="1"
-                                class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500">
-                            <span class="text-sm font-medium text-gray-700">Sesi Gratis</span>
-                        </label>
-                        <p class="text-xs text-gray-500 mt-1">Centang jika Sesi Gratis</p>
-                    </div>
+                        <div>
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" wire:model="insertIsFree" value="1"
+                                    class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500">
+                                <span class="text-sm font-medium text-gray-700">Sesi Gratis</span>
+                            </label>
+                            <p class="text-xs text-gray-500 mt-1">Centang jika Sesi Gratis</p>
+                        </div>
+                    @else
+                        <div>
+                            <div class="mb-2">
+                                <span class="block text-sm font-medium text-gray-700">Pilih Hari dan Waktu <span class="text-red-500">*</span></span>
+                                <p class="text-xs text-gray-500 mt-1">Booking dibuat berulang mulai minggu yang sedang ditampilkan hingga sisa sesi habis atau masa PT berakhir.</p>
+                            </div>
+
+                            <div class="space-y-2">
+                                @foreach($this->daysOfWeek() as $day => $dayLabel)
+                                    <div wire:key="insert-keep-day-{{ $day }}"
+                                        class="flex items-start gap-3 p-3 rounded-lg border transition-colors {{ in_array($day, $insertSelectedDays, true) ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-gray-50' }}">
+                                        <input type="checkbox"
+                                            id="insert-keep-day-{{ $day }}"
+                                            wire:model.live="insertSelectedDays"
+                                            value="{{ $day }}"
+                                            class="w-4 h-4 mt-2 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500">
+                                        <label for="insert-keep-day-{{ $day }}" class="w-20 mt-1.5 text-sm font-medium text-gray-700 cursor-pointer">
+                                            {{ $dayLabel }}
+                                        </label>
+
+                                        @if(in_array($day, $insertSelectedDays, true))
+                                            <div class="flex-1">
+                                                <input type="time"
+                                                    wire:model="insertDayTimes.{{ $day }}"
+                                                    aria-label="Waktu {{ $dayLabel }}"
+                                                    class="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500">
+                                                @error("insertDayTimes.{$day}") <span class="text-sm text-red-600">{{ $message }}</span> @enderror
+                                            </div>
+                                        @else
+                                            <span class="mt-1.5 text-sm text-gray-400">Tidak dipilih</span>
+                                        @endif
+                                    </div>
+                                @endforeach
+                            </div>
+
+                            @error('insertSelectedDays') <span class="text-sm text-red-600">{{ $message }}</span> @enderror
+                            @error('insertDayTimes') <span class="text-sm text-red-600">{{ $message }}</span> @enderror
+                        </div>
+
+                        <div class="p-3 bg-blue-50 border border-blue-200 rounded-md text-sm text-blue-800">
+                            Booking Keep selalu menggunakan kuota membership dan tidak dapat dijadikan Sesi Gratis.
+                        </div>
+                    @endif
+
+                    @error('insertIsFree') <span class="text-sm text-red-600">{{ $message }}</span> @enderror
 
                     <div class="flex gap-3 pt-2">
                         <button type="button" wire:click="closeInsertModal"
@@ -1466,6 +1678,34 @@ new #[Layout('layouts::admin')] class extends Component
                         </button>
                     </div>
                 </form>
+            </div>
+        </div>
+    @endif
+
+    @if($showInsertErrorModal)
+        <div class="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
+            role="dialog" aria-modal="true" aria-labelledby="insert-booking-error-title"
+            wire:click.self="closeInsertErrorModal">
+            <div class="w-full max-w-md rounded-lg border border-red-200 bg-white p-6 shadow-xl">
+                <div class="mb-4 flex items-center gap-3">
+                    <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100">
+                        <svg class="h-6 w-6 text-red-600" xmlns="http://www.w3.org/2000/svg" fill="none"
+                            viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+                        </svg>
+                    </div>
+                    <h3 id="insert-booking-error-title" class="text-lg font-semibold text-gray-900">
+                        Booking Tidak Dapat Dibuat
+                    </h3>
+                </div>
+
+                <p class="mb-6 text-sm text-gray-600">{{ $insertErrorMessage }}</p>
+
+                <button type="button" wire:click="closeInsertErrorModal"
+                    class="w-full rounded-md bg-red-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-red-700 focus:ring-4 focus:ring-red-200">
+                    Mengerti
+                </button>
             </div>
         </div>
     @endif
