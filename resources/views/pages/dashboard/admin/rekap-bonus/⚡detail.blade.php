@@ -985,9 +985,9 @@ new #[Layout('layouts::admin')] class extends Component
                         @endphp
                         @if($bonus['persen'] > 0)
                             <tr class="grid grid-cols-1 border-t border-gray-200 xl:table-row">
-                                <td colspan="4" class="block px-3 pt-3 text-left text-gray-600 xl:table-cell xl:px-1.5 xl:py-2 xl:text-right">
+                                <td colspan="5" class="block px-3 pt-3 text-left text-gray-600 xl:table-cell xl:px-1.5 xl:py-2 xl:text-right">
                                     Bonus ({{ $bonus['persen'] }}%)
-                                    <span class="block break-words text-[10px] text-gray-400">
+                                    <span class="block whitespace-nowrap text-[10px] text-gray-400">
                                         Rentang:
                                         @if(strtolower($bonus['rentang_satu']) === 'min')
                                             ≤ Rp {{ number_format((float) $bonus['rentang_dua'], 0, ',', '.') }}
@@ -998,7 +998,7 @@ new #[Layout('layouts::admin')] class extends Component
                                         @endif
                                     </span>
                                 </td>
-                                <td class="block break-words px-3 pb-3 text-left text-blue-700 xl:table-cell xl:px-1.5 xl:py-2 xl:text-right">
+                                <td colspan="3" class="block break-words px-3 pb-3 text-left text-blue-700 xl:table-cell xl:px-1.5 xl:py-2 xl:text-right">
                                     <span class="block">Rp {{ number_format($bonus['total_bonus'], 0, ',', '.') }}</span>
                                     @if(auth()->user()->role === 'admin')
                                         <button
@@ -1006,14 +1006,14 @@ new #[Layout('layouts::admin')] class extends Component
                                             wire:click="openBonusPaymentModal"
                                             wire:loading.attr="disabled"
                                             wire:target="openBonusPaymentModal"
-                                            class="mt-2 inline-flex items-center justify-center rounded-md bg-emerald-600 px-3 py-2 text-xs font-semibold text-white shadow-xs hover:bg-emerald-700 focus:outline-none focus:ring-4 focus:ring-emerald-200 disabled:cursor-not-allowed disabled:opacity-50"
+                                            class="mt-2 inline-flex w-full items-center justify-center whitespace-nowrap rounded-md bg-emerald-600 px-10 py-2 text-xs font-semibold text-white shadow-xs hover:bg-emerald-700 focus:outline-none focus:ring-4 focus:ring-emerald-200 disabled:cursor-not-allowed disabled:opacity-50"
                                         >
-                                            <span wire:loading.remove wire:target="openBonusPaymentModal">Bayar Bonus</span>
+                                            <span wire:loading.remove wire:target="openBonusPaymentModal">Bayar</span>
                                             <span wire:loading wire:target="openBonusPaymentModal">Menyiapkan...</span>
                                         </button>
                                     @endif
                                 </td>
-                                <td colspan="6" class="hidden px-1.5 py-2 xl:table-cell"></td>
+                                <td colspan="3" class="hidden px-1.5 py-2 xl:table-cell"></td>
                             </tr>
                         @else
                             <tr class="grid grid-cols-1 border-t border-gray-200 xl:table-row">

@@ -30,7 +30,14 @@ class BonusPaymentTest extends TestCase
 
         Livewire::test('pages::dashboard.admin.rekap-bonus.detail', ['user' => $sales])
             ->call('setDateRange', '2026-08-01 to 2026-08-31')
-            ->assertSeeInOrder(['Rp 20.000', 'Bayar Bonus'])
+            ->assertSee('Rp 20.000')
+            ->assertSeeHtml('<span wire:loading.remove wire:target="openBonusPaymentModal">Bayar</span>')
+            ->assertSeeHtml('<span class="block whitespace-nowrap text-[10px] text-gray-400">')
+            ->assertSeeHtml('colspan="5" class="block px-3 pt-3 text-left text-gray-600')
+            ->assertSeeHtml('colspan="3" class="block break-words px-3 pb-3 text-left text-blue-700')
+            ->assertSeeHtml('colspan="3" class="hidden px-1.5 py-2 xl:table-cell"')
+            ->assertSeeHtml('inline-flex w-full items-center justify-center whitespace-nowrap')
+            ->assertSeeHtml('rounded-md bg-emerald-600 px-10 py-2')
             ->call('openBonusPaymentModal')
             ->assertSet('showBonusPaymentModal', true)
             ->assertSee('Pembayaran Bonus '.$sales->name);
@@ -40,7 +47,7 @@ class BonusPaymentTest extends TestCase
 
             Livewire::test('pages::dashboard.admin.rekap-bonus.detail', ['user' => $sales])
                 ->call('setDateRange', '2026-08-01 to 2026-08-31')
-                ->assertDontSee('Bayar Bonus');
+                ->assertDontSeeHtml('wire:click="openBonusPaymentModal"');
 
             Livewire::test('pages::dashboard.admin.rekap-bonus.detail', ['user' => $sales])
                 ->call('openBonusPaymentModal')
