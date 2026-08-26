@@ -31,22 +31,66 @@ class ResponsiveTableLayoutTest extends TestCase
         );
     }
 
-    public function test_booking_schedule_day_filter_uses_responsive_defaults(): void
+    public function test_booking_schedule_automatically_uses_responsive_day_view_without_toggle_buttons(): void
     {
         $contents = file_get_contents(resource_path('views/pages/dashboard/admin/booking-jadwal/⚡index.blade.php'));
         $javascript = file_get_contents(resource_path('js/app.js'));
+        $normalizedContents = preg_replace('/\s+/', '', $contents);
 
         $this->assertIsString($contents);
         $this->assertIsString($javascript);
+        $this->assertIsString($normalizedContents);
         $this->assertStringContainsString('x-data="bookingDayFilter"', $contents);
-        $this->assertStringContainsString('>Today</button>', preg_replace('/\s+/', '', $contents));
-        $this->assertStringContainsString('>AllDay</button>', preg_replace('/\s+/', '', $contents));
-        $this->assertSame(2, substr_count($contents, 'x-show="isDayVisible($el.dataset.today)"'));
+        $this->assertStringNotContainsString('>Today</button>', $normalizedContents);
+        $this->assertStringNotContainsString('>AllDay</button>', $normalizedContents);
+        $this->assertSame(2, substr_count($contents, 'data-date='));
+        $this->assertSame(
+            2,
+            substr_count(
+                $contents,
+                '$dayDate->isSameDay($selectedDate) ? \'\' : \'hidden sm:table-cell\'',
+            ),
+        );
+        $this->assertStringNotContainsString('x-show="isDayVisible($el.dataset.date)"', $contents);
+        $this->assertStringNotContainsString('$el.dataset.today', $contents);
+        $this->assertStringContainsString('x-on:change="selectDate', $contents);
+        $this->assertStringNotContainsString('x-on:change="showAllDays"', $contents);
         $this->assertStringContainsString("window.matchMedia('(min-width: 40rem)')", $javascript);
         $this->assertStringContainsString(
             "dayView: bookingScheduleDesktopBreakpoint.matches ? 'all' : 'today'",
             $javascript,
         );
+        $this->assertStringContainsString("bookingScheduleDesktopBreakpoint.addEventListener('change'", $javascript);
+        $this->assertStringContainsString("matches ? 'all' : 'today'", $javascript);
+        $this->assertStringContainsString('dayViewSyncInProgress', $javascript);
+        $this->assertStringContainsString('await this.$wire.setDayView(this.dayView)', $javascript);
+        $this->assertStringContainsString('selectDate(', $javascript);
+        $this->assertStringNotContainsString('isDayVisible(', $javascript);
+        $this->assertStringNotContainsString('this.$wire.dateFrom', $javascript);
+    }
+
+    public function test_booking_schedule_navigation_and_labels_follow_the_active_day_view(): void
+    {
+        $contents = file_get_contents(resource_path('views/pages/dashboard/admin/booking-jadwal/⚡index.blade.php'));
+
+        $this->assertIsString($contents);
+
+        foreach ([
+            'previousDay' => 'Kemarin',
+            'today' => 'Hari Ini',
+            'nextDay' => 'Besok',
+            'previousWeek' => 'Minggu Lalu',
+            'thisWeek' => 'Minggu Ini',
+            'nextWeek' => 'Minggu Depan',
+        ] as $action => $label) {
+            $this->assertMatchesRegularExpression(
+                '/<button[^>]*wire:click="'.preg_quote($action, '/').'"[^>]*>.*?'.preg_quote($label, '/').'.*?<\/button>/s',
+                $contents,
+            );
+        }
+
+        $this->assertStringContainsString('x-show="dayView === \'today\'"', $contents);
+        $this->assertStringContainsString('x-show="dayView === \'all\'"', $contents);
     }
 
     public function test_booking_schedule_today_filter_groups_mobile_rows_into_one_card(): void
@@ -63,7 +107,7 @@ class ResponsiveTableLayoutTest extends TestCase
             'data-booking-schedule-today-header x-show="dayView === \'today\'"',
             $contents,
         );
-        $this->assertStringContainsString("{{ now()->locale('id')->isoFormat('dddd, D MMMM YYYY') }}", $contents);
+        $this->assertStringNotContainsString("{{ now()->locale('id')->isoFormat('dddd, D MMMM YYYY') }}", $contents);
         $this->assertMatchesRegularExpression(
             '/@media \(max-width: 39\.999rem\).*?\[data-booking-schedule\]\[data-day-view="today"\] tbody:not\(\.hidden\)\s*\{.*?gap: 0;.*?border-radius: 0 0 0\.5rem 0\.5rem;/s',
             $css,

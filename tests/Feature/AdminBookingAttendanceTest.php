@@ -479,6 +479,187 @@ class AdminBookingAttendanceTest extends TestCase
         $this->assertSame(10, $booking->membership->fresh()->remaining_sessions);
     }
 
+    public function test_manual_date_filter_in_today_view_filters_exact_selected_date_cards(): void
+    {
+        Carbon::setTestNow('2026-08-26 12:00:00');
+
+        $admin = $this->createUser(['role' => 'admin']);
+        $currentDateBooking = $this->createBooking(['booking_date' => '2026-08-26']);
+        $currentDateBooking->member->update(['name' => 'Member Filter 26 Agustus']);
+        $selectedDateBooking = $this->createBooking(['booking_date' => '2026-08-27']);
+        $selectedDateBooking->member->update(['name' => 'Member Filter 27 Agustus']);
+
+        Livewire::actingAs($admin)
+            ->test('pages::dashboard.admin.booking-jadwal.index')
+            ->assertSet('dayView', 'all')
+            ->assertSet('dateFrom', '2026-08-26')
+            ->call('setDayView', 'today')
+            ->set('dateFrom', '2026-08-27')
+            ->assertSet('dayView', 'today')
+            ->assertSet('dateFrom', '2026-08-27')
+            ->assertSet('dateTo', '2026-08-27')
+            ->assertSee('Member Filter 27 Agustus')
+            ->assertDontSee('Member Filter 26 Agustus')
+            ->assertSee('Kamis, 27 Agustus 2026');
+    }
+
+    public function test_today_view_navigation_moves_between_yesterday_today_and_tomorrow(): void
+    {
+        Carbon::setTestNow('2026-08-24 12:00:00');
+
+        $admin = $this->createUser(['role' => 'admin']);
+        $yesterdayBooking = $this->createBooking(['booking_date' => '2026-08-23']);
+        $yesterdayBooking->member->update(['name' => 'Member Navigasi 23 Agustus']);
+        $todayBooking = $this->createBooking(['booking_date' => '2026-08-24']);
+        $todayBooking->member->update(['name' => 'Member Navigasi 24 Agustus']);
+        $tomorrowBooking = $this->createBooking(['booking_date' => '2026-08-25']);
+        $tomorrowBooking->member->update(['name' => 'Member Navigasi 25 Agustus']);
+
+        $component = Livewire::actingAs($admin)
+            ->test('pages::dashboard.admin.booking-jadwal.index')
+            ->call('setDayView', 'today')
+            ->assertSet('dayView', 'today')
+            ->assertSet('dateFrom', '2026-08-24')
+            ->assertSet('dateTo', '2026-08-24')
+            ->assertSee('Member Navigasi 24 Agustus')
+            ->assertDontSee('Member Navigasi 23 Agustus')
+            ->assertDontSee('Member Navigasi 25 Agustus');
+
+        $component
+            ->call('previousDay')
+            ->assertSet('dateFrom', '2026-08-23')
+            ->assertSet('dateTo', '2026-08-23')
+            ->assertSee('Member Navigasi 23 Agustus')
+            ->assertDontSee('Member Navigasi 24 Agustus')
+            ->assertDontSee('Member Navigasi 25 Agustus')
+            ->assertSee('Minggu, 23 Agustus 2026');
+
+        $this->assertMatchesRegularExpression(
+            '/<td data-date="2026-08-23"\s+class="(?!hidden(?:\s|"))[^"]*">/',
+            $component->html(),
+        );
+
+        $component
+            ->call('today')
+            ->assertSet('dateFrom', '2026-08-24')
+            ->assertSet('dateTo', '2026-08-24')
+            ->assertSee('Member Navigasi 24 Agustus')
+            ->assertDontSee('Member Navigasi 23 Agustus')
+            ->assertDontSee('Member Navigasi 25 Agustus')
+            ->assertSee('Senin, 24 Agustus 2026');
+
+        $component
+            ->call('nextDay')
+            ->assertSet('dateFrom', '2026-08-25')
+            ->assertSet('dateTo', '2026-08-25')
+            ->assertSee('Member Navigasi 25 Agustus')
+            ->assertDontSee('Member Navigasi 23 Agustus')
+            ->assertDontSee('Member Navigasi 24 Agustus')
+            ->assertSee('Selasa, 25 Agustus 2026');
+
+        $this->assertMatchesRegularExpression(
+            '/<td data-date="2026-08-25"\s+class="(?!hidden(?:\s|"))[^"]*">/',
+            $component->html(),
+        );
+    }
+
+    public function test_switching_day_views_preserves_the_selected_date_and_synchronizes_the_range_end(): void
+    {
+        Carbon::setTestNow('2026-08-26 12:00:00');
+
+        $admin = $this->createUser(['role' => 'admin']);
+
+        Livewire::actingAs($admin)
+            ->test('pages::dashboard.admin.booking-jadwal.index')
+            ->set('dateFrom', '2026-08-27')
+            ->assertSet('dayView', 'all')
+            ->assertSet('dateFrom', '2026-08-27')
+            ->assertSet('dateTo', '2026-08-30')
+            ->call('setDayView', 'today')
+            ->assertSet('dayView', 'today')
+            ->assertSet('dateFrom', '2026-08-27')
+            ->assertSet('dateTo', '2026-08-27')
+            ->call('setDayView', 'all')
+            ->assertSet('dayView', 'all')
+            ->assertSet('dateFrom', '2026-08-27')
+            ->assertSet('dateTo', '2026-08-30');
+    }
+
+    public function test_clearing_filters_resets_the_date_without_changing_the_responsive_day_view(): void
+    {
+        Carbon::setTestNow('2026-08-26 12:00:00');
+
+        $admin = $this->createUser(['role' => 'admin']);
+
+        $component = Livewire::actingAs($admin)
+            ->test('pages::dashboard.admin.booking-jadwal.index')
+            ->call('setDayView', 'today')
+            ->set('dateFrom', '2026-08-27')
+            ->call('clearFilters')
+            ->assertSet('dayView', 'today')
+            ->assertSet('dateFrom', '2026-08-26')
+            ->assertSet('dateTo', '2026-08-26');
+
+        $component
+            ->call('setDayView', 'all')
+            ->set('dateFrom', '2026-08-27')
+            ->call('clearFilters')
+            ->assertSet('dayView', 'all')
+            ->assertSet('dateFrom', '2026-08-26')
+            ->assertSet('dateTo', '2026-08-30');
+    }
+
+    public function test_all_day_view_keeps_week_filtering_and_week_navigation(): void
+    {
+        Carbon::setTestNow('2026-08-26 12:00:00');
+
+        $admin = $this->createUser(['role' => 'admin']);
+        $mondayBooking = $this->createBooking(['booking_date' => '2026-08-24']);
+        $mondayBooking->member->update(['name' => 'Member Minggu Aktif Senin']);
+        $sundayBooking = $this->createBooking(['booking_date' => '2026-08-30']);
+        $sundayBooking->member->update(['name' => 'Member Minggu Aktif Minggu']);
+        $nextWeekBooking = $this->createBooking(['booking_date' => '2026-08-31']);
+        $nextWeekBooking->member->update(['name' => 'Member Minggu Berikutnya']);
+
+        $component = Livewire::actingAs($admin)
+            ->test('pages::dashboard.admin.booking-jadwal.index')
+            ->assertSet('dayView', 'all')
+            ->assertSet('dateFrom', '2026-08-26')
+            ->set('dateFrom', '2026-08-27')
+            ->assertSet('dayView', 'all')
+            ->assertSet('dateFrom', '2026-08-27')
+            ->assertSet('dateTo', '2026-08-30')
+            ->assertSee('Member Minggu Aktif Senin')
+            ->assertSee('Member Minggu Aktif Minggu')
+            ->assertDontSee('Member Minggu Berikutnya')
+            ->assertSee('24 Agt 2026 - 30 Agt 2026');
+
+        $component
+            ->call('nextWeek')
+            ->assertSet('dayView', 'all')
+            ->assertSet('dateFrom', '2026-09-03')
+            ->assertSee('Member Minggu Berikutnya')
+            ->assertDontSee('Member Minggu Aktif Senin')
+            ->assertDontSee('Member Minggu Aktif Minggu');
+
+        $component
+            ->call('previousWeek')
+            ->assertSet('dayView', 'all')
+            ->assertSet('dateFrom', '2026-08-27')
+            ->assertSee('Member Minggu Aktif Senin')
+            ->assertSee('Member Minggu Aktif Minggu')
+            ->assertDontSee('Member Minggu Berikutnya');
+
+        $component
+            ->call('nextWeek')
+            ->call('thisWeek')
+            ->assertSet('dayView', 'all')
+            ->assertSet('dateFrom', '2026-08-26')
+            ->assertSee('Member Minggu Aktif Senin')
+            ->assertSee('Member Minggu Aktif Minggu')
+            ->assertDontSee('Member Minggu Berikutnya');
+    }
+
     public function test_booking_cards_normalize_supported_whatsapp_number_formats(): void
     {
         $admin = $this->createUser(['role' => 'admin']);

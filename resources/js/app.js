@@ -21,17 +21,41 @@ let destroyDashboardSidebar = () => {};
 document.addEventListener('alpine:init', () => {
     window.Alpine.data('bookingDayFilter', () => ({
         dayView: bookingScheduleDesktopBreakpoint.matches ? 'all' : 'today',
+        breakpointChangeHandler: null,
+        dayViewSyncInProgress: false,
 
-        showAllDays() {
-            this.dayView = 'all';
+        init() {
+            this.breakpointChangeHandler = () => this.syncResponsiveDayView();
+            bookingScheduleDesktopBreakpoint.addEventListener('change', this.breakpointChangeHandler);
+            this.syncResponsiveDayView();
         },
 
-        showToday() {
-            this.dayView = 'today';
+        destroy() {
+            bookingScheduleDesktopBreakpoint.removeEventListener('change', this.breakpointChangeHandler);
         },
 
-        isDayVisible(isToday) {
-            return this.dayView === 'all' || isToday === 'true';
+        async syncResponsiveDayView() {
+            const responsiveDayView = bookingScheduleDesktopBreakpoint.matches ? 'all' : 'today';
+
+            this.dayView = responsiveDayView;
+
+            if (this.dayViewSyncInProgress) {
+                return;
+            }
+
+            this.dayViewSyncInProgress = true;
+
+            try {
+                while (this.$wire.dayView !== this.dayView) {
+                    await this.$wire.setDayView(this.dayView);
+                }
+            } finally {
+                this.dayViewSyncInProgress = false;
+            }
+        },
+
+        selectDate() {
+            this.syncResponsiveDayView();
         },
     }));
 }, { once: true });

@@ -29,6 +29,8 @@ new #[Layout('layouts::admin')] class extends Component
 
     public $dateTo = '';
 
+    public string $dayView = 'all';
+
     public $showCancelModal = false;
 
     public $cancelBookingId = null;
@@ -136,9 +138,9 @@ new #[Layout('layouts::admin')] class extends Component
         return preg_match('/^628\d{8,11}$/', $digits) === 1 ? $digits : null;
     }
 
-    public function mount()
+    public function mount(): void
     {
-        $this->thisWeek();
+        $this->setSelectedDate(now());
     }
 
     public function updatingSearch()
@@ -158,47 +160,99 @@ new #[Layout('layouts::admin')] class extends Component
 
     public function getWeekStart(): Carbon
     {
-        if (! empty($this->dateFrom)) {
-            return Carbon::parse($this->dateFrom)->startOfWeek(Carbon::MONDAY);
+        return $this->getSelectedDate()->startOfWeek(Carbon::MONDAY);
+    }
+
+    public function getSelectedDate(): Carbon
+    {
+        if (! is_string($this->dateFrom) || ! preg_match('/^\d{4}-\d{2}-\d{2}$/', $this->dateFrom)) {
+            return now()->startOfDay();
         }
 
-        return now()->startOfWeek(Carbon::MONDAY);
-    }
+        [$year, $month, $day] = array_map('intval', explode('-', $this->dateFrom));
 
-    public function previousWeek()
-    {
-        $start = $this->getWeekStart()->subWeek();
-        $this->dateFrom = $start->format('Y-m-d');
-        $this->dateTo = $start->copy()->addDays(6)->format('Y-m-d');
-    }
-
-    public function nextWeek()
-    {
-        $start = $this->getWeekStart()->addWeek();
-        $this->dateFrom = $start->format('Y-m-d');
-        $this->dateTo = $start->copy()->addDays(6)->format('Y-m-d');
-    }
-
-    public function thisWeek()
-    {
-        $start = now()->startOfWeek(Carbon::MONDAY);
-        $this->dateFrom = $start->format('Y-m-d');
-        $this->dateTo = $start->copy()->addDays(6)->format('Y-m-d');
-    }
-
-    public function setDateRange($rangeStr)
-    {
-        if (str_contains($rangeStr, ' to ')) {
-            $dates = explode(' to ', $rangeStr);
-            $this->dateFrom = $dates[0];
-            $this->dateTo = $dates[1];
-        } elseif ($rangeStr) {
-            $this->dateFrom = $rangeStr;
-            $this->dateTo = $rangeStr;
-        } else {
-            $this->dateFrom = '';
-            $this->dateTo = '';
+        if (! checkdate($month, $day, $year)) {
+            return now()->startOfDay();
         }
+
+        return Carbon::create($year, $month, $day)->startOfDay();
+    }
+
+    public function setDayView(string $dayView): void
+    {
+        if (! in_array($dayView, ['today', 'all'], true)) {
+            return;
+        }
+
+        $this->dayView = $dayView;
+        $this->syncDateRange();
+    }
+
+    public function updatedDateFrom(): void
+    {
+        $this->syncDateRange();
+    }
+
+    public function previousDay(): void
+    {
+        $this->dayView = 'today';
+        $this->setSelectedDate($this->getSelectedDate()->subDay());
+    }
+
+    public function today(): void
+    {
+        $this->dayView = 'today';
+        $this->setSelectedDate(now());
+    }
+
+    public function nextDay(): void
+    {
+        $this->dayView = 'today';
+        $this->setSelectedDate($this->getSelectedDate()->addDay());
+    }
+
+    public function previousWeek(): void
+    {
+        $this->dayView = 'all';
+        $this->setSelectedDate($this->getSelectedDate()->subWeek());
+    }
+
+    public function nextWeek(): void
+    {
+        $this->dayView = 'all';
+        $this->setSelectedDate($this->getSelectedDate()->addWeek());
+    }
+
+    public function thisWeek(): void
+    {
+        $this->dayView = 'all';
+        $this->setSelectedDate(now());
+    }
+
+    public function setDateRange(?string $rangeStr): void
+    {
+        if ($rangeStr && str_contains($rangeStr, ' to ')) {
+            [$rangeStr] = explode(' to ', $rangeStr);
+        }
+
+        $this->dateFrom = $rangeStr ?: '';
+        $this->updatedDateFrom();
+    }
+
+    private function setSelectedDate(Carbon $date): void
+    {
+        $this->dateFrom = $date->copy()->startOfDay()->toDateString();
+        $this->syncDateRange();
+    }
+
+    private function syncDateRange(): void
+    {
+        $selectedDate = $this->getSelectedDate();
+
+        $this->dateFrom = $selectedDate->toDateString();
+        $this->dateTo = $this->dayView === 'today'
+            ? $selectedDate->toDateString()
+            : $selectedDate->copy()->startOfWeek(Carbon::MONDAY)->addDays(6)->toDateString();
     }
 
     #[Computed]
@@ -213,8 +267,6 @@ new #[Layout('layouts::admin')] class extends Component
     #[Computed]
     public function bookings()
     {
-        $weekStart = $this->getWeekStart();
-        $weekEnd = $weekStart->copy()->addDays(6);
         $bookingTable = (new PtBooking)->getTable();
 
         $sessionNumber = PtBooking::query()
@@ -233,9 +285,17 @@ new #[Layout('layouts::admin')] class extends Component
         $query = PtBooking::with(['member', 'pt', 'membership.ptPackage', 'membership.members', 'cancelledBy'])
             ->addSelect(['session_number' => $sessionNumber])
             ->withCasts(['session_number' => 'integer'])
-            ->whereBetween('booking_date', [$weekStart->format('Y-m-d'), $weekEnd->format('Y-m-d')])
             ->orderBy('booking_date')
             ->orderBy('booking_time');
+
+        if ($this->dayView === 'today') {
+            $query->whereDate('booking_date', $this->getSelectedDate()->toDateString());
+        } else {
+            $weekStart = $this->getWeekStart();
+            $weekEnd = $weekStart->copy()->addDays(6);
+
+            $query->whereBetween('booking_date', [$weekStart->toDateString(), $weekEnd->toDateString()]);
+        }
 
         if (! empty($this->search)) {
             $search = '%'.$this->search.'%';
@@ -290,13 +350,12 @@ new #[Layout('layouts::admin')] class extends Component
         ];
     }
 
-    public function getBookingsForSlot(string $day, int $hour)
+    public function getBookingsForSlot(Carbon $date, int $hour)
     {
-        return $this->bookings->filter(function ($booking) use ($day, $hour) {
-            $bookingDay = strtolower($booking->booking_date->locale('id')->isoFormat('dddd'));
+        return $this->bookings->filter(function ($booking) use ($date, $hour) {
             $bookingHour = (int) $booking->booking_time->format('H');
 
-            return $bookingDay === $day && $bookingHour === $hour;
+            return $booking->booking_date->isSameDay($date) && $bookingHour === $hour;
         });
     }
 
@@ -550,12 +609,12 @@ new #[Layout('layouts::admin')] class extends Component
         session()->flash('success', 'Booking berhasil direstore. Sesi PT dikembalikan.');
     }
 
-    public function clearFilters()
+    public function clearFilters(): void
     {
         $this->search = '';
         $this->statusFilter = '';
         $this->ptFilter = '';
-        $this->thisWeek();
+        $this->setSelectedDate(now());
     }
 
     public function updatedInsertMembershipId()
@@ -976,37 +1035,35 @@ new #[Layout('layouts::admin')] class extends Component
 
         <div class="p-4 border-t border-default-medium flex flex-col md:flex-row items-center justify-between gap-4">
             <div class="flex w-full flex-wrap items-center gap-2 md:w-auto">
-                <button wire:click="previousWeek" x-on:click="showAllDays" class="inline-flex items-center gap-1 px-3 py-2 text-sm font-medium text-body bg-neutral-secondary-medium border border-default-medium rounded hover:bg-neutral-secondary-dark transition-colors">
+                <button wire:click="previousDay" x-on:click="dayView = 'today'" x-show="dayView === 'today'" class="inline-flex items-center gap-1 px-3 py-2 text-sm font-medium text-body bg-neutral-secondary-medium border border-default-medium rounded hover:bg-neutral-secondary-dark transition-colors sm:hidden">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                    Kemarin
+                </button>
+                <button wire:click="today" x-on:click="dayView = 'today'" x-show="dayView === 'today'" class="inline-flex items-center gap-1 px-3 py-2 text-sm font-medium text-white bg-brand border border-brand rounded hover:bg-brand-dark transition-colors sm:hidden">
+                    Hari Ini
+                </button>
+                <button wire:click="nextDay" x-on:click="dayView = 'today'" x-show="dayView === 'today'" class="inline-flex items-center gap-1 px-3 py-2 text-sm font-medium text-body bg-neutral-secondary-medium border border-default-medium rounded hover:bg-neutral-secondary-dark transition-colors sm:hidden">
+                    Besok
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                </button>
+                <button wire:click="previousWeek" x-on:click="dayView = 'all'" x-show="dayView === 'all'" class="hidden items-center gap-1 px-3 py-2 text-sm font-medium text-body bg-neutral-secondary-medium border border-default-medium rounded hover:bg-neutral-secondary-dark transition-colors sm:inline-flex">
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
                     Minggu Lalu
                 </button>
-                <button wire:click="thisWeek" class="inline-flex items-center gap-1 px-3 py-2 text-sm font-medium text-white bg-brand border border-brand rounded hover:bg-brand-dark transition-colors">
+                <button wire:click="thisWeek" x-on:click="dayView = 'all'" x-show="dayView === 'all'" class="hidden items-center gap-1 px-3 py-2 text-sm font-medium text-white bg-brand border border-brand rounded hover:bg-brand-dark transition-colors sm:inline-flex">
                     Minggu Ini
                 </button>
-                <button wire:click="nextWeek" x-on:click="showAllDays" class="inline-flex items-center gap-1 px-3 py-2 text-sm font-medium text-body bg-neutral-secondary-medium border border-default-medium rounded hover:bg-neutral-secondary-dark transition-colors">
+                <button wire:click="nextWeek" x-on:click="dayView = 'all'" x-show="dayView === 'all'" class="hidden items-center gap-1 px-3 py-2 text-sm font-medium text-body bg-neutral-secondary-medium border border-default-medium rounded hover:bg-neutral-secondary-dark transition-colors sm:inline-flex">
                     Minggu Depan
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
                 </button>
-                <input type="date" wire:model.live.debounce.300ms="dateFrom"
-                    x-on:change="showAllDays"
+                <input type="date" wire:model.change.live="dateFrom"
+                    x-on:change="selectDate"
                     class="px-3 py-2 text-sm font-medium text-heading bg-neutral-secondary-medium border border-default-medium rounded focus:ring-brand focus:border-brand shadow-xs"
-                    title="Pilih tanggal untuk loncat ke minggu tersebut">
+                    title="Pilih tanggal jadwal">
             </div>
-            <div class="flex w-full flex-col items-center gap-2 sm:flex-row sm:justify-between md:w-auto md:justify-end">
-                <div class="inline-flex overflow-hidden rounded border border-default-medium bg-neutral-secondary-medium shadow-xs"
-                    role="group" aria-label="Filter hari jadwal">
-                    <button type="button" wire:click="thisWeek" x-on:click="showToday"
-                        x-bind:aria-pressed="dayView === 'today'"
-                        class="px-3 py-2 text-sm font-medium text-body transition-colors hover:bg-neutral-secondary-dark aria-pressed:bg-brand aria-pressed:text-heading">
-                        Today
-                    </button>
-                    <button type="button" x-on:click="showAllDays"
-                        x-bind:aria-pressed="dayView === 'all'"
-                        class="border-l border-default-medium px-3 py-2 text-sm font-medium text-body transition-colors hover:bg-neutral-secondary-dark aria-pressed:bg-brand aria-pressed:text-heading">
-                        All Day
-                    </button>
-                </div>
-                <span class="text-sm font-medium text-heading">
+            <div class="hidden w-full items-center justify-center sm:flex md:w-auto md:justify-end">
+                <span x-show="dayView === 'all'" class="text-sm font-medium text-heading">
                     {{ $this->getWeekStart()->locale('id')->isoFormat('D MMM YYYY') }} - {{ $this->getWeekStart()->copy()->addDays(6)->locale('id')->isoFormat('D MMM YYYY') }}
                 </span>
             </div>
@@ -1014,6 +1071,7 @@ new #[Layout('layouts::admin')] class extends Component
 
         <div class="overflow-hidden">
             @php
+                $selectedDate = $this->getSelectedDate();
                 $weekStart = $this->getWeekStart();
                 $dayLabels = $this->daysOfWeek();
             @endphp
@@ -1022,7 +1080,7 @@ new #[Layout('layouts::admin')] class extends Component
                 class="table-fixed w-full text-sm text-left text-body border-collapse">
                 <caption data-booking-schedule-today-header x-show="dayView === 'today'"
                     class="text-left text-sm font-semibold text-heading sm:hidden">
-                    {{ now()->locale('id')->isoFormat('dddd, D MMMM YYYY') }}
+                    {{ $this->getSelectedDate()->locale('id')->isoFormat('dddd, D MMMM YYYY') }}
                 </caption>
                 <thead class="text-sm text-body bg-neutral-secondary-medium border-b border-default-medium">
                     <tr>
@@ -1031,9 +1089,8 @@ new #[Layout('layouts::admin')] class extends Component
                             @php
                                 $dayDate = $weekStart->copy()->addDays($loop->index);
                             @endphp
-                            <th scope="col" data-today="{{ $dayDate->isToday() ? 'true' : 'false' }}"
-                                x-show="isDayVisible($el.dataset.today)"
-                                class="px-4 py-3 font-medium text-center border-r border-default-medium">
+                            <th scope="col" data-date="{{ $dayDate->toDateString() }}"
+                                class="{{ $dayDate->isSameDay($selectedDate) ? '' : 'hidden sm:table-cell' }} px-4 py-3 font-medium text-center border-r border-default-medium">
                                 {{ $dayName }}
                                 <div class="text-xs font-normal text-body mt-0.5">
                                     {{ $dayDate->locale('id')->isoFormat('D MMM') }}
@@ -1050,11 +1107,11 @@ new #[Layout('layouts::admin')] class extends Component
                             </td>
                             @foreach(array_keys($dayLabels) as $dayKey)
                                 @php
-                                    $slotBookings = $this->getBookingsForSlot($dayKey, $slot['hour']);
+                                    $dayDate = $weekStart->copy()->addDays($loop->index);
+                                    $slotBookings = $this->getBookingsForSlot($dayDate, $slot['hour']);
                                 @endphp
-                                <td data-today="{{ $weekStart->copy()->addDays($loop->index)->isToday() ? 'true' : 'false' }}"
-                                    x-show="isDayVisible($el.dataset.today)"
-                                    class="min-w-0 max-w-full overflow-hidden px-2 py-2 border-r border-default align-top">
+                                <td data-date="{{ $dayDate->toDateString() }}"
+                                    class="{{ $dayDate->isSameDay($selectedDate) ? '' : 'hidden sm:table-cell' }} min-w-0 max-w-full overflow-hidden px-2 py-2 border-r border-default align-top">
                                     <div class="flex w-full min-w-0 max-w-full flex-col gap-1.5">
                                         @foreach($slotBookings as $booking)
                                             <div wire:key="booking-{{ $booking->id }}"
