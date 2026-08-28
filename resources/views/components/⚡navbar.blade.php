@@ -54,10 +54,6 @@ new class extends Component {
     class="inline-flex items-center w-full p-2 hover:bg-neutral-tertiary-medium hover:text-heading rounded">Dashboard</a>
                         </li>
                         <li>
-                            <a href="{{ route('profile.edit') }}" wire:navigate
-                                class="inline-flex items-center w-full p-2 hover:bg-neutral-tertiary-medium hover:text-heading rounded">Profil</a>
-                        </li>
-                        <li>
                             <button type="button" wire:click="logout" wire:loading.attr="disabled" wire:target="logout"
                                 class="inline-flex items-center w-full p-2 hover:bg-neutral-tertiary-medium hover:text-heading rounded disabled:opacity-50 disabled:cursor-not-allowed">
                                 <span wire:loading.remove wire:target="logout">Sign out</span>

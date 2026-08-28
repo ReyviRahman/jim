@@ -45,9 +45,6 @@ Route::middleware('guest')->group(function () {
 // --- HALAMAN YANG BUTUH LOGIN (AUTH) ---
 Route::middleware('auth')->group(function () {
 
-    Route::livewire('/dashboard/profile', 'pages::dashboard.profile')
-        ->name('profile.edit');
-
     // GROUP 1: KHUSUS MEMBER
     // Middleware: harus login DAN role = member
     Route::middleware('role:member')->prefix('dashboard/member')->group(function () {

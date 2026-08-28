@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Features\SupportTesting\Testable;
 use Livewire\Livewire;
@@ -15,30 +16,26 @@ class ProfileManagementTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_guest_is_redirected_to_login(): void
+    public function test_profile_page_route_is_removed_for_guests_and_authenticated_users(): void
     {
-        $this->get(route('profile.edit'))
-            ->assertRedirect(route('login'));
+        $this->assertFalse(Route::has('profile.edit'));
+        $this->get('/dashboard/profile')->assertNotFound();
+
+        $user = $this->createProfileUser();
+
+        $this->actingAs($user)
+            ->get('/dashboard/profile')
+            ->assertNotFound();
     }
 
-    public function test_profile_uses_the_dashboard_layout_for_each_authenticated_role(): void
+    public function test_profile_component_remains_renderable_for_internal_coverage(): void
     {
-        $cases = [
-            ['role' => 'member', 'route' => 'member.dashboard'],
-            ['role' => 'pt', 'route' => 'pt.absensi'],
-            ['role' => 'admin', 'route' => 'admin.dashboard'],
-            ['role' => 'kasir_gym', 'route' => 'admin.dashboard'],
-            ['role' => 'kasir_minum', 'route' => 'admin.beverages.index'],
-        ];
+        foreach (['member', 'pt', 'admin', 'kasir_gym', 'kasir_minum'] as $role) {
+            $user = $this->createProfileUser(['role' => $role]);
 
-        foreach ($cases as $case) {
-            $user = $this->createProfileUser(['role' => $case['role']]);
-
-            $this->actingAs($user)
-                ->get(route('profile.edit'))
-                ->assertOk()
-                ->assertSee('Profil Saya')
-                ->assertSee(route($case['route']), false);
+            Livewire::actingAs($user)
+                ->test('pages::dashboard.profile')
+                ->assertSee('Profil Saya');
         }
 
         $headCoach = $this->createProfileUser([
@@ -46,26 +43,31 @@ class ProfileManagementTest extends TestCase
             'role' => 'pt',
         ]);
 
-        $this->actingAs($headCoach)
-            ->get(route('profile.edit'))
-            ->assertOk()
-            ->assertSee(route('admin.cicilan.index'), false);
+        Livewire::actingAs($headCoach)
+            ->test('pages::dashboard.profile')
+            ->assertSee('Profil Saya');
     }
 
-    public function test_both_navbars_show_the_profile_link_and_public_avatar_fallback(): void
+    public function test_both_navbars_hide_the_removed_profile_link_for_every_role(): void
     {
-        $user = $this->createProfileUser(['photo' => null]);
+        foreach (['member', 'pt', 'admin', 'kasir_gym', 'kasir_minum', 'sales', 'head_coach'] as $role) {
+            $user = $this->createProfileUser([
+                'name' => 'Pengguna '.$role,
+                'photo' => null,
+                'role' => $role,
+            ]);
 
-        Livewire::actingAs($user)
-            ->test('dashboard.navbar')
-            ->assertSee('Profil')
-            ->assertSee(route('profile.edit'), false);
+            Livewire::actingAs($user)
+                ->test('dashboard.navbar')
+                ->assertDontSee('Profil')
+                ->assertDontSee('/dashboard/profile', false);
 
-        Livewire::actingAs($user)
-            ->test('navbar')
-            ->assertSee('Profil')
-            ->assertSee(route('profile.edit'), false)
-            ->assertSee('ui-avatars.com/api/?name=', false);
+            Livewire::actingAs($user)
+                ->test('navbar')
+                ->assertDontSee('Profil')
+                ->assertDontSee('/dashboard/profile', false)
+                ->assertSee('ui-avatars.com/api/?name=', false);
+        }
     }
 
     public function test_dashboard_navbar_refreshes_after_profile_updated_event(): void
