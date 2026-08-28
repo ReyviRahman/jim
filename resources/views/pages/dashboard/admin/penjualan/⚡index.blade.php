@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Admin;
 
+use App\Actions\StoreCompressedPaymentProof;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Livewire\Attributes\Computed;
@@ -19,7 +20,6 @@ use Illuminate\Support\Number;
 use Illuminate\Support\Str;
 use Illuminate\Support\Uri;
 use App\Models\User;
-use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Livewire\WithFileUploads;
 
 new #[Layout('layouts::admin')] class extends Component
@@ -62,17 +62,6 @@ new #[Layout('layouts::admin')] class extends Component
             'extensions:jpg,jpeg,png,webp',
             'max:10240',
         ];
-    }
-
-    private function storePaymentProof(TemporaryUploadedFile $proof): string
-    {
-        $path = $proof->store('membership-payment-proofs/'.now()->format('Y/m'), 'public');
-
-        if (! $path) {
-            throw new \RuntimeException('Bukti pembayaran gagal disimpan.');
-        }
-
-        return $path;
     }
 
     public function mount()
@@ -155,7 +144,7 @@ new #[Layout('layouts::admin')] class extends Component
         return User::where('role', 'kasir_gym')->get(); 
     }
 
-    public function saveIncome()
+    public function saveIncome(StoreCompressedPaymentProof $storeCompressedPaymentProof)
     {
         $rules = [
             'selectedUserId' => 'required',
@@ -183,7 +172,7 @@ new #[Layout('layouts::admin')] class extends Component
             DB::beginTransaction();
 
             if ($this->incomePaymentMethod !== 'cash') {
-                $storedProofPath = $this->storePaymentProof($this->incomePaymentProof);
+                $storedProofPath = $storeCompressedPaymentProof->execute($this->incomePaymentProof);
             }
 
             MembershipTransaction::create([

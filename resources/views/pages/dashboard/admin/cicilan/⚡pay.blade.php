@@ -1,5 +1,6 @@
 <?php
 
+use App\Actions\StoreCompressedPaymentProof;
 use App\Actions\StoreCompressedProfilePhoto;
 use App\Livewire\Concerns\HandlesRequiredMemberProfilePhotos;
 use App\Models\Membership;
@@ -12,7 +13,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Database\Eloquent\Collection;
 use Carbon\Carbon;
-use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Livewire\WithFileUploads;
 
 new #[Layout('layouts::admin')] class extends Component
@@ -65,17 +65,6 @@ new #[Layout('layouts::admin')] class extends Component
         ];
     }
 
-    private function storePaymentProof(TemporaryUploadedFile $proof): string
-    {
-        $path = $proof->store('membership-payment-proofs/'.now()->format('Y/m'), 'public');
-
-        if (! $path) {
-            throw new \RuntimeException('Bukti pembayaran gagal disimpan.');
-        }
-
-        return $path;
-    }
-
     protected function memberProfileUsers(): Collection
     {
         return $this->profileMembers;
@@ -125,7 +114,10 @@ new #[Layout('layouts::admin')] class extends Component
         return $this->membership->price_paid - $this->membership->total_paid;
     }
 
-    public function save(StoreCompressedProfilePhoto $storeCompressedProfilePhoto)
+    public function save(
+        StoreCompressedProfilePhoto $storeCompressedProfilePhoto,
+        StoreCompressedPaymentProof $storeCompressedPaymentProof,
+    )
     {
         $this->validateRequiredMemberProfilePhotos();
 
@@ -229,7 +221,7 @@ new #[Layout('layouts::admin')] class extends Component
                         $paymentProofPath = null;
 
                         if ($method !== 'cash') {
-                            $paymentProofPath = $this->storePaymentProof($this->split_payment_proofs[$method]);
+                            $paymentProofPath = $storeCompressedPaymentProof->execute($this->split_payment_proofs[$method]);
                             $storedProofPaths[] = $paymentProofPath;
                         }
 
@@ -257,7 +249,7 @@ new #[Layout('layouts::admin')] class extends Component
                 $paymentProofPath = null;
 
                 if ($this->payment_method !== 'cash') {
-                    $paymentProofPath = $this->storePaymentProof($this->payment_proof);
+                    $paymentProofPath = $storeCompressedPaymentProof->execute($this->payment_proof);
                     $storedProofPaths[] = $paymentProofPath;
                 }
 

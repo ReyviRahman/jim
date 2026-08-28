@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Admin;
 
+use App\Actions\StoreCompressedPaymentProof;
 use App\Models\GymPackage;
 use App\Models\Membership as MembershipModel;
 use App\Models\MembershipTransaction;
@@ -131,17 +132,6 @@ new #[Layout('layouts::admin')] class extends Component
             'extensions:jpg,jpeg,png,webp',
             'max:10240',
         ];
-    }
-
-    private function storePaymentProof(TemporaryUploadedFile $proof): string
-    {
-        $path = $proof->store('membership-payment-proofs/'.now()->format('Y/m'), 'public');
-
-        if (! $path) {
-            throw new \RuntimeException('Bukti pembayaran gagal disimpan.');
-        }
-
-        return $path;
     }
 
     public function mount($id)
@@ -514,7 +504,7 @@ new #[Layout('layouts::admin')] class extends Component
         return Carbon::parse($date)->translatedFormat('l, d F Y');
     }
 
-    public function save()
+    public function save(StoreCompressedPaymentProof $storeCompressedPaymentProof)
     {
         $this->admin_fee = blank($this->admin_fee) ? 0 : $this->admin_fee;
 
@@ -674,7 +664,7 @@ new #[Layout('layouts::admin')] class extends Component
 
                     $paymentProofPath = null;
                 } elseif ($newPaymentProof instanceof TemporaryUploadedFile) {
-                    $newPaymentProofPath = $this->storePaymentProof($newPaymentProof);
+                    $newPaymentProofPath = $storeCompressedPaymentProof->execute($newPaymentProof);
                     $storedProofPaths[] = $newPaymentProofPath;
 
                     if ($paymentProofPath) {

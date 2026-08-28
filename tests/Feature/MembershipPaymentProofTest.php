@@ -52,14 +52,14 @@ class MembershipPaymentProofTest extends TestCase
         $this->assertDatabaseCount('membership_transactions', 0);
     }
 
-    public function test_package_valid_non_cash_proof_is_stored_and_recorded(): void
+    public function test_package_valid_non_cash_proof_is_compressed_to_webp_and_recorded(): void
     {
         Storage::fake('public');
         [$member, $cashier, $package] = $this->packageActors();
 
         $this->packageForm($member, $cashier, $package)
             ->set('payment_method', 'transfer')
-            ->set('payment_proof', UploadedFile::fake()->image('transfer-proof.jpg'))
+            ->set('payment_proof', UploadedFile::fake()->image('transfer-proof.jpg', 2400, 1800))
             ->call('save')
             ->assertHasNoErrors();
 
@@ -68,7 +68,15 @@ class MembershipPaymentProofTest extends TestCase
         $this->assertSame('transfer', $transaction->payment_method);
         $this->assertNotNull($transaction->payment_proof_path);
         $this->assertStringStartsWith('membership-payment-proofs/'.now()->format('Y/m').'/', $transaction->payment_proof_path);
+        $this->assertStringEndsWith('.webp', $transaction->payment_proof_path);
         Storage::disk('public')->assertExists($transaction->payment_proof_path);
+
+        $imageInfo = getimagesize(Storage::disk('public')->path($transaction->payment_proof_path));
+
+        $this->assertIsArray($imageInfo);
+        $this->assertLessThanOrEqual(1600, $imageInfo[0]);
+        $this->assertLessThanOrEqual(1600, $imageInfo[1]);
+        $this->assertSame(IMAGETYPE_WEBP, $imageInfo[2]);
     }
 
     public function test_payment_proof_rejects_non_images_forbidden_extensions_and_files_over_ten_megabytes(): void
