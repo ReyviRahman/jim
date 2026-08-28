@@ -607,6 +607,7 @@ class MembershipPaymentProofTest extends TestCase
         return User::factory()->create([
             'role' => 'member',
             'is_active' => true,
+            'photo' => 'profile-photos/existing.webp',
             'age' => 25,
             'gender' => 'Perempuan',
             'phone' => fake()->unique()->numerify('08##########'),

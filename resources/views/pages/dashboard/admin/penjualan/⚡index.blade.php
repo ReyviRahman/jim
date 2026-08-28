@@ -825,15 +825,51 @@ new #[Layout('layouts::admin')] class extends Component
                                 {{-- Cek apakah transaksi punya relasi membership dan ada anggotanya --}}
                                 @if($transaction->membership && $transaction->membership->members->count() > 0)
                                     @foreach($transaction->membership->members as $member)
-                                        <div class="font-bold text-gray-800">
-                                            {{ $member->name }}
+                                        <div class="flex items-center gap-2 font-bold text-gray-800">
+                                            @if($member->photo)
+                                                <a
+                                                    href="{{ asset('storage/'.$member->photo) }}"
+                                                    data-testid="sales-profile-photo-link-{{ $transaction->id }}-{{ $member->id }}"
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    title="Lihat foto profil {{ $member->name }}"
+                                                    aria-label="Lihat foto profil {{ $member->name }} di tab baru"
+                                                    class="shrink-0 rounded-full focus:outline-none focus:ring-4 focus:ring-blue-200"
+                                                >
+                                                    <img class="h-8 w-8 rounded-full border border-gray-200 object-cover" src="{{ asset('storage/'.$member->photo) }}" alt="Foto profil {{ $member->name }}">
+                                                </a>
+                                            @else
+                                                <img class="h-8 w-8 shrink-0 rounded-full border border-gray-200 object-cover" src="https://ui-avatars.com/api/?name={{ urlencode($member->name) }}&background=random" alt="Avatar {{ $member->name }}">
+                                            @endif
+
+                                            <span>{{ $member->name }}</span>
                                         </div>
                                     @endforeach
                                 @else
                                     {{-- Fallback: Jika tidak ada di pivot, tampilkan nama pembayar saja --}}
-                                    <div class="font-bold text-gray-800">
-                                        {{ $transaction->user->name ?? 'User Terhapus' }}
-                                    </div>
+                                    @if($transaction->user)
+                                        <div class="flex items-center gap-2 font-bold text-gray-800">
+                                            @if($transaction->user->photo)
+                                                <a
+                                                    href="{{ asset('storage/'.$transaction->user->photo) }}"
+                                                    data-testid="sales-profile-photo-link-{{ $transaction->id }}-{{ $transaction->user->id }}"
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    title="Lihat foto profil {{ $transaction->user->name }}"
+                                                    aria-label="Lihat foto profil {{ $transaction->user->name }} di tab baru"
+                                                    class="shrink-0 rounded-full focus:outline-none focus:ring-4 focus:ring-blue-200"
+                                                >
+                                                    <img class="h-8 w-8 rounded-full border border-gray-200 object-cover" src="{{ asset('storage/'.$transaction->user->photo) }}" alt="Foto profil {{ $transaction->user->name }}">
+                                                </a>
+                                            @else
+                                                <img class="h-8 w-8 shrink-0 rounded-full border border-gray-200 object-cover" src="https://ui-avatars.com/api/?name={{ urlencode($transaction->user->name) }}&background=random" alt="Avatar {{ $transaction->user->name }}">
+                                            @endif
+
+                                            <span>{{ $transaction->user->name }}</span>
+                                        </div>
+                                    @else
+                                        <div class="font-bold text-gray-800">User Terhapus</div>
+                                    @endif
                                 @endif
                             </div>
                         </td>

@@ -2,6 +2,8 @@
 
 namespace App\Livewire\Admin\Membership;
 
+use App\Actions\StoreCompressedProfilePhoto;
+use App\Livewire\Concerns\HandlesRequiredMemberProfilePhotos;
 use Livewire\Component;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Computed;
@@ -13,11 +15,13 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Database\Eloquent\Collection;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Livewire\WithFileUploads;
 
 new #[Layout('layouts::admin')] class extends Component
 {
+    use HandlesRequiredMemberProfilePhotos;
     use WithFileUploads;
 
     public MembershipModel $oldMembership;
@@ -90,6 +94,11 @@ new #[Layout('layouts::admin')] class extends Component
         }
 
         return $path;
+    }
+
+    protected function memberProfileUsers(): Collection
+    {
+        return $this->selectedUsers;
     }
 
     public function mount($id)
@@ -299,8 +308,10 @@ new #[Layout('layouts::admin')] class extends Component
         return Carbon::parse($date)->translatedFormat('l, d F Y');
     }
 
-    public function save()
+    public function save(StoreCompressedProfilePhoto $storeCompressedProfilePhoto)
     {
+        $this->validateRequiredMemberProfilePhotos();
+
         $this->admin_fee = blank($this->admin_fee) ? 0 : $this->admin_fee;
 
         if (!$this->registration_type) {
@@ -382,9 +393,12 @@ new #[Layout('layouts::admin')] class extends Component
         }
 
         $storedProofPaths = [];
+        $storedProfilePhotoPaths = [];
 
         try {
             DB::beginTransaction();
+
+            $storedProfilePhotoPaths = $this->storeRequiredMemberProfilePhotos($storeCompressedProfilePhoto);
 
             // 1. BUAT KONTRAK MEMBERSHIP BARU (BUKAN UPDATE YANG LAMA)
             if ($this->registration_type === 'pt') {
@@ -480,6 +494,7 @@ new #[Layout('layouts::admin')] class extends Component
         } catch (\Throwable $e) {
             DB::rollBack();
             Storage::disk('public')->delete($storedProofPaths);
+            Storage::disk('public')->delete($storedProfilePhotoPaths);
             session()->flash('error', 'Terjadi kesalahan sistem saat memperpanjang paket: ' . $e->getMessage());
         }
     }
@@ -521,29 +536,7 @@ new #[Layout('layouts::admin')] class extends Component
         {{-- KOLOM KIRI: Form Input --}}
         <div class="lg:col-span-2 space-y-6">
             
-            {{-- Kartu Profil Singkat User --}}
-            <div class="p-4 shadow-xs rounded-md border border-brand-medium">
-                <div class="flex justify-between items-start mb-3 pb-2 border-b border-brand-medium/30">
-                    <h6 class="text-sm font-semibold text-brand-strong">Member yang Diperpanjang:</h6>
-                </div>
-                <div class="space-y-4">
-                    @foreach($selectedUsers as $index => $u)
-                        <div class="flex items-center">
-                            @if($u->photo)
-                                <img class="w-12 h-12 rounded-full object-cover border-2 border-white" src="{{ asset('storage/' . $u->photo) }}" alt="{{ $u->name }}">
-                            @else
-                                <img class="w-12 h-12 rounded-full object-cover border-2 border-white" src="https://ui-avatars.com/api/?name={{ urlencode($u->name) }}&background=random" alt="{{ $u->name }}">
-                            @endif
-                            <div class="ps-4">
-                                <div class="text-lg font-semibold text-heading flex items-center gap-2">
-                                    {{ $u->name }} @if($u->id == $mainUser->id) @endif
-                                </div>
-                                <div class="text-sm text-brand-strong">{{ $u->email }}</div>
-                            </div>  
-                        </div>
-                    @endforeach
-                </div>
-            </div>
+            <x-member-profile-photo-requirements :members="$selectedUsers" :photos="$memberPhotos" />
 
             <div class="bg-white p-6 shadow-xs rounded-md border border-default">
                 

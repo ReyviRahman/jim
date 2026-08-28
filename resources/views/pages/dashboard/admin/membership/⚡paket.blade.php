@@ -2,6 +2,8 @@
 
 namespace App\Livewire\Admin; 
 
+use App\Actions\StoreCompressedProfilePhoto;
+use App\Livewire\Concerns\HandlesRequiredMemberProfilePhotos;
 use Livewire\Component;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Computed;
@@ -13,11 +15,13 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Database\Eloquent\Collection;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Livewire\WithFileUploads;
 
 new #[Layout('layouts::admin')] class extends Component
 {
+    use HandlesRequiredMemberProfilePhotos;
     use WithFileUploads;
 
     public $selectedUsers; 
@@ -105,6 +109,11 @@ new #[Layout('layouts::admin')] class extends Component
         }
 
         return $path;
+    }
+
+    protected function memberProfileUsers(): Collection
+    {
+        return $this->selectedUsers;
     }
 
     public function mount()
@@ -351,8 +360,10 @@ new #[Layout('layouts::admin')] class extends Component
         return Carbon::parse($date)->translatedFormat('l, d F Y');
     }
 
-    public function save()
+    public function save(StoreCompressedProfilePhoto $storeCompressedProfilePhoto)
     {
+        $this->validateRequiredMemberProfilePhotos();
+
         $this->admin_fee = blank($this->admin_fee) ? 0 : $this->admin_fee;
 
         if (!$this->registration_type) {
@@ -455,10 +466,13 @@ new #[Layout('layouts::admin')] class extends Component
         }
 
         $storedProofPaths = [];
+        $storedProfilePhotoPaths = [];
 
         // 👇 MULAI DATABASE TRANSACTION DI SINI 👇
         try {
             DB::beginTransaction();
+
+            $storedProfilePhotoPaths = $this->storeRequiredMemberProfilePhotos($storeCompressedProfilePhoto);
 
             // 1. BUAT KONTRAK MEMBERSHIP
             $membership = MembershipModel::create([
@@ -579,6 +593,7 @@ new #[Layout('layouts::admin')] class extends Component
             // Jika ada gagal/error/putus di tengah jalan, batalkan semua insert data
             DB::rollBack();
             Storage::disk('public')->delete($storedProofPaths);
+            Storage::disk('public')->delete($storedProfilePhotoPaths);
             
             // Tampilkan pesan error ke layar agar kasir tahu
             session()->flash('error', 'Terjadi kesalahan sistem saat memproses transaksi: ' . $e->getMessage());
@@ -695,34 +710,14 @@ new #[Layout('layouts::admin')] class extends Component
         </div>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <form wire:submit="save" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {{-- KOLOM KIRI: Form Input --}}
         <div class="lg:col-span-2 space-y-6">
             
-            {{-- Kartu Profil Singkat User --}}
-            <div class="p-4 bg-neutral-primary-soft shadow-xs rounded-md border border-default">
-                <h6 class="text-sm font-semibold text-heading mb-3 pb-2 border-b border-default-medium">Member yang Didaftarkan:</h6>
-                <div class="space-y-4">
-                    @foreach($selectedUsers as $index => $u)
-                        <div class="flex items-center">
-                            @if($u->photo)
-                                <img class="w-12 h-12 rounded-full object-cover" src="{{ asset('storage/' . $u->photo) }}" alt="{{ $u->name }}">
-                            @else
-                                <img class="w-12 h-12 rounded-full object-cover" src="https://ui-avatars.com/api/?name={{ urlencode($u->name) }}&background=random" alt="{{ $u->name }}">
-                            @endif
-                            <div class="ps-4">
-                                <div class="text-lg font-semibold text-heading flex items-center gap-2">
-                                    {{ $u->name }}
-                                </div>
-                                <div class="text-sm text-body">{{ $u->email }} • {{ $u->occupation ?? 'Member' }}</div>
-                            </div>  
-                        </div>
-                    @endforeach
-                </div>
-            </div>
+            <x-member-profile-photo-requirements :members="$selectedUsers" :photos="$memberPhotos" />
 
-            <form wire:submit="save" class="bg-white p-6 shadow-xs rounded-md border border-default">
+            <div class="bg-white p-6 shadow-xs rounded-md border border-default">
                 
                 <div class="grid gap-6 mb-6 md:grid-cols-2">
                     
@@ -906,7 +901,7 @@ new #[Layout('layouts::admin')] class extends Component
                     @endif
 
                 </div>
-            </form>
+            </div>
         </div>
 
         {{-- KOLOM KANAN: Ringkasan & Pembayaran Kasir --}}
@@ -1247,8 +1242,7 @@ new #[Layout('layouts::admin')] class extends Component
                 @endif
 
                 <button 
-                    type="button" 
-                    wire:click="save"
+                    type="submit"
                     class="w-full text-center text-white bg-brand hover:bg-brand-strong focus:ring-4 focus:ring-brand-medium font-medium rounded-md text-sm px-4 py-3 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     wire:loading.attr="disabled"
                 >
@@ -1258,5 +1252,5 @@ new #[Layout('layouts::admin')] class extends Component
             </div>
         </div>
 
-    </div>
+    </form>
 </div>

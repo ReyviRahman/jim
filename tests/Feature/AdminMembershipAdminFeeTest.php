@@ -249,6 +249,7 @@ class AdminMembershipAdminFeeTest extends TestCase
     private function createUser(): User
     {
         return User::factory()->create([
+            'photo' => 'profile-photos/existing.webp',
             'age' => 30,
             'gender' => 'Laki-laki',
             'phone' => fake()->unique()->numerify('08##########'),

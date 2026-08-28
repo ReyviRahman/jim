@@ -1,5 +1,7 @@
 <?php
 
+use App\Actions\StoreCompressedProfilePhoto;
+use App\Livewire\Concerns\HandlesRequiredMemberProfilePhotos;
 use App\Models\Membership;
 use App\Models\MembershipTransaction;
 use Livewire\Component;
@@ -8,12 +10,14 @@ use Livewire\Attributes\Computed;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Database\Eloquent\Collection;
 use Carbon\Carbon;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Livewire\WithFileUploads;
 
 new #[Layout('layouts::admin')] class extends Component
 {
+    use HandlesRequiredMemberProfilePhotos;
     use WithFileUploads;
 
     public Membership $membership;
@@ -72,10 +76,28 @@ new #[Layout('layouts::admin')] class extends Component
         return $path;
     }
 
+    protected function memberProfileUsers(): Collection
+    {
+        return $this->profileMembers;
+    }
+
+    #[Computed]
+    public function profileMembers(): Collection
+    {
+        return new Collection(
+            $this->membership->members
+                ->concat([$this->membership->user])
+                ->filter()
+                ->unique('id')
+                ->values()
+                ->all(),
+        );
+    }
+
     public function mount(Membership $membership)
     {
         // Load relasi yang dibutuhkan
-        $this->membership = $membership->load(['user', 'gymPackage', 'ptPackage', 'transactions']);
+        $this->membership = $membership->load(['user', 'members', 'gymPackage', 'ptPackage', 'transactions']);
         
         // Pengecekan keamanan: Jika sudah lunas, lempar kembali ke halaman cicilan
         if ($this->membership->payment_status === 'paid') {
@@ -103,8 +125,10 @@ new #[Layout('layouts::admin')] class extends Component
         return $this->membership->price_paid - $this->membership->total_paid;
     }
 
-    public function save()
+    public function save(StoreCompressedProfilePhoto $storeCompressedProfilePhoto)
     {
+        $this->validateRequiredMemberProfilePhotos();
+
         $rules = [
             'amount_paid' => 'required|numeric|min:1|max:' . $this->sisaTagihan,
             'transaction_type' => 'required|string',
@@ -150,9 +174,12 @@ new #[Layout('layouts::admin')] class extends Component
         }
 
         $storedProofPaths = [];
+        $storedProfilePhotoPaths = [];
 
         try {
             DB::beginTransaction();
+
+            $storedProfilePhotoPaths = $this->storeRequiredMemberProfilePhotos($storeCompressedProfilePhoto);
 
             $newTotalPaid = $this->membership->total_paid + $this->amount_paid;
             
@@ -262,6 +289,7 @@ new #[Layout('layouts::admin')] class extends Component
         } catch (\Throwable $e) {
             DB::rollBack();
             Storage::disk('public')->delete($storedProofPaths);
+            Storage::disk('public')->delete($storedProfilePhotoPaths);
             session()->flash('error', 'Terjadi kesalahan sistem: ' . $e->getMessage());
         }
     }
@@ -412,6 +440,8 @@ new #[Layout('layouts::admin')] class extends Component
         {{-- KOLOM KANAN: Form Kasir Pembayaran Cicilan --}}
         <div>
             <form wire:submit="save" class="bg-neutral-primary-soft p-6 shadow-xs rounded-md border border-default sticky top-6">
+                <x-member-profile-photo-requirements :members="$this->profileMembers" :photos="$memberPhotos" class="mb-6" />
+
                 <h6 class="text-lg font-semibold text-heading mb-4 pb-4 border-b border-default-medium">Input Pembayaran</h6>
 
                 <div class="space-y-4 mb-6">

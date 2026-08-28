@@ -365,6 +365,54 @@ class MembershipTransactionInvoiceTest extends TestCase
             ->assertDontSeeHtml('<span>Unduh invoice</span>');
     }
 
+    public function test_sales_table_shows_clickable_profile_photos_for_members_and_payers(): void
+    {
+        $admin = $this->createActor('admin');
+        $member = $this->createUser('member', [
+            'name' => 'Member Dengan Foto',
+            'photo' => 'profile-photos/member.webp',
+        ]);
+        $membership = $this->createMembership($admin, $member);
+        $membershipTransaction = $this->createTransaction($admin, $member, $membership);
+        $payer = $this->createUser('member', [
+            'name' => 'Pembayar Dengan Foto',
+            'photo' => 'profile-photos/payer.jpg',
+        ]);
+        $payerTransaction = $this->createTransaction($admin, $payer);
+        $memberPhotoUrl = asset('storage/'.$member->photo);
+        $payerPhotoUrl = asset('storage/'.$payer->photo);
+
+        Livewire::actingAs($admin)
+            ->test('pages::dashboard.admin.penjualan.index')
+            ->assertSee('Member Dengan Foto')
+            ->assertSee('Pembayar Dengan Foto')
+            ->assertSeeHtml('data-testid="sales-profile-photo-link-'.$membershipTransaction->id.'-'.$member->id.'"')
+            ->assertSeeHtml('data-testid="sales-profile-photo-link-'.$payerTransaction->id.'-'.$payer->id.'"')
+            ->assertSeeHtml('href="'.$memberPhotoUrl.'"')
+            ->assertSeeHtml('href="'.$payerPhotoUrl.'"')
+            ->assertSeeHtml('target="_blank"')
+            ->assertSeeHtml('rel="noopener noreferrer"')
+            ->assertSeeHtml('alt="Foto profil Member Dengan Foto"')
+            ->assertSeeHtml('aria-label="Lihat foto profil Pembayar Dengan Foto di tab baru"');
+    }
+
+    public function test_sales_table_uses_a_non_clickable_initial_avatar_when_the_payer_has_no_photo(): void
+    {
+        $admin = $this->createActor('admin');
+        $payer = $this->createUser('member', [
+            'name' => 'Pembayar Tanpa Foto',
+            'photo' => null,
+        ]);
+        $transaction = $this->createTransaction($admin, $payer);
+
+        Livewire::actingAs($admin)
+            ->test('pages::dashboard.admin.penjualan.index')
+            ->assertSee('Pembayar Tanpa Foto')
+            ->assertSee('https://ui-avatars.com/api/?name=Pembayar+Tanpa+Foto&background=random', escape: false)
+            ->assertDontSeeHtml('data-testid="sales-profile-photo-link-'.$transaction->id.'-'.$payer->id.'"')
+            ->assertSeeHtml('alt="Avatar Pembayar Tanpa Foto"');
+    }
+
     /**
      * @return array<string, array{string}>
      */

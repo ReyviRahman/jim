@@ -101,6 +101,14 @@ function focusAndScrollToInvalidField(event) {
         return;
     }
 
+    if (
+        field instanceof HTMLInputElement
+        && field.validity.valueMissing
+        && field.dataset.requiredMessage
+    ) {
+        field.setCustomValidity(field.dataset.requiredMessage);
+    }
+
     requestAnimationFrame(() => {
         field.focus({ preventScroll: true });
         field.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -108,6 +116,14 @@ function focusAndScrollToInvalidField(event) {
 }
 
 document.addEventListener('invalid', focusAndScrollToInvalidField, true);
+
+document.addEventListener('input', (event) => {
+    const field = event.target;
+
+    if (field instanceof HTMLInputElement && field.matches('[data-required-message]')) {
+        field.setCustomValidity('');
+    }
+});
 
 function responsiveHeaderText(header) {
     const clone = header.cloneNode(true);
