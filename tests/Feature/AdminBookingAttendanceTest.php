@@ -717,14 +717,14 @@ class AdminBookingAttendanceTest extends TestCase
             ->assertSeeHtml($encodedDate)
             ->assertSeeHtml($encodedTime)
             ->assertSeeHtml($encodedCoach)
-            ->assertSeeHtml($encodedSession)
+            ->assertDontSeeHtml($encodedSession)
             ->assertSeeHtml('target="_blank"')
             ->assertSeeHtml('rel="noopener noreferrer"')
             ->assertSeeHtml('x-on:click.stop')
             ->assertSeeHtml('aria-label="Kirim WhatsApp ke Member Utama"')
             ->assertSeeHtml('aria-label="Kirim WhatsApp ke Member Tambahan"');
 
-        $this->assertSame(2, substr_count($component->html(), $encodedSession));
+        $this->assertSame(0, substr_count($component->html(), $encodedSession));
     }
 
     public function test_booking_cards_show_full_member_names_and_only_first_coach_name(): void
@@ -759,7 +759,7 @@ class AdminBookingAttendanceTest extends TestCase
         );
     }
 
-    public function test_booking_cards_hide_session_numbers_while_whatsapp_messages_keep_them(): void
+    public function test_booking_cards_and_whatsapp_messages_hide_session_numbers(): void
     {
         $admin = $this->createUser(['role' => 'admin']);
         $firstBooking = $this->createBooking([
@@ -784,9 +784,9 @@ class AdminBookingAttendanceTest extends TestCase
         $component = Livewire::actingAs($admin)
             ->test('pages::dashboard.admin.booking-jadwal.index')
             ->assertSee('Free')
-            ->assertSeeHtml(rawurlencode('Sesi ke-1'))
-            ->assertSeeHtml(rawurlencode('Sesi Free'))
-            ->assertSeeHtml(rawurlencode('Sesi ke-2'));
+            ->assertDontSeeHtml(rawurlencode('Sesi ke-1'))
+            ->assertDontSeeHtml(rawurlencode('Sesi Free'))
+            ->assertDontSeeHtml(rawurlencode('Sesi ke-2'));
 
         $this->assertStringNotContainsString('data-booking-card-session-number', $component->html());
     }

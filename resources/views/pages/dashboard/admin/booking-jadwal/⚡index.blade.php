@@ -111,7 +111,6 @@ new #[Layout('layouts::admin')] class extends Component
             'Tanggal: '.$booking->booking_date->locale('id')->isoFormat('dddd, D MMMM YYYY'),
             'Waktu: '.$booking->booking_time->format('H:i'),
             'Coach: '.($booking->pt?->name ?? '-'),
-            $booking->is_free ? 'Sesi Free' : 'Sesi ke-'.$booking->session_number,
             '',
             'Terima kasih.',
         ]);
