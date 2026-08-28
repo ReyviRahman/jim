@@ -167,6 +167,28 @@ class WhatsAppSalesMessagingTest extends TestCase
         );
     }
 
+    public function test_group_message_includes_payment_proof_link_only_when_available(): void
+    {
+        $admin = $this->createActor('admin');
+        $payer = $this->createPayer('Member Bukti Pembayaran', '081255551111');
+        $paymentProofPath = 'membership-payment-proofs/2026/08/bukti.webp';
+        $transactionWithProof = $this->createTransaction($admin, $payer, [
+            'payment_proof_path' => $paymentProofPath,
+        ]);
+        $transactionWithoutProof = $this->createTransaction($admin, $payer);
+
+        $html = $this->salesComponent($admin)->html();
+        $messageWithProof = $this->extractGroupMessage($html, $transactionWithProof);
+        $messageWithoutProof = $this->extractGroupMessage($html, $transactionWithoutProof);
+
+        $this->assertStringContainsString(
+            '- BUKTI PEMBAYARAN : '.asset('storage/'.$paymentProofPath),
+            $messageWithProof,
+        );
+        $this->assertStringNotContainsString('- BUKTI PEMBAYARAN :', $messageWithoutProof);
+        $this->assertStringNotContainsString(asset('storage/'.$paymentProofPath), $messageWithoutProof);
+    }
+
     #[DataProvider('serviceTypes')]
     public function test_group_message_maps_each_membership_service_type(string $membershipType, string $expectedLabel): void
     {

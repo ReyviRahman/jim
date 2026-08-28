@@ -377,6 +377,11 @@ new #[Layout('layouts::admin')] class extends Component
             filled($transaction->notes) ? trim((string) $transaction->notes) : '-',
         ];
 
+        if (filled($transaction->payment_proof_path)) {
+            $messageLines[] = '';
+            $messageLines[] = '- BUKTI PEMBAYARAN : '.asset('storage/'.$transaction->payment_proof_path);
+        }
+
         if ($transaction->membership_id !== null) {
             $messageLines[] = '';
             $messageLines[] = $transaction->membership?->status === 'active' && $transaction->membership?->is_active
