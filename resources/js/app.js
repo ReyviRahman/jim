@@ -94,6 +94,21 @@ function openWhatsAppAfterInvoiceDownload(event) {
 
 document.addEventListener('click', openWhatsAppAfterInvoiceDownload);
 
+function focusAndScrollToInvalidField(event) {
+    const field = event.target;
+
+    if (!(field instanceof HTMLElement) || !field.matches('[data-focus-on-invalid]')) {
+        return;
+    }
+
+    requestAnimationFrame(() => {
+        field.focus({ preventScroll: true });
+        field.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+}
+
+document.addEventListener('invalid', focusAndScrollToInvalidField, true);
+
 function responsiveHeaderText(header) {
     const clone = header.cloneNode(true);
 

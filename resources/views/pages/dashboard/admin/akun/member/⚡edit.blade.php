@@ -1,23 +1,23 @@
 <?php
 
-use Livewire\Component;
-use Livewire\Attributes\Validate;
-use Livewire\Attributes\Layout;
-use Livewire\WithFileUploads; // Tambahkan trait ini
+use App\Actions\StoreCompressedProfilePhoto;
 use App\Models\User;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Livewire\Attributes\Layout;
+use Livewire\Component;
+use Livewire\WithFileUploads;
 
-new #[Layout('layouts::admin')] class extends Component 
+new #[Layout('layouts::admin')] class extends Component
 {
-    use WithFileUploads; 
+    use WithFileUploads;
 
-    // Properti untuk menyimpan instance user yang sedang diedit
-    public User $user; 
+    public User $user;
 
     public $name = '';
     public $occupation = '';
     public $age = '';
-    public $gender = 'Laki-laki'; 
+    public $gender = 'Laki-laki';
     public $phone = '';
     public $medical_history = null;
     public $email = '';
@@ -25,35 +25,41 @@ new #[Layout('layouts::admin')] class extends Component
     public $photo = null;
     public $joined_at;
 
-    // Gunakan method rules() agar bisa mengecualikan email user saat ini
-    public function rules()
+    public function rules(): array
     {
         return [
-            'name' => 'required|min:3',
-            'occupation' => 'nullable|string',
-            'age' => 'required|integer|min:10',
-            'gender' => 'required|in:Laki-laki,Perempuan',
+            'name' => ['required', 'min:3'],
+            'occupation' => ['nullable', 'string'],
+            'age' => ['required', 'integer', 'min:10'],
+            'gender' => ['required', 'in:Laki-laki,Perempuan'],
             'phone' => [
-                'required', 
-                'numeric', 
-                Rule::unique('users', 'phone')->ignore($this->user->id) // Abaikan email milik user ini
+                'required',
+                'numeric',
+                Rule::unique('users', 'phone')->ignore($this->user->id),
             ],
-            'medical_history' => 'nullable|string',
+            'medical_history' => ['nullable', 'string'],
             'email' => [
-                'required', 
-                'email', 
-                Rule::unique('users', 'email')->ignore($this->user->id) // Abaikan email milik user ini
+                'required',
+                'email',
+                Rule::unique('users', 'email')->ignore($this->user->id),
             ],
-            'password' => 'nullable|min:6', // Nullable karena opsional saat edit
-            'photo' => 'nullable|image|max:10048', // Nullable karena opsional
+            'password' => ['nullable', 'min:6'],
+            'photo' => [
+                Rule::requiredIf(blank($this->user->photo)),
+                'nullable',
+                'image',
+                'mimes:jpg,jpeg,png,webp',
+                'mimetypes:image/jpeg,image/png,image/webp',
+                'extensions:jpg,jpeg,png,webp',
+                'max:10240',
+            ],
         ];
     }
 
-    public function mount(User $user)
+    public function mount(User $user): void
     {
         $this->user = $user;
 
-        // Isi semua properti dengan data lama user
         $this->name = $user->name;
         $this->occupation = $user->occupation;
         $this->age = $user->age;
@@ -64,24 +70,28 @@ new #[Layout('layouts::admin')] class extends Component
         $this->joined_at = $user->joined_at ? $user->joined_at->format('Y-m-d') : date('Y-m-d');
     }
     
-    public function update() // Ubah nama dari store menjadi update
+    public function update(StoreCompressedProfilePhoto $storeCompressedProfilePhoto): mixed
     {
         $validated = $this->validate();
+        $oldPhotoPath = $this->user->photo;
+        $newPhotoPath = null;
 
-        // 1. Logika untuk menyimpan foto jika ada upload baru
         if ($this->photo) {
-            // Hapus foto lama dari storage jika ada
-            if ($this->user->photo) {
-                Storage::disk('public')->delete($this->user->photo);
+            try {
+                $newPhotoPath = $storeCompressedProfilePhoto->execute($this->photo);
+            } catch (\RuntimeException $exception) {
+                report($exception);
+                $this->addError('photo', 'Foto profil gagal diproses. Silakan pilih foto lain dan coba kembali.');
+
+                return null;
             }
-            $validated['photo'] = $this->photo->store('profile-photos', 'public');
+
+            $validated['photo'] = $newPhotoPath;
         } else {
-            // Jika tidak ada upload, hapus dari array agar foto lama tidak tertimpa NULL
-            unset($validated['photo']); 
+            unset($validated['photo']);
         }
 
-        // 2. Logika untuk password (hanya update jika form diisi)
-        if (!empty($this->password)) {
+        if (! empty($this->password)) {
             $validated['password'] = bcrypt($this->password);
         } else {
             unset($validated['password']);
@@ -89,43 +99,56 @@ new #[Layout('layouts::admin')] class extends Component
 
         $validated['joined_at'] = $this->joined_at;
 
-        // Eksekusi update data
-        $this->user->update($validated);
+        try {
+            $this->user->update($validated);
+        } catch (\Throwable $exception) {
+            if ($newPhotoPath) {
+                Storage::disk('public')->delete($newPhotoPath);
+            }
+
+            throw $exception;
+        }
+
+        if ($newPhotoPath && $oldPhotoPath) {
+            Storage::disk('public')->delete($oldPhotoPath);
+        }
 
         session()->flash('success', 'Data member berhasil diperbarui.');
 
-        // Redirect kembali ke halaman daftar member (Sesuaikan nama route-nya)
-        // return $this->redirectRoute('admin.akun.member.index', navigate: true);
-        return redirect()->route('admin.akun.member.index'); 
+        return redirect()->route('admin.akun.member.index');
     }
 };
 ?>
 <div>
     <h1 class="text-3xl text-center font-semibold">Edit Akun Member</h1>
     
-    {{-- Ubah wire:submit.prevent menjadi "update" --}}
     <form wire:submit.prevent="update">
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6">
             
             <div class="mb-4 sm:col-span-2">
-                <label for="photo" class="block mb-2.5 text-sm font-medium text-heading">Foto Profil (Opsional)</label>
+                <label for="photo" class="block mb-2.5 text-sm font-medium text-heading">
+                    Foto Profil
+                    @if (blank($user->photo))
+                        <span class="text-red-500">*</span>
+                    @endif
+                </label>
                 
-                {{-- Logika Preview Foto --}}
                 <div class="mb-3">
-                    @if ($photo)
-                        {{-- Jika ada upload foto baru, tampilkan preview sementaranya --}}
-                        <img src="{{ $photo->temporaryUrl() }}" class="w-20 h-20 object-cover rounded-full border border-gray-300">
+                    @if ($photo && $photo->isPreviewable())
+                        <img src="{{ $photo->temporaryUrl() }}" alt="Preview foto profil baru" class="w-20 h-20 object-cover rounded-full border border-gray-300">
                     @elseif ($user->photo)
-                        {{-- Jika tidak ada upload baru, tapi user punya foto lama, tampilkan foto lamanya --}}
-                        <img src="{{ asset('storage/' . $user->photo) }}" class="w-20 h-20 object-cover rounded-full border border-gray-300">
+                        <img src="{{ asset('storage/' . $user->photo) }}" alt="Foto profil {{ $user->name }}" class="w-20 h-20 object-cover rounded-full border border-gray-300">
                     @else
-                        {{-- Jika tidak ada foto sama sekali --}}
                         <div class="w-20 h-20 bg-gray-200 rounded-full flex items-center justify-center text-gray-500 text-sm">No Photo</div>
                     @endif
                 </div>
     
-                {{-- Hapus atribut required --}}
-                <input class="cursor-pointer bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand block w-full shadow-xs placeholder:text-body" type="file" id="photo" wire:model="photo" accept="image/*">
+                <input class="cursor-pointer bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand block w-full shadow-xs placeholder:text-body" type="file" id="photo" wire:model="photo" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" data-focus-on-invalid @required(blank($user->photo))>
+                @if ($user->photo)
+                    <p class="text-sm text-gray-500 mt-1">Foto lama sudah memenuhi. Unggah hanya jika ingin mengganti; file baru otomatis dikompres ke WebP maksimal 800×800 px.</p>
+                @else
+                    <p class="text-sm text-gray-500 mt-1">Wajib diunggah. JPG, JPEG, PNG, atau WebP; maksimal 10 MB dan otomatis dikompres.</p>
+                @endif
                 
                 <div wire:loading wire:target="photo" class="text-sm text-gray-500 mt-1">Mengunggah gambar...</div>
                 @error('photo') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
@@ -195,7 +218,6 @@ new #[Layout('layouts::admin')] class extends Component
                 </label>
                 
                 <div class="relative">
-                    {{-- Hapus atribut required --}}
                     <input :type="show ? 'text' : 'password'" id="password" wire:model="password"
                         class="bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:accent focus:border-brand block w-full px-3 py-2.5 pr-10 shadow-xs placeholder:text-body"
                         placeholder="•••••••••" />
@@ -218,7 +240,6 @@ new #[Layout('layouts::admin')] class extends Component
             </div>
         </div>
         
-        {{-- Ganti target loading dan teks tombol --}}
         <button type="submit"
             wire:loading.attr="disabled"
             class="mt-4 text-heading cursor-pointer bg-brand box-border border border-transparent hover:bg-heading hover:text-white focus:ring-4 focus:accent-medium shadow-xs font-medium leading-5 rounded-base text-sm px-4 py-2.5 focus:outline-none w-full mb-3 disabled:opacity-50 disabled:cursor-not-allowed">

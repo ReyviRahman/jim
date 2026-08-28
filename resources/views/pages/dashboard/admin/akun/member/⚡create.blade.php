@@ -1,14 +1,16 @@
 <?php
 
-use Livewire\Component;
-use Livewire\Attributes\Validate;
-use Livewire\Attributes\Layout;
-use Livewire\WithFileUploads; // Tambahkan trait ini
+use App\Actions\StoreCompressedProfilePhoto;
 use App\Models\User;
+use Illuminate\Support\Facades\Storage;
+use Livewire\Attributes\Layout;
+use Livewire\Attributes\Validate;
+use Livewire\Component;
+use Livewire\WithFileUploads;
 
-new #[Layout('layouts::admin')] class extends Component 
+new #[Layout('layouts::admin')] class extends Component
 {
-    use WithFileUploads; 
+    use WithFileUploads;
 
     #[Validate('required|min:3')]
     public $name = '';
@@ -20,7 +22,7 @@ new #[Layout('layouts::admin')] class extends Component
     public $age = '';
 
     #[Validate('required|in:Laki-laki,Perempuan')]
-    public $gender = 'Laki-laki'; 
+    public $gender = 'Laki-laki';
 
     #[Validate('required|numeric|unique:users,phone')]
     public $phone = '';
@@ -34,44 +36,51 @@ new #[Layout('layouts::admin')] class extends Component
     #[Validate('required|min:6')]
     public $password = '';
     
-    // Tambahkan properti untuk foto profil (opsional, max 10MB)
-    #[Validate('nullable|image|max:10048')]
+    #[Validate(['required', 'image', 'mimes:jpg,jpeg,png,webp', 'mimetypes:image/jpeg,image/png,image/webp', 'extensions:jpg,jpeg,png,webp', 'max:10240'])]
     public $photo = null;
 
     public $joined_at;
 
-    public function mount()
+    public function mount(): void
     {
-        // Set nilai default tanggal hari ini
         $this->joined_at = date('Y-m-d');
     }
-    
-    public function store() 
+
+    public function store(StoreCompressedProfilePhoto $storeCompressedProfilePhoto): mixed
     {
         $this->validate();
 
-        // Logika untuk menyimpan foto jika ada
-        $photoPath = null;
-        if ($this->photo) {
-            $photoPath = $this->photo->store('profile-photos', 'public');
+        try {
+            $photoPath = $storeCompressedProfilePhoto->execute($this->photo);
+        } catch (\RuntimeException $exception) {
+            report($exception);
+            $this->addError('photo', 'Foto profil gagal diproses. Silakan pilih foto lain dan coba kembali.');
+
+            return null;
         }
 
-        $newUser = User::create([
-            'name' => $this->name,
-            'occupation' => $this->occupation,
-            'age' => $this->age,
-            'gender' => $this->gender,
-            'phone' => $this->phone,
-            'medical_history' => $this->medical_history,
-            'email' => $this->email,
-            'password' => bcrypt($this->password),
-            'photo' => $photoPath, // Pastikan kolom 'photo' ada di database kamu
-            'is_active' => true,
-            'joined_at' => $this->joined_at,
-        ]);
+        try {
+            $newUser = User::create([
+                'name' => $this->name,
+                'occupation' => $this->occupation,
+                'age' => $this->age,
+                'gender' => $this->gender,
+                'phone' => $this->phone,
+                'medical_history' => $this->medical_history,
+                'email' => $this->email,
+                'password' => bcrypt($this->password),
+                'photo' => $photoPath,
+                'is_active' => true,
+                'joined_at' => $this->joined_at,
+            ]);
+        } catch (\Throwable $exception) {
+            Storage::disk('public')->delete($photoPath);
+
+            throw $exception;
+        }
 
         return $this->redirectRoute('admin.membership.paket', [
-            'users' => [$newUser->id] 
+            'users' => [$newUser->id],
         ], navigate: true);
     }
 };
@@ -82,15 +91,18 @@ new #[Layout('layouts::admin')] class extends Component
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             
             <div class="mb-4 sm:col-span-2">
-                <label for="photo" class="block mb-2.5 text-sm font-medium text-heading">Foto Profil (Opsional)</label>
+                <label for="photo" class="block mb-2.5 text-sm font-medium text-heading">
+                    Foto Profil <span class="text-red-500">*</span>
+                </label>
                 
-                @if ($photo)
+                @if ($photo && $photo->isPreviewable())
                     <div class="mb-3">
-                        <img src="{{ $photo->temporaryUrl() }}" class="w-20 h-20 object-cover rounded-full border border-gray-300">
+                        <img src="{{ $photo->temporaryUrl() }}" alt="Preview foto profil" class="w-20 h-20 object-cover rounded-full border border-gray-300">
                     </div>
                 @endif
     
-                <input class="cursor-pointer bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand block w-full shadow-xs placeholder:text-body" type="file" id="photo" wire:model="photo" accept="image/*">
+                <input class="cursor-pointer bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand block w-full shadow-xs placeholder:text-body" type="file" id="photo" wire:model="photo" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" data-focus-on-invalid required>
+                <p class="text-sm text-gray-500 mt-1">JPG, JPEG, PNG, atau WebP; maksimal 10 MB. Foto otomatis dikompres ke WebP maksimal 800×800 px.</p>
                 
                 <div wire:loading wire:target="photo" class="text-sm text-gray-500 mt-1">Mengunggah gambar...</div>
                 

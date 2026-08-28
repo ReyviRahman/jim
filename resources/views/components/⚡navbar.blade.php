@@ -1,6 +1,7 @@
 <?php
 
 use Livewire\Component;
+use Livewire\Attributes\On;
 
 new class extends Component {
     public function logout()
@@ -10,6 +11,12 @@ new class extends Component {
         session()->regenerateToken();
 
         return $this->redirect('/', navigate: true);
+    }
+
+    #[On('profile-updated')]
+    public function refreshProfile(): void
+    {
+        Auth::user()?->refresh();
     }
 };
 ?>
@@ -29,7 +36,11 @@ new class extends Component {
                     id="user-menu-button" aria-expanded="false" data-dropdown-toggle="user-dropdown"
                     data-dropdown-placement="bottom">
                     <span class="sr-only">Open user menu</span>
-                    <img class="w-8 h-8 rounded-full object-cover" src="{{ asset('storage/' . Auth::user()->photo) }}" alt="{{ Auth::user()->name }}">
+                    @if(Auth::user()->photo)
+                        <img class="w-8 h-8 rounded-full object-cover" src="{{ asset('storage/' . Auth::user()->photo) }}" alt="{{ Auth::user()->name }}">
+                    @else
+                        <img class="w-8 h-8 rounded-full object-cover" src="https://ui-avatars.com/api/?name={{ urlencode(Auth::user()->name) }}&background=random" alt="{{ Auth::user()->name }}">
+                    @endif
                 </button>
                 
                 <div class="z-50 hidden bg-[#34342F] border border-default-medium rounded-base shadow-lg w-44" id="user-dropdown">
@@ -43,7 +54,8 @@ new class extends Component {
     class="inline-flex items-center w-full p-2 hover:bg-neutral-tertiary-medium hover:text-heading rounded">Dashboard</a>
                         </li>
                         <li>
-                            <a href="#" class="inline-flex items-center w-full p-2 hover:bg-neutral-tertiary-medium hover:text-heading rounded">Settings</a>
+                            <a href="{{ route('profile.edit') }}" wire:navigate
+                                class="inline-flex items-center w-full p-2 hover:bg-neutral-tertiary-medium hover:text-heading rounded">Profil</a>
                         </li>
                         <li>
                             <button type="button" wire:click="logout" wire:loading.attr="disabled" wire:target="logout"
