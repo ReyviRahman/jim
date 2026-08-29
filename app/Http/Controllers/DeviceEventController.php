@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Attendance;
+use App\HikvisionAttendanceService;
 use App\Models\DeviceEvent;
 use App\Models\Membership;
 use App\Models\MembershipUser;
@@ -18,6 +18,8 @@ use Throwable;
 
 class DeviceEventController extends Controller
 {
+    public function __construct(private HikvisionAttendanceService $hikvisionAttendanceService) {}
+
     public function store(Request $request): Response
     {
         $receivedAt = Carbon::now(config('app.timezone'));
@@ -54,6 +56,7 @@ class DeviceEventController extends Controller
             DB::transaction(function () use ($device, $eventData, $receivedAt): void {
                 $user = User::query()
                     ->select('id')
+                    ->lockForUpdate()
                     ->find($eventData['employee_no']);
                 $eventHash = hash('sha256', implode('|', [
                     $device,
@@ -62,7 +65,7 @@ class DeviceEventController extends Controller
                     $eventData['attendance_status'],
                 ]));
 
-                $deviceEvent = DeviceEvent::firstOrCreate(['event_hash' => $eventHash], [
+                $deviceEvent = DeviceEvent::query()->createOrFirst(['event_hash' => $eventHash], [
                     'device_code' => $device,
                     'employee_no' => $eventData['employee_no'],
                     'is_found' => $user !== null,
@@ -81,18 +84,17 @@ class DeviceEventController extends Controller
                     return;
                 }
 
-                $attendance = Attendance::firstOrCreate(['device_event_id' => $deviceEvent->id], [
-                    'user_id' => $user->id,
-                    'membership_id' => null,
-                    'type' => null,
-                    'attendance_status' => $eventData['attendance_status'],
-                    'check_in_time' => $eventData['accessed_at'],
-                ]);
+                $dailyAttendanceWasCreated = $this->hikvisionAttendanceService->record(
+                    $user,
+                    $deviceEvent,
+                    $eventData['attendance_status'],
+                    $eventData['accessed_at'],
+                );
 
-                if ($attendance->wasRecentlyCreated) {
+                if ($dailyAttendanceWasCreated) {
                     $this->markTodaysPtBookingAsAttended($user, $receivedAt);
                 }
-            });
+            }, attempts: 3);
         } catch (Throwable $e) {
             Log::error('Failed to store Hikvision event', [
                 'device' => $device,

@@ -13,11 +13,15 @@ class Attendance extends Model
         'membership_id',
         'type',
         'attendance_status',
+        'attendance_date',
         'check_in_time',
+        'check_out_time',
     ];
 
     protected $casts = [
+        'attendance_date' => 'date',
         'check_in_time' => 'datetime',
+        'check_out_time' => 'datetime',
     ];
 
     public function user(): BelongsTo

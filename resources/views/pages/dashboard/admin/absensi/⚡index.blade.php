@@ -241,10 +241,27 @@ session()->flash('success', "Berhasil Check-In: {$user->name}. {$infoSesi}");
         $query = Attendance::with('user');
 
         if ($this->dateStart && $this->dateEnd) {
-            $query->whereBetween('check_in_time', [
-                $this->dateStart.' 00:00:00',
-                $this->dateEnd.' 23:59:59',
-            ]);
+            $dateStart = Carbon::parse($this->dateStart, config('app.timezone'))->startOfDay();
+            $dateEnd = Carbon::parse($this->dateEnd, config('app.timezone'))->endOfDay();
+
+            $query->where(function ($dateQuery) use ($dateStart, $dateEnd) {
+                $dateQuery
+                    ->whereBetween('attendance_date', [
+                        $dateStart->toDateString(),
+                        $dateEnd->toDateString(),
+                    ])
+                    ->orWhere(function ($legacyQuery) use ($dateStart, $dateEnd) {
+                        $legacyQuery
+                            ->whereNull('attendance_date')
+                            ->whereBetween('check_in_time', [$dateStart, $dateEnd]);
+                    })
+                    ->orWhere(function ($checkoutOnlyQuery) use ($dateStart, $dateEnd) {
+                        $checkoutOnlyQuery
+                            ->whereNull('attendance_date')
+                            ->whereNull('check_in_time')
+                            ->whereBetween('check_out_time', [$dateStart, $dateEnd]);
+                    });
+            });
         }
 
         if ($this->employeesOnly) {
@@ -262,7 +279,11 @@ session()->flash('success', "Berhasil Check-In: {$user->name}. {$infoSesi}");
         }
 
         return [
-            'attendances' => $query->latest('check_in_time')->paginate(10),
+            'attendances' => $query
+                ->orderByRaw('COALESCE(attendance_date, DATE(check_in_time), DATE(check_out_time)) DESC')
+                ->orderByRaw('COALESCE(check_in_time, check_out_time) DESC')
+                ->latest('id')
+                ->paginate(10),
         ];
     }
 };
@@ -343,6 +364,7 @@ session()->flash('success', "Berhasil Check-In: {$user->name}. {$infoSesi}");
                     <th scope="col" class="px-6 py-3 font-medium">Nama User</th>
                     <th scope="col" class="px-6 py-3 font-medium">Role User</th>
                     <th scope="col" class="px-6 py-3 font-medium">Waktu Check-In</th>
+                    <th scope="col" class="px-6 py-3 font-medium">Waktu Check-Out</th>
                 </tr>
             </thead>
             <tbody>
@@ -385,17 +407,34 @@ session()->flash('success', "Berhasil Check-In: {$user->name}. {$infoSesi}");
                         </td>
                         
                         <td class="px-6 py-4 font-medium text-heading">
-                            <div class="flex items-center text-gray-600">
-                                {{ \Carbon\Carbon::parse($attendance->check_in_time)->format('d M Y') }}
-                                <span class="ml-2 font-bold text-gray-800">
-                                    {{ \Carbon\Carbon::parse($attendance->check_in_time)->format('H:i') }}
-                                </span>
-                            </div>
+                            @if ($attendance->check_in_time)
+                                <div class="flex items-center text-gray-600">
+                                    {{ $attendance->check_in_time->format('d M Y') }}
+                                    <span class="ml-2 font-bold text-gray-800">
+                                        {{ $attendance->check_in_time->format('H:i') }}
+                                    </span>
+                                </div>
+                            @else
+                                <span class="text-gray-500">-</span>
+                            @endif
+                        </td>
+
+                        <td class="px-6 py-4 font-medium text-heading">
+                            @if ($attendance->check_out_time)
+                                <div class="flex items-center text-gray-600">
+                                    {{ $attendance->check_out_time->format('d M Y') }}
+                                    <span class="ml-2 font-bold text-gray-800">
+                                        {{ $attendance->check_out_time->format('H:i') }}
+                                    </span>
+                                </div>
+                            @else
+                                <span class="text-gray-500">-</span>
+                            @endif
                         </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="4" class="px-6 py-8 text-center text-gray-500">
+                        <td colspan="5" class="px-6 py-8 text-center text-gray-500">
                             Tidak ada data absensi.
                         </td>
                     </tr>
