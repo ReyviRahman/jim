@@ -64,7 +64,7 @@ class AdminAttendanceTableTest extends TestCase
             ->assertDontSee('Semua Role');
     }
 
-    public function test_general_attendance_page_keeps_role_filter_and_shows_check_out_time(): void
+    public function test_general_attendance_page_keeps_role_filter_and_hides_check_out_time(): void
     {
         $admin = $this->createUser('admin');
         $member = $this->createUser('member', 'General Member Attendance');
@@ -82,8 +82,8 @@ class AdminAttendanceTableTest extends TestCase
             ->assertOk()
             ->assertSee('Semua Role')
             ->assertSee('Waktu Check-In')
-            ->assertSee('Waktu Check-Out')
-            ->assertSee('17:45')
+            ->assertDontSee('Waktu Check-Out')
+            ->assertDontSee('17:45')
             ->assertSee('General Member Attendance')
             ->assertSee('General Employee Attendance');
     }

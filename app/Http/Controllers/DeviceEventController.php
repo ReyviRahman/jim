@@ -55,7 +55,7 @@ class DeviceEventController extends Controller
         try {
             DB::transaction(function () use ($device, $eventData, $receivedAt): void {
                 $user = User::query()
-                    ->select('id')
+                    ->select(['id', 'role'])
                     ->lockForUpdate()
                     ->find($eventData['employee_no']);
                 $eventHash = hash('sha256', implode('|', [

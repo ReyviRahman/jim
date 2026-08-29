@@ -364,7 +364,9 @@ session()->flash('success', "Berhasil Check-In: {$user->name}. {$infoSesi}");
                     <th scope="col" class="px-6 py-3 font-medium">Nama User</th>
                     <th scope="col" class="px-6 py-3 font-medium">Role User</th>
                     <th scope="col" class="px-6 py-3 font-medium">Waktu Check-In</th>
-                    <th scope="col" class="px-6 py-3 font-medium">Waktu Check-Out</th>
+                    @if ($employeesOnly)
+                        <th scope="col" class="px-6 py-3 font-medium">Waktu Check-Out</th>
+                    @endif
                 </tr>
             </thead>
             <tbody>
@@ -419,22 +421,24 @@ session()->flash('success', "Berhasil Check-In: {$user->name}. {$infoSesi}");
                             @endif
                         </td>
 
-                        <td class="px-6 py-4 font-medium text-heading">
-                            @if ($attendance->check_out_time)
-                                <div class="flex items-center text-gray-600">
-                                    {{ $attendance->check_out_time->format('d M Y') }}
-                                    <span class="ml-2 font-bold text-gray-800">
-                                        {{ $attendance->check_out_time->format('H:i') }}
-                                    </span>
-                                </div>
-                            @else
-                                <span class="text-gray-500">-</span>
-                            @endif
-                        </td>
+                        @if ($employeesOnly)
+                            <td class="px-6 py-4 font-medium text-heading">
+                                @if ($attendance->check_out_time)
+                                    <div class="flex items-center text-gray-600">
+                                        {{ $attendance->check_out_time->format('d M Y') }}
+                                        <span class="ml-2 font-bold text-gray-800">
+                                            {{ $attendance->check_out_time->format('H:i') }}
+                                        </span>
+                                    </div>
+                                @else
+                                    <span class="text-gray-500">-</span>
+                                @endif
+                            </td>
+                        @endif
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="5" class="px-6 py-8 text-center text-gray-500">
+                        <td colspan="{{ $employeesOnly ? 5 : 4 }}" class="px-6 py-8 text-center text-gray-500">
                             Tidak ada data absensi.
                         </td>
                     </tr>

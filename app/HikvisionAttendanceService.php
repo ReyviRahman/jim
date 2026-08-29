@@ -30,6 +30,7 @@ class HikvisionAttendanceService
             ->where('attendance_date', $attendanceDate)
             ->lockForUpdate()
             ->first();
+        $isMember = $user->role === 'member';
 
         if ($attendance === null) {
             Attendance::create([
@@ -39,11 +40,22 @@ class HikvisionAttendanceService
                 'type' => null,
                 'attendance_status' => null,
                 'attendance_date' => $attendanceDate,
-                'check_in_time' => $attendanceStatus === 'checkIn' ? $localAccessedAt : null,
-                'check_out_time' => $attendanceStatus === 'checkOut' ? $localAccessedAt : null,
+                'check_in_time' => $isMember || $attendanceStatus === 'checkIn' ? $localAccessedAt : null,
+                'check_out_time' => ! $isMember && $attendanceStatus === 'checkOut' ? $localAccessedAt : null,
             ]);
 
             return true;
+        }
+
+        if ($isMember) {
+            if ($attendance->check_in_time === null) {
+                $attendance->update([
+                    'check_in_time' => $attendance->check_out_time ?? $localAccessedAt,
+                    'check_out_time' => null,
+                ]);
+            }
+
+            return false;
         }
 
         if ($attendanceStatus === 'checkIn') {
