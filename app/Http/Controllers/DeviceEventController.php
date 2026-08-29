@@ -22,7 +22,6 @@ class DeviceEventController extends Controller
 
     public function store(Request $request): Response
     {
-        $receivedAt = Carbon::now(config('app.timezone'));
         $device = (string) config('services.hikvision.device_code', 'HQ-BIO-01');
         $payload = $this->payload($request);
 
@@ -53,11 +52,12 @@ class DeviceEventController extends Controller
         }
 
         try {
-            DB::transaction(function () use ($device, $eventData, $receivedAt): void {
+            DB::transaction(function () use ($device, $eventData): void {
                 $user = User::query()
-                    ->select(['id', 'role'])
+                    ->select('id')
                     ->lockForUpdate()
                     ->find($eventData['employee_no']);
+                $receivedAt = Carbon::now(config('app.timezone'));
                 $eventHash = hash('sha256', implode('|', [
                     $device,
                     $eventData['employee_no'],
@@ -84,11 +84,14 @@ class DeviceEventController extends Controller
                     return;
                 }
 
+                if (! $deviceEvent->wasRecentlyCreated) {
+                    return;
+                }
+
                 $dailyAttendanceWasCreated = $this->hikvisionAttendanceService->record(
                     $user,
                     $deviceEvent,
-                    $eventData['attendance_status'],
-                    $eventData['accessed_at'],
+                    $receivedAt,
                 );
 
                 if ($dailyAttendanceWasCreated) {

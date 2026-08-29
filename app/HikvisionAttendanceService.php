@@ -5,6 +5,7 @@ namespace App;
 use App\Models\Attendance;
 use App\Models\DeviceEvent;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 
 class HikvisionAttendanceService
@@ -12,25 +13,40 @@ class HikvisionAttendanceService
     public function record(
         User $user,
         DeviceEvent $deviceEvent,
-        string $attendanceStatus,
-        Carbon $accessedAt,
+        Carbon $receivedAt,
     ): bool {
         User::query()
             ->whereKey($user->id)
             ->lockForUpdate()
             ->firstOrFail();
 
-        $localAccessedAt = $accessedAt
-            ->copy()
-            ->setTimezone((string) config('app.timezone'));
-        $attendanceDate = $localAccessedAt->toDateString();
+        $attendanceDate = $receivedAt->toDateString();
+        $dayStart = $receivedAt->copy()->startOfDay();
+        $dayEnd = $receivedAt->copy()->endOfDay();
 
         $attendance = Attendance::query()
             ->whereBelongsTo($user)
-            ->where('attendance_date', $attendanceDate)
+            ->where(function (Builder $query) use ($attendanceDate, $dayStart, $dayEnd): void {
+                $query
+                    ->where('attendance_date', $attendanceDate)
+                    ->orWhere(function (Builder $legacyQuery) use ($dayStart, $dayEnd): void {
+                        $legacyQuery
+                            ->whereNull('attendance_date')
+                            ->where(function (Builder $timestampQuery) use ($dayStart, $dayEnd): void {
+                                $timestampQuery
+                                    ->whereBetween('check_in_time', [$dayStart, $dayEnd])
+                                    ->orWhere(function (Builder $checkoutOnlyQuery) use ($dayStart, $dayEnd): void {
+                                        $checkoutOnlyQuery
+                                            ->whereNull('check_in_time')
+                                            ->whereBetween('check_out_time', [$dayStart, $dayEnd]);
+                                    });
+                            });
+                    });
+            })
+            ->orderByRaw('COALESCE(check_in_time, check_out_time, created_at)')
+            ->orderBy('id')
             ->lockForUpdate()
             ->first();
-        $isMember = $user->role === 'member';
 
         if ($attendance === null) {
             Attendance::create([
@@ -40,39 +56,14 @@ class HikvisionAttendanceService
                 'type' => null,
                 'attendance_status' => null,
                 'attendance_date' => $attendanceDate,
-                'check_in_time' => $isMember || $attendanceStatus === 'checkIn' ? $localAccessedAt : null,
-                'check_out_time' => ! $isMember && $attendanceStatus === 'checkOut' ? $localAccessedAt : null,
+                'check_in_time' => $receivedAt,
+                'check_out_time' => null,
             ]);
 
             return true;
         }
 
-        if ($isMember) {
-            if ($attendance->check_in_time === null) {
-                $attendance->update([
-                    'check_in_time' => $attendance->check_out_time ?? $localAccessedAt,
-                    'check_out_time' => null,
-                ]);
-            }
-
-            return false;
-        }
-
-        if ($attendanceStatus === 'checkIn') {
-            if ($attendance->check_in_time !== null) {
-                return false;
-            }
-
-            $attendance->update(['check_in_time' => $localAccessedAt]);
-
-            return false;
-        }
-
-        $checkOutWasFilled = $attendance->check_out_time === null;
-
-        if ($checkOutWasFilled || $localAccessedAt->greaterThan($attendance->check_out_time)) {
-            $attendance->update(['check_out_time' => $localAccessedAt]);
-        }
+        $attendance->update(['check_out_time' => $receivedAt]);
 
         return false;
     }
