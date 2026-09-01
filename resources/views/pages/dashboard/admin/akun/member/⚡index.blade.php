@@ -30,11 +30,6 @@ new #[Layout('layouts::admin')] class extends Component
     public bool $showBulkSyncModal = false;
     public array $hikvisionEmployeeNumbers = [];
 
-    public function mount(HikvisionUserService $hikvisionUserService): void
-    {
-        $this->refreshHikvisionMembers($hikvisionUserService);
-    }
-
     public function openSyncModal(int $userId, HikvisionUserService $hikvisionUserService): void
     {
         $user = User::query()
@@ -256,12 +251,6 @@ new #[Layout('layouts::admin')] class extends Component
     public function updatedSearch()
     {
         $this->resetPage();
-        $this->refreshHikvisionMembers(app(HikvisionUserService::class));
-    }
-
-    public function updatedPage(mixed $page = null): void
-    {
-        $this->refreshHikvisionMembers(app(HikvisionUserService::class));
     }
 
     private function memberExistsOnHikvision(HikvisionUserService $hikvisionUserService, int $userId): bool
@@ -300,40 +289,6 @@ new #[Layout('layouts::admin')] class extends Component
             ->unique()
             ->values()
             ->all();
-    }
-
-    private function refreshHikvisionMembers(HikvisionUserService $hikvisionUserService): void
-    {
-        $userIds = $this->memberQuery()
-            ->latest()
-            ->paginate(10)
-            ->getCollection()
-            ->pluck('id')
-            ->all();
-
-        try {
-            $this->hikvisionEmployeeNumbers = $hikvisionUserService->existingEmployeeNumbers($userIds);
-        } catch (\Throwable $exception) {
-            Log::warning('Failed to check existing Hikvision members', [
-                'user_ids' => $userIds,
-                'error' => $exception->getMessage(),
-            ]);
-
-            $this->hikvisionEmployeeNumbers = [];
-        }
-    }
-
-    private function memberQuery(): \Illuminate\Database\Eloquent\Builder
-    {
-        return User::query()
-            ->with(['memberships' => function ($query) {
-                $query->where('status', 'active');
-            }])
-            ->where('role', 'member')
-            ->where(function ($query) {
-                $query->where('name', 'like', '%'.$this->search.'%')
-                    ->orWhere('email', 'like', '%'.$this->search.'%');
-            });
     }
 
     // Mengirim data ke view

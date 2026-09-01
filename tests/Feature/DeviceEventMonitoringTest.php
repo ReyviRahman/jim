@@ -282,7 +282,7 @@ class DeviceEventMonitoringTest extends TestCase
             ]);
     }
 
-    public function test_member_account_page_hides_the_sync_button_for_members_found_on_hikvision(): void
+    public function test_member_account_page_does_not_check_hikvision_automatically(): void
     {
         $syncedMember = $this->createUser(['role' => 'member']);
         $unsyncedMember = $this->createUser(['role' => 'member']);
@@ -297,17 +297,13 @@ class DeviceEventMonitoringTest extends TestCase
             'user_search_endpoint' => '/ISAPI/AccessControl/UserInfo/Search?format=json',
         ]);
         Http::preventStrayRequests();
-        Http::fake([
-            'http://hikvision.test/ISAPI/AccessControl/UserInfo/Search?format=json' => Http::response([
-                'UserInfoSearch' => [
-                    'UserInfo' => ['employeeNo' => (string) $syncedMember->id],
-                ],
-            ], 200),
-        ]);
+        Http::fake();
 
         Livewire::test('pages::dashboard.admin.akun.member.index')
-            ->assertDontSee("openSyncModal({$syncedMember->id})")
+            ->assertSee("openSyncModal({$syncedMember->id})")
             ->assertSee("openSyncModal({$unsyncedMember->id})");
+
+        Http::assertNothingSent();
     }
 
     public function test_member_account_page_rechecks_hikvision_before_opening_the_sync_modal(): void
@@ -325,9 +321,9 @@ class DeviceEventMonitoringTest extends TestCase
         ]);
         Http::preventStrayRequests();
         Http::fake([
-            'http://hikvision.test/ISAPI/AccessControl/UserInfo/Search?format=json' => Http::sequence()
-                ->push(['UserInfoSearch' => ['UserInfo' => []]], 200)
-                ->push(['UserInfoSearch' => ['MatchList' => ['employeeNo' => (string) $member->id]]], 200),
+            'http://hikvision.test/ISAPI/AccessControl/UserInfo/Search?format=json' => Http::response([
+                'UserInfoSearch' => ['MatchList' => ['employeeNo' => (string) $member->id]],
+            ], 200),
         ]);
 
         Livewire::test('pages::dashboard.admin.akun.member.index')
@@ -339,7 +335,7 @@ class DeviceEventMonitoringTest extends TestCase
         Http::assertNotSent(fn (Request $request): bool => $request->url() === 'http://hikvision.test/ISAPI/AccessControl/UserInfo/Record?format=json');
     }
 
-    public function test_member_account_page_keeps_sync_button_when_automatic_hikvision_check_fails(): void
+    public function test_member_account_search_does_not_check_hikvision(): void
     {
         $member = $this->createUser(['role' => 'member']);
 
@@ -353,12 +349,13 @@ class DeviceEventMonitoringTest extends TestCase
             'user_search_endpoint' => '/ISAPI/AccessControl/UserInfo/Search?format=json',
         ]);
         Http::preventStrayRequests();
-        Http::fake([
-            'http://hikvision.test/ISAPI/AccessControl/UserInfo/Search?format=json' => Http::response([], 500),
-        ]);
+        Http::fake();
 
         Livewire::test('pages::dashboard.admin.akun.member.index')
+            ->set('search', $member->name)
             ->assertSee("openSyncModal({$member->id})");
+
+        Http::assertNothingSent();
     }
 
     public function test_member_account_page_queues_all_members_with_this_year_as_the_default_validity_period(): void
