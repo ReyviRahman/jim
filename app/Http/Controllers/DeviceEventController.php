@@ -61,7 +61,8 @@ class DeviceEventController extends Controller
             Log::debug('Hikvision event ignored', [
                 'device' => $device,
                 'event_type' => $eventData['event_type'],
-                'employee_no_present' => ! empty($eventData['employee_no']),
+                'employee_no_present' => $eventData['employee_no'] !== null
+                    && $eventData['employee_no'] !== '',
                 'attendance_status' => $eventData['attendance_status'],
                 'verify_mode' => $eventData['verify_mode'],
                 'accessed_at_present' => $eventData['accessed_at'] instanceof Carbon,
@@ -72,7 +73,7 @@ class DeviceEventController extends Controller
         }
 
         try {
-            DB::transaction(function () use ($device, $eventData, $sourceIp): void {
+            DB::transaction(function () use ($device, $eventData, $payload, $sourceIp): void {
                 $user = User::query()
                     ->select('id')
                     ->lockForUpdate()
@@ -81,11 +82,9 @@ class DeviceEventController extends Controller
                 $eventHash = hash('sha256', implode('|', [
                     $device,
                     $eventData['employee_no'],
-                    $eventData['accessed_at']->toIso8601String(),
-                    $eventData['attendance_status'],
+                    $payload,
                 ]));
-
-                $deviceEvent = DeviceEvent::query()->createOrFirst(['event_hash' => $eventHash], [
+                $deviceEventAttributes = [
                     'device_code' => $device,
                     'source_ip' => $sourceIp,
                     'event_type' => $eventData['event_type'],
@@ -99,7 +98,11 @@ class DeviceEventController extends Controller
                     'verify_mode' => $eventData['verify_mode'],
                     'accessed_at' => $eventData['accessed_at'],
                     'payload' => '',
-                ]);
+                ];
+                $deviceEvent = DeviceEvent::query()->createOrFirst(
+                    ['event_hash' => $eventHash],
+                    $deviceEventAttributes,
+                );
 
                 Log::debug('Hikvision event stored', [
                     'device' => $device,
@@ -117,6 +120,10 @@ class DeviceEventController extends Controller
                 }
 
                 if (! $deviceEvent->wasRecentlyCreated) {
+                    return;
+                }
+
+                if (! $this->shouldRecordAttendance($eventData)) {
                     return;
                 }
 
@@ -183,7 +190,15 @@ class DeviceEventController extends Controller
         }
 
         $data['event_type'] = $event['eventType'] ?? $event['event_type'] ?? null;
-        $data['employee_no'] = $event['employeeNoString'] ?? $event['employee_no'] ?? null;
+        $employeeNo = $event['employeeNoString']
+            ?? $event['employeeNo']
+            ?? $event['employeeId']
+            ?? $event['employeeID']
+            ?? $event['employee_id']
+            ?? $event['employee_no']
+            ?? $event['Employee ID']
+            ?? null;
+        $data['employee_no'] = is_scalar($employeeNo) ? trim((string) $employeeNo) : null;
         $data['name'] = $event['name'] ?? null;
         $data['card_no'] = $event['cardNo'] ?? $event['card_no'] ?? null;
         $data['door_no'] = $event['doorNo'] ?? $event['door_no'] ?? null;
@@ -229,27 +244,21 @@ class DeviceEventController extends Controller
     {
         $reasons = [];
 
-        if ($eventData['event_type'] !== 'AccessControllerEvent') {
-            $reasons[] = 'unsupported_event_type';
-        }
-
-        if (empty($eventData['employee_no'])) {
+        if ($eventData['employee_no'] === null || $eventData['employee_no'] === '') {
             $reasons[] = 'missing_employee_no';
         }
 
-        if (! in_array($eventData['attendance_status'], ['checkIn', 'checkOut'], true)) {
-            $reasons[] = 'unsupported_attendance_status';
-        }
-
-        if ($eventData['verify_mode'] === 'invalid') {
-            $reasons[] = 'invalid_verify_mode';
-        }
-
-        if (! $eventData['accessed_at'] instanceof Carbon) {
-            $reasons[] = 'missing_accessed_at';
-        }
-
         return $reasons;
+    }
+
+    /**
+     * @param  array<string, mixed>  $eventData
+     */
+    private function shouldRecordAttendance(array $eventData): bool
+    {
+        return $eventData['event_type'] === 'AccessControllerEvent'
+            && in_array($eventData['attendance_status'], ['checkIn', 'checkOut'], true)
+            && $eventData['verify_mode'] !== 'invalid';
     }
 
     private function markTodaysPtBookingAsAttended(User $user, Carbon $receivedAt): void

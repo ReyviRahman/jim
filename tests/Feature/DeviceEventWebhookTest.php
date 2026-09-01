@@ -521,6 +521,60 @@ XML;
         $this->assertFalse($event->is_found);
     }
 
+    public function test_it_stores_employee_event_without_attendance_status_or_event_time(): void
+    {
+        $user = $this->createUser(['role' => 'member']);
+        $eventLog = json_encode([
+            'employeeNoString' => (string) $user->id,
+            'name' => $user->name,
+            'currentVerifyMode' => 'fingerprint',
+        ], JSON_THROW_ON_ERROR);
+
+        $response = $this->post('/api/absensi', [
+            'AccessControllerEvent' => $eventLog,
+            'Picture' => UploadedFile::fake()->createWithContent('Picture.jpeg', 'JPEG'),
+        ]);
+
+        $response->assertOk();
+
+        $event = DeviceEvent::query()->where('employee_no', (string) $user->id)->first();
+
+        $this->assertNotNull($event);
+        $this->assertModelExists($event);
+        $this->assertTrue($event->is_found);
+        $this->assertSame('AccessControllerEvent', $event->event_type);
+        $this->assertSame('fingerprint', $event->verify_mode);
+        $this->assertNull($event->attendance_status);
+        $this->assertNull($event->accessed_at);
+        $this->assertDatabaseCount('attendances', 0);
+    }
+
+    public function test_it_stores_employee_event_with_undefined_attendance_status(): void
+    {
+        $user = $this->createUser(['role' => 'member']);
+
+        $response = $this->postJson('/api/absensi', [
+            'eventType' => 'AccessControllerEvent',
+            'dateTime' => '2026-09-01T18:45:00+07:00',
+            'AccessControllerEvent' => [
+                'employeeNoString' => (string) $user->id,
+                'name' => $user->name,
+                'attendanceStatus' => 'undefined',
+                'currentVerifyMode' => 'face',
+            ],
+        ]);
+
+        $response->assertOk();
+
+        $this->assertDatabaseHas('device_events', [
+            'employee_no' => (string) $user->id,
+            'is_found' => true,
+            'attendance_status' => 'undefined',
+            'verify_mode' => 'face',
+        ]);
+        $this->assertDatabaseCount('attendances', 0);
+    }
+
     public function test_it_stores_event_log_uploaded_as_a_multipart_file(): void
     {
         $eventLog = json_encode([
