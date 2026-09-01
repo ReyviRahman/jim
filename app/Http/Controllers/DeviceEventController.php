@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\HikvisionAttendanceService;
+use App\HikvisionWebhookPayloadParser;
 use App\Models\DeviceEvent;
 use App\Models\Membership;
 use App\Models\MembershipUser;
@@ -18,17 +19,24 @@ use Throwable;
 
 class DeviceEventController extends Controller
 {
-    public function __construct(private HikvisionAttendanceService $hikvisionAttendanceService) {}
+    public function __construct(
+        private HikvisionAttendanceService $hikvisionAttendanceService,
+        private HikvisionWebhookPayloadParser $payloadParser,
+    ) {}
 
     public function store(Request $request): Response
     {
         $device = (string) config('services.hikvision.device_code', 'HQ-BIO-01');
-        $payload = $this->payload($request);
+        $payload = $this->payloadParser->parse($request);
+        $sourceIp = $request->ip();
 
         Log::debug('Hikvision webhook hit', [
             'device' => $device,
             'content_type' => $request->header('Content-Type'),
-            'ip' => $request->ip(),
+            'content_length' => $request->server('CONTENT_LENGTH'),
+            'input_keys' => array_keys($request->request->all()),
+            'file_keys' => array_keys($request->allFiles()),
+            'ip' => $sourceIp,
             'payload_length' => $payload === null ? 0 : strlen($payload),
         ]);
 
@@ -52,7 +60,7 @@ class DeviceEventController extends Controller
         }
 
         try {
-            DB::transaction(function () use ($device, $eventData): void {
+            DB::transaction(function () use ($device, $eventData, $sourceIp): void {
                 $user = User::query()
                     ->select('id')
                     ->lockForUpdate()
@@ -67,9 +75,14 @@ class DeviceEventController extends Controller
 
                 $deviceEvent = DeviceEvent::query()->createOrFirst(['event_hash' => $eventHash], [
                     'device_code' => $device,
+                    'source_ip' => $sourceIp,
+                    'event_type' => $eventData['event_type'],
                     'employee_no' => $eventData['employee_no'],
                     'is_found' => $user !== null,
                     'name' => $eventData['name'],
+                    'card_no' => $eventData['card_no'],
+                    'door_no' => $eventData['door_no'],
+                    'swipe_result' => $eventData['swipe_result'],
                     'attendance_status' => $eventData['attendance_status'],
                     'verify_mode' => $eventData['verify_mode'],
                     'accessed_at' => $eventData['accessed_at'],
@@ -108,29 +121,15 @@ class DeviceEventController extends Controller
         return response('OK', 200);
     }
 
-    private function payload(Request $request): ?string
-    {
-        $eventLog = $request->input('event_log');
-
-        if (is_string($eventLog) && trim($eventLog) !== '') {
-            return $eventLog;
-        }
-
-        $raw = trim($request->getContent());
-
-        if ($raw === '' || $raw === '[]' || $raw === '{}') {
-            return null;
-        }
-
-        return $raw;
-    }
-
     private function extractEventData(string $raw): array
     {
         $data = [
             'event_type' => null,
             'employee_no' => null,
             'name' => null,
+            'card_no' => null,
+            'door_no' => null,
+            'swipe_result' => null,
             'attendance_status' => null,
             'verify_mode' => null,
             'accessed_at' => null,
@@ -167,6 +166,9 @@ class DeviceEventController extends Controller
         $data['event_type'] = $event['eventType'] ?? $event['event_type'] ?? null;
         $data['employee_no'] = $event['employeeNoString'] ?? $event['employee_no'] ?? null;
         $data['name'] = $event['name'] ?? null;
+        $data['card_no'] = $event['cardNo'] ?? $event['card_no'] ?? null;
+        $data['door_no'] = $event['doorNo'] ?? $event['door_no'] ?? null;
+        $data['swipe_result'] = $event['swipeResult'] ?? $event['swipe_result'] ?? null;
         $data['attendance_status'] = $event['attendanceStatus'] ?? $event['attendance_status'] ?? null;
         $data['verify_mode'] = $event['currentVerifyMode'] ?? $event['verify_mode'] ?? null;
 

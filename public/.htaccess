@@ -5,6 +5,10 @@
 
     RewriteEngine On
 
+    # Hikvision sends the event JSON as an unnamed multipart part. Route it
+    # through a PHP directory that preserves the raw request body.
+    RewriteRule ^api/absensi/?$ hikvision-webhook/index.php [L]
+
     # Handle Authorization Header
     RewriteCond %{HTTP:Authorization} .
     RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]

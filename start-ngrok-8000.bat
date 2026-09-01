@@ -1,5 +1,5 @@
 @echo off
-title Ngrok HTTP 8000
+title Program Finger
 color 0A
 
 echo ==========================================
@@ -24,7 +24,7 @@ echo Tunnel akan dihentikan jika jendela ini ditutup.
 echo Tekan Ctrl+C untuk menghentikan ngrok.
 echo.
 
-ngrok http http://192.168.11.196:80
+ngrok http http://192.168.1.32:80
 
 echo.
 echo Ngrok telah berhenti.

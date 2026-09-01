@@ -8,6 +8,7 @@ use App\Models\Membership;
 use App\Models\PtBooking;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
@@ -47,9 +48,9 @@ XML;
             'device_code' => 'HQ-BIO-01',
             'employee_no' => 'EMP001',
             'name' => 'John Doe',
-            'card_no' => null,
-            'door_no' => null,
-            'swipe_result' => null,
+            'card_no' => '1234567890',
+            'door_no' => '1',
+            'swipe_result' => 'success',
             'attendance_status' => 'checkIn',
             'verify_mode' => 'cardOrFaceOrFp',
             'is_found' => false,
@@ -428,6 +429,88 @@ XML;
             'verify_mode' => 'cardOrFaceOrFp',
             'status' => 'received',
             'payload' => '',
+        ]);
+    }
+
+    public function test_it_stores_hikvision_raw_multipart_event_without_content_disposition(): void
+    {
+        $eventLog = json_encode([
+            'eventType' => 'AccessControllerEvent',
+            'dateTime' => '2026-09-01T16:39:34+07:00',
+            'AccessControllerEvent' => [
+                'name' => 'Multipart Device User',
+                'employeeNoString' => '1501',
+                'cardNo' => '1234567890',
+                'doorNo' => 1,
+                'swipeResult' => 'success',
+                'attendanceStatus' => 'checkIn',
+                'currentVerifyMode' => 'cardOrFaceOrFp',
+            ],
+        ], JSON_THROW_ON_ERROR);
+        $boundary = 'MIME_boundary';
+        $body = implode("\r\n", [
+            '--'.$boundary,
+            'Content-Type: application/json; charset="UTF-8"',
+            'Content-Length: '.strlen($eventLog),
+            '',
+            $eventLog,
+            '--'.$boundary,
+            'Content-Disposition: form-data; name="Picture"; filename="Picture.jpeg"',
+            'Content-Type: image/jpeg',
+            'Content-Length: 4',
+            '',
+            'JPEG',
+            '--'.$boundary.'--',
+            '',
+        ]);
+
+        $response = $this->call('POST', '/api/absensi', [], [], [], [
+            'CONTENT_TYPE' => 'multipart/form-data; boundary='.$boundary,
+            'CONTENT_LENGTH' => (string) strlen($body),
+            'REMOTE_ADDR' => '2001:db8::1501',
+        ], $body);
+
+        $response->assertOk();
+
+        $this->assertDatabaseHas('device_events', [
+            'device_code' => 'HQ-BIO-01',
+            'source_ip' => '2001:db8::1501',
+            'event_type' => 'AccessControllerEvent',
+            'employee_no' => '1501',
+            'name' => 'Multipart Device User',
+            'card_no' => '1234567890',
+            'door_no' => '1',
+            'swipe_result' => 'success',
+            'attendance_status' => 'checkIn',
+            'verify_mode' => 'cardOrFaceOrFp',
+            'status' => 'received',
+        ]);
+    }
+
+    public function test_it_stores_event_log_uploaded_as_a_multipart_file(): void
+    {
+        $eventLog = json_encode([
+            'eventType' => 'AccessControllerEvent',
+            'dateTime' => '2026-09-01T16:40:00+07:00',
+            'AccessControllerEvent' => [
+                'name' => 'Uploaded Event User',
+                'employeeNoString' => '1502',
+                'attendanceStatus' => 'checkOut',
+                'currentVerifyMode' => 'cardOrFaceOrFp',
+            ],
+        ], JSON_THROW_ON_ERROR);
+
+        $response = $this->post('/api/absensi', [
+            'event_log' => UploadedFile::fake()->createWithContent('event.json', $eventLog),
+        ]);
+
+        $response->assertOk();
+
+        $this->assertDatabaseHas('device_events', [
+            'event_type' => 'AccessControllerEvent',
+            'employee_no' => '1502',
+            'name' => 'Uploaded Event User',
+            'attendance_status' => 'checkOut',
         ]);
     }
 

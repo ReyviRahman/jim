@@ -52,6 +52,9 @@ Route::middleware('auth')->group(function () {
         Route::livewire('/home', 'pages::dashboard.member.home')
             ->name('member.dashboard');
 
+        Route::livewire('/absensi', 'pages::dashboard.member.absensi')
+            ->name('member.absensi');
+
         Route::livewire('/riwayat-kehadiran', 'pages::dashboard.member.kehadiran')
             ->name('member.kehadiran.index');
 

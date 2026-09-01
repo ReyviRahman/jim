@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Verifikasi Invoice {{ $invoiceNumber }}</title>
     <link rel="icon" href="{{ asset('icon.png') }}" type="image/png">
+    <x-app-fonts />
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="min-h-screen bg-[#080808] font-sans text-white">

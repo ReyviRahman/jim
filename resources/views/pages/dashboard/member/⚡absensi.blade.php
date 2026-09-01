@@ -1,0 +1,535 @@
+<?php
+
+namespace App\Livewire\Member;
+
+use Livewire\Component;
+use SimpleSoftwareIO\QrCode\Facades\QrCode;
+use Illuminate\Support\Facades\Auth;
+use Livewire\Attributes\Layout;
+use App\Models\Membership;
+use App\Models\Attendance;
+use App\Models\PtBooking;
+use App\Models\User;
+use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
+
+new #[Layout('layouts::member')] class extends Component
+{
+    // --- TAMBAHAN UNTUK POLLING ---
+    public $hasCheckedIn = false;
+    public $selectedMembershipId = null;
+    public $selectedBookingId = null;
+
+    public function mount(): void
+    {
+        $rawActiveMemberships = $this->selectableMembershipQuery()
+            ->with(['gymPackage', 'ptPackage'])
+            ->get();
+
+        $activeMemberships = collect();
+
+        foreach ($rawActiveMemberships as $membership) {
+            $isExpired = false;
+
+            if ($membership->type === 'pt') {
+                if ($membership->pt_end_date && Carbon::parse($membership->pt_end_date)->endOfDay()->isPast()) {
+                    $isExpired = true;
+                }
+
+                if (!is_null($membership->remaining_sessions) && $membership->remaining_sessions <= 0) {
+                    $isUsedToday = Attendance::where('membership_id', $membership->id)
+                        ->where('type', 'pt')
+                        ->where('check_in_time', '>=', today()->startOfDay())
+                        ->where('check_in_time', '<=', today()->endOfDay())
+                        ->exists();
+
+                    if (!$isUsedToday) {
+                        $isExpired = true;
+                    }
+                }
+            } elseif ($membership->type === 'bundle_pt_membership') {
+                if ($membership->membership_end_date && Carbon::parse($membership->membership_end_date)->endOfDay()->isPast()) {
+                    $isExpired = true;
+                }
+                if (!is_null($membership->remaining_sessions) && $membership->remaining_sessions <= 0) {
+                    $isExpired = true;
+                }
+            } else {
+                if ($membership->membership_end_date && Carbon::parse($membership->membership_end_date)->endOfDay()->isPast()) {
+                    $isExpired = true;
+                }
+            }
+
+            if ($isExpired) {
+                if ($membership->status !== 'completed') {
+                    $membership->update(['status' => 'completed', 'is_active' => false]);
+                }
+            } else {
+                $activeMemberships->push($membership);
+            }
+        }
+
+        if ($activeMemberships->isNotEmpty() && is_null($this->selectedMembershipId)) {
+            $this->selectedMembershipId = $activeMemberships->first()->id;
+        }
+    }
+
+    public function updatingSelectedMembershipId(mixed $value): void
+    {
+        $this->validatedSelectableMembershipId($value);
+    }
+
+    public function updatedSelectedMembershipId(mixed $value): void
+    {
+        $this->selectedMembershipId = (int) $value;
+        $this->selectedBookingId = null;
+    }
+
+    public function updatingSelectedBookingId(mixed $value): void
+    {
+        if ($value === null || $value === '') {
+            return;
+        }
+
+        $this->validatedEligibleBookingId($value);
+    }
+
+    public function updatedSelectedBookingId(mixed $value): void
+    {
+        $this->selectedBookingId = $value === null || $value === '' ? null : (int) $value;
+    }
+
+    public function selectMembership(mixed $membershipId): void
+    {
+        $this->selectedMembershipId = $this->validatedSelectableMembershipId($membershipId);
+        $this->selectedBookingId = null;
+    }
+
+    public function selectBooking(mixed $bookingId): void
+    {
+        $this->selectedBookingId = $this->validatedEligibleBookingId($bookingId);
+    }
+
+    /** @return EloquentCollection<int, PtBooking> */
+    public function getEligibleBookingsProperty(): EloquentCollection
+    {
+        if (!$this->selectedMembershipId) {
+            return new EloquentCollection();
+        }
+
+        $membership = $this->selectableMembershipQuery()
+            ->whereKey($this->selectedMembershipId)
+            ->first();
+
+        if (!$membership || $membership->type !== 'pt') {
+            return new EloquentCollection();
+        }
+
+        return $this->eligibleBookingQuery($membership->getKey())
+            ->orderBy('booking_date', 'asc')
+            ->get();
+    }
+
+    public function checkAttendance(): void
+    {
+        if (!$this->hasCheckedIn) {
+            $recentScan = Attendance::where('user_id', Auth::id())
+                ->where('check_in_time', '>=', now()->subSeconds(30))
+                ->exists();
+
+            if ($recentScan) {
+                $this->hasCheckedIn = true;
+            }
+        }
+    }
+    // ------------------------------
+
+    public function with(): array
+    {
+        $user = $this->authenticatedUser();
+        
+// 1. Ambil paket 'active' saja
+        $rawActiveMemberships = $this->selectableMembershipQuery()
+            ->with(['gymPackage', 'ptPackage'])
+            ->get();
+
+        // 2. Siapkan collection baru untuk menyimpan paket yang valid tayang
+        $activeMemberships = collect();
+
+        // 3. Lakukan pengecekan tanggal & sesi untuk setiap paket
+        foreach ($rawActiveMemberships as $membership) {
+            $isExpired = false;
+
+            if ($membership->type === 'pt') {
+                if ($membership->pt_end_date && Carbon::parse($membership->pt_end_date)->endOfDay()->isPast()) {
+                    $isExpired = true;
+                }
+                
+                if (!is_null($membership->remaining_sessions) && $membership->remaining_sessions <= 0) {
+                    $isUsedToday = Attendance::where('membership_id', $membership->id)
+                        ->where('type', 'pt')
+                        ->where('check_in_time', '>=', today()->startOfDay())
+                        ->where('check_in_time', '<=', today()->endOfDay())
+                        ->exists();
+
+                    if (!$isUsedToday) {
+                        $isExpired = true;
+                    }
+                }
+            } elseif ($membership->type === 'bundle_pt_membership') {
+                if ($membership->membership_end_date && Carbon::parse($membership->membership_end_date)->endOfDay()->isPast()) {
+                    $isExpired = true;
+                }
+                if (!is_null($membership->remaining_sessions) && $membership->remaining_sessions <= 0) {
+                    $isExpired = true;
+                }
+            } else {
+                if ($membership->membership_end_date && Carbon::parse($membership->membership_end_date)->endOfDay()->isPast()) {
+                    $isExpired = true;
+                }
+            }
+
+            if ($isExpired) {
+                if ($membership->status !== 'completed') {
+                    $membership->update(['status' => 'completed', 'is_active' => false]);
+                }
+            } else {
+                $activeMemberships->push($membership);
+            }
+        }
+
+        $hasActivePackage = $activeMemberships->isNotEmpty();
+        $qrCode = null;
+        $selectedMembership = $activeMemberships->firstWhere('id', $this->selectedMembershipId);
+        $eligibleBookings = $this->getEligibleBookingsProperty();
+
+        // QR Code generation based on membership type
+        if ($hasActivePackage && $this->selectedMembershipId && $selectedMembership) {
+            if ($selectedMembership->type === 'pt' && $this->selectedBookingId) {
+                $booking = $eligibleBookings->firstWhere('id', $this->selectedBookingId);
+                if ($booking) {
+                    $qrData = json_encode([
+                        'booking_id' => $booking->id,
+                        'user_id' => $user->id,
+                        'membership_id' => $this->selectedMembershipId
+                    ]);
+                    $qrCode = QrCode::size(220)->margin(1)->generate($qrData);
+                }
+            } elseif ($selectedMembership->type !== 'pt') {
+                $qrData = json_encode([
+                    'user_id' => $user->id,
+                    'membership_id' => $this->selectedMembershipId
+                ]);
+                $qrCode = QrCode::size(220)->margin(1)->generate($qrData);
+            }
+        }
+
+        return [
+            'user' => $user,
+            'activeMemberships' => $activeMemberships,
+            'hasActivePackage' => $hasActivePackage,
+            'qrCode' => $qrCode,
+            'selectedMembershipId' => $this->selectedMembershipId,
+            'selectedMembership' => $selectedMembership,
+            'eligibleBookings' => $eligibleBookings,
+            'selectedBookingId' => $this->selectedBookingId,
+        ];
+    }
+
+    private function selectableMembershipQuery(): Builder
+    {
+        $user = $this->authenticatedUser();
+
+        return Membership::query()
+            ->where(function (Builder $query) use ($user): void {
+                $query->whereBelongsTo($user, 'user')
+                    ->orWhereHas('members', function (Builder $memberQuery) use ($user): void {
+                        $memberQuery->whereKey($user->getKey());
+                    });
+            })
+            ->where('status', 'active')
+            ->where('is_active', true)
+            ->where(function (Builder $query): void {
+                $query->whereNull('start_date')
+                    ->orWhereDate('start_date', '<=', today());
+            });
+    }
+
+    private function eligibleBookingQuery(int $membershipId): Builder
+    {
+        return PtBooking::query()
+            ->where('membership_id', $membershipId)
+            ->where('member_id', $this->authenticatedUser()->getKey())
+            ->where('status', 'approved')
+            ->where('attendance', 'not_yet')
+            ->whereNull('cancellation_requested_at');
+    }
+
+    private function validatedSelectableMembershipId(mixed $value): int
+    {
+        $membershipId = filter_var($value, FILTER_VALIDATE_INT);
+
+        abort_unless(
+            $membershipId !== false && $this->selectableMembershipQuery()->whereKey($membershipId)->exists(),
+            403,
+        );
+
+        return $membershipId;
+    }
+
+    private function validatedEligibleBookingId(mixed $value): int
+    {
+        $bookingId = filter_var($value, FILTER_VALIDATE_INT);
+
+        abort_unless($bookingId !== false && $this->selectedMembershipId !== null, 403);
+
+        $membershipId = $this->validatedSelectableMembershipId($this->selectedMembershipId);
+
+        abort_unless(
+            $this->selectableMembershipQuery()
+                ->whereKey($membershipId)
+                ->where('type', 'pt')
+                ->exists()
+                && $this->eligibleBookingQuery($membershipId)->whereKey($bookingId)->exists(),
+            403,
+        );
+
+        return $bookingId;
+    }
+
+    private function authenticatedUser(): User
+    {
+        $user = Auth::user();
+
+        abort_unless($user instanceof User, 401);
+
+        return $user;
+    }
+};
+?>
+
+<div wire:poll.2s="checkAttendance">
+    <div class="max-w-lg mx-auto py-8  sm:px-6">
+        
+        @if($hasCheckedIn)
+            <div class="bg-green-500 border border-green-600 rounded-3xl p-8 shadow-xl text-center relative overflow-hidden transition-all duration-500">
+                <div class="bg-white/20 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
+                    <svg class="w-14 h-14 text-white animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                </div>
+                <h2 class="text-3xl font-bold text-white mb-3">Berhasil!</h2>
+                <p class="text-green-100 text-base leading-relaxed mb-8">Check-in kamu berhasil tercatat. Selamat berlatih di Frans Gym!</p>
+                <button wire:click="$set('hasCheckedIn', false)" class="bg-white text-green-600 hover:bg-green-50 font-bold py-3 px-6 rounded-xl transition duration-200 w-full shadow-md">
+                    Kembali ke Kartu Member
+                </button>
+            </div>
+        @else
+
+        @if(!$hasActivePackage)
+            <div class="bg-white border border-red-100 rounded-3xl p-8 shadow-lg text-center relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-full h-2 bg-red-500"></div>
+                <div class="bg-red-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                </div>
+                <h2 class="text-2xl font-bold text-gray-800 mb-3">Tidak Ada Paket Aktif</h2>
+                <p class="text-gray-500 text-sm leading-relaxed mb-6">Anda belum memiliki paket membership atau masa aktif paket Anda telah habis. Silakan perpanjang atau beli paket baru untuk mendapatkan akses Check-in.</p>
+            </div>
+        @else
+            <div class="bg-white rounded-3xl shadow-xl overflow-hidden border border-gray-100">
+                
+<div class="py-4 text-center bg-white border-b border-gray-100">
+                    <p class="text-gray-500 text-sm mb-6 font-medium">Scan QR Code ini pada scanner admin untuk Check-in</p>
+
+                    @if($activeMemberships->count() > 1)
+                        <div class="mb-4 px-4">
+                            <select wire:model.live="selectedMembershipId" class="w-full sm:w-auto text-sm border-gray-200 rounded-xl py-2 px-3 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                @foreach($activeMemberships as $membership)
+                                    <option value="{{ $membership->id }}">
+                                        @if($membership->type === 'pt' && $membership->ptPackage)
+                                            {{ $membership->ptPackage->name }} (PT - {{ $membership->remaining_sessions }} sesi)
+                                        @elseif($membership->gymPackage)
+                                            {{ $membership->gymPackage->name }} (Gym)
+                                        @else
+                                            Paket {{ ucfirst($membership->type) }}
+                                        @endif
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                    @elseif($selectedMembership)
+                        <div class="mb-4">
+                            <span class="inline-flex items-center px-3 py-1.5 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs font-bold">
+                                @if($selectedMembership->type === 'pt' && $selectedMembership->ptPackage)
+                                    {{ $selectedMembership->ptPackage->name }}
+                                @elseif($selectedMembership->gymPackage)
+                                    {{ $selectedMembership->gymPackage->name }}
+                                @else
+                                    Paket {{ ucfirst($selectedMembership->type) }}
+                                @endif
+                            </span>
+                        </div>
+                    @endif
+
+                    @if($selectedMembership && $selectedMembership->type === 'pt')
+                        @if($eligibleBookings->count() > 0)
+                            <div class="mb-4 px-4">
+                                <select wire:model.live="selectedBookingId" class="w-full sm:w-auto text-sm border-gray-200 rounded-xl py-2 px-3 bg-purple-50 focus:ring-2 focus:ring-purple-500 focus:border-purple-500">
+                                    <option value="">-- Pilih Jadwal Booking --</option>
+                                    @foreach($eligibleBookings as $booking)
+                                        <option value="{{ $booking->id }}">
+                                            {{ $booking->booking_date->locale('id')->isoFormat('dddd, D MMM YYYY') }} - {{ $booking->booking_time->format('H:i') }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            @if($selectedBookingId)
+                                <div class="mb-2">
+                                    <span class="inline-flex items-center px-2.5 py-1 rounded-full bg-green-100 text-green-700 text-xs font-medium">
+                                        Booking Selected
+                                    </span>
+                                </div>
+                            @endif
+                        @else
+                            <div class="mb-4 px-4">
+                                <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-700">
+                                    Silakan Booking Jadwal terlebih dahulu
+                                </div>
+                            </div>
+                        @endif
+                    @endif
+
+                    @if($qrCode)
+                    <div class="inline-block p-4 bg-white rounded-2xl shadow-sm border border-gray-200 transition-transform hover:scale-105 duration-300 mb-6">
+                        {!! $qrCode !!}
+                    </div>
+                    @elseif($selectedMembership && $selectedMembership->type === 'pt' && !$selectedBookingId)
+                    <div class="inline-block p-6 bg-gray-100 rounded-2xl mb-6">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-gray-400 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h2M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+                        </svg>
+                        <p class="text-sm text-gray-500">Pilih jadwal booking terlebih dahulu</p>
+                    </div>
+                    @endif
+
+                    <div>
+                        <h3 class="text-gray-800 text-2xl font-bold tracking-tight">{{ $user->name }}</h3>
+                        <div class="mt-2 inline-flex items-center px-3 py-1 rounded-full bg-green-50 border border-green-200 text-green-700 text-xs font-bold">
+                            <span class="w-2 h-2 rounded-full bg-green-500 mr-2 animate-pulse"></span>
+                            Status: Active
+                        </div>
+                    </div>
+                </div>
+
+                <div class="p-6 bg-gray-50">
+                    <h4 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">Paket Aktif Anda</h4>
+                    
+                    <div class="space-y-4">
+                        @foreach($activeMemberships as $membership)
+                            <div class="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-2xl bg-white border border-gray-100 shadow-sm hover:border-blue-200 hover:shadow transition duration-200">
+                                
+                                <div class="mb-4 sm:mb-0">
+                                    <div class="flex items-center gap-2 mb-1">
+                                        @if($membership->type === 'pt')
+                                            <div class="bg-purple-100 text-purple-600 p-1.5 rounded-lg">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                            </div>
+                                        @else
+                                            <div class="bg-blue-100 text-blue-600 p-1.5 rounded-lg">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                                            </div>
+                                        @endif
+
+                                        <h5 class="font-bold text-gray-800">
+                                            @if($membership->type === 'pt' && $membership->ptPackage)
+                                                {{ $membership->ptPackage->name }}
+                                            @elseif($membership->gymPackage)
+                                                {{ $membership->gymPackage->name }}
+                                            @else
+                                                Paket Kustom
+                                            @endif
+                                        </h5>
+                                    </div>
+                                    <span class="text-xs font-semibold px-2 py-0.5 rounded-md bg-gray-100 text-gray-600 uppercase tracking-wide">
+                                        {{ str_replace('_', ' ', $membership->type) }}
+                                    </span>
+                                </div>
+
+                                <div class="text-left sm:text-right space-y-2">
+                                    
+                                    {{-- JIKA PAKET BERUPA PT --}}
+                                    @if($membership->type === 'pt')
+                                        @if($membership->pt_end_date)
+                                            <div class="text-xs text-gray-500 flex flex-col sm:items-end gap-1">
+                                                <div class="flex items-center gap-1">
+                                                    <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                                    <span>Masa Aktif PT:</span>
+                                                </div>
+                                                <span class="font-medium text-gray-800 bg-gray-50 px-2 py-1 rounded border border-gray-100">
+                                                    {{ \Carbon\Carbon::parse($membership->start_date ?? $membership->created_at)->translatedFormat('d M Y') }} 
+                                                    <span class="text-gray-400 mx-1">s/d</span> 
+                                                    {{ \Carbon\Carbon::parse($membership->pt_end_date)->translatedFormat('d M Y') }}
+                                                </span>
+                                            </div>
+                                        @endif
+
+                                        @if(!is_null($membership->remaining_sessions))
+                                            <div class="mt-2">
+                                                <span class="inline-flex items-center gap-1.5 {{ $membership->remaining_sessions == 0 ? 'bg-red-50 text-red-700 border-red-200' : 'bg-purple-50 text-purple-700 border-purple-200' }} text-xs font-bold py-1.5 px-3 rounded-full border">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                                                    Sisa {{ $membership->remaining_sessions }} dari {{ $membership->total_sessions }} Sesi
+                                                </span>
+                                            </div>
+                                        @endif
+                                    
+                                    {{-- JIKA PAKET BERUPA GYM BIASA --}}
+                                    @else
+                                        @if($membership->membership_end_date)
+                                            <div class="text-xs text-gray-500 flex flex-col sm:items-end gap-1">
+                                                <div class="flex items-center gap-1">
+                                                    <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                                    <span>Masa Aktif Gym:</span>
+                                                </div>
+                                                <span class="font-medium text-gray-800 bg-gray-50 px-2 py-1 rounded border border-gray-100">
+                                                    {{ \Carbon\Carbon::parse($membership->start_date ?? $membership->created_at)->translatedFormat('d M Y') }} 
+                                                    <span class="text-gray-400 mx-1">s/d</span> 
+                                                    {{ \Carbon\Carbon::parse($membership->membership_end_date)->translatedFormat('d M Y') }}
+                                                </span>
+                                            </div>
+                                        @endif
+                                    @endif
+
+                                </div>
+
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-6 text-center">
+                <p class="text-xs text-gray-400 mb-2">Manual Input Data (Untuk Admin)</p>
+                @if($selectedMembership && $selectedMembership->type === 'pt')
+                    @if($selectedBookingId)
+                        <div class="inline-block bg-gray-100 border border-gray-200 rounded-lg py-2 px-4 text-xs text-gray-600 font-mono select-all cursor-text">
+                            {"user_id": {{ $user->id }}, "membership_id": {{ $selectedMembershipId }}, "booking_id": {{ $selectedBookingId }}}
+                        </div>
+                    @else
+                        <div class="inline-block bg-yellow-50 border border-yellow-200 rounded-lg py-2 px-4 text-xs text-yellow-700 font-mono">
+                            Pilih jadwal booking terlebih dahulu untuk menampilkan data manual input PT
+                        </div>
+                    @endif
+                @else
+                    <div class="inline-block bg-gray-100 border border-gray-200 rounded-lg py-2 px-4 text-xs text-gray-600 font-mono select-all cursor-text">
+                        {"user_id": {{ $user->id }}, "membership_id": {{ $selectedMembershipId }}}
+                    </div>
+                @endif
+            </div>
+        @endif
+        
+        @endif
+    </div>
+</div>

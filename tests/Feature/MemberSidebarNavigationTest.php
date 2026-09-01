@@ -11,6 +11,34 @@ class MemberSidebarNavigationTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_member_sidebar_has_separate_dashboard_and_absensi_navigation(): void
+    {
+        $member = User::factory()->create(['role' => 'member']);
+        $gymMembership = $this->createMembership($member, 'membership');
+        $gymMembership->members()->attach($member);
+
+        $this->actingAs($member)
+            ->get(route('member.dashboard'))
+            ->assertOk()
+            ->assertSee('href="'.route('member.dashboard').'"', false)
+            ->assertSee('Dashboard')
+            ->assertSee('href="'.route('member.absensi').'"', false)
+            ->assertSee('Absensi');
+    }
+
+    public function test_member_absensi_route_preserves_the_check_in_page(): void
+    {
+        $member = User::factory()->create(['role' => 'member']);
+        $gymMembership = $this->createMembership($member, 'membership');
+        $gymMembership->members()->attach($member);
+
+        $this->actingAs($member)
+            ->get(route('member.absensi'))
+            ->assertOk()
+            ->assertSee('Scan QR Code ini pada scanner admin untuk Check-in')
+            ->assertSee('Manual Input Data (Untuk Admin)');
+    }
+
     public function test_member_without_pt_membership_does_not_see_pt_schedule_navigation(): void
     {
         $member = User::factory()->create(['role' => 'member']);
