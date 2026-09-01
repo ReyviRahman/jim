@@ -27,7 +27,7 @@ new #[Layout('layouts::empty')] class extends Component
             ->where('role', 'member')
             ->orderByDesc('created_at')
             ->orderByDesc('id')
-            ->first(['id', 'name']);
+            ->first(['id', 'hikvision_employee_no', 'name']);
 
         if ($user === null) {
             session()->flash('error', 'Belum ada member yang dapat disinkronkan.');

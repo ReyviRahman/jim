@@ -52,15 +52,16 @@ class SyncHikvisionMember implements ShouldBeUnique, ShouldQueue
 
         $user = User::query()
             ->where('role', 'member')
-            ->find($this->userId, ['id', 'name']);
+            ->find($this->userId, ['id', 'hikvision_employee_no', 'name']);
 
         if ($user === null) {
             return;
         }
 
-        $existingEmployeeNumbers = $hikvisionUserService->existingEmployeeNumbers([$user->id]);
+        $employeeNumber = $hikvisionUserService->employeeNumber($user);
+        $existingEmployeeNumbers = $hikvisionUserService->existingEmployeeNumbers([$employeeNumber]);
 
-        if (in_array((string) $user->id, $existingEmployeeNumbers, true)) {
+        if (in_array($employeeNumber, $existingEmployeeNumbers, true)) {
             return;
         }
 

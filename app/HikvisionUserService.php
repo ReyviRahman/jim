@@ -107,10 +107,10 @@ class HikvisionUserService
         $this->ensureDeviceIsAvailable();
 
         try {
-            $this->request()
+            $response = $this->request()
                 ->post($this->baseUrl().$this->userEndpoint(), [
                     'UserInfo' => [
-                        'employeeNo' => (string) $user->id,
+                        'employeeNo' => $this->employeeNumber($user),
                         'name' => $user->name,
                         'userType' => 'normal',
                         'Valid' => [
@@ -122,6 +122,7 @@ class HikvisionUserService
                 ])
                 ->throw();
 
+            $this->ensureSuccessfulSyncResponse($response->json());
             $this->clearDeviceUnavailable();
         } catch (ConnectionException $exception) {
             $this->markDeviceUnavailable();
@@ -160,6 +161,49 @@ class HikvisionUserService
             )
             ->connectTimeout((int) config('services.hikvision.connect_timeout'))
             ->timeout((int) config('services.hikvision.timeout'));
+    }
+
+    public function employeeNumber(User $user): string
+    {
+        $employeeNumber = trim((string) $user->hikvision_employee_no);
+
+        return $employeeNumber !== '' ? $employeeNumber : (string) $user->getKey();
+    }
+
+    private function ensureSuccessfulSyncResponse(mixed $payload): void
+    {
+        if (! is_array($payload)) {
+            return;
+        }
+
+        $responseStatus = data_get($payload, 'ResponseStatus');
+
+        if (! is_array($responseStatus)) {
+            if (array_key_exists('ResponseStatus', $payload)) {
+                throw new RuntimeException('Hikvision member sync returned an invalid response.');
+            }
+
+            if (! array_key_exists('statusCode', $payload) && ! array_key_exists('statusString', $payload)) {
+                return;
+            }
+
+            $responseStatus = $payload;
+        }
+
+        $statusCode = data_get($responseStatus, 'statusCode');
+        $statusString = data_get($responseStatus, 'statusString');
+        $statusCodeIsSuccessful = $statusCode === null
+            || (is_numeric($statusCode) && in_array((int) $statusCode, [0, 1], true));
+        $statusStringIsSuccessful = $statusString === null
+            || (is_string($statusString) && strcasecmp(trim($statusString), 'OK') === 0);
+
+        if (($statusCode !== null || $statusString !== null)
+            && $statusCodeIsSuccessful
+            && $statusStringIsSuccessful) {
+            return;
+        }
+
+        throw new RuntimeException('Hikvision member sync returned an error response.');
     }
 
     private function ensureDeviceIsAvailable(): void

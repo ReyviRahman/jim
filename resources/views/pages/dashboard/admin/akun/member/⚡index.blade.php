@@ -6,12 +6,11 @@ use Livewire\WithPagination;
 use App\Models\User;
 use App\Models\Membership;
 use App\HikvisionUserService;
-use App\Jobs\SyncHikvisionMember;
 use App\Exports\MemberExport;
 use Maatwebsite\Excel\Facades\Excel;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rule;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 new #[Layout('layouts::admin')] class extends Component
@@ -25,12 +24,13 @@ new #[Layout('layouts::admin')] class extends Component
     public ?string $syncStartDate = null;
     public ?string $syncEndDate = null;
     public bool $showSyncModal = false;
-    public ?string $bulkSyncStartDate = null;
-    public ?string $bulkSyncEndDate = null;
-    public bool $showBulkSyncModal = false;
-    public array $hikvisionEmployeeNumbers = [];
+    public array $syncedUserIds = [];
+    public ?int $editingHikvisionUserId = null;
+    public ?string $editingHikvisionMemberName = null;
+    public ?string $hikvisionEmployeeNo = null;
+    public bool $showHikvisionEmployeeModal = false;
 
-    public function openSyncModal(int $userId, HikvisionUserService $hikvisionUserService): void
+    public function openSyncModal(int $userId): void
     {
         $user = User::query()
             ->where('role', 'member')
@@ -38,12 +38,6 @@ new #[Layout('layouts::admin')] class extends Component
 
         if ($user === null) {
             session()->flash('error', 'Member tidak ditemukan.');
-
-            return;
-        }
-
-        if ($this->memberExistsOnHikvision($hikvisionUserService, $user->id)) {
-            session()->flash('info', 'Member ini sudah terdaftar di Hikvision.');
 
             return;
         }
@@ -61,72 +55,72 @@ new #[Layout('layouts::admin')] class extends Component
         $this->reset('syncingUserId', 'syncStartDate', 'syncEndDate', 'showSyncModal');
     }
 
-    public function openBulkSyncModal(): void
+    public function openHikvisionEmployeeModal(int $userId): void
     {
-        if (! config('services.hikvision.queue_enabled', false)) {
-            session()->flash('info', 'Job sinkronisasi Hikvision sedang dinonaktifkan.');
+        $user = User::query()
+            ->where('role', 'member')
+            ->find($userId, ['id', 'name', 'hikvision_employee_no']);
+
+        if ($user === null) {
+            session()->flash('error', 'Member tidak ditemukan.');
 
             return;
         }
 
         $this->resetValidation();
-        $this->bulkSyncStartDate = now()->startOfYear()->toDateString();
-        $this->bulkSyncEndDate = now()->endOfYear()->toDateString();
-        $this->showBulkSyncModal = true;
+        $this->editingHikvisionUserId = $user->id;
+        $this->editingHikvisionMemberName = $user->name;
+        $this->hikvisionEmployeeNo = $user->hikvision_employee_no;
+        $this->showHikvisionEmployeeModal = true;
     }
 
-    public function closeBulkSyncModal(): void
+    public function closeHikvisionEmployeeModal(): void
     {
         $this->resetValidation();
-        $this->reset('bulkSyncStartDate', 'bulkSyncEndDate', 'showBulkSyncModal');
+        $this->reset(
+            'editingHikvisionUserId',
+            'editingHikvisionMemberName',
+            'hikvisionEmployeeNo',
+            'showHikvisionEmployeeModal',
+        );
     }
 
-    public function queueBulkSync(): void
+    public function updateHikvisionEmployeeNo(): void
     {
-        if (! config('services.hikvision.queue_enabled', false)) {
-            $this->closeBulkSyncModal();
-            session()->flash('info', 'Job sinkronisasi Hikvision sedang dinonaktifkan.');
+        $user = User::query()
+            ->where('role', 'member')
+            ->find($this->editingHikvisionUserId, ['id', 'name', 'hikvision_employee_no']);
+
+        if ($user === null) {
+            $this->closeHikvisionEmployeeModal();
+            session()->flash('error', 'Member tidak ditemukan.');
 
             return;
         }
+
+        $this->hikvisionEmployeeNo = filled($this->hikvisionEmployeeNo)
+            ? trim($this->hikvisionEmployeeNo)
+            : null;
 
         $this->validate([
-            'bulkSyncStartDate' => ['required', 'date'],
-            'bulkSyncEndDate' => ['required', 'date', 'after_or_equal:bulkSyncStartDate'],
+            'hikvisionEmployeeNo' => [
+                'nullable',
+                'string',
+                'max:255',
+                Rule::unique('users', 'hikvision_employee_no')->ignore($user),
+            ],
+        ], [
+            'hikvisionEmployeeNo.unique' => 'Hikvision Employee ID sudah digunakan oleh akun lain.',
         ]);
 
-        $lock = Cache::lock('hikvision-bulk-sync-dispatch', 60);
+        $user->update([
+            'hikvision_employee_no' => $this->hikvisionEmployeeNo,
+        ]);
 
-        if (! $lock->get()) {
-            session()->flash('info', 'Sinkronisasi seluruh member sedang dijadwalkan.');
+        $memberName = $user->name;
 
-            return;
-        }
-
-        try {
-            $memberCount = 0;
-
-            User::query()
-                ->where('role', 'member')
-                ->select('id')
-                ->orderBy('id')
-                ->chunkById(100, function ($users) use (&$memberCount): void {
-                    foreach ($users as $user) {
-                        SyncHikvisionMember::dispatch(
-                            $user->id,
-                            $this->bulkSyncStartDate,
-                            $this->bulkSyncEndDate,
-                        )->onQueue('hikvision');
-
-                        $memberCount++;
-                    }
-                });
-        } finally {
-            $lock->release();
-        }
-
-        $this->closeBulkSyncModal();
-        session()->flash('success', "{$memberCount} member dijadwalkan untuk disinkronkan ke Hikvision.");
+        $this->closeHikvisionEmployeeModal();
+        session()->flash('success', "Hikvision Employee ID untuk {$memberName} berhasil diperbarui.");
     }
 
     public function syncMember(HikvisionUserService $hikvisionUserService): void
@@ -139,18 +133,11 @@ new #[Layout('layouts::admin')] class extends Component
 
         $user = User::query()
             ->where('role', 'member')
-            ->find($this->syncingUserId, ['id', 'name']);
+            ->find($this->syncingUserId, ['id', 'hikvision_employee_no', 'name']);
 
         if ($user === null) {
             $this->closeSyncModal();
             session()->flash('error', 'Member tidak ditemukan.');
-
-            return;
-        }
-
-        if ($this->memberExistsOnHikvision($hikvisionUserService, $user->id)) {
-            $this->closeSyncModal();
-            session()->flash('info', 'Member ini sudah terdaftar di Hikvision.');
 
             return;
         }
@@ -162,8 +149,8 @@ new #[Layout('layouts::admin')] class extends Component
                 Carbon::parse($this->syncEndDate)->endOfDay(),
             );
 
-            $this->hikvisionEmployeeNumbers = collect($this->hikvisionEmployeeNumbers)
-                ->push((string) $user->id)
+            $this->syncedUserIds = collect($this->syncedUserIds)
+                ->push($user->id)
                 ->unique()
                 ->values()
                 ->all();
@@ -264,44 +251,6 @@ new #[Layout('layouts::admin')] class extends Component
     public function updatedSearch()
     {
         $this->resetPage();
-    }
-
-    private function memberExistsOnHikvision(HikvisionUserService $hikvisionUserService, int $userId): bool
-    {
-        $exists = $this->checkHikvisionMemberExists($hikvisionUserService, $userId);
-
-        if (! $exists) {
-            return false;
-        }
-
-        $this->markHikvisionMemberAsExisting($userId);
-
-        return true;
-    }
-
-    private function checkHikvisionMemberExists(HikvisionUserService $hikvisionUserService, int $userId): ?bool
-    {
-        try {
-            $existingEmployeeNumbers = $hikvisionUserService->existingEmployeeNumbers([$userId]);
-
-            return in_array((string) $userId, $existingEmployeeNumbers, true);
-        } catch (\Throwable $exception) {
-            Log::warning('Failed to check existing Hikvision member', [
-                'user_id' => $userId,
-                'error' => $exception->getMessage(),
-            ]);
-
-            return null;
-        }
-    }
-
-    private function markHikvisionMemberAsExisting(int $userId): void
-    {
-        $this->hikvisionEmployeeNumbers = collect($this->hikvisionEmployeeNumbers)
-            ->push((string) $userId)
-            ->unique()
-            ->values()
-            ->all();
     }
 
     // Mengirim data ke view
@@ -441,13 +390,6 @@ new #[Layout('layouts::admin')] class extends Component
                         Export Excel
                     </button>
                 </div>
-                @if (config('services.hikvision.queue_enabled', false))
-                    <div>
-                        <button type="button" wire:click="openBulkSyncModal" class="text-white bg-emerald-600 box-border border border-transparent hover:bg-emerald-700 focus:ring-4 focus:ring-emerald-200 shadow-xs font-medium leading-5 rounded-md text-sm px-4 py-2.5 focus:outline-none flex items-center gap-2">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 16v-8m0 0-3-3m3 3 3-3M4 17.25V19a2 2 0 0 0 2 2h12a2 2 0 0 0 2 2v-1.75" /></svg>Sync
-                        </button>
-                    </div>
-                @endif
                 <div>
                     <a href="{{ route('admin.akun.member.create') }}" wire:navigate class="text-white bg-brand box-border border border-transparent hover:bg-brand-strong focus:ring-4 focus:ring-brand-medium shadow-xs font-medium leading-5 rounded-md text-sm px-4 py-2.5 focus:outline-none">+ Buat Akun</a>
                 </div>
@@ -490,7 +432,7 @@ new #[Layout('layouts::admin')] class extends Component
             </thead>
             <tbody>
                 @forelse ($users as $user)
-                    <tr class="bg-neutral-primary-soft border-b border-default hover:bg-neutral-secondary-medium">
+                    <tr wire:key="member-{{ $user->id }}" class="bg-neutral-primary-soft border-b border-default hover:bg-neutral-secondary-medium">
                         <td class="px-6 py-4">
                             <div class="flex items-center justify-center">
                                 <input id="checkbox-{{ $user->id }}" type="checkbox" value="{{ $user->id }}" wire:model.live="selectedUsers"
@@ -532,7 +474,15 @@ new #[Layout('layouts::admin')] class extends Component
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                                     </svg>
                                 </button>
-                                @unless (in_array((string) $user->id, $hikvisionEmployeeNumbers, true))
+                                <button type="button" wire:click="openHikvisionEmployeeModal({{ $user->id }})"
+                                    class="p-1.5 text-violet-600 hover:text-violet-800 hover:bg-violet-50 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-violet-400"
+                                    title="Edit Hikvision Employee ID">
+                                    <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536M9 11l6.232-6.232a2.5 2.5 0 113.536 3.536L12.536 14.536A4 4 0 0110.707 15.6L7 16.5l.9-3.707A4 4 0 019 11z" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 5h5M5 5a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2v-5M5 5v14h14" />
+                                    </svg>
+                                </button>
+                                @unless (in_array($user->id, $syncedUserIds, true))
                                     <button type="button" wire:click="openSyncModal({{ $user->id }})"
                                         class="p-1.5 text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-400"
                                         title="Sinkronkan ke Hikvision">
@@ -594,41 +544,39 @@ new #[Layout('layouts::admin')] class extends Component
         </div>
     @endif
 
-    @if ($showBulkSyncModal)
-        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="bulk-sync-member-title">
+    @if ($showHikvisionEmployeeModal)
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="edit-hikvision-employee-title">
             <div class="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
                 <div class="mb-5 flex items-start justify-between gap-4">
                     <div>
-                        <h2 id="bulk-sync-member-title" class="text-lg font-semibold text-heading">Sinkronkan Semua Member ke Hikvision</h2>
-                        <p class="mt-1 text-sm text-body">Setiap member diproses melalui antrean agar aman untuk data dalam jumlah besar. Member yang sudah ada akan dilewati.</p>
+                        <h2 id="edit-hikvision-employee-title" class="text-lg font-semibold text-heading">Edit Hikvision Employee ID</h2>
+                        <p class="mt-1 text-sm text-body">Member: {{ $editingHikvisionMemberName }}</p>
                     </div>
-                    <button type="button" wire:click="closeBulkSyncModal" class="rounded-md p-1 text-body hover:bg-neutral-secondary-medium hover:text-heading" aria-label="Tutup">
+                    <button type="button" wire:click="closeHikvisionEmployeeModal" class="rounded-md p-1 text-body hover:bg-neutral-secondary-medium hover:text-heading" aria-label="Tutup">
                         <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18 18 6M6 6l12 12" /></svg>
                     </button>
                 </div>
 
-                <form wire:submit="queueBulkSync" class="space-y-4">
+                <form wire:submit="updateHikvisionEmployeeNo" class="space-y-4">
                     <div>
-                        <label for="bulk-sync-start-date" class="mb-1 block text-sm font-medium text-heading">Tanggal mulai</label>
-                        <input id="bulk-sync-start-date" type="date" wire:model="bulkSyncStartDate" class="block w-full rounded-md border border-default-medium px-3 py-2 text-sm text-heading shadow-xs focus:border-brand focus:ring-brand">
-                        @error('bulkSyncStartDate') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
-                    </div>
-
-                    <div>
-                        <label for="bulk-sync-end-date" class="mb-1 block text-sm font-medium text-heading">Tanggal berakhir</label>
-                        <input id="bulk-sync-end-date" type="date" wire:model="bulkSyncEndDate" class="block w-full rounded-md border border-default-medium px-3 py-2 text-sm text-heading shadow-xs focus:border-brand focus:ring-brand">
-                        @error('bulkSyncEndDate') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                        <label for="modal-hikvision-employee-no" class="mb-1 block text-sm font-medium text-heading">Hikvision Employee ID</label>
+                        <input id="modal-hikvision-employee-no" type="text" wire:model="hikvisionEmployeeNo"
+                            class="block w-full rounded-md border border-default-medium px-3 py-2 text-sm text-heading shadow-xs focus:border-brand focus:ring-brand"
+                            placeholder="Contoh: 1403" autocomplete="off">
+                        <p class="mt-1 text-xs text-body">Kosongkan field jika member belum terhubung ke perangkat Hikvision.</p>
+                        @error('hikvisionEmployeeNo') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                     </div>
 
                     <div class="flex justify-end gap-3 pt-2">
-                        <button type="button" wire:click="closeBulkSyncModal" class="rounded-md border border-default-medium px-4 py-2 text-sm font-medium text-body hover:bg-neutral-secondary-medium">Batal</button>
-                        <button type="submit" wire:loading.attr="disabled" wire:target="queueBulkSync" class="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50">
-                            <span wire:loading.remove wire:target="queueBulkSync">Jadwalkan Sinkronisasi</span>
-                            <span wire:loading wire:target="queueBulkSync">Menjadwalkan...</span>
+                        <button type="button" wire:click="closeHikvisionEmployeeModal" class="rounded-md border border-default-medium px-4 py-2 text-sm font-medium text-body hover:bg-neutral-secondary-medium">Batal</button>
+                        <button type="submit" wire:loading.attr="disabled" wire:target="updateHikvisionEmployeeNo" class="rounded-md bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700 disabled:opacity-50">
+                            <span wire:loading.remove wire:target="updateHikvisionEmployeeNo">Simpan</span>
+                            <span wire:loading wire:target="updateHikvisionEmployeeNo">Menyimpan...</span>
                         </button>
                     </div>
                 </form>
             </div>
         </div>
     @endif
+
 </div>

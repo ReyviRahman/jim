@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -60,6 +61,56 @@ class HikvisionEmployeeNumberEditTest extends TestCase
             ->assertHasNoErrors();
 
         $this->assertNull($staff->refresh()->hikvision_employee_no);
+    }
+
+    public function test_member_index_modal_can_update_hikvision_employee_number(): void
+    {
+        $member = $this->createMember(['hikvision_employee_no' => 'HIK-OLD']);
+        Http::preventStrayRequests();
+
+        Livewire::test('pages::dashboard.admin.akun.member.index')
+            ->assertSee('Edit Hikvision Employee ID')
+            ->call('openHikvisionEmployeeModal', $member->id)
+            ->assertSet('showHikvisionEmployeeModal', true)
+            ->assertSet('editingHikvisionMemberName', $member->name)
+            ->assertSet('hikvisionEmployeeNo', 'HIK-OLD')
+            ->set('hikvisionEmployeeNo', '  HIK-NEW  ')
+            ->call('updateHikvisionEmployeeNo')
+            ->assertHasNoErrors()
+            ->assertSet('showHikvisionEmployeeModal', false)
+            ->assertSee("Hikvision Employee ID untuk {$member->name} berhasil diperbarui.");
+
+        $this->assertSame('HIK-NEW', $member->refresh()->hikvision_employee_no);
+        Http::assertNothingSent();
+    }
+
+    public function test_member_index_modal_rejects_a_duplicate_hikvision_employee_number(): void
+    {
+        User::factory()->create(['hikvision_employee_no' => 'HIK-DUPLICATE']);
+        $member = $this->createMember();
+
+        Livewire::test('pages::dashboard.admin.akun.member.index')
+            ->call('openHikvisionEmployeeModal', $member->id)
+            ->set('hikvisionEmployeeNo', 'HIK-DUPLICATE')
+            ->call('updateHikvisionEmployeeNo')
+            ->assertHasErrors(['hikvisionEmployeeNo' => 'unique'])
+            ->assertSet('showHikvisionEmployeeModal', true);
+
+        $this->assertNull($member->refresh()->hikvision_employee_no);
+    }
+
+    public function test_member_index_modal_can_clear_hikvision_employee_number(): void
+    {
+        $member = $this->createMember(['hikvision_employee_no' => 'HIK-EXISTING']);
+
+        Livewire::test('pages::dashboard.admin.akun.member.index')
+            ->call('openHikvisionEmployeeModal', $member->id)
+            ->set('hikvisionEmployeeNo', '   ')
+            ->call('updateHikvisionEmployeeNo')
+            ->assertHasNoErrors()
+            ->assertSet('showHikvisionEmployeeModal', false);
+
+        $this->assertNull($member->refresh()->hikvision_employee_no);
     }
 
     /**
