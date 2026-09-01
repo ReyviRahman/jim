@@ -63,6 +63,12 @@ new #[Layout('layouts::admin')] class extends Component
 
     public function openBulkSyncModal(): void
     {
+        if (! config('services.hikvision.queue_enabled', false)) {
+            session()->flash('info', 'Job sinkronisasi Hikvision sedang dinonaktifkan.');
+
+            return;
+        }
+
         $this->resetValidation();
         $this->bulkSyncStartDate = now()->startOfYear()->toDateString();
         $this->bulkSyncEndDate = now()->endOfYear()->toDateString();
@@ -77,6 +83,13 @@ new #[Layout('layouts::admin')] class extends Component
 
     public function queueBulkSync(): void
     {
+        if (! config('services.hikvision.queue_enabled', false)) {
+            $this->closeBulkSyncModal();
+            session()->flash('info', 'Job sinkronisasi Hikvision sedang dinonaktifkan.');
+
+            return;
+        }
+
         $this->validate([
             'bulkSyncStartDate' => ['required', 'date'],
             'bulkSyncEndDate' => ['required', 'date', 'after_or_equal:bulkSyncStartDate'],
@@ -428,11 +441,13 @@ new #[Layout('layouts::admin')] class extends Component
                         Export Excel
                     </button>
                 </div>
-                <div>
-                    <button type="button" wire:click="openBulkSyncModal" class="text-white bg-emerald-600 box-border border border-transparent hover:bg-emerald-700 focus:ring-4 focus:ring-emerald-200 shadow-xs font-medium leading-5 rounded-md text-sm px-4 py-2.5 focus:outline-none flex items-center gap-2">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 16v-8m0 0-3-3m3 3 3-3M4 17.25V19a2 2 0 0 0 2 2h12a2 2 0 0 0 2 2v-1.75" /></svg>Sync
-                    </button>
-                </div>
+                @if (config('services.hikvision.queue_enabled', false))
+                    <div>
+                        <button type="button" wire:click="openBulkSyncModal" class="text-white bg-emerald-600 box-border border border-transparent hover:bg-emerald-700 focus:ring-4 focus:ring-emerald-200 shadow-xs font-medium leading-5 rounded-md text-sm px-4 py-2.5 focus:outline-none flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 16v-8m0 0-3-3m3 3 3-3M4 17.25V19a2 2 0 0 0 2 2h12a2 2 0 0 0 2 2v-1.75" /></svg>Sync
+                        </button>
+                    </div>
+                @endif
                 <div>
                     <a href="{{ route('admin.akun.member.create') }}" wire:navigate class="text-white bg-brand box-border border border-transparent hover:bg-brand-strong focus:ring-4 focus:ring-brand-medium shadow-xs font-medium leading-5 rounded-md text-sm px-4 py-2.5 focus:outline-none">+ Buat Akun</a>
                 </div>

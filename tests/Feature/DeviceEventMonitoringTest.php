@@ -358,6 +358,29 @@ class DeviceEventMonitoringTest extends TestCase
         Http::assertNothingSent();
     }
 
+    public function test_hikvision_jobs_are_disabled_without_affecting_the_member_page(): void
+    {
+        $member = $this->createUser(['role' => 'member']);
+        Queue::fake();
+        Http::preventStrayRequests();
+        Http::fake();
+
+        Livewire::test('pages::dashboard.admin.akun.member.index')
+            ->assertDontSee('wire:click="openBulkSyncModal"', escape: false)
+            ->assertSee("openSyncModal({$member->id})")
+            ->call('openBulkSyncModal')
+            ->assertSet('showBulkSyncModal', false)
+            ->assertSee('Job sinkronisasi Hikvision sedang dinonaktifkan.');
+
+        Queue::assertNothingPushed();
+        Http::assertNothingSent();
+
+        (new SyncHikvisionMember($member->id, '2026-01-01', '2026-12-31'))
+            ->handle(app(HikvisionUserService::class));
+
+        Http::assertNothingSent();
+    }
+
     public function test_member_account_page_queues_all_members_with_this_year_as_the_default_validity_period(): void
     {
         $firstMember = $this->createUser(['role' => 'member']);
@@ -366,6 +389,7 @@ class DeviceEventMonitoringTest extends TestCase
         $this->createUser(['role' => 'admin']);
 
         config()->set('services.hikvision', [
+            'queue_enabled' => true,
             'base_url' => 'http://hikvision.test',
             'username' => 'admin',
             'password' => 'secret',
@@ -405,6 +429,7 @@ class DeviceEventMonitoringTest extends TestCase
         $member = $this->createUser(['role' => 'member']);
 
         config()->set('services.hikvision', [
+            'queue_enabled' => true,
             'base_url' => 'http://hikvision.test',
             'username' => 'admin',
             'password' => 'secret',
@@ -431,6 +456,7 @@ class DeviceEventMonitoringTest extends TestCase
         $member = $this->createUser(['role' => 'member']);
 
         config()->set('services.hikvision', [
+            'queue_enabled' => true,
             'base_url' => 'http://hikvision.test',
             'username' => 'admin',
             'password' => 'secret',

@@ -36,6 +36,7 @@ return [
     ],
 
     'hikvision' => [
+        'queue_enabled' => (bool) env('HIKVISION_QUEUE_ENABLED', false),
         'base_url' => env('HIKVISION_BASE_URL'),
         'username' => env('HIKVISION_USERNAME'),
         'password' => env('HIKVISION_PASSWORD'),

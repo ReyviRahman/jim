@@ -46,6 +46,10 @@ class SyncHikvisionMember implements ShouldBeUnique, ShouldQueue
 
     public function handle(HikvisionUserService $hikvisionUserService): void
     {
+        if (! config('services.hikvision.queue_enabled', false)) {
+            return;
+        }
+
         $user = User::query()
             ->where('role', 'member')
             ->find($this->userId, ['id', 'name']);
