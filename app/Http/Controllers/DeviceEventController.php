@@ -55,7 +55,19 @@ class DeviceEventController extends Controller
             return response('OK', 200);
         }
 
-        if (! $this->shouldStoreEvent($eventData)) {
+        $rejectionReasons = $this->eventRejectionReasons($eventData);
+
+        if ($rejectionReasons !== []) {
+            Log::debug('Hikvision event ignored', [
+                'device' => $device,
+                'event_type' => $eventData['event_type'],
+                'employee_no_present' => ! empty($eventData['employee_no']),
+                'attendance_status' => $eventData['attendance_status'],
+                'verify_mode' => $eventData['verify_mode'],
+                'accessed_at_present' => $eventData['accessed_at'] instanceof Carbon,
+                'rejection_reasons' => $rejectionReasons,
+            ]);
+
             return response('OK', 200);
         }
 
@@ -87,6 +99,13 @@ class DeviceEventController extends Controller
                     'verify_mode' => $eventData['verify_mode'],
                     'accessed_at' => $eventData['accessed_at'],
                     'payload' => '',
+                ]);
+
+                Log::debug('Hikvision event stored', [
+                    'device' => $device,
+                    'device_event_id' => $deviceEvent->id,
+                    'member_found' => $user !== null,
+                    'was_created' => $deviceEvent->wasRecentlyCreated,
                 ]);
 
                 if ($deviceEvent->is_found !== ($user !== null)) {
@@ -202,13 +221,35 @@ class DeviceEventController extends Controller
         return null;
     }
 
-    private function shouldStoreEvent(array $eventData): bool
+    /**
+     * @param  array<string, mixed>  $eventData
+     * @return list<string>
+     */
+    private function eventRejectionReasons(array $eventData): array
     {
-        return $eventData['event_type'] === 'AccessControllerEvent'
-            && ! empty($eventData['employee_no'])
-            && in_array($eventData['attendance_status'], ['checkIn', 'checkOut'], true)
-            && $eventData['verify_mode'] !== 'invalid'
-            && $eventData['accessed_at'] instanceof Carbon;
+        $reasons = [];
+
+        if ($eventData['event_type'] !== 'AccessControllerEvent') {
+            $reasons[] = 'unsupported_event_type';
+        }
+
+        if (empty($eventData['employee_no'])) {
+            $reasons[] = 'missing_employee_no';
+        }
+
+        if (! in_array($eventData['attendance_status'], ['checkIn', 'checkOut'], true)) {
+            $reasons[] = 'unsupported_attendance_status';
+        }
+
+        if ($eventData['verify_mode'] === 'invalid') {
+            $reasons[] = 'invalid_verify_mode';
+        }
+
+        if (! $eventData['accessed_at'] instanceof Carbon) {
+            $reasons[] = 'missing_accessed_at';
+        }
+
+        return $reasons;
     }
 
     private function markTodaysPtBookingAsAttended(User $user, Carbon $receivedAt): void

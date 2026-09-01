@@ -135,7 +135,7 @@ class Membership extends Model
 
         if ($staffUser->role === 'pt') {
             return $query
-                ->whereIn('type', ['pt', 'membership'])
+                ->where('type', 'pt')
                 ->whereBelongsTo($staffUser, 'followUp')
                 ->whereBelongsTo($staffUser, 'followUpTwo');
         }

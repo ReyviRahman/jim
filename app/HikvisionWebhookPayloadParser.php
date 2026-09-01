@@ -15,6 +15,15 @@ class HikvisionWebhookPayloadParser
     {
         $requestData = $request->request->all();
 
+        $accessControllerEvent = count($requestData) === 1
+            && array_key_exists('AccessControllerEvent', $requestData)
+                ? $this->accessControllerEventDocument($requestData['AccessControllerEvent'])
+                : null;
+
+        if ($accessControllerEvent !== null) {
+            return $accessControllerEvent;
+        }
+
         foreach (['event_log', 'eventLog', 'EventNotificationAlert'] as $key) {
             $payload = $this->structuredDocument($request->request->get($key));
 
@@ -64,6 +73,25 @@ class HikvisionWebhookPayloadParser
         }
 
         return $this->structuredDocument($raw);
+    }
+
+    private function accessControllerEventDocument(mixed $value): ?string
+    {
+        $payload = $this->structuredDocument($value);
+
+        if ($payload === null || ! str_starts_with(ltrim($payload), '{')) {
+            return $payload;
+        }
+
+        $event = json_decode($payload, true);
+
+        if (json_last_error() !== JSON_ERROR_NONE || ! is_array($event)) {
+            return null;
+        }
+
+        $event['eventType'] = 'AccessControllerEvent';
+
+        return $this->structuredDocument($event);
     }
 
     private function multipartDocument(string $raw, string $contentType): ?string

@@ -278,7 +278,7 @@ class RekapBonusDetailTableTest extends TestCase
             ->assertDontSee('17 August 2026');
     }
 
-    public function test_pt_bonus_data_includes_pt_and_membership_types_with_both_follow_ups_everywhere(): void
+    public function test_pt_bonus_data_excludes_non_pt_membership_types_everywhere(): void
     {
         $admin = $this->createUser('admin');
         $coach = $this->createUser('pt');
@@ -316,18 +316,18 @@ class RekapBonusDetailTableTest extends TestCase
         $component = Livewire::test('pages::dashboard.admin.rekap-bonus.detail', ['user' => $coach])
             ->call('setDateRange', '2026-07-01 to 2026-07-31')
             ->assertSee($eligibleMember->name)
-            ->assertSee($membershipMember->name)
+            ->assertDontSee($membershipMember->name)
             ->assertDontSee($firstOnlyMember->name)
             ->assertDontSee($secondOnlyMember->name)
             ->assertDontSee($bundleMember->name)
             ->call('openBonusPaymentModal')
             ->assertSet('showBonusPaymentModal', true)
-            ->assertSet('bonusPaymentTotalNominalAkhir', 1_000_000.0);
+            ->assertSet('bonusPaymentTotalNominalAkhir', 500_000.0);
 
-        $this->assertSame(1_000_000.0, (float) $component->instance()->totalNominalAkhir());
+        $this->assertSame(500_000.0, (float) $component->instance()->totalNominalAkhir());
 
         $this->assertEqualsCanonicalizing(
-            [$eligiblePtMembership->id, $eligibleGymMembership->id],
+            [$eligiblePtMembership->id],
             collect($component->get('bonusPaymentRows'))->pluck('membership_id')->all()
         );
 
@@ -339,10 +339,10 @@ class RekapBonusDetailTableTest extends TestCase
         ))->view()->getData();
 
         $this->assertEqualsCanonicalizing(
-            [$eligiblePtMembership->id, $eligibleGymMembership->id],
+            [$eligiblePtMembership->id],
             $exportData['memberships']->pluck('id')->all()
         );
-        $this->assertSame(1_000_000.0, (float) $exportData['totalNominalAkhir']);
+        $this->assertSame(500_000.0, (float) $exportData['totalNominalAkhir']);
     }
 
     /** @param array<string, mixed> $overrides */

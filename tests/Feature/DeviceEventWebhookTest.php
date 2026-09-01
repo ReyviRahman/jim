@@ -487,6 +487,40 @@ XML;
         ]);
     }
 
+    public function test_it_stores_access_controller_event_named_multipart_field_with_picture(): void
+    {
+        $eventLog = json_encode([
+            'dateTime' => '2026-09-01T18:34:07+07:00',
+            'name' => 'DS-K1T342 User',
+            'employeeNoString' => '1503',
+            'cardNo' => '9876543210',
+            'doorNo' => 1,
+            'swipeResult' => 'success',
+            'attendanceStatus' => 'checkIn',
+            'currentVerifyMode' => 'faceOrFp',
+        ], JSON_THROW_ON_ERROR);
+
+        $response = $this->post('/api/absensi', [
+            'AccessControllerEvent' => $eventLog,
+            'Picture' => UploadedFile::fake()->createWithContent('Picture.jpeg', 'JPEG'),
+        ]);
+
+        $response->assertOk();
+
+        $event = DeviceEvent::query()->where('employee_no', '1503')->first();
+
+        $this->assertNotNull($event);
+        $this->assertModelExists($event);
+        $this->assertSame('AccessControllerEvent', $event->event_type);
+        $this->assertSame('DS-K1T342 User', $event->name);
+        $this->assertSame('9876543210', $event->card_no);
+        $this->assertSame('1', $event->door_no);
+        $this->assertSame('success', $event->swipe_result);
+        $this->assertSame('checkIn', $event->attendance_status);
+        $this->assertSame('faceOrFp', $event->verify_mode);
+        $this->assertFalse($event->is_found);
+    }
+
     public function test_it_stores_event_log_uploaded_as_a_multipart_file(): void
     {
         $eventLog = json_encode([
