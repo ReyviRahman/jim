@@ -13,7 +13,6 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use RuntimeException;
 use Throwable;
 
@@ -30,45 +29,17 @@ class DeviceEventController extends Controller
         $payload = $this->payloadParser->parse($request);
         $sourceIp = $request->ip();
 
-        Log::debug('Hikvision webhook hit', [
-            'device' => $device,
-            'content_type' => $request->header('Content-Type'),
-            'content_length' => $request->server('CONTENT_LENGTH'),
-            'input_keys' => array_keys($request->request->all()),
-            'file_keys' => array_keys($request->allFiles()),
-            'ip' => $sourceIp,
-            'payload_length' => $payload === null ? 0 : strlen($payload),
-        ]);
-
         if ($payload === null) {
             return response('OK', 200);
         }
 
         try {
             $eventData = $this->extractEventData($payload);
-        } catch (Throwable $e) {
-            Log::warning('Hikvision event extraction failed', [
-                'device' => $device,
-                'error' => $e->getMessage(),
-            ]);
-
+        } catch (Throwable) {
             return response('OK', 200);
         }
 
-        $rejectionReasons = $this->eventRejectionReasons($eventData);
-
-        if ($rejectionReasons !== []) {
-            Log::debug('Hikvision event ignored', [
-                'device' => $device,
-                'event_type' => $eventData['event_type'],
-                'employee_no_present' => $eventData['employee_no'] !== null
-                    && $eventData['employee_no'] !== '',
-                'attendance_status' => $eventData['attendance_status'],
-                'verify_mode' => $eventData['verify_mode'],
-                'accessed_at_present' => $eventData['accessed_at'] instanceof Carbon,
-                'rejection_reasons' => $rejectionReasons,
-            ]);
-
+        if ($this->eventRejectionReasons($eventData) !== []) {
             return response('OK', 200);
         }
 
@@ -104,13 +75,6 @@ class DeviceEventController extends Controller
                     $deviceEventAttributes,
                 );
 
-                Log::debug('Hikvision event stored', [
-                    'device' => $device,
-                    'device_event_id' => $deviceEvent->id,
-                    'member_found' => $user !== null,
-                    'was_created' => $deviceEvent->wasRecentlyCreated,
-                ]);
-
                 if ($deviceEvent->is_found !== ($user !== null)) {
                     $deviceEvent->update(['is_found' => $user !== null]);
                 }
@@ -137,11 +101,7 @@ class DeviceEventController extends Controller
                     $this->markTodaysPtBookingAsAttended($user, $receivedAt);
                 }
             }, attempts: 3);
-        } catch (Throwable $e) {
-            Log::error('Failed to store Hikvision event', [
-                'device' => $device,
-                'error' => $e->getMessage(),
-            ]);
+        } catch (Throwable) {
         }
 
         return response('OK', 200);
