@@ -8,17 +8,21 @@ use Livewire\WithFileUploads;
 use App\Models\User;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
+use Livewire\Attributes\Locked;
 
 new #[Layout('layouts::admin')] class extends Component
 {
     use WithFileUploads;
 
+    #[Locked]
     public $userId;
     public $name = '';
     public $age = '';
     public $gender = 'Laki-laki';
     public $phone = '';
     public $email = '';
+    public $hikvision_employee_no = null;
     public $role = 'kasir_gym';
     public $shift = null;
     public $alamat = '';
@@ -35,6 +39,12 @@ new #[Layout('layouts::admin')] class extends Component
             'gender' => 'required|in:Laki-laki,Perempuan',
             'phone' => 'required|numeric|unique:users,phone,' . $this->userId,
             'email' => 'required|email|unique:users,email,' . $this->userId,
+            'hikvision_employee_no' => [
+                'nullable',
+                'string',
+                'max:255',
+                Rule::unique('users', 'hikvision_employee_no')->ignore($this->userId),
+            ],
             'role' => 'required|in:kasir_gym,kasir_minum,pt,sales',
             'shift' => 'nullable|in:Pagi,Siang,Full',
             'alamat' => 'required|string',
@@ -53,12 +63,17 @@ new #[Layout('layouts::admin')] class extends Component
         $this->role = $user->role;
         $this->shift = $user->shift;
         $this->email = $user->email;
+        $this->hikvision_employee_no = $user->hikvision_employee_no;
         $this->alamat = $user->address;
         $this->existingPhoto = $user->photo;
     }
 
     public function update()
     {
+        $this->hikvision_employee_no = filled($this->hikvision_employee_no)
+            ? trim($this->hikvision_employee_no)
+            : null;
+
         $this->validate();
 
         $user = User::findOrFail($this->userId);
@@ -76,6 +91,7 @@ new #[Layout('layouts::admin')] class extends Component
         $user->gender = $this->gender;
         $user->phone = $this->phone;
         $user->email = $this->email;
+        $user->hikvision_employee_no = $this->hikvision_employee_no;
         $user->role = $this->role;
         $user->address = $this->alamat;
 
@@ -202,6 +218,15 @@ new #[Layout('layouts::admin')] class extends Component
                     class="bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:accent focus:border-brand block w-full px-3 py-2.5 shadow-xs placeholder:text-body"
                     placeholder="Masukkan Email" required />
                 @error('email') <span class="text-red-500 text-sm block mt-1">{{ $message }}</span> @enderror
+            </div>
+
+            <div class="mb-4 sm:col-span-2">
+                <label for="hikvision_employee_no" class="block mb-2.5 text-sm font-medium text-heading">Hikvision Employee ID</label>
+                <input type="text" id="hikvision_employee_no" wire:model="hikvision_employee_no"
+                    class="bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:accent focus:border-brand block w-full px-3 py-2.5 shadow-xs placeholder:text-body"
+                    placeholder="Contoh: 1117" autocomplete="off" />
+                <p class="mt-1 text-xs text-gray-500">Kosongkan jika akun belum terhubung ke perangkat Hikvision.</p>
+                @error('hikvision_employee_no') <span class="block mt-1 text-sm text-red-500">{{ $message }}</span> @enderror
             </div>
 
             <div x-data="{ show: false, currentRole: @entangle('role') }">

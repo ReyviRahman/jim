@@ -19,7 +19,7 @@ class User extends Authenticatable
     use HasFactory, Notifiable;
 
     protected $fillable = [
-        'name', 'occupation', 'age', 'gender', 'phone',
+        'hikvision_employee_no', 'name', 'occupation', 'age', 'gender', 'phone',
         'medical_history', 'email', 'password', 'joined_at',
         'address', 'is_active', 'photo', 'role', 'shift',
     ];

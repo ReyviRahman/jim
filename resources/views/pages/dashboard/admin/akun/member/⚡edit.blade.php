@@ -21,6 +21,7 @@ new #[Layout('layouts::admin')] class extends Component
     public $phone = '';
     public $medical_history = null;
     public $email = '';
+    public $hikvision_employee_no = null;
     public $password = '';
     public $photo = null;
     public $joined_at;
@@ -42,6 +43,12 @@ new #[Layout('layouts::admin')] class extends Component
                 'required',
                 'email',
                 Rule::unique('users', 'email')->ignore($this->user->id),
+            ],
+            'hikvision_employee_no' => [
+                'nullable',
+                'string',
+                'max:255',
+                Rule::unique('users', 'hikvision_employee_no')->ignore($this->user),
             ],
             'password' => ['nullable', 'min:6'],
             'photo' => [
@@ -67,11 +74,16 @@ new #[Layout('layouts::admin')] class extends Component
         $this->phone = $user->phone;
         $this->medical_history = $user->medical_history;
         $this->email = $user->email;
+        $this->hikvision_employee_no = $user->hikvision_employee_no;
         $this->joined_at = $user->joined_at ? $user->joined_at->format('Y-m-d') : date('Y-m-d');
     }
     
     public function update(StoreCompressedProfilePhoto $storeCompressedProfilePhoto): mixed
     {
+        $this->hikvision_employee_no = filled($this->hikvision_employee_no)
+            ? trim($this->hikvision_employee_no)
+            : null;
+
         $validated = $this->validate();
         $oldPhotoPath = $this->user->photo;
         $newPhotoPath = null;
@@ -210,6 +222,15 @@ new #[Layout('layouts::admin')] class extends Component
                     class="bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:accent focus:border-brand block w-full px-3 py-2.5 shadow-xs placeholder:text-body"
                     placeholder="Masukkan Email" required />
                 @error('email') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
+            </div>
+
+            <div class="mb-4">
+                <label for="hikvision_employee_no" class="block mb-2.5 text-sm font-medium text-heading">Hikvision Employee ID</label>
+                <input type="text" id="hikvision_employee_no" wire:model="hikvision_employee_no"
+                    class="bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:accent focus:border-brand block w-full px-3 py-2.5 shadow-xs placeholder:text-body"
+                    placeholder="Contoh: 1403" autocomplete="off" />
+                <p class="mt-1 text-xs text-gray-500">Kosongkan jika akun belum terhubung ke perangkat Hikvision.</p>
+                @error('hikvision_employee_no') <span class="block mt-1 text-sm text-red-500">{{ $message }}</span> @enderror
             </div>
 
             <div x-data="{ show: false }" class="mb-4">
