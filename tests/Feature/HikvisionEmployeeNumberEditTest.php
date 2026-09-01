@@ -38,6 +38,38 @@ class HikvisionEmployeeNumberEditTest extends TestCase
         $this->assertSame('HIK-STAFF-1117', $staff->refresh()->hikvision_employee_no);
     }
 
+    public function test_member_index_displays_hikvision_employee_number_under_id_header(): void
+    {
+        $member = $this->createMember([
+            'id' => 9101,
+            'hikvision_employee_no' => 'HIK-MEMBER-TABLE',
+        ]);
+
+        $component = Livewire::test('pages::dashboard.admin.akun.member.index')
+            ->assertSeeHtml('<th scope="col" class="px-6 py-3 font-medium">ID</th>');
+
+        $this->assertMatchesRegularExpression(
+            '/<td class="px-6 py-4 font-medium text-heading">\s*'.preg_quote($member->hikvision_employee_no, '/').'\s*<\/td>/',
+            $component->html(),
+        );
+    }
+
+    public function test_admin_index_displays_hikvision_employee_number_under_id_header(): void
+    {
+        $staff = $this->createStaff([
+            'id' => 9102,
+            'hikvision_employee_no' => 'HIK-STAFF-TABLE',
+        ]);
+
+        $component = Livewire::test('pages::dashboard.admin.akun.admin.index')
+            ->assertSeeHtml('<th scope="col" class="px-6 py-3 font-medium">ID</th>');
+
+        $this->assertMatchesRegularExpression(
+            '/<td class="px-6 py-4 font-medium text-heading">\s*'.preg_quote($staff->hikvision_employee_no, '/').'\s*<\/td>/',
+            $component->html(),
+        );
+    }
+
     public function test_hikvision_employee_number_must_be_unique(): void
     {
         User::factory()->create(['hikvision_employee_no' => 'HIK-DUPLICATE']);

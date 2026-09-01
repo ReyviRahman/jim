@@ -112,7 +112,7 @@ new #[Layout('layouts::admin')] class extends Component
                 @forelse ($users as $user)
                     <tr class="bg-neutral-primary-soft border-b border-default hover:bg-neutral-secondary-medium">
                         <td class="px-6 py-4 font-medium text-heading">
-                            {{ $user->id }}
+                            {{ $user->hikvision_employee_no }}
                         </td>
                         <th scope="row" class="flex items-center px-6 py-4 text-heading">
                             @if($user->photo)

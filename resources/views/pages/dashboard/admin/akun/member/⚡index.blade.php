@@ -440,7 +440,7 @@ new #[Layout('layouts::admin')] class extends Component
                             </div>
                         </td>
                         <td class="px-6 py-4 font-medium text-heading">
-                            {{ $user->id }}
+                            {{ $user->hikvision_employee_no }}
                         </td>
                         <th scope="row" class="flex items-center px-6 py-4 text-heading">
                             @if($user->photo)

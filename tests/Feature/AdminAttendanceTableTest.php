@@ -41,6 +41,7 @@ class AdminAttendanceTableTest extends TestCase
             'check_out_time' => '2026-08-29 18:00:00',
         ]);
         $this->createAttendance($headCoach, [
+            'nama_di_alat' => 'Karyawan di Hikvision',
             'attendance_date' => '2026-08-29',
             'check_in_time' => '2026-08-29 08:05:00',
             'check_out_time' => '2026-08-29 17:45:00',
@@ -55,6 +56,8 @@ class AdminAttendanceTableTest extends TestCase
             ->assertSee('Hasil QR muncul disini')
             ->assertSee('Pilih Rentang Tanggal')
             ->assertSee('Nama User')
+            ->assertSee('Nama di Alat')
+            ->assertSee('Karyawan di Hikvision')
             ->assertSee('Role User')
             ->assertSee('Waktu Check-In')
             ->assertSee('Waktu Check-Out')
@@ -71,6 +74,7 @@ class AdminAttendanceTableTest extends TestCase
         $headCoach = $this->createUser('head_coach', 'General Employee Attendance');
 
         $this->createAttendance($member, [
+            'nama_di_alat' => 'Member di Hikvision',
             'attendance_date' => '2026-08-29',
             'check_in_time' => '2026-08-29 09:00:00',
             'check_out_time' => '2026-08-29 17:45:00',
@@ -81,6 +85,8 @@ class AdminAttendanceTableTest extends TestCase
             ->get(route('admin.absensi.index'))
             ->assertOk()
             ->assertSee('Semua Role')
+            ->assertSee('Nama di Alat')
+            ->assertSee('Member di Hikvision')
             ->assertSee('Waktu Check-In')
             ->assertDontSee('Waktu Check-Out')
             ->assertDontSee('17:45')

@@ -362,6 +362,7 @@ session()->flash('success', "Berhasil Check-In: {$user->name}. {$infoSesi}");
                 <tr>
                     <th scope="col" class="px-6 py-3 font-medium">No</th>
                     <th scope="col" class="px-6 py-3 font-medium">Nama User</th>
+                    <th scope="col" class="px-6 py-3 font-medium">Nama di Alat</th>
                     <th scope="col" class="px-6 py-3 font-medium">Role User</th>
                     <th scope="col" class="px-6 py-3 font-medium">Waktu Check-In</th>
                     @if ($employeesOnly)
@@ -390,6 +391,10 @@ session()->flash('success', "Berhasil Check-In: {$user->name}. {$infoSesi}");
                             @else
                                 <span class="text-red-500 italic">User Terhapus</span>
                             @endif
+                        </td>
+
+                        <td class="px-6 py-4 font-medium text-heading">
+                            {{ $attendance->nama_di_alat ?: '-' }}
                         </td>
 
                         <td class="px-6 py-4">
@@ -438,7 +443,7 @@ session()->flash('success', "Berhasil Check-In: {$user->name}. {$infoSesi}");
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="{{ $employeesOnly ? 5 : 4 }}" class="px-6 py-8 text-center text-gray-500">
+                        <td colspan="{{ $employeesOnly ? 6 : 5 }}" class="px-6 py-8 text-center text-gray-500">
                             Tidak ada data absensi.
                         </td>
                     </tr>

@@ -118,6 +118,46 @@ XML;
         ]);
     }
 
+    public function test_device_name_is_saved_on_first_attendance_and_updated_on_later_hits(): void
+    {
+        $this->travelTo(Carbon::parse('2026-09-02 08:00:00', config('app.timezone')));
+
+        $user = $this->createUser(['hikvision_employee_no' => 'DEVICE-NAME-001']);
+        $firstPayload = $this->attendancePayloadForEmployeeNumber(
+            'DEVICE-NAME-001',
+            'Nama Awal di Alat',
+            'undefined',
+            '2026-09-02T08:00:00+07:00',
+        );
+
+        $this->postJson('/api/absensi', $firstPayload)->assertOk();
+
+        $this->assertDatabaseHas('attendances', [
+            'user_id' => $user->id,
+            'nama_di_alat' => 'Nama Awal di Alat',
+            'check_out_time' => null,
+        ]);
+
+        $this->travelTo(Carbon::parse('2026-09-02 17:00:00', config('app.timezone')));
+
+        $laterPayload = $this->attendancePayloadForEmployeeNumber(
+            'DEVICE-NAME-001',
+            'Nama Terbaru di Alat',
+            'undefined',
+            '2026-09-02T17:00:00+07:00',
+        );
+
+        $this->postJson('/api/absensi', $laterPayload)->assertOk();
+
+        $this->assertDatabaseHas('attendances', [
+            'user_id' => $user->id,
+            'nama_di_alat' => 'Nama Terbaru di Alat',
+            'check_in_time' => '2026-09-02 08:00:00',
+            'check_out_time' => '2026-09-02 17:00:00',
+        ]);
+        $this->assertDatabaseCount('attendances', 1);
+    }
+
     public function test_explicit_hikvision_mapping_wins_over_another_users_numeric_id(): void
     {
         $numericIdUser = $this->createUser([

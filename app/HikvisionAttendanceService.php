@@ -52,6 +52,7 @@ class HikvisionAttendanceService
             Attendance::create([
                 'device_event_id' => $deviceEvent->id,
                 'user_id' => $user->id,
+                'nama_di_alat' => $deviceEvent->name,
                 'membership_id' => null,
                 'type' => null,
                 'attendance_status' => null,
@@ -63,7 +64,10 @@ class HikvisionAttendanceService
             return true;
         }
 
-        $attendance->update(['check_out_time' => $receivedAt]);
+        $attendance->update([
+            'nama_di_alat' => $deviceEvent->name,
+            'check_out_time' => $receivedAt,
+        ]);
 
         return false;
     }
