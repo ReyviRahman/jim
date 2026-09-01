@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\HikvisionAttendanceService;
 use App\Models\Attendance;
 use App\Models\DeviceEvent;
 use App\Models\Membership;
@@ -10,6 +11,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
+use RuntimeException;
 use Tests\TestCase;
 
 class DeviceEventWebhookTest extends TestCase
@@ -95,6 +97,64 @@ XML;
             'check_in_time' => '2026-08-29 08:15:00',
             'check_out_time' => null,
         ]);
+    }
+
+    public function test_custom_hikvision_employee_number_creates_attendance_for_the_mapped_user(): void
+    {
+        $mappedUser = $this->createUser(['hikvision_employee_no' => 'EMP-PT-001']);
+
+        $this->postJson('/api/absensi', [
+            'employeeNoString' => 'EMP-PT-001',
+            'name' => $mappedUser->name,
+            'currentVerifyMode' => 'face',
+        ])->assertOk();
+
+        $this->assertDatabaseHas('device_events', [
+            'employee_no' => 'EMP-PT-001',
+            'is_found' => true,
+        ]);
+        $this->assertDatabaseHas('attendances', [
+            'user_id' => $mappedUser->id,
+        ]);
+    }
+
+    public function test_explicit_hikvision_mapping_wins_over_another_users_numeric_id(): void
+    {
+        $numericIdUser = $this->createUser([
+            'id' => 5000,
+            'hikvision_employee_no' => null,
+        ]);
+        $explicitlyMappedUser = $this->createUser([
+            'hikvision_employee_no' => '5000',
+        ]);
+
+        $this->postJson('/api/absensi', $this->attendancePayloadForEmployeeNumber(
+            '5000',
+            $explicitlyMappedUser->name,
+        ))->assertOk();
+
+        $this->assertDatabaseHas('attendances', [
+            'user_id' => $explicitlyMappedUser->id,
+        ]);
+        $this->assertDatabaseMissing('attendances', [
+            'user_id' => $numericIdUser->id,
+        ]);
+    }
+
+    public function test_user_id_is_not_a_fallback_after_the_user_has_an_explicit_hikvision_mapping(): void
+    {
+        $user = $this->createUser(['hikvision_employee_no' => 'CUSTOM-EMPLOYEE-ID']);
+
+        $this->postJson('/api/absensi', $this->attendancePayloadForEmployeeNumber(
+            (string) $user->id,
+            $user->name,
+        ))->assertOk();
+
+        $this->assertDatabaseHas('device_events', [
+            'employee_no' => (string) $user->id,
+            'is_found' => false,
+        ]);
+        $this->assertDatabaseCount('attendances', 0);
     }
 
     public function test_it_stores_attendance_for_every_user_role_including_inactive_users(): void
@@ -546,7 +606,9 @@ XML;
         $this->assertSame('fingerprint', $event->verify_mode);
         $this->assertNull($event->attendance_status);
         $this->assertNull($event->accessed_at);
-        $this->assertDatabaseCount('attendances', 0);
+        $this->assertDatabaseHas('attendances', [
+            'user_id' => $user->id,
+        ]);
     }
 
     public function test_it_stores_employee_event_with_undefined_attendance_status(): void
@@ -572,6 +634,43 @@ XML;
             'attendance_status' => 'undefined',
             'verify_mode' => 'face',
         ]);
+        $this->assertDatabaseHas('attendances', [
+            'user_id' => $user->id,
+        ]);
+    }
+
+    public function test_explicitly_invalid_verification_only_stores_the_device_event(): void
+    {
+        $user = $this->createUser();
+        $payload = $this->attendancePayload($user, 'undefined', '2026-09-01T18:45:00+07:00');
+        $payload['AccessControllerEvent']['currentVerifyMode'] = 'invalid';
+
+        $this->postJson('/api/absensi', $payload)->assertOk();
+
+        $this->assertDatabaseHas('device_events', [
+            'employee_no' => (string) $user->id,
+            'verify_mode' => 'invalid',
+            'status' => 'received',
+        ]);
+        $this->assertDatabaseCount('attendances', 0);
+    }
+
+    public function test_explicitly_failed_swipe_results_only_store_device_events(): void
+    {
+        $user = $this->createUser();
+
+        foreach (['fail', 'failed', 'failure', 'denied', 'invalid'] as $index => $swipeResult) {
+            $payload = $this->attendancePayload(
+                $user,
+                'undefined',
+                sprintf('2026-09-01T18:45:%02d+07:00', $index),
+            );
+            $payload['AccessControllerEvent']['swipeResult'] = $swipeResult;
+
+            $this->postJson('/api/absensi', $payload)->assertOk();
+        }
+
+        $this->assertDatabaseCount('device_events', 5);
         $this->assertDatabaseCount('attendances', 0);
     }
 
@@ -983,6 +1082,53 @@ XML;
         $this->assertSame(2, $membership->fresh()->remaining_sessions);
     }
 
+    public function test_failed_event_can_be_retried_once_without_duplicate_attendance_or_session_deduction(): void
+    {
+        $member = $this->createUser();
+        $membership = $this->createPtMembership($member, ['remaining_sessions' => 2]);
+        $booking = $this->createPtBooking($member, $membership);
+        $realAttendanceService = new HikvisionAttendanceService;
+        $failingAttendanceService = new class($realAttendanceService) extends HikvisionAttendanceService
+        {
+            private int $attempts = 0;
+
+            public function __construct(private HikvisionAttendanceService $realAttendanceService) {}
+
+            public function record(User $user, DeviceEvent $deviceEvent, Carbon $receivedAt): bool
+            {
+                if ($this->attempts++ === 0) {
+                    throw new RuntimeException('Sensitive database failure details.');
+                }
+
+                return $this->realAttendanceService->record($user, $deviceEvent, $receivedAt);
+            }
+        };
+        $this->app->instance(HikvisionAttendanceService::class, $failingAttendanceService);
+        $payload = $this->attendancePayload($member, 'checkIn', '2026-09-01T10:00:00+07:00');
+
+        $this->postJson('/api/absensi', $payload)->assertOk();
+
+        $failedEvent = DeviceEvent::query()->sole();
+
+        $this->assertSame('failed', $failedEvent->status);
+        $this->assertSame('Attendance processing failed.', $failedEvent->error_message);
+        $this->assertDatabaseCount('attendances', 0);
+        $this->assertSame('not_yet', $booking->fresh()->attendance);
+        $this->assertSame(2, $membership->fresh()->remaining_sessions);
+
+        $this->postJson('/api/absensi', $payload)->assertOk();
+        $this->postJson('/api/absensi', $payload)->assertOk();
+
+        $processedEvent = $failedEvent->fresh();
+
+        $this->assertSame('received', $processedEvent->status);
+        $this->assertNull($processedEvent->error_message);
+        $this->assertDatabaseCount('device_events', 1);
+        $this->assertDatabaseCount('attendances', 1);
+        $this->assertSame('attended', $booking->fresh()->attendance);
+        $this->assertSame(1, $membership->fresh()->remaining_sessions);
+    }
+
     public function test_distinct_check_in_then_check_out_processes_only_one_booking(): void
     {
         $this->travelTo(Carbon::parse('2026-07-19 08:00:00', config('app.timezone')));
@@ -1109,12 +1255,29 @@ XML;
      */
     private function attendancePayload(User $user, string $status, string $dateTime): array
     {
+        return $this->attendancePayloadForEmployeeNumber(
+            (string) $user->id,
+            $user->name,
+            $status,
+            $dateTime,
+        );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function attendancePayloadForEmployeeNumber(
+        string $employeeNumber,
+        string $name,
+        string $status = 'checkIn',
+        string $dateTime = '2026-09-01T08:00:00+07:00',
+    ): array {
         return [
             'eventType' => 'AccessControllerEvent',
             'dateTime' => $dateTime,
             'AccessControllerEvent' => [
-                'employeeNoString' => (string) $user->id,
-                'name' => $user->name,
+                'employeeNoString' => $employeeNumber,
+                'name' => $name,
                 'attendanceStatus' => $status,
                 'currentVerifyMode' => 'cardOrFaceOrFp',
             ],

@@ -2,6 +2,7 @@
 
 use App\Actions\StoreCompressedProfilePhoto;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Validate;
@@ -60,19 +61,27 @@ new #[Layout('layouts::admin')] class extends Component
         }
 
         try {
-            $newUser = User::create([
-                'name' => $this->name,
-                'occupation' => $this->occupation,
-                'age' => $this->age,
-                'gender' => $this->gender,
-                'phone' => $this->phone,
-                'medical_history' => $this->medical_history,
-                'email' => $this->email,
-                'password' => bcrypt($this->password),
-                'photo' => $photoPath,
-                'is_active' => true,
-                'joined_at' => $this->joined_at,
-            ]);
+            $newUser = DB::transaction(function () use ($photoPath): User {
+                $newUser = User::create([
+                    'name' => $this->name,
+                    'occupation' => $this->occupation,
+                    'age' => $this->age,
+                    'gender' => $this->gender,
+                    'phone' => $this->phone,
+                    'medical_history' => $this->medical_history,
+                    'email' => $this->email,
+                    'password' => bcrypt($this->password),
+                    'photo' => $photoPath,
+                    'is_active' => true,
+                    'joined_at' => $this->joined_at,
+                ]);
+
+                $newUser->update([
+                    'hikvision_employee_no' => (string) $newUser->getKey(),
+                ]);
+
+                return $newUser;
+            });
         } catch (\Throwable $exception) {
             Storage::disk('public')->delete($photoPath);
 

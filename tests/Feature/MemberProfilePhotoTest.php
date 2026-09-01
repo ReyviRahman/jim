@@ -90,6 +90,43 @@ class MemberProfilePhotoTest extends TestCase
         $this->assertLessThan($sourceSize, Storage::disk('public')->size($member->photo));
     }
 
+    public function test_create_assigns_the_generated_user_id_as_hikvision_employee_number(): void
+    {
+        Storage::fake('public');
+
+        $this->validCreateComponent()
+            ->set('photo', UploadedFile::fake()->image('profile.jpg', 100, 100))
+            ->call('store')
+            ->assertHasNoErrors();
+
+        $member = User::query()->where('email', 'member.photo@example.com')->sole();
+
+        $this->assertSame((string) $member->id, $member->hikvision_employee_no);
+    }
+
+    public function test_create_rolls_back_the_user_and_removes_the_photo_when_employee_number_update_fails(): void
+    {
+        Storage::fake('public');
+        User::updating(static function (User $user): void {
+            if ($user->isDirty('hikvision_employee_no')) {
+                throw new \RuntimeException('Simulated employee number update failure.');
+            }
+        });
+
+        try {
+            $this->validCreateComponent()
+                ->set('photo', UploadedFile::fake()->image('profile.jpg', 100, 100))
+                ->call('store');
+
+            $this->fail('Employee number update failure was not thrown.');
+        } catch (\RuntimeException $exception) {
+            $this->assertSame('Simulated employee number update failure.', $exception->getMessage());
+        }
+
+        $this->assertNull(User::query()->where('email', 'member.photo@example.com')->first());
+        Storage::disk('public')->assertDirectoryEmpty('profile-photos');
+    }
+
     public function test_create_removes_the_compressed_photo_when_database_creation_fails(): void
     {
         Storage::fake('public');

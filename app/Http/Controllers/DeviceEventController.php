@@ -18,6 +18,14 @@ use Throwable;
 
 class DeviceEventController extends Controller
 {
+    private const FAILED_SWIPE_RESULTS = [
+        'fail',
+        'failed',
+        'failure',
+        'denied',
+        'invalid',
+    ];
+
     public function __construct(
         private HikvisionAttendanceService $hikvisionAttendanceService,
         private HikvisionWebhookPayloadParser $payloadParser,
@@ -43,51 +51,43 @@ class DeviceEventController extends Controller
             return response('OK', 200);
         }
 
+        $receivedAt = Carbon::now(config('app.timezone'));
+        $eventHash = hash('sha256', implode('|', [
+            $device,
+            $eventData['employee_no'],
+            $payload,
+        ]));
+
         try {
-            DB::transaction(function () use ($device, $eventData, $payload, $sourceIp): void {
-                $user = User::query()
-                    ->select('id')
-                    ->lockForUpdate()
-                    ->find($eventData['employee_no']);
-                $receivedAt = Carbon::now(config('app.timezone'));
-                $eventHash = hash('sha256', implode('|', [
+            DB::transaction(function () use ($device, $eventData, $eventHash, $receivedAt, $sourceIp): void {
+                $user = $this->resolveUser($eventData['employee_no']);
+                $deviceEventAttributes = $this->deviceEventAttributes(
                     $device,
-                    $eventData['employee_no'],
-                    $payload,
-                ]));
-                $deviceEventAttributes = [
-                    'device_code' => $device,
-                    'source_ip' => $sourceIp,
-                    'event_type' => $eventData['event_type'],
-                    'employee_no' => $eventData['employee_no'],
-                    'is_found' => $user !== null,
-                    'name' => $eventData['name'],
-                    'card_no' => $eventData['card_no'],
-                    'door_no' => $eventData['door_no'],
-                    'swipe_result' => $eventData['swipe_result'],
-                    'attendance_status' => $eventData['attendance_status'],
-                    'verify_mode' => $eventData['verify_mode'],
-                    'accessed_at' => $eventData['accessed_at'],
-                    'payload' => '',
-                ];
+                    $sourceIp,
+                    $eventData,
+                    $user !== null,
+                );
                 $deviceEvent = DeviceEvent::query()->createOrFirst(
                     ['event_hash' => $eventHash],
                     $deviceEventAttributes,
                 );
+                $wasRecentlyCreated = $deviceEvent->wasRecentlyCreated;
+                $deviceEvent = DeviceEvent::query()
+                    ->whereKey($deviceEvent->id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
 
                 if ($deviceEvent->is_found !== ($user !== null)) {
                     $deviceEvent->update(['is_found' => $user !== null]);
                 }
 
-                if ($user === null) {
+                if (! $wasRecentlyCreated && $deviceEvent->status !== 'failed') {
                     return;
                 }
 
-                if (! $deviceEvent->wasRecentlyCreated) {
-                    return;
-                }
+                if ($user === null || ! $this->shouldRecordAttendance($eventData)) {
+                    $this->markDeviceEventAsProcessed($deviceEvent);
 
-                if (! $this->shouldRecordAttendance($eventData)) {
                     return;
                 }
 
@@ -100,8 +100,11 @@ class DeviceEventController extends Controller
                 if ($dailyAttendanceWasCreated) {
                     $this->markTodaysPtBookingAsAttended($user, $receivedAt);
                 }
+
+                $this->markDeviceEventAsProcessed($deviceEvent);
             }, attempts: 3);
         } catch (Throwable) {
+            $this->storeFailedDeviceEvent($device, $sourceIp, $eventData, $eventHash);
         }
 
         return response('OK', 200);
@@ -216,9 +219,127 @@ class DeviceEventController extends Controller
      */
     private function shouldRecordAttendance(array $eventData): bool
     {
-        return $eventData['event_type'] === 'AccessControllerEvent'
-            && in_array($eventData['attendance_status'], ['checkIn', 'checkOut'], true)
-            && $eventData['verify_mode'] !== 'invalid';
+        $verifyMode = $this->normalizeEventValue($eventData['verify_mode']);
+        $swipeResult = $this->normalizeEventValue($eventData['swipe_result']);
+
+        return $verifyMode !== 'invalid'
+            && ! in_array($swipeResult, self::FAILED_SWIPE_RESULTS, true);
+    }
+
+    private function resolveUser(string $employeeNumber): ?User
+    {
+        $explicitlyMappedUser = User::query()
+            ->select(['id', 'hikvision_employee_no'])
+            ->where('hikvision_employee_no', $employeeNumber)
+            ->lockForUpdate()
+            ->first();
+
+        if ($explicitlyMappedUser !== null) {
+            return $explicitlyMappedUser;
+        }
+
+        if (! ctype_digit($employeeNumber)) {
+            return null;
+        }
+
+        return User::query()
+            ->select(['id', 'hikvision_employee_no'])
+            ->whereKey($employeeNumber)
+            ->whereNull('hikvision_employee_no')
+            ->lockForUpdate()
+            ->first();
+    }
+
+    /**
+     * @param  array<string, mixed>  $eventData
+     * @return array<string, mixed>
+     */
+    private function deviceEventAttributes(
+        string $device,
+        ?string $sourceIp,
+        array $eventData,
+        bool $isFound,
+    ): array {
+        return [
+            'device_code' => $device,
+            'source_ip' => $sourceIp,
+            'event_type' => $eventData['event_type'],
+            'employee_no' => $eventData['employee_no'],
+            'is_found' => $isFound,
+            'name' => $eventData['name'],
+            'card_no' => $eventData['card_no'],
+            'door_no' => $eventData['door_no'],
+            'swipe_result' => $eventData['swipe_result'],
+            'attendance_status' => $eventData['attendance_status'],
+            'verify_mode' => $eventData['verify_mode'],
+            'accessed_at' => $eventData['accessed_at'],
+            'payload' => '',
+            'status' => 'received',
+            'error_message' => null,
+        ];
+    }
+
+    private function markDeviceEventAsProcessed(DeviceEvent $deviceEvent): void
+    {
+        if ($deviceEvent->status === 'received' && $deviceEvent->error_message === null) {
+            return;
+        }
+
+        $deviceEvent->update([
+            'status' => 'received',
+            'error_message' => null,
+        ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $eventData
+     */
+    private function storeFailedDeviceEvent(
+        string $device,
+        ?string $sourceIp,
+        array $eventData,
+        string $eventHash,
+    ): void {
+        try {
+            DB::transaction(function () use ($device, $sourceIp, $eventData, $eventHash): void {
+                $user = $this->resolveUser($eventData['employee_no']);
+                $deviceEvent = DeviceEvent::query()
+                    ->where('event_hash', $eventHash)
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($deviceEvent?->status === 'received') {
+                    return;
+                }
+
+                $attributes = [
+                    ...$this->deviceEventAttributes($device, $sourceIp, $eventData, $user !== null),
+                    'status' => 'failed',
+                    'error_message' => 'Attendance processing failed.',
+                ];
+
+                if ($deviceEvent === null) {
+                    DeviceEvent::query()->create([
+                        'event_hash' => $eventHash,
+                        ...$attributes,
+                    ]);
+
+                    return;
+                }
+
+                $deviceEvent->update($attributes);
+            }, attempts: 3);
+        } catch (Throwable) {
+        }
+    }
+
+    private function normalizeEventValue(mixed $value): string
+    {
+        if (! is_scalar($value)) {
+            return '';
+        }
+
+        return strtolower(trim((string) $value));
     }
 
     private function markTodaysPtBookingAsAttended(User $user, Carbon $receivedAt): void
