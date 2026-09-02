@@ -20,7 +20,6 @@ new #[Layout('layouts::admin')] class extends Component
 
     public $dateStart = null;
     public $dateEnd = null;
-    public $roleFilter = '';
 
     #[Locked]
     public bool $employeesOnly = false;
@@ -268,13 +267,9 @@ session()->flash('success', "Berhasil Check-In: {$user->name}. {$infoSesi}");
             $query->whereHas('user', function ($q) {
                 $q->where('role', '!=', 'member');
             });
-        } elseif ($this->roleFilter === 'member') {
+        } else {
             $query->whereHas('user', function ($q) {
                 $q->where('role', 'member');
-            });
-        } elseif ($this->roleFilter === 'employee') {
-            $query->whereHas('user', function ($q) {
-                $q->where('role', '!=', 'member');
             });
         }
 
@@ -292,7 +287,7 @@ session()->flash('success', "Berhasil Check-In: {$user->name}. {$infoSesi}");
 <div>
     <div class="flex justify-between items-center mb-6">
         <h5 class="text-xl font-semibold text-heading">
-            {{ $employeesOnly ? 'Data Absensi Karyawan & Scanner' : 'Data Absensi & Scanner' }}
+            {{ $employeesOnly ? 'Data Absensi Karyawan & Scanner' : 'Data Absensi Member & Scanner' }}
         </h5>
         <div class="relative w-full max-w-md">
             <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
@@ -345,14 +340,6 @@ session()->flash('success', "Berhasil Check-In: {$user->name}. {$infoSesi}");
                     placeholder="Pilih Rentang Tanggal">
             </div>
 
-            @unless ($employeesOnly)
-                <select wire:model.live="roleFilter"
-                    class="bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs block w-full sm:w-40 ps-3 pe-8 py-2.5">
-                    <option value="">Semua Role</option>
-                    <option value="member">Member</option>
-                    <option value="employee">Karyawan</option>
-                </select>
-            @endunless
         </div>
     </div>
 

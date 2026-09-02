@@ -15,16 +15,16 @@ class AdminAttendanceTableTest extends TestCase
     public function test_attendance_table_shows_user_role_without_arrival_type_or_package_details(): void
     {
         $admin = $this->createUser('admin');
-        $headCoach = $this->createUser('head_coach');
+        $member = $this->createUser('member');
 
-        $this->createAttendance($headCoach);
+        $this->createAttendance($member);
 
         $this->actingAs($admin);
 
         Livewire::test('pages::dashboard.admin.absensi.index')
             ->assertSee('Nama User')
             ->assertSee('Role User')
-            ->assertSee('Head Coach')
+            ->assertSee('Member')
             ->assertDontSee('Tipe Kedatangan')
             ->assertDontSee('Detail Paket');
     }
@@ -67,7 +67,7 @@ class AdminAttendanceTableTest extends TestCase
             ->assertDontSee('Semua Role');
     }
 
-    public function test_general_attendance_page_keeps_role_filter_and_hides_check_out_time(): void
+    public function test_general_attendance_page_only_shows_members_without_role_filter(): void
     {
         $admin = $this->createUser('admin');
         $member = $this->createUser('member', 'General Member Attendance');
@@ -84,14 +84,15 @@ class AdminAttendanceTableTest extends TestCase
         $this->actingAs($admin)
             ->get(route('admin.absensi.index'))
             ->assertOk()
-            ->assertSee('Semua Role')
+            ->assertSee('Data Absensi Member &amp; Scanner', false)
+            ->assertDontSee('Semua Role')
             ->assertSee('Nama di Alat')
             ->assertSee('Member di Hikvision')
             ->assertSee('Waktu Check-In')
             ->assertDontSee('Waktu Check-Out')
             ->assertDontSee('17:45')
             ->assertSee('General Member Attendance')
-            ->assertSee('General Employee Attendance');
+            ->assertDontSee('General Employee Attendance');
     }
 
     public function test_employee_attendance_page_formats_times_and_shows_dash_for_missing_values(): void
