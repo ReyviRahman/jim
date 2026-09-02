@@ -44,7 +44,7 @@ class AdminExport implements FromQuery, WithHeadings, WithMapping
             $user->id,
             $user->name,
             $user->email,
-            $user->role,
+            $user->role === 'cleaning_service' ? 'Cleaning Service' : $user->role,
             $user->shift ?? '-',
             $user->is_active ? 'Aktif' : 'Nonaktif',
             $user->joined_at?->format('Y-m-d') ?? '-',

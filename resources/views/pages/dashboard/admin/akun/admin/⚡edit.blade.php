@@ -46,7 +46,7 @@ new #[Layout('layouts::admin')] class extends Component
                 'max:255',
                 Rule::unique('users', 'hikvision_employee_no')->ignore($this->userId),
             ],
-            'role' => 'required|in:kasir_gym,kasir_minum,pt,sales,operasional',
+            'role' => 'required|in:kasir_gym,kasir_minum,pt,sales,cleaning_service',
             'shift' => 'nullable|in:Pagi,Siang,Full',
             'alamat' => 'required|string',
             'password' => 'nullable|min:6',
@@ -107,7 +107,7 @@ new #[Layout('layouts::admin')] class extends Component
             $user->occupation = 'Personal Trainer';
         }
 
-        if ($this->role === 'operasional' && ! in_array($previousRole, ['sales', 'operasional'], true)) {
+        if ($this->role === 'cleaning_service' && ! in_array($previousRole, ['sales', 'cleaning_service'], true)) {
             $user->password = Hash::make(Str::random(32));
         } elseif (! empty($this->password)) {
             $user->password = Hash::make($this->password);
@@ -200,7 +200,7 @@ new #[Layout('layouts::admin')] class extends Component
                         <option value="kasir_minum">Kasir Minuman</option>
                         <option value="pt">Personal Trainer</option>
                         <option value="sales">Sales</option>
-                        <option value="operasional">Operasional</option>
+                        <option value="cleaning_service">Cleaning Service</option>
                     </select>
                     @error('role') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
                 </div>
@@ -235,15 +235,15 @@ new #[Layout('layouts::admin')] class extends Component
             </div>
 
             <div x-data="{ show: false, currentRole: @entangle('role') }">
-                <label for="password" class="block mb-2.5 text-sm font-medium text-heading" x-show="!['sales', 'operasional'].includes(currentRole)">Password (Opsional)</label>
+                <label for="password" class="block mb-2.5 text-sm font-medium text-heading" x-show="!['sales', 'cleaning_service'].includes(currentRole)">Password (Opsional)</label>
 
                 <div class="relative">
                     <input :type="show ? 'text' : 'password'" id="password" wire:model="password"
                         class="bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:accent focus:border-brand block w-full px-3 py-2.5 pr-10 shadow-xs placeholder:text-body"
-                        placeholder="Kosongkan jika tidak diubah" x-show="!['sales', 'operasional'].includes(currentRole)" />
+                        placeholder="Kosongkan jika tidak diubah" x-show="!['sales', 'cleaning_service'].includes(currentRole)" />
 
                     <button type="button" @click="show = !show"
-                        class="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-brand focus:outline-none" x-show="!['sales', 'operasional'].includes(currentRole)">
+                        class="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-brand focus:outline-none" x-show="!['sales', 'cleaning_service'].includes(currentRole)">
                         <svg x-show="!show" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
                             <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />

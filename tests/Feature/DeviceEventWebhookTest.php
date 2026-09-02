@@ -201,7 +201,7 @@ XML;
     {
         $this->travelTo(Carbon::parse('2026-08-30 09:00:00', config('app.timezone')));
 
-        $roles = ['admin', 'pt', 'member', 'kasir_gym', 'sales', 'kasir_minum', 'head_coach', 'operasional'];
+        $roles = ['admin', 'pt', 'member', 'kasir_gym', 'sales', 'kasir_minum', 'head_coach', 'cleaning_service'];
 
         foreach ($roles as $index => $role) {
             $user = $this->createUser(['role' => $role]);

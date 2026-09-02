@@ -130,7 +130,7 @@ new #[Layout('layouts::admin')] class extends Component
                         {{-- Tampilkan Shift Kasir --}}
                         <td class="px-6 py-4">
                             <span class="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800 uppercase">
-                                {{ $user->role }}
+                                {{ $user->role === 'cleaning_service' ? 'Cleaning Service' : $user->role }}
                             </span>
                         </td>
                         

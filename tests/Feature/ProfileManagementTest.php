@@ -50,7 +50,7 @@ class ProfileManagementTest extends TestCase
 
     public function test_both_navbars_hide_the_removed_profile_link_for_every_role(): void
     {
-        foreach (['member', 'pt', 'admin', 'kasir_gym', 'kasir_minum', 'sales', 'head_coach', 'operasional'] as $role) {
+        foreach (['member', 'pt', 'admin', 'kasir_gym', 'kasir_minum', 'sales', 'head_coach', 'cleaning_service'] as $role) {
             $user = $this->createProfileUser([
                 'name' => 'Pengguna '.$role,
                 'photo' => null,

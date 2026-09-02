@@ -35,7 +35,7 @@ new class extends Component {
                 return;
             }
 
-            if (in_array($user->role, ['sales', 'operasional'], true)) {
+            if (in_array($user->role, ['sales', 'cleaning_service'], true)) {
                 Auth::logout();
                 session()->invalidate();
                 session()->regenerateToken();

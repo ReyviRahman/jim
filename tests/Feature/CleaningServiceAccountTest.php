@@ -8,73 +8,74 @@ use Illuminate\Support\Facades\Hash;
 use Livewire\Livewire;
 use Tests\TestCase;
 
-class OperationalAccountTest extends TestCase
+class CleaningServiceAccountTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_admin_can_create_an_operational_account_without_a_password(): void
+    public function test_admin_can_create_a_cleaning_service_account_without_a_password(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);
 
         Livewire::actingAs($admin)
             ->test('pages::dashboard.admin.akun.admin.create')
-            ->assertSee('Operasional')
-            ->set('name', 'Tim Operasional')
+            ->assertSee('Cleaning Service')
+            ->set('name', 'Tim Cleaning Service')
             ->set('gender', 'Laki-laki')
             ->set('age', 28)
             ->set('phone', '081234567890')
             ->set('joined_at', '2026-09-02')
-            ->set('alamat', 'Jl. Operasional No. 1')
-            ->set('email', 'operasional@example.com')
-            ->set('role', 'operasional')
+            ->set('alamat', 'Jl. Cleaning Service No. 1')
+            ->set('email', 'cleaning-service@example.com')
+            ->set('role', 'cleaning_service')
             ->set('password', '')
             ->call('store')
             ->assertHasNoErrors()
             ->assertRedirect(route('admin.akun.admin.index'));
 
-        $operational = User::where('email', 'operasional@example.com')->firstOrFail();
+        $cleaningService = User::where('email', 'cleaning-service@example.com')->firstOrFail();
 
-        $this->assertSame('operasional', $operational->role);
-        $this->assertNull($operational->shift);
-        $this->assertNotSame('', $operational->password);
-        $this->assertFalse(Hash::check('12345678', $operational->password));
+        $this->assertSame('cleaning_service', $cleaningService->role);
+        $this->assertNull($cleaningService->shift);
+        $this->assertNotSame('', $cleaningService->password);
+        $this->assertFalse(Hash::check('12345678', $cleaningService->password));
     }
 
-    public function test_operational_account_can_be_listed_edited_and_toggled(): void
+    public function test_cleaning_service_account_can_be_listed_edited_and_toggled(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);
-        $operational = $this->createOperationalUser([
-            'name' => 'Operasional Lama',
-            'email' => 'operasional-lama@example.com',
+        $cleaningService = $this->createCleaningServiceUser([
+            'name' => 'Cleaning Service Lama',
+            'email' => 'cleaning-service-lama@example.com',
         ]);
-        $originalPassword = $operational->password;
+        $originalPassword = $cleaningService->password;
 
         Livewire::actingAs($admin)
-            ->test('pages::dashboard.admin.akun.admin.edit', ['user' => $operational])
-            ->assertSet('role', 'operasional')
-            ->assertSee('Operasional')
-            ->set('name', 'Operasional Baru')
+            ->test('pages::dashboard.admin.akun.admin.edit', ['user' => $cleaningService])
+            ->assertSet('role', 'cleaning_service')
+            ->assertSee('Cleaning Service')
+            ->set('name', 'Cleaning Service Baru')
             ->set('password', '')
             ->call('update')
             ->assertHasNoErrors()
             ->assertRedirect(route('admin.akun.admin.index'));
 
-        $operational->refresh();
+        $cleaningService->refresh();
 
-        $this->assertSame('Operasional Baru', $operational->name);
-        $this->assertSame($originalPassword, $operational->password);
+        $this->assertSame('Cleaning Service Baru', $cleaningService->name);
+        $this->assertSame($originalPassword, $cleaningService->password);
 
         Livewire::actingAs($admin)
             ->test('pages::dashboard.admin.akun.admin.index')
-            ->set('search', 'Operasional Baru')
-            ->assertSee('Operasional Baru')
-            ->call('toggleStatus', $operational->id)
+            ->set('search', 'Cleaning Service Baru')
+            ->assertSee('Cleaning Service Baru')
+            ->assertSee('Cleaning Service')
+            ->call('toggleStatus', $cleaningService->id)
             ->assertSee('berhasil dinonaktifkan');
 
-        $this->assertFalse((bool) $operational->refresh()->is_active);
+        $this->assertFalse((bool) $cleaningService->refresh()->is_active);
     }
 
-    public function test_converting_a_login_enabled_account_to_operational_clears_shift_and_rotates_password(): void
+    public function test_converting_a_login_enabled_account_to_cleaning_service_clears_shift_and_rotates_password(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);
         $cashier = User::factory()->create([
@@ -87,22 +88,22 @@ class OperationalAccountTest extends TestCase
 
         Livewire::actingAs($admin)
             ->test('pages::dashboard.admin.akun.admin.edit', ['user' => $cashier])
-            ->set('role', 'operasional')
+            ->set('role', 'cleaning_service')
             ->set('password', '')
             ->call('update')
             ->assertHasNoErrors();
 
         $cashier->refresh();
 
-        $this->assertSame('operasional', $cashier->role);
+        $this->assertSame('cleaning_service', $cashier->role);
         $this->assertNull($cashier->shift);
         $this->assertNotSame($originalPassword, $cashier->password);
         $this->assertFalse(Hash::check('cashier-secret', $cashier->password));
     }
 
-    public function test_operational_and_sales_accounts_cannot_log_in_with_valid_credentials(): void
+    public function test_cleaning_service_and_sales_accounts_cannot_log_in_with_valid_credentials(): void
     {
-        foreach (['operasional', 'sales'] as $role) {
+        foreach (['cleaning_service', 'sales'] as $role) {
             $user = User::factory()->create([
                 'email' => "{$role}@example.com",
                 'role' => $role,
@@ -119,27 +120,27 @@ class OperationalAccountTest extends TestCase
         }
     }
 
-    public function test_operational_account_cannot_access_master_account_routes(): void
+    public function test_cleaning_service_account_cannot_access_master_account_routes(): void
     {
-        $operational = $this->createOperationalUser();
+        $cleaningService = $this->createCleaningServiceUser();
 
-        $this->actingAs($operational)
+        $this->actingAs($cleaningService)
             ->get(route('admin.akun.admin.index'))
             ->assertRedirect(route('home'));
 
         $this->get(route('admin.akun.admin.create'))
             ->assertRedirect(route('home'));
 
-        $this->get(route('admin.akun.admin.edit', $operational))
+        $this->get(route('admin.akun.admin.edit', $cleaningService))
             ->assertRedirect(route('home'));
     }
 
-    private function createOperationalUser(array $attributes = []): User
+    private function createCleaningServiceUser(array $attributes = []): User
     {
         return User::factory()->create(array_merge([
-            'role' => 'operasional',
+            'role' => 'cleaning_service',
             'shift' => null,
-            'address' => 'Jl. Operasional No. 1',
+            'address' => 'Jl. Cleaning Service No. 1',
             'joined_at' => '2026-09-02',
             'is_active' => true,
         ], $attributes));
