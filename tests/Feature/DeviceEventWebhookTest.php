@@ -201,7 +201,7 @@ XML;
     {
         $this->travelTo(Carbon::parse('2026-08-30 09:00:00', config('app.timezone')));
 
-        $roles = ['admin', 'pt', 'member', 'kasir_gym', 'sales', 'kasir_minum', 'head_coach'];
+        $roles = ['admin', 'pt', 'member', 'kasir_gym', 'sales', 'kasir_minum', 'head_coach', 'operasional'];
 
         foreach ($roles as $index => $role) {
             $user = $this->createUser(['role' => $role]);
@@ -238,7 +238,7 @@ XML;
             'check_in_time' => '2026-08-30 09:00:00',
             'check_out_time' => null,
         ]);
-        $this->assertDatabaseCount('attendances', 8);
+        $this->assertDatabaseCount('attendances', 9);
     }
 
     public function test_first_and_subsequent_events_use_server_times_regardless_of_status(): void

@@ -8,6 +8,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Livewire\Livewire;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class MemberDashboardTest extends TestCase
@@ -202,12 +203,73 @@ class MemberDashboardTest extends TestCase
 
         Livewire::actingAs($member)
             ->test('pages::dashboard.member.home')
-            ->assertSee('Upgrade Membership')
+            ->assertDontSeeText('Upgrade Membership')
             ->assertSee($firstTiedUpgrade->name)
             ->assertDontSee('Upgrade Tie ID Terbaru')
             ->assertDontSee('Upgrade Lebih Mahal')
             ->assertDontSee('Paket Single Salah Kategori')
             ->assertDontSee('Paket Couple Nonaktif');
+    }
+
+    #[DataProvider('packageDurationCases')]
+    public function test_upgrade_starting_price_uses_duration_from_the_package_name(
+        string $packageName,
+        int $price,
+        int $discount,
+        string $expectedStartingPrice,
+    ): void {
+        $member = $this->createUser();
+        $currentPackage = $this->createPackage('Paket Saat Ini', [
+            'price' => 50000,
+        ]);
+        $this->createPackage($packageName, [
+            'price' => $price,
+            'discount' => $discount,
+        ]);
+        $this->createMembership($member, $currentPackage);
+
+        Livewire::actingAs($member)
+            ->test('pages::dashboard.member.home')
+            ->assertSee($packageName)
+            ->assertSee('Mulai '.$expectedStartingPrice)
+            ->assertSee('Harga Paket')
+            ->assertSee('Rp '.number_format($price, 0, ',', '.'))
+            ->assertSee('Total Pembayaran')
+            ->assertDontSeeText('Rekomendasi paket');
+    }
+
+    /** @return array<string, array{string, int, int, string}> */
+    public static function packageDurationCases(): array
+    {
+        return [
+            'monthly pass' => ['Membership 2 Monthly Pass', 500000, 0, 'Rp 250.000'],
+            'yearly pass' => ['Membership Yearly Pass', 2700000, 0, 'Rp 225.000'],
+            'free months promotion' => ['Promo 4 free 1 bulan', 500000, 0, 'Rp 100.000'],
+            'additional months promotion' => ['Promo 5 bulan plus 2 bulan', 750000, 0, 'Rp 107.143'],
+            'monthly promotion' => ['Promo 4 bulan', 500000, 0, 'Rp 125.000'],
+            'weekly pass' => ['Membership Weekly Pass', 130000, 0, 'Rp 130.000'],
+        ];
+    }
+
+    public function test_unknown_package_duration_uses_the_full_effective_price(): void
+    {
+        $member = $this->createUser();
+        $currentPackage = $this->createPackage('Paket Saat Ini', [
+            'price' => 50000,
+        ]);
+        $this->createPackage('Paket Upgrade Tanpa Durasi', [
+            'price' => 500000,
+            'discount' => 50000,
+        ]);
+        $this->createMembership($member, $currentPackage);
+
+        Livewire::actingAs($member)
+            ->test('pages::dashboard.member.home')
+            ->assertSee('Mulai Rp 450.000')
+            ->assertSee('Harga Paket')
+            ->assertSee('Rp 500.000')
+            ->assertSee('Total Pembayaran')
+            ->assertSee('Rp 450.000');
     }
 
     public function test_highest_tier_membership_has_no_upgrade_recommendation(): void
@@ -412,7 +474,7 @@ class MemberDashboardTest extends TestCase
             ->test('pages::dashboard.member.home')
             ->assertSee('Membership Saat Ini')
             ->assertSee('16 bulan | 28 hari tersisa')
-            ->assertSee('Upgrade Membership')
+            ->assertDontSeeText('Upgrade Membership')
             ->assertSee($upgradePackage->name)
             ->assertSee('Lihat Detail')
             ->assertSee('Rincian Harga')

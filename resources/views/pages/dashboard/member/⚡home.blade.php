@@ -135,7 +135,7 @@ new #[Layout('layouts::member'), Title('Dashboard Membership')] class extends Co
         );
     }
 
-    /** @return array{name: string, price: string, discount: string, total: string, discount_amount: int}|null */
+    /** @return array{name: string, price: string, discount: string, total: string, starting_price: string, discount_amount: int}|null */
     #[Computed]
     public function recommendationSummary(): ?array
     {
@@ -147,12 +147,15 @@ new #[Layout('layouts::member'), Title('Dashboard Membership')] class extends Co
 
         $price = max((int) $package->price, 0);
         $discount = min(max((int) $package->discount, 0), $price);
+        $total = $price - $discount;
+        $durationInMonths = $this->packageDurationInMonths($package->name);
 
         return [
             'name' => $package->name,
             'price' => $this->formatRupiah($price),
             'discount' => $this->formatRupiah($discount),
-            'total' => $this->formatRupiah($price - $discount),
+            'total' => $this->formatRupiah($total),
+            'starting_price' => $this->formatRupiah((int) round($total / $durationInMonths)),
             'discount_amount' => $discount,
         ];
     }
@@ -217,6 +220,31 @@ new #[Layout('layouts::member'), Title('Dashboard Membership')] class extends Co
         $discount = min(max((int) $package->discount, 0), $price);
 
         return $price - $discount;
+    }
+
+    private function packageDurationInMonths(string $packageName): int
+    {
+        if (preg_match('/\b(\d+)\s+monthly\s+pass\b/i', $packageName, $matches) === 1) {
+            return max((int) $matches[1], 1);
+        }
+
+        if (preg_match('/\byearly\s+pass\b/i', $packageName) === 1) {
+            return 12;
+        }
+
+        if (preg_match('/\b(\d+)\s+bulan\s+(?:plus|free)\s+(\d+)\s+bulan\b/i', $packageName, $matches) === 1) {
+            return max((int) $matches[1] + (int) $matches[2], 1);
+        }
+
+        if (preg_match('/\b(\d+)\s+(?:plus|free)\s+(\d+)\s+bulan\b/i', $packageName, $matches) === 1) {
+            return max((int) $matches[1] + (int) $matches[2], 1);
+        }
+
+        if (preg_match('/\b(\d+)\s+bulan\b/i', $packageName, $matches) === 1) {
+            return max((int) $matches[1], 1);
+        }
+
+        return 1;
     }
 
     private function remainingDurationLabel(CarbonInterface $endDate): string
@@ -319,13 +347,12 @@ new #[Layout('layouts::member'), Title('Dashboard Membership')] class extends Co
             @endif
         </section>
 
-        <section aria-labelledby="upgrade-membership-title">
-            <div class="mb-4">
-                <p class="text-xs font-bold uppercase tracking-[0.2em] text-gray-400">Rekomendasi paket</p>
-                <h2 id="upgrade-membership-title" class="mt-1 text-xl font-black text-gray-950">
-                    {{ $this->selectedMembership === null ? 'Mulai Membership' : 'Upgrade Membership' }}
-                </h2>
-            </div>
+        <section aria-label="Pilihan paket membership">
+            @if ($this->selectedMembership === null)
+                <div class="mb-4">
+                    <h2 class="text-xl font-black text-gray-950">Mulai Membership</h2>
+                </div>
+            @endif
 
             @if ($this->recommendationSummary !== null)
                 <div class="space-y-4">
@@ -343,7 +370,7 @@ new #[Layout('layouts::member'), Title('Dashboard Membership')] class extends Co
                                         {{ $this->recommendationSummary['name'] }}
                                     </span>
                                     <span class="mt-3 block text-sm font-medium text-gray-300">
-                                        Mulai {{ $this->recommendationSummary['total'] }}
+                                        Mulai {{ $this->recommendationSummary['starting_price'] }}
                                     </span>
                                 </span>
 
