@@ -312,11 +312,7 @@ new #[Layout('layouts::empty')] #[Title('FRANS GYM | Pusat Kebugaran Terbaik di 
                     <ul class="space-y-3">
                         <li class="flex items-start">
                             <svg class="w-5 h-5 text-brand mr-3 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                            <span class="text-sm text-white">Absensi Menggunakan Scan Barcode / QR</span>
-                        </li>
-                        <li class="flex items-start">
-                            <svg class="w-5 h-5 text-brand mr-3 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                            <span class="text-sm text-white">Member Wajib Membawa Handphone Saat Check-in</span>
+                            <span class="text-sm text-white">Absensi Menggunakan Face Recognition (Pindai Wajah)</span>
                         </li>
                         <li class="flex items-start">
                             <svg class="w-5 h-5 text-brand mr-3 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
