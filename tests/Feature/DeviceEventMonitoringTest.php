@@ -35,6 +35,52 @@ class DeviceEventMonitoringTest extends TestCase
         $response->assertSee('Sinkronkan Member Terbaru');
     }
 
+    public function test_found_filter_shows_matching_events_and_can_be_cleared(): void
+    {
+        foreach ([true, false] as $found) {
+            DeviceEvent::create([
+                'device_code' => 'HQ-BIO-01',
+                'name' => $found ? 'Matched employee' : 'Unknown employee',
+                'is_found' => $found,
+                'payload' => '<event />',
+            ]);
+        }
+
+        Livewire::test('pages::device-events')
+            ->assertSee('Matched employee')
+            ->assertSee('Unknown employee')
+            ->set('foundFilter', '1')
+            ->assertSee('Matched employee')
+            ->assertDontSee('Unknown employee')
+            ->set('foundFilter', '0')
+            ->assertSee('Unknown employee')
+            ->assertDontSee('Matched employee')
+            ->set('search', 'Matched employee')
+            ->assertSee('Belum ada log event.')
+            ->set('search', '')
+            ->set('foundFilter', '')
+            ->assertSee('Matched employee')
+            ->assertSee('Unknown employee');
+    }
+
+    public function test_found_filter_resets_pagination(): void
+    {
+        for ($index = 0; $index < 26; $index++) {
+            DeviceEvent::create([
+                'device_code' => 'HQ-BIO-01',
+                'is_found' => false,
+                'payload' => '<event />',
+            ]);
+        }
+
+        Livewire::test('pages::device-events')
+            ->call('setPage', 2)
+            ->assertSet('paginators.page', 2)
+            ->set('foundFilter', '1')
+            ->assertSet('paginators.page', 1)
+            ->assertSee('Belum ada log event.');
+    }
+
     public function test_it_syncs_the_most_recent_member_to_hikvision(): void
     {
         $olderMember = $this->createUser([

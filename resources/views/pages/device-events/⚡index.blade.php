@@ -18,6 +18,7 @@ new #[Layout('layouts::empty')] class extends Component
     public string $deviceFilter = '';
     public string $eventTypeFilter = '';
     public string $statusFilter = '';
+    public string $foundFilter = '';
     public ?string $dateStart = null;
     public ?string $dateEnd = null;
 
@@ -51,7 +52,7 @@ new #[Layout('layouts::empty')] class extends Component
 
     public function updating($property): void
     {
-        if (in_array($property, ['search', 'deviceFilter', 'eventTypeFilter', 'statusFilter', 'dateStart', 'dateEnd'])) {
+        if (in_array($property, ['search', 'deviceFilter', 'eventTypeFilter', 'statusFilter', 'foundFilter', 'dateStart', 'dateEnd'])) {
             $this->resetPage();
         }
     }
@@ -78,6 +79,10 @@ new #[Layout('layouts::empty')] class extends Component
 
         if ($this->statusFilter !== '') {
             $query->where('status', $this->statusFilter);
+        }
+
+        if (in_array($this->foundFilter, ['1', '0'], true)) {
+            $query->where('is_found', $this->foundFilter === '1');
         }
 
         if ($this->dateStart && $this->dateEnd) {
@@ -124,7 +129,7 @@ new #[Layout('layouts::empty')] class extends Component
         </div>
 
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Cari payload</label>
                     <input type="text" wire:model.live.debounce.300ms="search"
@@ -161,6 +166,16 @@ new #[Layout('layouts::empty')] class extends Component
                         <option value="">Semua</option>
                         <option value="received">Received</option>
                         <option value="failed">Failed</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label for="found-filter" class="block text-xs font-medium text-gray-700 mb-1">Ditemukan</label>
+                    <select id="found-filter" wire:model.live="foundFilter"
+                        class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm">
+                        <option value="">Semua</option>
+                        <option value="1">Ditemukan</option>
+                        <option value="0">Tidak ditemukan</option>
                     </select>
                 </div>
 
