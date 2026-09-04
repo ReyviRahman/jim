@@ -19,6 +19,8 @@ use Livewire\Component;
 
 new #[Layout('layouts::admin')] class extends Component
 {
+    private const WHATSAPP_RECIPIENT = '6282373997318';
+
     public $search = '';
 
     public $statusFilter = '';
@@ -98,12 +100,6 @@ new #[Layout('layouts::admin')] class extends Component
             return null;
         }
 
-        $phoneNumber = $this->normalizeWhatsAppNumber($member->phone);
-
-        if ($phoneNumber === null) {
-            return null;
-        }
-
         $message = implode("\n", [
             "Halo {$member->name},",
             '',
@@ -115,26 +111,9 @@ new #[Layout('layouts::admin')] class extends Component
             'Terima kasih.',
         ]);
 
-        return Uri::of("https://wa.me/{$phoneNumber}")
+        return Uri::of('https://wa.me/'.self::WHATSAPP_RECIPIENT)
             ->withQuery(['text' => $message])
             ->value();
-    }
-
-    private function normalizeWhatsAppNumber(?string $phoneNumber): ?string
-    {
-        $digits = preg_replace('/\D+/', '', $phoneNumber ?? '');
-
-        if (empty($digits)) {
-            return null;
-        }
-
-        if (str_starts_with($digits, '0')) {
-            $digits = '62'.substr($digits, 1);
-        } elseif (str_starts_with($digits, '8')) {
-            $digits = '62'.$digits;
-        }
-
-        return preg_match('/^628\d{8,11}$/', $digits) === 1 ? $digits : null;
     }
 
     public function mount(): void
@@ -1134,13 +1113,13 @@ new #[Layout('layouts::admin')] class extends Component
                                                             target="_blank"
                                                             rel="noopener noreferrer"
                                                             x-on:click.stop
-                                                            title="Kirim WhatsApp ke {{ $booking->member->name }}"
-                                                            aria-label="Kirim WhatsApp ke {{ $booking->member->name }}"
+                                                            title="Kirim jadwal {{ $booking->member->name }} ke WhatsApp 6282373997318"
+                                                            aria-label="Kirim jadwal {{ $booking->member->name }} ke WhatsApp 6282373997318"
                                                             class="inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-green-600 text-white shadow-xs transition-colors hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-300">
                                                             <svg class="size-3.5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                                                 <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.5 11.5 11 14l4.5-5m5.5 3a9 9 0 0 1-13.8 7.6L3 21l1.4-4.2A9 9 0 1 1 21 12Z"/>
                                                             </svg>
-                                                            <span class="sr-only">Kirim WhatsApp ke {{ $booking->member->name }}</span>
+                                                            <span class="sr-only">Kirim jadwal {{ $booking->member->name }} ke WhatsApp 6282373997318</span>
                                                         </a>
                                                     @endif
                                                 </div>
@@ -1157,13 +1136,13 @@ new #[Layout('layouts::admin')] class extends Component
                                                                     target="_blank"
                                                                     rel="noopener noreferrer"
                                                                     x-on:click.stop
-                                                                    title="Kirim WhatsApp ke {{ $member->name }}"
-                                                                    aria-label="Kirim WhatsApp ke {{ $member->name }}"
+                                                                    title="Kirim jadwal {{ $member->name }} ke WhatsApp 6282373997318"
+                                                                    aria-label="Kirim jadwal {{ $member->name }} ke WhatsApp 6282373997318"
                                                                     class="inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-green-600 text-white shadow-xs transition-colors hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-300">
                                                                     <svg class="size-3.5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                                                         <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.5 11.5 11 14l4.5-5m5.5 3a9 9 0 0 1-13.8 7.6L3 21l1.4-4.2A9 9 0 1 1 21 12Z"/>
                                                                     </svg>
-                                                                    <span class="sr-only">Kirim WhatsApp ke {{ $member->name }}</span>
+                                                                    <span class="sr-only">Kirim jadwal {{ $member->name }} ke WhatsApp 6282373997318</span>
                                                                 </a>
                                                             @endif
                                                         </div>

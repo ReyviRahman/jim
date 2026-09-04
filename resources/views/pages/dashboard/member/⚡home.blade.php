@@ -2,7 +2,6 @@
 
 namespace App\Livewire\Member;
 
-use App\Models\GymPackage;
 use App\Models\Membership;
 use App\Models\User;
 use Carbon\CarbonInterface;
@@ -91,95 +90,75 @@ new #[Layout('layouts::member'), Title('Dashboard Membership')] class extends Co
             ->sum('remaining_sessions');
     }
 
-    /** @return Collection<int, GymPackage> */
+    /** @return EloquentCollection<int, Membership> */
     #[Computed]
-    public function activeGymPackages(): Collection
+    public function ownedPackages(): EloquentCollection
     {
-        return GymPackage::query()
-            ->where('type', 'gym')
+        return $this->accessibleMembershipQuery()
+            ->where('status', 'active')
             ->where('is_active', true)
-            ->get(['id', 'name', 'category', 'price', 'discount'])
-            ->sort(function (GymPackage $leftPackage, GymPackage $rightPackage): int {
-                $priceComparison = $this->effectivePackagePrice($leftPackage)
-                    <=> $this->effectivePackagePrice($rightPackage);
-
-                return $priceComparison !== 0
-                    ? $priceComparison
-                    : $leftPackage->getKey() <=> $rightPackage->getKey();
+            ->whereDate('start_date', '<=', today())
+            ->where(function (Builder $query): void {
+                $query->where(function (Builder $gymQuery): void {
+                    $gymQuery->whereIn('type', ['membership', 'bundle_pt_membership'])
+                        ->whereDate('membership_end_date', '>=', today());
+                })->orWhere(function (Builder $ptQuery): void {
+                    $ptQuery->whereIn('type', ['pt', 'bundle_pt_membership'])
+                        ->whereDate('pt_end_date', '>=', today());
+                });
             })
-            ->values();
+            ->with(['gymPackage:id,name', 'ptPackage:id,name'])
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->get();
     }
 
+    /** @return Collection<int, array{id: int, name: string, label: string, starting_price: string, price: string, discount: string, discount_amount: int, total: string}> */
     #[Computed]
-    public function recommendedPackage(): ?GymPackage
+    public function ownedPackageSummaries(): Collection
     {
-        $membership = $this->selectedMembership;
+        return $this->ownedPackages->map(function (Membership $membership): array {
+            $names = [];
 
-        if ($membership === null) {
-            return $this->activeGymPackages
-                ->first(fn (GymPackage $package): bool => $package->category === 'single');
-        }
+            if (in_array($membership->type, ['membership', 'bundle_pt_membership'], true)) {
+                $names[] = $membership->gymPackage?->name;
+            }
 
-        $currentPackage = $membership->gymPackage;
+            if (in_array($membership->type, ['pt', 'bundle_pt_membership'], true)) {
+                $names[] = $membership->ptPackage?->name;
+            }
 
-        if ($currentPackage === null) {
-            return null;
-        }
+            $label = match ($membership->type) {
+                'pt' => 'Paket PT Anda',
+                'bundle_pt_membership' => 'Paket Bundle Anda',
+                default => 'Membership Anda',
+            };
+            $durationInMonths = $membership->type === 'membership'
+                ? $this->packageDurationInMonths($membership->gymPackage?->name ?? $membership->package_name ?? '')
+                : null;
+            $priceDivisor = $durationInMonths === 1 ? 4 : ($durationInMonths ?? 1);
+            $pricePeriod = match (true) {
+                $durationInMonths === 1 => ' per minggu',
+                $durationInMonths > 1 => ' per bulan',
+                default => '',
+            };
 
-        $currentPrice = $this->effectivePackagePrice($currentPackage);
-
-        return $this->activeGymPackages->first(
-            fn (GymPackage $package): bool => $package->getKey() !== $currentPackage->getKey()
-                && $package->category === $currentPackage->category
-                && $this->effectivePackagePrice($package) > $currentPrice,
-        );
-    }
-
-    /** @return array{name: string, price: string, discount: string, total: string, starting_price: string, discount_amount: int}|null */
-    #[Computed]
-    public function recommendationSummary(): ?array
-    {
-        $package = $this->recommendedPackage;
-
-        if ($package === null) {
-            return null;
-        }
-
-        $price = max((int) $package->price, 0);
-        $discount = min(max((int) $package->discount, 0), $price);
-        $total = $price - $discount;
-        $durationInMonths = $this->packageDurationInMonths($package->name);
-
-        return [
-            'name' => $package->name,
-            'price' => $this->formatRupiah($price),
-            'discount' => $this->formatRupiah($discount),
-            'total' => $this->formatRupiah($total),
-            'starting_price' => $this->formatRupiah((int) round($total / $durationInMonths)),
-            'discount_amount' => $discount,
-        ];
-    }
-
-    #[Computed]
-    public function recommendationState(): string
-    {
-        if ($this->recommendedPackage !== null) {
-            return 'available';
-        }
-
-        if ($this->selectedMembership === null) {
-            return $this->activeGymPackages->isEmpty() ? 'no_packages' : 'no_single_package';
-        }
-
-        if ($this->activeGymPackages->isEmpty()) {
-            return 'no_packages';
-        }
-
-        if ($this->selectedMembership->gymPackage === null) {
-            return 'missing_package';
-        }
-
-        return 'highest_tier';
+            return [
+                'id' => $membership->id,
+                'name' => collect($names)->filter()->join(' / ')
+                    ?: ($membership->package_name ?: match ($membership->type) {
+                        'pt' => 'Paket PT',
+                        'bundle_pt_membership' => 'Paket Bundle',
+                        default => 'Paket Membership',
+                    }),
+                'label' => $label,
+                'starting_price' => $this->formatRupiah((int) round(max(0, (int) $membership->price_paid) / $priceDivisor)).$pricePeriod,
+                'price' => $this->formatRupiah((int) $membership->base_price),
+                'discount' => $this->formatRupiah((int) $membership->discount_applied),
+                'discount_amount' => (int) $membership->discount_applied,
+                'total' => $this->formatRupiah((int) $membership->price_paid),
+            ];
+        });
     }
 
     private function accessibleMembershipQuery(): Builder
@@ -214,18 +193,10 @@ new #[Layout('layouts::member'), Title('Dashboard Membership')] class extends Co
         return $user;
     }
 
-    private function effectivePackagePrice(GymPackage $package): int
-    {
-        $price = max((int) $package->price, 0);
-        $discount = min(max((int) $package->discount, 0), $price);
-
-        return $price - $discount;
-    }
-
-    private function packageDurationInMonths(string $packageName): int
+    private function packageDurationInMonths(string $packageName): ?int
     {
         if (preg_match('/\b(\d+)\s+monthly\s+pass\b/i', $packageName, $matches) === 1) {
-            return max((int) $matches[1], 1);
+            return (int) $matches[1] > 0 ? (int) $matches[1] : null;
         }
 
         if (preg_match('/\byearly\s+pass\b/i', $packageName) === 1) {
@@ -233,18 +204,18 @@ new #[Layout('layouts::member'), Title('Dashboard Membership')] class extends Co
         }
 
         if (preg_match('/\b(\d+)\s+bulan\s+(?:plus|free)\s+(\d+)\s+bulan\b/i', $packageName, $matches) === 1) {
-            return max((int) $matches[1] + (int) $matches[2], 1);
+            return (int) $matches[1] + (int) $matches[2] ?: null;
         }
 
         if (preg_match('/\b(\d+)\s+(?:plus|free)\s+(\d+)\s+bulan\b/i', $packageName, $matches) === 1) {
-            return max((int) $matches[1] + (int) $matches[2], 1);
+            return (int) $matches[1] + (int) $matches[2] ?: null;
         }
 
         if (preg_match('/\b(\d+)\s+bulan\b/i', $packageName, $matches) === 1) {
-            return max((int) $matches[1], 1);
+            return (int) $matches[1] > 0 ? (int) $matches[1] : null;
         }
 
-        return 1;
+        return null;
     }
 
     private function remainingDurationLabel(CarbonInterface $endDate): string
@@ -288,7 +259,7 @@ new #[Layout('layouts::member'), Title('Dashboard Membership')] class extends Co
                     </svg>
                 </span>
                 <p class="text-sm font-medium leading-6">
-                    Upgrade membership tidak akan memengaruhi {{ $this->ptRemainingSessions }} sisa sesi PT Anda.
+                    Sisa sesi PT aktif Anda: {{ $this->ptRemainingSessions }} sesi.
                 </p>
             </div>
         @endif
@@ -342,20 +313,14 @@ new #[Layout('layouts::member'), Title('Dashboard Membership')] class extends Co
                         </svg>
                     </span>
                     <h3 class="mt-4 text-lg font-black text-gray-900">Belum ada membership gym aktif</h3>
-                    <p class="mt-2 text-sm leading-6 text-gray-500">Pilih paket rekomendasi di bawah untuk memulai membership Anda.</p>
+                    <p class="mt-2 text-sm leading-6 text-gray-500">Paket PT aktif, jika ada, tetap ditampilkan di bawah.</p>
                 </div>
             @endif
         </section>
 
-        <section aria-label="Pilihan paket membership">
-            @if ($this->selectedMembership === null)
-                <div class="mb-4">
-                    <h2 class="text-xl font-black text-gray-950">Mulai Membership</h2>
-                </div>
-            @endif
-
-            @if ($this->recommendationSummary !== null)
-                <div class="space-y-4">
+        <section aria-label="Paket aktif Anda" class="space-y-4">
+            @forelse ($this->ownedPackageSummaries as $summary)
+                <div wire:key="owned-package-{{ $summary['id'] }}" data-testid="owned-package-{{ $summary['id'] }}" class="space-y-4">
                     <details open class="group overflow-hidden rounded-3xl bg-white shadow-lg ring-1 ring-black/5">
                         <summary class="cursor-pointer list-none focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-yellow-300 [&::-webkit-details-marker]:hidden">
                             <span class="relative flex min-h-48 items-center justify-between gap-5 overflow-hidden bg-linear-to-br from-[#171714] via-[#34342F] to-black px-6 py-7 sm:px-8">
@@ -364,13 +329,13 @@ new #[Layout('layouts::member'), Title('Dashboard Membership')] class extends Co
 
                                 <span class="relative min-w-0">
                                     <span class="block text-xs font-bold uppercase tracking-[0.22em] text-yellow-300">
-                                        {{ $this->selectedMembership === null ? 'Paket pilihan untuk Anda' : 'Naik ke tier berikutnya' }}
+                                        {{ $summary['label'] }}
                                     </span>
                                     <span class="mt-3 block text-2xl font-black leading-tight text-white sm:text-3xl">
-                                        {{ $this->recommendationSummary['name'] }}
+                                        {{ $summary['name'] }}
                                     </span>
                                     <span class="mt-3 block text-sm font-medium text-gray-300">
-                                        Mulai {{ $this->recommendationSummary['starting_price'] }}
+                                        Mulai {{ $summary['starting_price'] }}
                                     </span>
                                 </span>
 
@@ -393,19 +358,19 @@ new #[Layout('layouts::member'), Title('Dashboard Membership')] class extends Co
                             <dl class="mt-5 space-y-3 text-sm">
                                 <div class="flex items-center justify-between gap-4 text-gray-500">
                                     <dt>Harga Paket</dt>
-                                    <dd class="font-semibold text-gray-700">{{ $this->recommendationSummary['price'] }}</dd>
+                                    <dd class="font-semibold text-gray-700">{{ $summary['price'] }}</dd>
                                 </div>
 
-                                @if ($this->recommendationSummary['discount_amount'] > 0)
+                                @if ($summary['discount_amount'] > 0)
                                     <div class="flex items-center justify-between gap-4 text-emerald-700">
                                         <dt>Diskon</dt>
-                                        <dd class="font-semibold">-{{ $this->recommendationSummary['discount'] }}</dd>
+                                        <dd class="font-semibold">-{{ $summary['discount'] }}</dd>
                                     </div>
                                 @endif
 
                                 <div class="flex items-center justify-between gap-4 border-t border-gray-200 pt-4 text-base">
                                     <dt class="font-black text-gray-950">Total Pembayaran</dt>
-                                    <dd class="font-black text-gray-950">{{ $this->recommendationSummary['total'] }}</dd>
+                                    <dd class="font-black text-gray-950">{{ $summary['total'] }}</dd>
                                 </div>
                             </dl>
                         </div>
@@ -414,7 +379,7 @@ new #[Layout('layouts::member'), Title('Dashboard Membership')] class extends Co
                     <div class="flex items-center justify-between gap-4 rounded-3xl border border-gray-100 bg-white px-5 py-5 shadow-sm sm:px-7">
                         <div>
                             <p class="text-sm font-medium text-gray-500">Total Harga</p>
-                            <p class="mt-1 text-2xl font-black tracking-tight text-[#34342F]">{{ $this->recommendationSummary['total'] }}</p>
+                            <p class="mt-1 text-2xl font-black tracking-tight text-[#34342F]">{{ $summary['total'] }}</p>
                         </div>
                         <span class="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-yellow-300 text-[#34342F]">
                             <svg class="size-6" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -423,32 +388,12 @@ new #[Layout('layouts::member'), Title('Dashboard Membership')] class extends Co
                         </span>
                     </div>
                 </div>
-            @elseif ($this->recommendationState === 'highest_tier')
-                <div class="rounded-3xl border border-yellow-200 bg-yellow-50 px-6 py-7 text-center">
-                    <span class="mx-auto flex size-14 items-center justify-center rounded-full bg-yellow-300 text-[#34342F]">
-                        <svg class="size-7" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m8 21 4-3 4 3v-5.5M7 4h10l2 5-7 5-7-5 2-5Zm5 10v4"/>
-                        </svg>
-                    </span>
-                    <h3 class="mt-4 text-lg font-black text-gray-950">Tier tertinggi sudah aktif</h3>
-                    <p class="mt-2 text-sm leading-6 text-gray-600">Belum ada paket aktif dengan harga lebih tinggi dalam kategori membership Anda.</p>
-                </div>
-            @elseif ($this->recommendationState === 'missing_package')
+            @empty
                 <div class="rounded-3xl border border-gray-200 bg-gray-50 px-6 py-7 text-center">
-                    <h3 class="text-lg font-black text-gray-950">Rekomendasi paket belum tersedia.</h3>
-                    <p class="mt-2 text-sm leading-6 text-gray-500">Data paket membership saat ini tidak lagi tersedia. Silakan hubungi admin Frans Gym.</p>
+                    <h3 class="text-lg font-black text-gray-950">Belum ada membership atau PT aktif</h3>
+                    <p class="mt-2 text-sm leading-6 text-gray-500">Silakan hubungi admin Frans Gym untuk informasi paket Anda.</p>
                 </div>
-            @elseif ($this->recommendationState === 'no_single_package')
-                <div class="rounded-3xl border border-gray-200 bg-gray-50 px-6 py-7 text-center">
-                    <h3 class="text-lg font-black text-gray-950">Belum ada paket membership single yang tersedia saat ini.</h3>
-                    <p class="mt-2 text-sm leading-6 text-gray-500">Silakan cek kembali nanti atau hubungi admin Frans Gym.</p>
-                </div>
-            @else
-                <div class="rounded-3xl border border-gray-200 bg-gray-50 px-6 py-7 text-center">
-                    <h3 class="text-lg font-black text-gray-950">Belum ada paket membership yang tersedia saat ini.</h3>
-                    <p class="mt-2 text-sm leading-6 text-gray-500">Silakan cek kembali nanti atau hubungi admin Frans Gym.</p>
-                </div>
-            @endif
+            @endforelse
         </section>
     </div>
 </div>

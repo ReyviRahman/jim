@@ -660,29 +660,31 @@ class AdminBookingAttendanceTest extends TestCase
             ->assertDontSee('Member Minggu Berikutnya');
     }
 
-    public function test_booking_cards_normalize_supported_whatsapp_number_formats(): void
+    public function test_booking_cards_send_to_the_fixed_whatsapp_recipient_regardless_of_member_number(): void
     {
         $admin = $this->createUser(['role' => 'admin']);
-        $numberFormats = [
-            ['stored' => '081234567890', 'expected' => '6281234567890'],
-            ['stored' => '81234567891', 'expected' => '6281234567891'],
-            ['stored' => '6281234567892', 'expected' => '6281234567892'],
-            ['stored' => '+62 812-3456-7893', 'expected' => '6281234567893'],
+        $phoneNumbers = [
+            '081234567890',
+            '81234567891',
+            '6281234567892',
+            '+62 812-3456-7893',
+            '',
         ];
 
-        foreach ($numberFormats as $numberFormat) {
+        foreach ($phoneNumbers as $phoneNumber) {
             $booking = $this->createBooking();
-            $booking->member->update(['phone' => $numberFormat['stored']]);
+            $booking->member->update(['phone' => $phoneNumber]);
 
-            $this->assertSame($numberFormat['stored'], $booking->member->fresh()->phone);
+            $this->assertSame($phoneNumber, $booking->member->fresh()->phone);
         }
 
         $component = Livewire::actingAs($admin)
             ->test('pages::dashboard.admin.booking-jadwal.index');
 
-        foreach ($numberFormats as $numberFormat) {
-            $component->assertSeeHtml('href="https://wa.me/'.$numberFormat['expected'].'?text=');
-        }
+        preg_match_all('/href="https:\/\/wa\.me\/([^?]+)\?text=/', $component->html(), $links);
+
+        $this->assertCount(count($phoneNumbers), $links[1]);
+        $this->assertSame(['6282373997318'], array_values(array_unique($links[1])));
     }
 
     public function test_booking_card_renders_a_prefilled_whatsapp_link_for_each_member(): void
@@ -712,8 +714,8 @@ class AdminBookingAttendanceTest extends TestCase
 
         $component = Livewire::actingAs($admin)
             ->test('pages::dashboard.admin.booking-jadwal.index')
-            ->assertSeeHtml('href="https://wa.me/6281234567890?text=Halo%20Member%20Utama%2C%0A%0A')
-            ->assertSeeHtml('href="https://wa.me/6282345678901?text=Halo%20Member%20Tambahan%2C%0A%0A')
+            ->assertSeeHtml('href="https://wa.me/6282373997318?text=Halo%20Member%20Utama%2C%0A%0A')
+            ->assertSeeHtml('href="https://wa.me/6282373997318?text=Halo%20Member%20Tambahan%2C%0A%0A')
             ->assertSeeHtml($encodedDate)
             ->assertSeeHtml($encodedTime)
             ->assertSeeHtml($encodedCoach)
@@ -721,8 +723,8 @@ class AdminBookingAttendanceTest extends TestCase
             ->assertSeeHtml('target="_blank"')
             ->assertSeeHtml('rel="noopener noreferrer"')
             ->assertSeeHtml('x-on:click.stop')
-            ->assertSeeHtml('aria-label="Kirim WhatsApp ke Member Utama"')
-            ->assertSeeHtml('aria-label="Kirim WhatsApp ke Member Tambahan"');
+            ->assertSeeHtml('aria-label="Kirim jadwal Member Utama ke WhatsApp 6282373997318"')
+            ->assertSeeHtml('aria-label="Kirim jadwal Member Tambahan ke WhatsApp 6282373997318"');
 
         $this->assertSame(0, substr_count($component->html(), $encodedSession));
     }
@@ -791,7 +793,7 @@ class AdminBookingAttendanceTest extends TestCase
         $this->assertStringNotContainsString('data-booking-card-session-number', $component->html());
     }
 
-    public function test_booking_card_omits_whatsapp_link_for_an_invalid_number(): void
+    public function test_booking_card_shows_whatsapp_link_even_when_member_number_is_invalid(): void
     {
         $admin = $this->createUser(['role' => 'admin']);
         $booking = $this->createBooking();
@@ -799,7 +801,7 @@ class AdminBookingAttendanceTest extends TestCase
 
         Livewire::actingAs($admin)
             ->test('pages::dashboard.admin.booking-jadwal.index')
-            ->assertDontSeeHtml('https://wa.me/');
+            ->assertSeeHtml('href="https://wa.me/6282373997318?text=');
     }
 
     /**
