@@ -19,7 +19,7 @@ use Livewire\Component;
 
 new #[Layout('layouts::admin')] class extends Component
 {
-    private const WHATSAPP_RECIPIENT = '6282373997318';
+    private const WHATSAPP_RECIPIENT = '6282373996912';
 
     public $search = '';
 
@@ -1113,13 +1113,13 @@ new #[Layout('layouts::admin')] class extends Component
                                                             target="_blank"
                                                             rel="noopener noreferrer"
                                                             x-on:click.stop
-                                                            title="Kirim jadwal {{ $booking->member->name }} ke WhatsApp 6282373997318"
-                                                            aria-label="Kirim jadwal {{ $booking->member->name }} ke WhatsApp 6282373997318"
+                                                            title="Kirim jadwal {{ $booking->member->name }} ke WhatsApp 6282373996912"
+                                                            aria-label="Kirim jadwal {{ $booking->member->name }} ke WhatsApp 6282373996912"
                                                             class="inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-green-600 text-white shadow-xs transition-colors hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-300">
                                                             <svg class="size-3.5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                                                 <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.5 11.5 11 14l4.5-5m5.5 3a9 9 0 0 1-13.8 7.6L3 21l1.4-4.2A9 9 0 1 1 21 12Z"/>
                                                             </svg>
-                                                            <span class="sr-only">Kirim jadwal {{ $booking->member->name }} ke WhatsApp 6282373997318</span>
+                                                            <span class="sr-only">Kirim jadwal {{ $booking->member->name }} ke WhatsApp 6282373996912</span>
                                                         </a>
                                                     @endif
                                                 </div>
@@ -1136,13 +1136,13 @@ new #[Layout('layouts::admin')] class extends Component
                                                                     target="_blank"
                                                                     rel="noopener noreferrer"
                                                                     x-on:click.stop
-                                                                    title="Kirim jadwal {{ $member->name }} ke WhatsApp 6282373997318"
-                                                                    aria-label="Kirim jadwal {{ $member->name }} ke WhatsApp 6282373997318"
+                                                                    title="Kirim jadwal {{ $member->name }} ke WhatsApp 6282373996912"
+                                                                    aria-label="Kirim jadwal {{ $member->name }} ke WhatsApp 6282373996912"
                                                                     class="inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-green-600 text-white shadow-xs transition-colors hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-300">
                                                                     <svg class="size-3.5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                                                         <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.5 11.5 11 14l4.5-5m5.5 3a9 9 0 0 1-13.8 7.6L3 21l1.4-4.2A9 9 0 1 1 21 12Z"/>
                                                                     </svg>
-                                                                    <span class="sr-only">Kirim jadwal {{ $member->name }} ke WhatsApp 6282373997318</span>
+                                                                    <span class="sr-only">Kirim jadwal {{ $member->name }} ke WhatsApp 6282373996912</span>
                                                                 </a>
                                                             @endif
                                                         </div>

@@ -684,7 +684,7 @@ class AdminBookingAttendanceTest extends TestCase
         preg_match_all('/href="https:\/\/wa\.me\/([^?]+)\?text=/', $component->html(), $links);
 
         $this->assertCount(count($phoneNumbers), $links[1]);
-        $this->assertSame(['6282373997318'], array_values(array_unique($links[1])));
+        $this->assertSame(['6282373996912'], array_values(array_unique($links[1])));
     }
 
     public function test_booking_card_renders_a_prefilled_whatsapp_link_for_each_member(): void
@@ -714,8 +714,8 @@ class AdminBookingAttendanceTest extends TestCase
 
         $component = Livewire::actingAs($admin)
             ->test('pages::dashboard.admin.booking-jadwal.index')
-            ->assertSeeHtml('href="https://wa.me/6282373997318?text=Halo%20Member%20Utama%2C%0A%0A')
-            ->assertSeeHtml('href="https://wa.me/6282373997318?text=Halo%20Member%20Tambahan%2C%0A%0A')
+            ->assertSeeHtml('href="https://wa.me/6282373996912?text=Halo%20Member%20Utama%2C%0A%0A')
+            ->assertSeeHtml('href="https://wa.me/6282373996912?text=Halo%20Member%20Tambahan%2C%0A%0A')
             ->assertSeeHtml($encodedDate)
             ->assertSeeHtml($encodedTime)
             ->assertSeeHtml($encodedCoach)
@@ -723,8 +723,8 @@ class AdminBookingAttendanceTest extends TestCase
             ->assertSeeHtml('target="_blank"')
             ->assertSeeHtml('rel="noopener noreferrer"')
             ->assertSeeHtml('x-on:click.stop')
-            ->assertSeeHtml('aria-label="Kirim jadwal Member Utama ke WhatsApp 6282373997318"')
-            ->assertSeeHtml('aria-label="Kirim jadwal Member Tambahan ke WhatsApp 6282373997318"');
+            ->assertSeeHtml('aria-label="Kirim jadwal Member Utama ke WhatsApp 6282373996912"')
+            ->assertSeeHtml('aria-label="Kirim jadwal Member Tambahan ke WhatsApp 6282373996912"');
 
         $this->assertSame(0, substr_count($component->html(), $encodedSession));
     }
@@ -801,7 +801,7 @@ class AdminBookingAttendanceTest extends TestCase
 
         Livewire::actingAs($admin)
             ->test('pages::dashboard.admin.booking-jadwal.index')
-            ->assertSeeHtml('href="https://wa.me/6282373997318?text=');
+            ->assertSeeHtml('href="https://wa.me/6282373996912?text=');
     }
 
     /**
