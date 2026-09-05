@@ -238,6 +238,58 @@ class AdminAttendanceTableTest extends TestCase
             ], false);
     }
 
+    public function test_name_search_preserves_role_and_date_filters_on_both_attendance_pages(): void
+    {
+        $this->actingAs($this->createUser('admin'));
+
+        foreach (['member', 'head_coach'] as $role) {
+            foreach (['Budi Santoso', 'Siti Aminah'] as $name) {
+                $user = $this->createUser($role, $name);
+                $this->createAttendance($user, ['attendance_date' => '2026-08-29']);
+                $this->createAttendance($user, ['attendance_date' => '2026-08-28']);
+            }
+        }
+
+        foreach ([false, true] as $employeesOnly) {
+            $component = Livewire::test('pages::dashboard.admin.absensi.index', compact('employeesOnly'))
+                ->assertSee('Cari nama user...')
+                ->call('setDateRange', '2026-08-29')
+                ->set('search', '  Santoso  ')
+                ->assertSee('Budi Santoso')
+                ->assertDontSee('Siti Aminah');
+
+            $attendances = $component->instance()->with()['attendances'];
+            $this->assertSame(1, $attendances->total());
+            $this->assertSame($employeesOnly ? 'head_coach' : 'member', $attendances->first()->user->role);
+
+            $component->set('search', 'TidakDitemukan')->assertSee('Tidak ada data absensi.');
+            $component->set('search', '   ')->assertSee('Budi Santoso')->assertSee('Siti Aminah');
+            $this->assertSame(2, $component->instance()->with()['attendances']->total());
+        }
+    }
+
+    public function test_name_search_resets_pagination_on_both_attendance_pages(): void
+    {
+        $this->actingAs($this->createUser('admin'));
+
+        foreach (['member', 'head_coach'] as $role) {
+            $user = $this->createUser($role, 'Budi Santoso');
+
+            for ($index = 0; $index < 11; $index++) {
+                $this->createAttendance($user);
+            }
+        }
+
+        foreach ([false, true] as $employeesOnly) {
+            Livewire::test('pages::dashboard.admin.absensi.index', compact('employeesOnly'))
+                ->call('gotoPage', 2)
+                ->assertSet('paginators.page', 2)
+                ->set('search', 'Santoso')
+                ->assertSet('paginators.page', 1)
+                ->assertSee('Budi Santoso');
+        }
+    }
+
     private function createUser(string $role, ?string $name = null): User
     {
         return User::factory()->create([
