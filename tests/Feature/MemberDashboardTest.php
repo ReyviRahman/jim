@@ -38,6 +38,13 @@ class MemberDashboardTest extends TestCase
             ->get(route('member.dashboard'))
             ->assertOk()
             ->assertSee('Dashboard Membership')
+            ->assertSee('Jam Operasional')
+            ->assertSee('Senin - Jum’at')
+            ->assertSee('07.00 - 22.00')
+            ->assertSee('Sabtu')
+            ->assertSee('07.00 - 20.00')
+            ->assertSee('Minggu')
+            ->assertSee('07.00 - 19.00')
             ->assertDontSeeText('Lihat masa aktif membership dan rekomendasi paket terbaik untuk Anda.');
     }
 

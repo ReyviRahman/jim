@@ -264,6 +264,37 @@ new #[Layout('layouts::member'), Title('Dashboard Membership')] class extends Co
             </div>
         @endif
 
+        <section aria-labelledby="operating-hours-title" class="overflow-hidden rounded-3xl bg-[#34342F] shadow-sm">
+            <div class="grid sm:grid-cols-[minmax(0,1.15fr)_minmax(0,2fr)]">
+                <div class="flex items-center gap-4 bg-yellow-300 px-5 py-5 text-[#34342F] sm:items-start sm:px-6 sm:py-6">
+                    <span class="flex size-11 shrink-0 items-center justify-center rounded-full bg-[#34342F] text-yellow-300">
+                        <svg class="size-6" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6l4 2m5-2a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/>
+                        </svg>
+                    </span>
+                    <div>
+                        <h2 id="operating-hours-title" class="text-lg font-black leading-tight">Jam Operasional</h2>
+                        <p class="mt-1 text-sm font-medium text-[#34342F]/70">Atur waktu latihan Anda.</p>
+                    </div>
+                </div>
+
+                <dl class="grid divide-y divide-white/10 text-white sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+                    <div class="flex items-center justify-between gap-4 px-5 py-4 sm:block sm:px-4 sm:py-6">
+                        <dt class="text-sm text-gray-300">Senin - Jum’at</dt>
+                        <dd class="text-sm font-black sm:mt-2">07.00 - 22.00</dd>
+                    </div>
+                    <div class="flex items-center justify-between gap-4 px-5 py-4 sm:block sm:px-4 sm:py-6">
+                        <dt class="text-sm text-gray-300">Sabtu</dt>
+                        <dd class="text-sm font-black sm:mt-2">07.00 - 20.00</dd>
+                    </div>
+                    <div class="flex items-center justify-between gap-4 px-5 py-4 sm:block sm:px-4 sm:py-6">
+                        <dt class="text-sm text-gray-300">Minggu</dt>
+                        <dd class="text-sm font-black sm:mt-2">07.00 - 19.00</dd>
+                    </div>
+                </dl>
+            </div>
+        </section>
+
         <section aria-labelledby="current-membership-title">
             <div class="mb-4 flex items-end justify-between gap-4">
                 <div>
