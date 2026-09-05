@@ -18,7 +18,7 @@ new #[Layout('layouts::empty')] class extends Component
     public string $deviceFilter = '';
     public string $eventTypeFilter = '';
     public string $statusFilter = '';
-    public string $foundFilter = '';
+    public string $foundFilter = '0';
     public ?string $dateStart = null;
     public ?string $dateEnd = null;
 

@@ -47,7 +47,8 @@ class DeviceEventMonitoringTest extends TestCase
         }
 
         Livewire::test('pages::device-events')
-            ->assertSee('Matched employee')
+            ->assertSet('foundFilter', '0')
+            ->assertDontSee('Matched employee')
             ->assertSee('Unknown employee')
             ->set('foundFilter', '1')
             ->assertSee('Matched employee')
