@@ -91,15 +91,13 @@ class DeviceEventController extends Controller
                     return;
                 }
 
-                $dailyAttendanceWasCreated = $this->hikvisionAttendanceService->record(
+                $this->hikvisionAttendanceService->record(
                     $user,
                     $deviceEvent,
                     $receivedAt,
                 );
 
-                if ($dailyAttendanceWasCreated) {
-                    $this->markTodaysPtBookingAsAttended($user, $receivedAt);
-                }
+                $this->markTodaysPtBookingAsAttended($user, $receivedAt);
 
                 $this->markDeviceEventAsProcessed($deviceEvent);
             }, attempts: 3);
@@ -350,7 +348,7 @@ class DeviceEventController extends Controller
                 ->where('user_id', $user->id))
             ->where('booking_date', $receivedAt->toDateString())
             ->where('attendance', 'not_yet')
-            ->whereIn('status', ['pending', 'approved'])
+            ->where('status', 'approved')
             ->orderBy('booking_time')
             ->orderBy('id')
             ->lockForUpdate()
@@ -380,7 +378,6 @@ class DeviceEventController extends Controller
 
         $booking->update([
             'attendance' => 'attended',
-            'status' => $booking->status === 'pending' ? 'approved' : $booking->status,
         ]);
 
         if ($booking->is_free) {

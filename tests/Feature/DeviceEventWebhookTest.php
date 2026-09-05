@@ -862,7 +862,7 @@ XML;
         $this->assertDatabaseCount('attendances', 4);
     }
 
-    public function test_existing_manual_attendances_update_the_earliest_row_without_processing_booking(): void
+    public function test_existing_manual_attendances_update_the_earliest_row_and_process_booking(): void
     {
         $this->travelTo(Carbon::parse('2026-09-08 10:00:00', config('app.timezone')));
 
@@ -899,15 +899,15 @@ XML;
         $this->assertSame('2026-09-08 10:00:00', $earliestAttendance->fresh()->check_out_time->format('Y-m-d H:i:s'));
         $this->assertNull($earliestAttendance->fresh()->device_event_id);
         $this->assertNull($laterAttendance->fresh()->check_out_time);
-        $this->assertSame('not_yet', $booking->fresh()->attendance);
-        $this->assertSame(3, $membership->fresh()->remaining_sessions);
+        $this->assertSame('attended', $booking->fresh()->attendance);
+        $this->assertSame(2, $membership->fresh()->remaining_sessions);
         $this->assertDatabaseMissing('attendances', [
             'user_id' => $member->id,
             'attendance_date' => '2026-09-08',
         ]);
     }
 
-    public function test_new_device_attendance_marks_todays_pending_booking_attended_using_server_date(): void
+    public function test_pending_booking_is_only_processed_on_a_new_scan_after_approval(): void
     {
         $member = $this->createUser();
         $membership = $this->createPtMembership($member, ['remaining_sessions' => 2]);
@@ -919,9 +919,32 @@ XML;
             '2025-01-01T08:00:00+07:00',
         ))->assertOk();
 
+        $this->assertSame('not_yet', $booking->fresh()->attendance);
+        $this->assertSame('pending', $booking->fresh()->status);
+        $this->assertSame(2, $membership->fresh()->remaining_sessions);
+        $this->assertDatabaseHas('attendances', ['user_id' => $member->id]);
+
+        $booking->update(['status' => 'approved']);
+
+        $this->postJson('/api/absensi', $this->attendancePayload(
+            $member,
+            'checkIn',
+            '2025-01-01T08:00:00+07:00',
+        ))->assertOk();
+
+        $this->assertSame('not_yet', $booking->fresh()->attendance);
+        $this->assertSame(2, $membership->fresh()->remaining_sessions);
+
+        $this->postJson('/api/absensi', $this->attendancePayload(
+            $member,
+            'checkOut',
+            '2025-01-01T09:00:00+07:00',
+        ))->assertOk();
+
         $this->assertSame('attended', $booking->fresh()->attendance);
         $this->assertSame('approved', $booking->fresh()->status);
         $this->assertSame(1, $membership->fresh()->remaining_sessions);
+        $this->assertDatabaseCount('attendances', 1);
     }
 
     public function test_first_check_out_marks_a_booking_attended_and_reduces_sessions(): void
@@ -949,7 +972,7 @@ XML;
         $this->assertNull($attendance->check_out_time);
     }
 
-    public function test_check_out_after_check_in_does_not_process_another_booking(): void
+    public function test_subsequent_scans_process_remaining_bookings_only_once(): void
     {
         $this->travelTo(Carbon::parse('2026-07-19 07:00:00', config('app.timezone')));
 
@@ -976,8 +999,8 @@ XML;
             '2030-01-03T23:01:00+07:00',
         ))->assertOk();
 
-        $this->assertSame('not_yet', $afternoonBooking->fresh()->attendance);
-        $this->assertSame(2, $membership->fresh()->remaining_sessions);
+        $this->assertSame('attended', $afternoonBooking->fresh()->attendance);
+        $this->assertSame(1, $membership->fresh()->remaining_sessions);
 
         $this->travelTo(Carbon::parse('2026-07-19 16:00:00', config('app.timezone')));
 
@@ -987,8 +1010,9 @@ XML;
             '2030-01-03T23:02:00+07:00',
         ))->assertOk();
 
-        $this->assertSame('not_yet', $afternoonBooking->fresh()->attendance);
-        $this->assertSame(2, $membership->fresh()->remaining_sessions);
+        $this->assertSame('attended', $morningBooking->fresh()->attendance);
+        $this->assertSame('attended', $afternoonBooking->fresh()->attendance);
+        $this->assertSame(1, $membership->fresh()->remaining_sessions);
         $this->assertDatabaseCount('device_events', 3);
         $this->assertDatabaseCount('attendances', 1);
 
@@ -996,6 +1020,80 @@ XML;
 
         $this->assertSame('2026-07-19 07:00:00', $attendance->check_in_time->format('Y-m-d H:i:s'));
         $this->assertSame('2026-07-19 16:00:00', $attendance->check_out_time->format('Y-m-d H:i:s'));
+    }
+
+    public function test_each_new_scan_processes_one_of_three_bookings_without_a_time_limit(): void
+    {
+        $this->travelTo(Carbon::parse('2026-07-19 08:00:00', config('app.timezone')));
+
+        $member = $this->createUser();
+        $membership = $this->createPtMembership($member, ['remaining_sessions' => 5]);
+        $bookings = collect(['08:00:00', '17:00:00', '20:00:00'])
+            ->map(fn (string $time): PtBooking => $this->createPtBooking($member, $membership, [
+                'booking_time' => $time,
+            ]));
+
+        foreach (['08:00:00', '08:05:00', '08:10:00', '08:15:00', '08:20:00'] as $index => $time) {
+            $this->travelTo(Carbon::parse('2026-07-19 '.$time, config('app.timezone')));
+
+            $this->postJson('/api/absensi', $this->attendancePayload(
+                $member,
+                'checkIn',
+                '2026-07-19T'.$time.'+07:00',
+            ))->assertOk();
+
+            $processedCount = min($index + 1, 3);
+
+            foreach ($bookings as $bookingIndex => $booking) {
+                $this->assertSame(
+                    $bookingIndex < $processedCount ? 'attended' : 'not_yet',
+                    $booking->fresh()->attendance,
+                );
+            }
+
+            $this->assertSame(5 - $processedCount, $membership->fresh()->remaining_sessions);
+        }
+
+        $this->assertDatabaseCount('attendances', 1);
+        $this->assertDatabaseCount('device_events', 5);
+    }
+
+    public function test_nearest_booking_is_selected_only_from_eligible_bookings_today(): void
+    {
+        $this->travelTo(Carbon::parse('2026-07-19 10:00:00', config('app.timezone')));
+
+        $member = $this->createUser();
+        $membership = $this->createPtMembership($member, ['remaining_sessions' => 5]);
+        $unrelatedMember = $this->createUser();
+        $unrelatedMembership = $this->createPtMembership($unrelatedMember);
+        $excludedBookings = collect([
+            $this->createPtBooking($member, $membership, ['booking_date' => today()->subDay()]),
+            $this->createPtBooking($member, $membership, ['booking_date' => today()->addDay()]),
+            $this->createPtBooking($member, $membership, ['status' => 'pending']),
+            $this->createPtBooking($member, $membership, ['status' => 'rejected']),
+            $this->createPtBooking($member, $membership, ['status' => 'cancelled']),
+            $this->createPtBooking($member, $membership, ['attendance' => 'attended']),
+            $this->createPtBooking($member, $membership, ['attendance' => 'noshow']),
+            $this->createPtBooking($unrelatedMember, $unrelatedMembership),
+        ]);
+        $fartherBooking = $this->createPtBooking($member, $membership, ['booking_time' => '17:00:00']);
+        $nearestBooking = $this->createPtBooking($member, $membership, ['booking_time' => '11:00:00']);
+
+        $this->postJson('/api/absensi', $this->attendancePayload(
+            $member,
+            'checkIn',
+            '2030-01-04T23:00:00+07:00',
+        ))->assertOk();
+
+        foreach ($excludedBookings as $booking) {
+            $this->assertSame($booking->attendance, $booking->fresh()->attendance);
+            $this->assertSame($booking->status, $booking->fresh()->status);
+        }
+
+        $this->assertSame('attended', $nearestBooking->fresh()->attendance);
+        $this->assertSame('not_yet', $fartherBooking->fresh()->attendance);
+        $this->assertSame(4, $membership->fresh()->remaining_sessions);
+        $this->assertSame(10, $unrelatedMembership->fresh()->remaining_sessions);
     }
 
     public function test_equal_booking_distance_selects_the_earlier_time_then_the_lowest_id(): void
@@ -1068,6 +1166,8 @@ XML;
         $membership = $this->createPtMembership($member);
         $bookings = collect([
             $this->createPtBooking($member, $membership, ['booking_date' => today()->subDay()]),
+            $this->createPtBooking($member, $membership, ['booking_date' => today()->addDay()]),
+            $this->createPtBooking($member, $membership, ['status' => 'pending']),
             $this->createPtBooking($member, $membership, ['status' => 'cancelled']),
             $this->createPtBooking($member, $membership, ['status' => 'rejected']),
             $this->createPtBooking($member, $membership, ['attendance' => 'noshow']),
@@ -1169,7 +1269,7 @@ XML;
         $this->assertSame(1, $membership->fresh()->remaining_sessions);
     }
 
-    public function test_distinct_check_in_then_check_out_processes_only_one_booking(): void
+    public function test_distinct_check_in_then_check_out_processes_two_bookings(): void
     {
         $this->travelTo(Carbon::parse('2026-07-19 08:00:00', config('app.timezone')));
 
@@ -1193,8 +1293,8 @@ XML;
         ))->assertOk();
 
         $this->assertSame('attended', $firstBooking->fresh()->attendance);
-        $this->assertSame('not_yet', $secondBooking->fresh()->attendance);
-        $this->assertSame(2, $membership->fresh()->remaining_sessions);
+        $this->assertSame('attended', $secondBooking->fresh()->attendance);
+        $this->assertSame(1, $membership->fresh()->remaining_sessions);
         $this->assertDatabaseCount('device_events', 2);
         $this->assertDatabaseCount('attendances', 1);
 
@@ -1204,7 +1304,7 @@ XML;
         $this->assertSame('2026-07-19 09:00:00', $attendance->check_out_time->format('Y-m-d H:i:s'));
     }
 
-    public function test_member_repeated_check_out_updates_checkout_without_processing_another_booking(): void
+    public function test_member_repeated_check_out_updates_checkout_and_processes_another_booking(): void
     {
         $this->travelTo(Carbon::parse('2026-07-19 08:00:00', config('app.timezone')));
 
@@ -1228,8 +1328,8 @@ XML;
         ))->assertOk();
 
         $this->assertSame('attended', $firstBooking->fresh()->attendance);
-        $this->assertSame('not_yet', $secondBooking->fresh()->attendance);
-        $this->assertSame(2, $membership->fresh()->remaining_sessions);
+        $this->assertSame('attended', $secondBooking->fresh()->attendance);
+        $this->assertSame(1, $membership->fresh()->remaining_sessions);
 
         $attendance = Attendance::query()->whereBelongsTo($member)->firstOrFail();
 
@@ -1239,7 +1339,7 @@ XML;
         $this->assertDatabaseCount('attendances', 1);
     }
 
-    public function test_check_out_first_then_check_in_processes_only_one_booking(): void
+    public function test_check_out_first_then_check_in_processes_two_bookings(): void
     {
         $this->travelTo(Carbon::parse('2026-07-19 08:00:00', config('app.timezone')));
 
@@ -1263,8 +1363,8 @@ XML;
         ))->assertOk();
 
         $this->assertSame('attended', $firstBooking->fresh()->attendance);
-        $this->assertSame('not_yet', $secondBooking->fresh()->attendance);
-        $this->assertSame(2, $membership->fresh()->remaining_sessions);
+        $this->assertSame('attended', $secondBooking->fresh()->attendance);
+        $this->assertSame(1, $membership->fresh()->remaining_sessions);
 
         $attendance = Attendance::query()->whereBelongsTo($member)->firstOrFail();
 
