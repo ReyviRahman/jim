@@ -74,6 +74,13 @@
                 </div>
                 <ul class="space-y-2 font-medium px-3">
                     <li>
+                        <a href="{{ route('admin.shift-absen.index') }}" wire:navigate
+                            class="{{ request()->routeIs('admin.shift-absen.*') ? 'text-[#34342F] bg-brand' : 'text-white' }} flex items-center px-2 py-1.5 rounded-md hover:bg-brand hover:text-[#34342F] group transition-colors">
+                            <svg class="size-5" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" d="M12 7v5l3 2"/></svg>
+                            <span class="ms-3">Shift Absen</span>
+                        </a>
+                    </li>
+                    <li>
                         <a href="{{ route('admin.packages.index') }}" wire:navigate 
                             class="{{ request()->routeIs('admin.packages.*') ? 'text-[#34342F] bg-brand' : 'text-white' }} flex items-center px-2 py-1.5 rounded-md hover:bg-brand hover:text-[#34342F] group transition-colors">
                                 

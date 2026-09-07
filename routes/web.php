@@ -266,6 +266,9 @@ Route::middleware('auth')->group(function () {
     });
 
     Route::middleware('role:admin')->prefix('dashboard/admin')->group(function () {
+        Route::livewire('/shift-absen', 'pages::dashboard.admin.shift-absen.index')
+            ->name('admin.shift-absen.index');
+
         Route::livewire('/rentang-bonus', 'pages::dashboard.admin.rentang-bonus')
             ->name('admin.rentang-bonus.index');
 
