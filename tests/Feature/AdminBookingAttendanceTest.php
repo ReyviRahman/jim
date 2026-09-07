@@ -660,6 +660,44 @@ class AdminBookingAttendanceTest extends TestCase
             ->assertDontSee('Member Minggu Berikutnya');
     }
 
+    public function test_head_coach_whatsapp_links_use_each_members_number_and_confirmation_message(): void
+    {
+        $this->travelTo(Carbon::parse('2026-09-04 10:00:00'));
+        $headCoach = User::factory()->headCoach()->create();
+        $booking = $this->createBooking([
+            'booking_date' => '2026-09-05',
+            'booking_time' => '16:00:00',
+        ]);
+        $booking->pt->update(['name' => 'ADITYA']);
+        $booking->member->update(['phone' => '081234567890']);
+        $additionalMember = $this->createUser(['phone' => '+62 823-4567-8901']);
+        $booking->membership->members()->attach([$booking->member_id, $additionalMember->id]);
+
+        $message = "Halo Kak, ini jadwal PT Kakak:\n\nCoach: ADITYA\nTanggal: Sabtu, 5 September 2026\nWaktu: 16.00-17.00 WIB\n\nMohon konfirmasi kehadiran Kakak untuk sesi besok ya";
+
+        Livewire::actingAs($headCoach)
+            ->test('pages::dashboard.admin.booking-jadwal.index')
+            ->assertSeeHtml('href="https://wa.me/6281234567890?text='.rawurlencode($message).'"')
+            ->assertSeeHtml('href="https://wa.me/6282345678901?text='.rawurlencode($message).'"')
+            ->assertDontSeeHtml('https://wa.me/6282373996912')
+            ->assertDontSeeHtml('%F0%9F%99%8F')
+            ->assertDontSeeHtml('%EF%BF%BD');
+    }
+
+    public function test_head_coach_does_not_get_a_whatsapp_link_for_a_missing_or_invalid_member_number(): void
+    {
+        $headCoach = User::factory()->headCoach()->create();
+
+        foreach (['', '074123456789'] as $phone) {
+            $booking = $this->createBooking();
+            $booking->member->update(['phone' => $phone]);
+        }
+
+        Livewire::actingAs($headCoach)
+            ->test('pages::dashboard.admin.booking-jadwal.index')
+            ->assertDontSeeHtml('href="https://wa.me/');
+    }
+
     public function test_booking_cards_send_to_the_fixed_whatsapp_recipient_regardless_of_member_number(): void
     {
         $admin = $this->createUser(['role' => 'admin']);
