@@ -30,14 +30,14 @@ class EmployeeAttendanceUiTest extends TestCase
         Attendance::create(['user_id' => $legacy->id, 'check_in_time' => '2026-09-09 08:00:00']);
 
         $component = Livewire::test('pages::dashboard.admin.absensi.index', ['employeesOnly' => true])
-            ->assertSee('Current Coach')->assertSee('Middle Snapshot')->assertSee('08:00–16:00')
-            ->assertDontSee('Legacy Coach')
+            ->set('month', '2026-09')->assertSee('Current Coach')->assertSee('Middle Snapshot')
+            ->call('openAttendanceCell', $employee->id, '2026-09-10')->assertSee('08:00')->call('closeAttendanceCell')
+            ->assertSee('Legacy Coach')
             ->assertDontSee('Histori lama')->assertDontSee('Presensi baru')
             ->set('search', 'Current')->call('setDateRange', '2026-09-10');
-        $this->assertSame(1, $component->instance()->with()['attendances']->total());
-        $component->call('setDateRange', '2026-09-09')->assertDontSee('Current Coach')
-            ->set('search', '')
-            ->assertDontSee('Legacy Coach')->assertDontSee('Middle Snapshot');
+        $this->assertSame(1, $component->instance()->with()['employeeCount']);
+        $component->set('month', '2026-08')->assertSee('Current Coach')
+            ->set('search', '')->assertSee('Legacy Coach')->assertDontSee('Middle Snapshot');
         $this->assertDatabaseHas('attendances', ['user_id' => $legacy->id]);
     }
 
@@ -47,12 +47,13 @@ class EmployeeAttendanceUiTest extends TestCase
         $shift = Shift::factory()->create(['role' => 'pt', 'start_time' => '08:00:00', 'end_time' => '16:00:00']);
         $employee = User::factory()->create(['role' => 'pt', 'shift' => $shift->id]);
         $this->travelTo(now('Asia/Jakarta')->setDate(2026, 9, 10)->setTime(8, 0));
-        $component = Livewire::test('pages::dashboard.admin.absensi.index')
+        $component = Livewire::test('pages::dashboard.admin.absensi.index', ['employeesOnly' => true])
+            ->set('month', '2026-08')
             ->set('scannedCode', json_encode(['user_id' => $employee->id]))
             ->call('processScan')->assertSee('Berhasil Check-In');
         $this->travelTo(now('Asia/Jakarta')->setTime(18, 0));
         $component->set('scannedCode', json_encode(['user_id' => $employee->id]))
-            ->call('processScan')->assertSee('Berhasil Check-Out');
+            ->call('processScan')->assertSee('Berhasil Check-Out')->assertSet('month', '2026-08');
         $this->assertDatabaseCount('attendance_employee', 1);
         $this->assertDatabaseCount('attendances', 0);
         $this->assertSame('18:00', AttendanceEmployee::first()->check_out_time->format('H:i'));

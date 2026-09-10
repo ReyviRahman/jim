@@ -29,6 +29,7 @@ new #[Layout('layouts::admin')] class extends Component
     public $hikvision_employee_no = null;
     public $role = 'kasir_gym';
     public $shift = null;
+    public $is_sales_online = false;
     public $alamat = '';
 
     public $photo = null;
@@ -52,6 +53,7 @@ new #[Layout('layouts::admin')] class extends Component
             'role' => ['required', Rule::in(array_keys($this->roleOptions))],
             'shift' => ['nullable', 'integer', Rule::exists('shifts', 'id')->where('role', $this->role)],
             'alamat' => 'required|string',
+            'is_sales_online' => 'required|boolean',
             'password' => 'nullable|min:6',
             'photo' => 'nullable|image|max:10048',
         ];
@@ -97,6 +99,7 @@ new #[Layout('layouts::admin')] class extends Component
         $this->phone = $user->phone;
         $this->role = $user->role;
         $this->shift = $user->shift;
+        $this->is_sales_online = $user->is_sales_online;
         $this->email = $user->email;
         $this->hikvision_employee_no = $user->hikvision_employee_no;
         $this->alamat = $user->address;
@@ -129,6 +132,7 @@ new #[Layout('layouts::admin')] class extends Component
         $user->email = $this->email;
         $user->hikvision_employee_no = $this->hikvision_employee_no;
         $user->role = $this->role;
+        $user->is_sales_online = $this->is_sales_online;
         $user->address = $this->alamat;
 
         $user->shift = filled($this->shift) ? (int) $this->shift : null;
@@ -156,6 +160,15 @@ new #[Layout('layouts::admin')] class extends Component
     <h1 class="text-3xl text-center font-semibold mb-6">Edit Akun</h1>
 
     <form wire:submit.prevent="update">
+        @if ($role === 'sales')
+        <div class="mb-6 rounded-lg border border-gray-200 p-4" wire:key="sales-online-option">
+            <label for="is_sales_online" class="flex items-center gap-3 text-sm font-semibold">
+                <input id="is_sales_online" type="checkbox" wire:model="is_sales_online" class="h-4 w-4 rounded border-gray-300">
+                Sales online
+            </label>
+            @error('is_sales_online') <span class="text-sm text-red-500">{{ $message }}</span> @enderror
+        </div>
+        @endif
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
             <div class="mb-4 sm:col-span-2">

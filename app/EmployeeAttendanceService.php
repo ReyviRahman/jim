@@ -25,11 +25,14 @@ class EmployeeAttendanceService
             if ($deviceEvent !== null) {
                 $duplicate = AttendanceEmployee::query()->where('device_event_id', $deviceEvent->id)->first();
                 if ($duplicate !== null) {
+                    $this->ensurePresent($duplicate);
+
                     return $duplicate;
                 }
             }
 
             $attendance = $employee->employeeAttendances()
+                ->where('status', EmployeeAttendanceStatus::Hadir)
                 ->where('scheduled_start_at', '<=', $receivedAt)
                 ->where('checkout_deadline_at', '>', $receivedAt)
                 ->latest('scheduled_start_at')->lockForUpdate()->first();
@@ -65,7 +68,10 @@ class EmployeeAttendanceService
                 throw ValidationException::withMessages(['attendance' => 'Check-in hanya diperbolehkan pada jam shift '.$shift->name.' ('.$shift->start_time.'–'.$shift->end_time.').']);
             }
 
-            if ($employee->employeeAttendances()->where('attendance_date', $start->toDateString())->exists()) {
+            $existing = $employee->employeeAttendances()->where('attendance_date', $start->toDateString())->lockForUpdate()->first();
+            if ($existing !== null) {
+                $this->ensurePresent($existing);
+
                 throw ValidationException::withMessages(['attendance' => 'Presensi untuk tanggal shift ini sudah tercatat.']);
             }
 
@@ -73,6 +79,7 @@ class EmployeeAttendanceService
                 'device_event_id' => $deviceEvent?->id,
                 'nama_di_alat' => $deviceEvent?->name,
                 'attendance_date' => $start->toDateString(),
+                'status' => EmployeeAttendanceStatus::Hadir,
                 'check_in_time' => $receivedAt,
                 'shift_code' => $shift->code,
                 'shift_name' => $shift->name,
@@ -84,5 +91,14 @@ class EmployeeAttendanceService
                 'checkout_deadline_at' => $start->copy()->addDay(),
             ]);
         }, attempts: 3);
+    }
+
+    private function ensurePresent(AttendanceEmployee $attendance): void
+    {
+        if ($attendance->status !== EmployeeAttendanceStatus::Hadir) {
+            throw ValidationException::withMessages([
+                'attendance' => 'Presensi tanggal '.$attendance->attendance_date->format('d-m-Y').' berstatus '.$attendance->status->label().'. Hubungi Admin untuk mengubah status sebelum melakukan scan.',
+            ]);
+        }
     }
 }

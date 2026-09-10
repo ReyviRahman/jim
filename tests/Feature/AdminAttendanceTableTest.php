@@ -34,7 +34,7 @@ class AdminAttendanceTableTest extends TestCase
     {
         $admin = $this->createUser('admin');
         $member = $this->createUser('member', 'Member Attendance');
-        $headCoach = $this->createUser('head_coach', 'Employee Attendance');
+        $headCoach = $this->createUser('kasir_minum', 'Employee Attendance');
 
         $this->createAttendance($member, [
             'attendance_date' => '2026-08-29',
@@ -50,30 +50,26 @@ class AdminAttendanceTableTest extends TestCase
         ]);
 
         $this->actingAs($admin)
-            ->get(route('admin.absensi-karyawan.index'))
+            ->get(route('admin.absensi-karyawan.index', ['month' => '2026-08']))
             ->assertOk()
-            ->assertSee('Data Absensi Karyawan &amp; Scanner', false)
+            ->assertSee('Absensi karyawan')
             ->assertSee('Employee Attendance')
             ->assertDontSee('Member Attendance')
             ->assertSee('Hasil QR muncul disini')
-            ->assertSee('Pilih Rentang Tanggal')
-            ->assertSee('Nama User')
-            ->assertSee('Nama di Alat')
-            ->assertSee('Karyawan di Hikvision')
-            ->assertSee('Role User')
-            ->assertSee('Waktu Check-In')
-            ->assertSee('Waktu Check-Out')
-            ->assertSee('29 Aug 2026')
-            ->assertSee('08:05')
-            ->assertSee('17:45')
-            ->assertDontSee('Semua Role');
+            ->assertSee('Agustus 2026')
+            ->assertSee('Nama karyawan')
+            ->assertDontSee('Pilih Rentang Tanggal');
+
+        Livewire::test('pages::dashboard.admin.absensi.index', ['employeesOnly' => true])
+            ->call('openAttendanceCell', $headCoach->id, '2026-08-29')
+            ->assertSee('Karyawan di Hikvision')->assertSee('08:05')->assertSee('17:45');
     }
 
     public function test_general_attendance_page_only_shows_members_without_role_filter(): void
     {
         $admin = $this->createUser('admin');
         $member = $this->createUser('member', 'General Member Attendance');
-        $headCoach = $this->createUser('head_coach', 'General Employee Attendance');
+        $headCoach = $this->createUser('kasir_minum', 'General Employee Attendance');
 
         $this->createAttendance($member, [
             'nama_di_alat' => 'Member di Hikvision',
@@ -100,7 +96,7 @@ class AdminAttendanceTableTest extends TestCase
     public function test_employee_attendance_page_formats_times_and_shows_dash_for_missing_values(): void
     {
         $admin = $this->createUser('admin');
-        $checkoutOnlyEmployee = $this->createUser('head_coach', 'Checkout Only Employee');
+        $checkoutOnlyEmployee = $this->createUser('kasir_minum', 'Checkout Only Employee');
         $checkInOnlyEmployee = $this->createUser('pt', 'Check-In Only Employee');
 
         $this->createEmployeeAttendance($checkoutOnlyEmployee, [
@@ -116,31 +112,28 @@ class AdminAttendanceTableTest extends TestCase
 
         $this->actingAs($admin);
 
-        $response = Livewire::test('pages::dashboard.admin.absensi.index', ['employeesOnly' => true])
+        $response = Livewire::test('pages::dashboard.admin.absensi.index', ['employeesOnly' => true])->set('month', '2026-08')
             ->assertSee('Checkout Only Employee')
             ->assertSee('Check-In Only Employee')
-            ->assertSee('29 Aug 2026')
+            ->call('openAttendanceCell', $checkoutOnlyEmployee->id, '2026-08-29')->assertSee('29 Agustus 2026')
             ->assertSee('18:30')
-            ->assertSee('28 Aug 2026')
+            ->call('openAttendanceCell', $checkInOnlyEmployee->id, '2026-08-28')->assertSee('28 Agustus 2026')
             ->assertSee('08:15');
 
         $contents = $response->html();
 
         $this->assertIsString($contents);
-        $this->assertSame(
-            1,
-            substr_count($contents, '<span class="text-gray-500">-</span>'),
-            'Each missing check-in or check-out value should render exactly one dash.',
-        );
+        $this->assertStringContainsString('Belum ada data', $contents);
+        $this->assertStringContainsString('Keluar', $contents);
     }
 
     public function test_employee_attendance_date_filter_excludes_checkout_only_and_legacy_rows(): void
     {
         $admin = $this->createUser('admin');
-        $checkoutOnlyEmployee = $this->createUser('head_coach', 'Filtered Checkout Only');
+        $checkoutOnlyEmployee = $this->createUser('kasir_minum', 'Filtered Checkout Only');
         $legacyCheckInEmployee = $this->createUser('pt', 'Filtered Legacy Check-In');
         $legacyCheckoutEmployee = $this->createUser('kasir_gym', 'Filtered Legacy Checkout');
-        $outsideRangeEmployee = $this->createUser('head_coach', 'Outside Date Range');
+        $outsideRangeEmployee = $this->createUser('kasir_minum', 'Outside Date Range');
 
         $this->createAttendance($checkoutOnlyEmployee, [
             'attendance_status' => 'checkOut',
@@ -167,18 +160,18 @@ class AdminAttendanceTableTest extends TestCase
         $this->actingAs($admin);
 
         Livewire::test('pages::dashboard.admin.absensi.index', ['employeesOnly' => true])
-            ->call('setDateRange', '2026-08-29')
-            ->assertDontSee('Filtered Checkout Only')
-            ->assertDontSee('Filtered Legacy Check-In')
-            ->assertDontSee('Filtered Legacy Checkout')
-            ->assertSee('Tidak ada data absensi.')
-            ->assertDontSee('Outside Date Range');
+            ->set('month', '2026-08')
+            ->assertSee('Filtered Checkout Only')
+            ->assertSee('Filtered Legacy Check-In')
+            ->assertSee('Filtered Legacy Checkout')
+            ->assertSee('Belum ada data')
+            ->assertDontSee('Detail Filtered');
     }
 
-    public function test_employee_attendance_uses_stable_effective_order_and_paginates_ten_rows(): void
+    public function test_employee_attendance_groups_all_employees_without_paginating_scan_rows(): void
     {
         $admin = $this->createUser('admin');
-        $newestEmployee = $this->createUser('head_coach', 'Newest Attendance');
+        $newestEmployee = $this->createUser('kasir_minum', 'Newest Attendance');
         $tieOlderEmployee = $this->createUser('pt', 'Tie Older Attendance');
         $tieNewerEmployee = $this->createUser('kasir_gym', 'Tie Newer Attendance');
 
@@ -197,7 +190,7 @@ class AdminAttendanceTableTest extends TestCase
         ]);
 
         for ($day = 28; $day >= 20; $day--) {
-            $employee = $this->createUser('head_coach', "Older Attendance {$day}");
+            $employee = $this->createUser('kasir_minum', "Older Attendance {$day}");
             $date = "2026-08-{$day}";
 
             $this->createEmployeeAttendance($employee, [
@@ -208,18 +201,13 @@ class AdminAttendanceTableTest extends TestCase
 
         $this->actingAs($admin);
 
-        $component = Livewire::test('pages::dashboard.admin.absensi.index', ['employeesOnly' => true]);
-        $attendances = $component->instance()->with()['attendances'];
-        $attendanceIds = $attendances->getCollection()->pluck('id')->all();
-
-        $this->assertSame(10, $attendances->perPage());
-        $this->assertSame(12, $attendances->total());
-        $this->assertCount(10, $attendanceIds);
-        $this->assertSame([
-            $newestAttendance->id,
-            $tieNewerAttendance->id,
-            $tieOlderAttendance->id,
-        ], array_slice($attendanceIds, 0, 3));
+        $component = Livewire::test('pages::dashboard.admin.absensi.index', ['employeesOnly' => true])->set('month', '2026-08');
+        $data = $component->instance()->with();
+        $this->assertSame(12, $data['employeeCount']);
+        $this->assertCount(31, $data['days']);
+        $this->assertSame($newestAttendance->id, $data['cells'][$newestEmployee->id]['2026-08-30']->first()->id);
+        $this->assertSame($tieOlderAttendance->id, $data['cells'][$tieOlderEmployee->id]['2026-08-29']->first()->id);
+        $this->assertSame($tieNewerAttendance->id, $data['cells'][$tieNewerEmployee->id]['2026-08-29']->first()->id);
     }
 
     public function test_employee_attendance_navigation_is_below_general_attendance_navigation(): void
@@ -243,7 +231,7 @@ class AdminAttendanceTableTest extends TestCase
     {
         $this->actingAs($this->createUser('admin'));
 
-        foreach (['member', 'head_coach'] as $role) {
+        foreach (['member', 'kasir_minum'] as $role) {
             foreach (['Budi Santoso', 'Siti Aminah'] as $name) {
                 $user = $this->createUser($role, $name);
                 foreach (['2026-08-29', '2026-08-28'] as $date) {
@@ -258,15 +246,23 @@ class AdminAttendanceTableTest extends TestCase
 
         foreach ([false, true] as $employeesOnly) {
             $component = Livewire::test('pages::dashboard.admin.absensi.index', compact('employeesOnly'))
-                ->assertSee('Cari nama user...')
+                ->assertSee($employeesOnly ? 'Cari nama karyawan...' : 'Cari nama user...')
                 ->call('setDateRange', '2026-08-29')
                 ->set('search', '  Santoso  ')
                 ->assertSee('Budi Santoso')
                 ->assertDontSee('Siti Aminah');
 
+            if ($employeesOnly) {
+                $component->set('month', '2026-08');
+                $this->assertSame(1, $component->instance()->with()['employeeCount']);
+                $component->set('search', 'TidakDitemukan')->assertSee('Tidak ada karyawan yang cocok');
+                $component->set('search', 'Santoso')->call('nextMonth')->assertSee('Budi Santoso')->assertDontSee('Siti Aminah');
+
+                continue;
+            }
             $attendances = $component->instance()->with()['attendances'];
             $this->assertSame(1, $attendances->total());
-            $this->assertSame($employeesOnly ? 'head_coach' : 'member', $attendances->first()->user->role);
+            $this->assertSame($employeesOnly ? 'kasir_minum' : 'member', $attendances->first()->user->role);
 
             $component->set('search', 'TidakDitemukan')->assertSee('Tidak ada data absensi.');
             $component->set('search', '   ')->assertSee('Budi Santoso')->assertSee('Siti Aminah');
@@ -278,7 +274,7 @@ class AdminAttendanceTableTest extends TestCase
     {
         $this->actingAs($this->createUser('admin'));
 
-        foreach (['member', 'head_coach'] as $role) {
+        foreach (['member', 'kasir_minum'] as $role) {
             $user = $this->createUser($role, 'Budi Santoso');
 
             for ($index = 0; $index < 11; $index++) {

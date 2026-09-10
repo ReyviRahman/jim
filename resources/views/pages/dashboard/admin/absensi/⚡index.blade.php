@@ -18,6 +18,7 @@ use Illuminate\Support\Carbon;
 new #[Layout('layouts::admin')] class extends Component
 {
     use WithPagination;
+    use \App\Livewire\EmployeeAttendanceMonth;
 
     public $scannedCode = '';
 
@@ -32,6 +33,7 @@ new #[Layout('layouts::admin')] class extends Component
     public function mount(bool $employeesOnly = false): void
     {
         $this->employeesOnly = $employeesOnly;
+        $this->updatedMonth();
     }
 
 public function processScan()
@@ -251,6 +253,10 @@ session()->flash('success', "Berhasil Check-In: {$user->name}. {$infoSesi}");
 
     public function with(): array
     {
+        if ($this->employeesOnly) {
+            return $this->employeeMonthData();
+        }
+
         $query = $this->employeesOnly
             ? AttendanceEmployee::with('user')
             : Attendance::with('user');
@@ -307,6 +313,9 @@ session()->flash('success', "Berhasil Check-In: {$user->name}. {$infoSesi}");
 ?>
 
 <div>
+    @if ($employeesOnly)
+        @include('pages.dashboard.admin.absensi.monthly')
+    @else
     <div class="flex justify-between items-center mb-6">
         <h5 class="text-xl font-semibold text-heading">
             {{ $employeesOnly ? 'Data Absensi Karyawan & Scanner' : 'Data Absensi Member & Scanner' }}
@@ -480,4 +489,5 @@ session()->flash('success', "Berhasil Check-In: {$user->name}. {$infoSesi}");
     <div class="mt-4">
         {{ $attendances->links() }}
     </div>
+    @endif
 </div>

@@ -5,6 +5,7 @@ use Livewire\Component;
 use Livewire\Attributes\Layout;
 use Illuminate\Support\Facades\Auth;
 use App\Models\AttendanceEmployee;
+use App\EmployeeAttendanceStatus;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
 new #[Layout('layouts::pt')] class extends Component
@@ -14,6 +15,7 @@ new #[Layout('layouts::pt')] class extends Component
         $user = Auth::user();
         
         $justAttended = AttendanceEmployee::where('user_id', $user->id)
+            ->where('status', EmployeeAttendanceStatus::Hadir)
             ->where(function ($query): void {
                 $query->where('check_in_time', '>=', now('Asia/Jakarta')->subSeconds(15))
                     ->orWhere('check_out_time', '>=', now('Asia/Jakarta')->subSeconds(15));

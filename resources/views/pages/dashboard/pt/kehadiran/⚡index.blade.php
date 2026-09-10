@@ -5,6 +5,7 @@ use Livewire\WithPagination;
 use Livewire\Attributes\Layout;
 use App\Models\Attendance;
 use App\Models\AttendanceEmployee;
+use App\EmployeeAttendanceStatus;
 use Illuminate\Support\Facades\Auth;
 
 new #[Layout('layouts::pt')] class extends Component
@@ -20,11 +21,14 @@ new #[Layout('layouts::pt')] class extends Component
 
     public function with(): array
     {
-        $query = $this->legacyHistory ? Attendance::query() : AttendanceEmployee::query();
+        $query = ($this->legacyHistory ? Attendance::query() : AttendanceEmployee::query())->where('user_id', Auth::id());
+        $totalPresent = (clone $query)
+            ->when(! $this->legacyHistory, fn ($query) => $query->where('status', EmployeeAttendanceStatus::Hadir))
+            ->count();
 
         return [
-            'attendances' => $query->where('user_id', Auth::id())
-                ->latest('check_in_time')
+            'totalPresent' => $totalPresent,
+            'attendances' => $query->latest($this->legacyHistory ? 'check_in_time' : 'attendance_date')
                 ->latest('id')
                 ->paginate(10),
         ];
@@ -41,7 +45,7 @@ new #[Layout('layouts::pt')] class extends Component
         
         <div class="bg-blue-50 border border-blue-100 px-4 py-2 rounded-lg text-center">
             <span class="block text-xs text-blue-600 font-semibold uppercase tracking-wider">Total Kehadiran</span>
-            <span class="block text-2xl font-bold text-blue-800">{{ $attendances->total() }} </span>
+            <span class="block text-2xl font-bold text-blue-800">{{ $totalPresent }} </span>
         </div>
     </div>
 
@@ -89,13 +93,17 @@ new #[Layout('layouts::pt')] class extends Component
                             <td class="px-6 py-4">{{ $absen->check_out_time?->format('d M Y H:i') ?? '-' }}</td>
                             @if (! $legacyHistory)
                                 <td class="px-6 py-4">
-                                    <div>{{ $absen->shift_code }} — {{ $absen->shift_name }}</div>
-                                    <div class="text-xs">{{ substr($absen->shift_start_time, 0, 5) }}–{{ substr($absen->shift_end_time, 0, 5) }} WIB</div>
+                                    @if ($absen->shift_code !== null)
+                                        <div>{{ $absen->shift_code }} — {{ $absen->shift_name }}</div>
+                                        <div class="text-xs">{{ substr($absen->shift_start_time ?? '', 0, 5) }}–{{ substr($absen->shift_end_time ?? '', 0, 5) }} WIB</div>
+                                    @else
+                                        —
+                                    @endif
                                 </td>
                             @endif
                             <td class="px-6 py-4">
                                 <span class="px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800 border border-blue-200">
-                                    Hadir (Coach)
+                                    {{ $legacyHistory ? 'Hadir (Coach)' : $absen->status->label() }}
                                 </span>
                             </td>
                         </tr>

@@ -50,6 +50,9 @@ new #[Layout('layouts::admin')] class extends Component
 
     public $shift = null;
 
+    #[Validate('required|boolean')]
+    public $is_sales_online = false;
+
     protected function rules(): array
     {
         return [
@@ -94,6 +97,7 @@ new #[Layout('layouts::admin')] class extends Component
             'email'     => $this->email,
             'photo'     => $photoPath,
             'is_active' => true,
+            'is_sales_online' => $this->is_sales_online,
             'role'      => $this->role,
             'shift'     => filled($this->shift) ? (int) $this->shift : null,
         ];
@@ -125,6 +129,16 @@ new #[Layout('layouts::admin')] class extends Component
     @endif
     <h1 class="text-3xl text-center font-semibold mb-6">Buat Akun</h1>
     <form wire:submit="store">
+        @if ($role === 'sales')
+        <div class="mb-6 rounded-lg border border-gray-200 p-4" wire:key="sales-online-option">
+            <label for="is_sales_online" class="flex items-center gap-3 text-sm font-semibold">
+                <input id="is_sales_online" type="checkbox" wire:model="is_sales_online" class="h-4 w-4 rounded border-gray-300">
+                Sales online
+            </label>
+            <p class="mt-2 text-sm text-gray-500">Aktifkan untuk menyembunyikan akun ini dari rekap absensi karyawan.</p>
+            @error('is_sales_online') <span class="text-sm text-red-500">{{ $message }}</span> @enderror
+        </div>
+        @endif
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
             <div class="mb-4 sm:col-span-2">

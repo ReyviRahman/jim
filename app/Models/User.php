@@ -19,10 +19,14 @@ class User extends Authenticatable
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
 
+    protected $attributes = [
+        'is_sales_online' => false,
+    ];
+
     protected $fillable = [
         'hikvision_employee_no', 'name', 'occupation', 'age', 'gender', 'phone',
         'medical_history', 'email', 'password', 'joined_at',
-        'address', 'is_active', 'photo', 'role', 'shift',
+        'address', 'is_active', 'is_sales_online', 'photo', 'role', 'shift',
     ];
 
     protected $hidden = [
@@ -32,6 +36,7 @@ class User extends Authenticatable
     protected function casts(): array
     {
         return [
+            'is_sales_online' => 'boolean',
             'shift' => 'integer',
             'email_verified_at' => 'datetime',
             'joined_at' => 'date',

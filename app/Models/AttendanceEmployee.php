@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\EmployeeAttendanceStatus;
 use Database\Factories\AttendanceEmployeeFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -14,16 +15,19 @@ class AttendanceEmployee extends Model
 
     protected $table = 'attendance_employee';
 
+    protected $attributes = ['status' => 'hadir'];
+
     protected $fillable = [
         'user_id', 'device_event_id', 'nama_di_alat', 'attendance_date',
         'check_in_time', 'check_out_time', 'shift_code', 'shift_name', 'shift_role',
         'shift_start_time', 'shift_end_time', 'scheduled_start_at', 'scheduled_end_at',
-        'checkout_deadline_at',
+        'checkout_deadline_at', 'status', 'notes',
     ];
 
     protected function casts(): array
     {
         return [
+            'status' => EmployeeAttendanceStatus::class,
             'attendance_date' => 'date',
             'check_in_time' => 'datetime',
             'check_out_time' => 'datetime',
