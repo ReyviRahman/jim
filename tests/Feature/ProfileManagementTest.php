@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Shift;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -90,7 +91,7 @@ class ProfileManagementTest extends TestCase
         Storage::fake('public');
         $user = $this->createProfileUser([
             'role' => 'kasir_gym',
-            'shift' => 'Pagi',
+            'shift' => Shift::factory()->create(['name' => 'Pagi', 'role' => 'kasir_gym'])->id,
             'is_active' => true,
             'joined_at' => '2025-01-01',
             'address' => 'Alamat lama',
@@ -120,7 +121,7 @@ class ProfileManagementTest extends TestCase
         $this->assertSame('081298765432', $user->phone);
         $this->assertSame('Tidak ada', $user->medical_history);
         $this->assertSame('kasir_gym', $user->role);
-        $this->assertSame('Pagi', $user->shift);
+        $this->assertSame('Pagi', $user->assignedShift?->name);
         $this->assertSame(1, (int) $user->is_active);
         $this->assertSame('2025-01-01', $user->joined_at?->format('Y-m-d'));
         $this->assertSame('Alamat lama', $user->address);

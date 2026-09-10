@@ -49,7 +49,7 @@ class PenjualanExport implements WithEvents
                 // 2. JUDUL PALING ATAS (Baris 1)
                 // ==========================================
                 // 2. JUDUL PALING ATAS (Baris 1)
-                $shiftText = strtoupper($this->shift === 'all' ? 'PAGI & SIANG' : $this->shift);
+                $shiftText = strtoupper(blank($this->shift) ? 'SEMUA SHIFT' : $this->shift);
 
                 // Logika Format Tanggal
                 if ($this->startDate === $this->endDate) {

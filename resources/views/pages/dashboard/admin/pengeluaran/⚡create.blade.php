@@ -34,7 +34,7 @@ new #[Layout('layouts::admin')] class extends Component
         // Simpan ke database
         Expense::create([
             'admin_id' => Auth::id(),
-            'shift' => Auth::user()->shift,
+            'shift' => Auth::user()->shiftSnapshot(),
             'description' => $this->description,
             'amount' => $this->amount,
             'expense_date' => $this->expense_date,
@@ -51,6 +51,7 @@ new #[Layout('layouts::admin')] class extends Component
 ?>
 
 <div>
+    @error('shift')<p role="alert" class="mb-4 text-sm text-red-700">{{ $message }}</p>@enderror
     <div class="flex sm:flex-row flex-col justify-between items-center mb-6">
         <h5 class="text-xl font-semibold text-heading">Tambah Pengeluaran Baru</h5>
     </div>

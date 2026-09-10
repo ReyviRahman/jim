@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\GymPackage;
 use App\Models\Membership;
 use App\Models\MembershipTransaction;
+use App\Models\Shift;
 use App\Models\User;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -409,7 +410,7 @@ class MembershipPaymentProofTest extends TestCase
             'membership_id' => null,
             'user_id' => $member->id,
             'admin_id' => $cashier->id,
-            'shift' => $cashier->shift,
+            'shift' => $cashier->assignedShift?->name,
             'transaction_type' => 'Pemasukan Lain',
             'package_name' => 'Merchandise',
             'amount' => 50000,
@@ -423,7 +424,7 @@ class MembershipPaymentProofTest extends TestCase
             'membership_id' => null,
             'user_id' => $member->id,
             'admin_id' => $cashier->id,
-            'shift' => $cashier->shift,
+            'shift' => $cashier->assignedShift?->name,
             'transaction_type' => 'Pemasukan Lain',
             'package_name' => 'Cash Item',
             'amount' => 25000,
@@ -567,7 +568,7 @@ class MembershipPaymentProofTest extends TestCase
             'membership_id' => $membership->id,
             'user_id' => $membership->user_id,
             'admin_id' => $cashier->id,
-            'shift' => $cashier->shift,
+            'shift' => $cashier->assignedShift?->name,
             'follow_up_id' => $cashier->id,
             'follow_up_id_two' => $cashier->id,
             'transaction_type' => 'MEMBERSHIP BARU',
@@ -602,7 +603,7 @@ class MembershipPaymentProofTest extends TestCase
     {
         return User::factory()->create([
             'role' => 'kasir_gym',
-            'shift' => 'Pagi',
+            'shift' => Shift::factory()->create(['name' => 'Pagi', 'role' => 'kasir_gym'])->id,
             'is_active' => true,
             'age' => 30,
             'gender' => 'Laki-laki',

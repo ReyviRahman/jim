@@ -244,7 +244,7 @@ new #[Layout('layouts::admin')] class extends Component
     #[Computed]
     public function adminUsers()
     {
-        return User::whereIn('role', ['kasir_gym'])->where('is_active', true)->get();
+        return User::with('assignedShift')->whereIn('role', ['kasir_gym'])->where('is_active', true)->get();
     }
 
     #[Computed]
@@ -977,7 +977,7 @@ new #[Layout('layouts::admin')] class extends Component
                                     <select id="admin_id" wire:model="admin_id" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs">
                                         <option value="">-- Pilih Shift --</option>
                                         @foreach($this->adminUsers as $admin)
-                                            <option value="{{ $admin->id }}">{{ $admin->name }} ({{ $admin->shift }})</option>
+                                            <option value="{{ $admin->id }}">{{ $admin->name }} ({{ $admin->assignedShift?->name }})</option>
                                         @endforeach
                                     </select>
                                     @error('admin_id') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror

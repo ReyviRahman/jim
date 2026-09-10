@@ -16,7 +16,7 @@ class AdminExport implements FromQuery, WithHeadings, WithMapping
 
     public function query()
     {
-        return User::query()
+        return User::query()->with('assignedShift')
             ->where('role', '!=', 'member')
             ->where(function ($query) {
                 $query->where('name', 'like', '%'.$this->search.'%')
@@ -45,7 +45,7 @@ class AdminExport implements FromQuery, WithHeadings, WithMapping
             $user->name,
             $user->email,
             $user->role === 'cleaning_service' ? 'Cleaning Service' : $user->role,
-            $user->shift ?? '-',
+            $user->assignedShift?->name ?? '-',
             $user->is_active ? 'Aktif' : 'Nonaktif',
             $user->joined_at?->format('Y-m-d') ?? '-',
         ];

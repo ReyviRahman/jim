@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\GymPackage;
 use App\Models\Membership;
+use App\Models\Shift;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -130,7 +131,7 @@ class MembershipMemberProfilePhotoTest extends TestCase
     {
         return User::factory()->create([
             'role' => 'kasir_gym',
-            'shift' => 'Pagi',
+            'shift' => Shift::factory()->create(['name' => 'Pagi', 'role' => 'kasir_gym'])->id,
             'is_active' => true,
         ]);
     }

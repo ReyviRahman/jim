@@ -6,6 +6,9 @@ use Livewire\Component;
 use Livewire\Attributes\Layout;
 use Livewire\WithFileUploads;
 use App\Models\User;
+use App\Models\Shift;
+use Illuminate\Database\Eloquent\Collection;
+use Livewire\Attributes\Computed;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -26,6 +29,7 @@ new #[Layout('layouts::admin')] class extends Component
     public $hikvision_employee_no = null;
     public $role = 'kasir_gym';
     public $shift = null;
+    public $is_sales_online = false;
     public $alamat = '';
 
     public $photo = null;
@@ -46,12 +50,44 @@ new #[Layout('layouts::admin')] class extends Component
                 'max:255',
                 Rule::unique('users', 'hikvision_employee_no')->ignore($this->userId),
             ],
-            'role' => 'required|in:kasir_gym,kasir_minum,pt,sales,cleaning_service',
-            'shift' => 'nullable|in:Pagi,Siang,Full',
+            'role' => ['required', Rule::in(array_keys($this->roleOptions))],
+            'shift' => ['nullable', 'integer', Rule::exists('shifts', 'id')->where('role', $this->role)],
             'alamat' => 'required|string',
+            'is_sales_online' => 'required|boolean',
             'password' => 'nullable|min:6',
             'photo' => 'nullable|image|max:10048',
         ];
+    }
+
+    #[Computed]
+    public function roleOptions(): array
+    {
+        $roles = [
+            'kasir_gym' => 'Kasir Gym',
+            'kasir_minum' => 'Kasir Minuman',
+            'pt' => 'Personal Trainer',
+            'sales' => 'Sales',
+            'cleaning_service' => 'Cleaning Service',
+        ];
+
+        if (User::findOrFail($this->userId)->role === 'admin') {
+            return ['admin' => 'Manager'] + $roles;
+        }
+
+        return $roles;
+    }
+
+    #[Computed]
+    public function shifts(): Collection
+    {
+        return Shift::query()->forRole($this->role)->orderBy('start_time')->orderBy('id')->get();
+    }
+
+    public function updatedRole(): void
+    {
+        $this->shift = null;
+        unset($this->shifts);
+        $this->resetValidation('shift');
     }
 
     public function mount(User $user)
@@ -63,6 +99,7 @@ new #[Layout('layouts::admin')] class extends Component
         $this->phone = $user->phone;
         $this->role = $user->role;
         $this->shift = $user->shift;
+        $this->is_sales_online = $user->is_sales_online;
         $this->email = $user->email;
         $this->hikvision_employee_no = $user->hikvision_employee_no;
         $this->alamat = $user->address;
@@ -95,13 +132,10 @@ new #[Layout('layouts::admin')] class extends Component
         $user->email = $this->email;
         $user->hikvision_employee_no = $this->hikvision_employee_no;
         $user->role = $this->role;
+        $user->is_sales_online = $this->is_sales_online;
         $user->address = $this->alamat;
 
-        if (in_array($this->role, ['kasir_gym', 'kasir_minum'])) {
-            $user->shift = $this->shift;
-        } else {
-            $user->shift = null;
-        }
+        $user->shift = filled($this->shift) ? (int) $this->shift : null;
 
         if ($this->role === 'pt') {
             $user->occupation = 'Personal Trainer';
@@ -126,6 +160,15 @@ new #[Layout('layouts::admin')] class extends Component
     <h1 class="text-3xl text-center font-semibold mb-6">Edit Akun</h1>
 
     <form wire:submit.prevent="update">
+        @if ($role === 'sales')
+        <div class="mb-6 rounded-lg border border-gray-200 p-4" wire:key="sales-online-option">
+            <label for="is_sales_online" class="flex items-center gap-3 text-sm font-semibold">
+                <input id="is_sales_online" type="checkbox" wire:model="is_sales_online" class="h-4 w-4 rounded border-gray-300">
+                Sales online
+            </label>
+            @error('is_sales_online') <span class="text-sm text-red-500">{{ $message }}</span> @enderror
+        </div>
+        @endif
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
             <div class="mb-4 sm:col-span-2">
@@ -196,22 +239,21 @@ new #[Layout('layouts::admin')] class extends Component
                     <label for="role" class="block mb-2.5 text-sm font-medium text-heading">Role Akses</label>
                     <select id="role" wire:model.live='role'
                         class="block w-full px-3 py-2.5 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs placeholder:text-body">
-                        <option value="kasir_gym">Kasir Gym</option>
-                        <option value="kasir_minum">Kasir Minuman</option>
-                        <option value="pt">Personal Trainer</option>
-                        <option value="sales">Sales</option>
-                        <option value="cleaning_service">Cleaning Service</option>
+                        @foreach ($this->roleOptions as $value => $label)
+                            <option value="{{ $value }}" wire:key="role-option-{{ $value }}">{{ $label }}</option>
+                        @endforeach
                     </select>
                     @error('role') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
                 </div>
 
-                <div x-show="currentRole === 'kasir_gym' || currentRole === 'kasir_minum'" x-transition style="display: none;">
+                <div>
                     <label for="shift" class="block mb-2.5 text-sm font-medium text-heading">Jadwal Shift</label>
-                    <select id="shift" wire:model='shift'
+                    <select id="shift" wire:model='shift' wire:key="shift-options-{{ $role }}"
                         class="block w-full px-3 py-2.5 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs placeholder:text-body">
                         <option value="">-- Pilih Shift --</option>
-                        <option value="Pagi">Pagi</option>
-                        <option value="Siang">Siang</option>
+                        @foreach ($this->shifts as $availableShift)
+                            <option value="{{ $availableShift->id }}" wire:key="shift-{{ $availableShift->id }}">{{ $availableShift->name }} ({{ substr($availableShift->start_time, 0, 5) }}–{{ substr($availableShift->end_time, 0, 5) }})</option>
+                        @endforeach
                     </select>
                     @error('shift') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
                 </div>

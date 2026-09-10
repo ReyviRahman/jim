@@ -384,6 +384,7 @@ new #[Layout('layouts::admin')] class extends Component
             $pkt = GymPackage::find($this->pt_package_id);
         }
 
+        $shiftSnapshot = User::find($this->admin_id)?->shiftSnapshot();
         $storedProofPaths = [];
         $storedProfilePhotoPaths = [];
 
@@ -464,7 +465,7 @@ new #[Layout('layouts::admin')] class extends Component
                 'membership_id' => $newMembership->id,
                 'user_id' => $this->mainUser->id,
                 'admin_id' => $this->admin_id,
-                'shift' => User::find($this->admin_id)?->shift,
+                'shift' => $shiftSnapshot,
                 'follow_up_id' => $this->follow_up_id ?: null,
                 'follow_up_id_two' => $this->follow_up_id_two ?: null,
                 'transaction_type' => $this->transaction_type,
@@ -494,6 +495,7 @@ new #[Layout('layouts::admin')] class extends Component
 ?>
 
 <div>
+    @error('shift')<p role="alert" class="mb-4 text-sm text-red-700">{{ $message }}</p>@enderror
     <div x-data="{ show: false }" 
          x-init="$watch('toastMessage', value => { if(value) { show = true; setTimeout(() => show = false, 5000); } })">
     <div x-show="show && toastType === 'warning'" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-4" x-transition:enter-end="opacity-100 translate-y-0" x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100 translate-y-0" x-transition:leave-end="opacity-0 translate-y-4"

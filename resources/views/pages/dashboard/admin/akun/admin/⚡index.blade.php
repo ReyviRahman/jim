@@ -124,6 +124,9 @@ new #[Layout('layouts::admin')] class extends Component
                             <div class="ps-3">
                                 <div class="text-base font-semibold">{{ $user->name }}</div>
                                 <div class="font-normal text-body">{{ $user->email }}</div>
+                                @if ($user->is_sales_online)
+                                    <span class="text-xs font-semibold text-blue-800">Sales online</span>
+                                @endif
                             </div>  
                         </th>
                         

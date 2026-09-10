@@ -6,6 +6,8 @@ use App\Exports\BeverageSaleExport;
 use App\Exports\BeverageSaleExportDetail;
 use App\Models\BeverageSale;
 use App\Models\DepositBeverage;
+use App\Models\Shift;
+use Illuminate\Support\Collection;
 use Livewire\Component;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -25,10 +27,22 @@ new #[Layout('layouts::admin')] class extends Component
     public $selectedSaleId = null;
     public $selectedSale = null;
 
+    /** @return Collection<string, string> */
+    #[Computed]
+    public function shiftOptions(): Collection
+    {
+        return Shift::filterOptions([BeverageSale::class]);
+    }
+
     public function mount()
     {
         $this->dateStart = now()->format('Y-m-d');
         $this->dateEnd = now()->format('Y-m-d');
+    }
+
+    public function updatedShift(): void
+    {
+        $this->resetPage();
     }
 
     public function setFilterTime($val)
@@ -78,7 +92,7 @@ new #[Layout('layouts::admin')] class extends Component
                 });
             });
         })
-        ->when($this->shift, function ($query) {
+        ->when(filled($this->shift), function ($query) {
             $query->where('shift', $this->shift);
         });
 
@@ -161,7 +175,8 @@ new #[Layout('layouts::admin')] class extends Component
             new BeverageSaleExport(
                 $this->searchProduct,
                 $this->dateStart,
-                $this->dateEnd
+                $this->dateEnd,
+                $this->shift,
             ),
             $fileName
         );
@@ -175,7 +190,8 @@ new #[Layout('layouts::admin')] class extends Component
             new BeverageSaleExportDetail(
                 $this->searchProduct,
                 $this->dateStart,
-                $this->dateEnd
+                $this->dateEnd,
+                $this->shift,
             ),
             $fileName
         );
@@ -275,8 +291,9 @@ new #[Layout('layouts::admin')] class extends Component
                     <select wire:model.live="shift"
                         class="pe-8 py-1.5 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs">
                         <option value="">Semua Shift</option>
-                        <option value="pagi">Pagi</option>
-                        <option value="siang">Siang</option>
+                    @foreach ($this->shiftOptions as $value => $label)
+                        <option wire:key="snapshot-shift-{{ $value }}" value="{{ $value }}">{{ $label }}</option>
+                    @endforeach
                     </select>
 
                     {{-- Filter Presets --}}

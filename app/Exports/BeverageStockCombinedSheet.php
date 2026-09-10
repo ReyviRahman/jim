@@ -99,7 +99,7 @@ class BeverageStockCombinedSheet implements WithEvents, WithTitle
                 foreach ($sales as $sale) {
                     $staffName = $sale->nama_staff;
                     $kb = $sale->keterangan_bayar;
-                    $shift = $sale->shift;
+                    $shift = mb_strtolower($sale->shift);
 
                     if (! isset($groupedData[$staffName])) {
                         $groupedData[$staffName] = [];
@@ -119,7 +119,11 @@ class BeverageStockCombinedSheet implements WithEvents, WithTitle
 
                     if (! in_array($staffName, $allStaff)) {
                         $allStaff[] = $staffName;
-                        $staffShifts[$staffName] = $shift;
+                        $staffShifts[$staffName] = [];
+                    }
+
+                    if (! in_array($shift, $staffShifts[$staffName], true)) {
+                        $staffShifts[$staffName][] = $shift;
                     }
 
                     if (isset($totalsPerKb[$kb])) {
@@ -154,7 +158,7 @@ class BeverageStockCombinedSheet implements WithEvents, WithTitle
                         $labelColLetter = Coordinate::stringFromColumnIndex($labelCol);
                         $valueColLetter = Coordinate::stringFromColumnIndex($valueCol);
 
-                        $staffShift = isset($staffShifts[$staffName]) ? strtoupper($staffShifts[$staffName]) : '';
+                        $staffShift = strtoupper(implode(', ', $staffShifts[$staffName]));
                         $sheet->setCellValue($labelColLetter.$headerRow, strtoupper($staffName).' ('.$staffShift.')');
                         $sheet->setCellValue($valueColLetter.$headerRow, '');
                         $sheet->setCellValue($labelColLetter.$subHeaderRow, 'Keterangan Bayar');

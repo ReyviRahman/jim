@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Shift;
 use App\Models\User;
 use Faker\Factory as Faker;
 use Illuminate\Database\Seeder;
@@ -26,7 +27,7 @@ class UserSeeder extends Seeder
             'email' => 'Managerfrans@gmail.com', // Email untuk login admin
             'password' => Hash::make('24022024'),
             'role' => 'admin',
-            'shift' => 'Siang',
+            'shift' => Shift::query()->where('code', 'S')->where('role', 'admin')->firstOrFail()->id,
             'occupation' => 'Gym Manager',
             'age' => 30,
             'gender' => 'Laki-laki',
@@ -43,7 +44,7 @@ class UserSeeder extends Seeder
             'email' => User::HEAD_COACH_EMAIL,
             'password' => Hash::make('zavier123'),
             'role' => 'pt',
-            'shift' => 'Siang',
+            'shift' => null,
             'occupation' => 'Gym Manager',
             'age' => 30,
             'gender' => 'Laki-laki',
@@ -60,7 +61,7 @@ class UserSeeder extends Seeder
             'email' => 'dewi@gmail.com', // Email untuk login admin
             'password' => $password,
             'role' => 'kasir_gym',
-            'shift' => 'Pagi',
+            'shift' => Shift::query()->where('code', 'P')->where('role', 'kasir_gym')->firstOrFail()->id,
             'occupation' => 'Kasir GYM',
             'age' => 30,
             'gender' => 'Perempuan',
@@ -77,7 +78,7 @@ class UserSeeder extends Seeder
             'email' => 'laurent@gmail.com', // Email untuk login admin
             'password' => $password,
             'role' => 'kasir_gym',
-            'shift' => 'Siang',
+            'shift' => Shift::query()->where('code', 'S')->where('role', 'kasir_gym')->firstOrFail()->id,
             'occupation' => 'Kasir GYM',
             'age' => 30,
             'gender' => 'Laki-laki',

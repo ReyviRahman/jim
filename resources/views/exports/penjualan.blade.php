@@ -2,7 +2,7 @@
     {{-- BARIS 1 --}}
     <thead>
         <tr>
-            <th colspan="4">GRAND TOTAL (SHIFT {{ strtoupper($shift === 'all' ? 'PAGI & SIANG' : $shift) }})</th>
+            <th colspan="4">GRAND TOTAL ({{ blank($shift) ? 'SEMUA SHIFT' : 'SHIFT '.strtoupper($shift) }})</th>
         </tr>
     </thead>
     <tbody>

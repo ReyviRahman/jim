@@ -144,7 +144,7 @@ new #[Layout('layouts::admin')] class extends Component
     public function adminUsers()
     {
         // Sesuaikan 'admin', 'kasir' dengan role yang ada di sistemmu
-        return User::whereIn('role', ['kasir_gym'])->where('is_active', true)->get();
+        return User::with('assignedShift')->whereIn('role', ['kasir_gym'])->where('is_active', true)->get();
     }
 
     #[Computed]
@@ -457,6 +457,7 @@ new #[Layout('layouts::admin')] class extends Component
             $pkt = GymPackage::find($this->pt_package_id);
         }
 
+        $shiftSnapshot = User::find($this->admin_id)?->shiftSnapshot();
         $storedProofPaths = [];
         $storedProfilePhotoPaths = [];
 
@@ -532,7 +533,7 @@ new #[Layout('layouts::admin')] class extends Component
                             'membership_id' => $membership->id,
                             'user_id' => $this->mainUser->id,
                             'admin_id' => $this->admin_id,
-                            'shift' => User::find($this->admin_id)?->shift,
+                            'shift' => $shiftSnapshot,
                             'follow_up_id' => $this->follow_up_id ?: null,
                             'follow_up_id_two' => $this->follow_up_id_two ?: null,
                             'transaction_type' => $this->transaction_type,
@@ -560,7 +561,7 @@ new #[Layout('layouts::admin')] class extends Component
                     'membership_id' => $membership->id,
                     'user_id' => $this->mainUser->id,
                     'admin_id' => $this->admin_id,
-                    'shift' => User::find($this->admin_id)?->shift,
+                    'shift' => $shiftSnapshot,
                     'follow_up_id' => $this->follow_up_id ?: null,
                     'follow_up_id_two' => $this->follow_up_id_two ?: null,
                     'transaction_type' => $this->transaction_type,
@@ -596,6 +597,7 @@ new #[Layout('layouts::admin')] class extends Component
 ?>
 
 <div>
+    @error('shift')<p role="alert" class="mb-4 text-sm text-red-700">{{ $message }}</p>@enderror
     {{-- Container Fixed di Pojok Kanan Atas --}}
     <div class="fixed top-4 right-4 z-50 flex flex-col gap-3 w-full max-w-sm">
         
@@ -854,7 +856,7 @@ new #[Layout('layouts::admin')] class extends Component
                                     <select id="admin_id" wire:model="admin_id" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs">
                                         <option value="">-- Pilih Shift --</option>
                                         @foreach($this->adminUsers as $admin)
-                                            <option value="{{ $admin->id }}">{{ $admin->name }} ({{ $admin->shift }})</option>
+                                            <option value="{{ $admin->id }}">{{ $admin->name }} ({{ $admin->assignedShift?->name }})</option>
                                         @endforeach
                                     </select>
                                     @error('admin_id') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror

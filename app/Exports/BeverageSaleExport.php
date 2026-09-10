@@ -33,7 +33,7 @@ class BeverageSaleExport implements FromCollection, ShouldAutoSize, WithEvents
 
     private $totalsPerKb = [];
 
-    private $shifts = ['pagi', 'siang', 'malam'];
+    private array $shifts = [];
 
     private $keteranganBayarList = [
         'cash',
@@ -55,7 +55,7 @@ class BeverageSaleExport implements FromCollection, ShouldAutoSize, WithEvents
         'hutang' => 'Hutang',
     ];
 
-    public function __construct($searchProduct, $start_date, $end_date = null)
+    public function __construct($searchProduct, $start_date, $end_date = null, private ?string $shift = null)
     {
         $this->searchProduct = $searchProduct;
         $this->start_date = $start_date;
@@ -81,13 +81,18 @@ class BeverageSaleExport implements FromCollection, ShouldAutoSize, WithEvents
         if (! empty($this->start_date)) {
             if (! empty($this->end_date)) {
                 $query->whereDate('waktu_transaksi', '>=', $this->start_date)
-                      ->whereDate('waktu_transaksi', '<=', $this->end_date);
+                    ->whereDate('waktu_transaksi', '<=', $this->end_date);
             } else {
                 $query->whereDate('waktu_transaksi', $this->start_date);
             }
         }
 
+        if (filled($this->shift)) {
+            $query->where('shift', $this->shift);
+        }
+
         $sales = $query->get();
+        $this->shifts = $sales->pluck('shift')->map(fn (string $shift): string => mb_strtolower($shift))->unique()->values()->all();
 
         $this->groupedData = [];
         $this->cashTotals = [];
@@ -109,7 +114,7 @@ class BeverageSaleExport implements FromCollection, ShouldAutoSize, WithEvents
         }
 
         foreach ($sales as $sale) {
-            $shift = $sale->shift;
+            $shift = mb_strtolower($sale->shift);
             $kb = $sale->keterangan_bayar;
 
             if (isset($this->groupedData[$shift][$kb])) {

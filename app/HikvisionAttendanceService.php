@@ -7,18 +7,29 @@ use App\Models\DeviceEvent;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\ValidationException;
 
 class HikvisionAttendanceService
 {
+    public function __construct(private EmployeeAttendanceService $employeeAttendanceService) {}
+
     public function record(
         User $user,
         DeviceEvent $deviceEvent,
         Carbon $receivedAt,
     ): bool {
-        User::query()
+        $user = User::query()
             ->whereKey($user->id)
             ->lockForUpdate()
             ->firstOrFail();
+
+        if ($user->role !== 'member') {
+            try {
+                return $this->employeeAttendanceService->record($user, $receivedAt, $deviceEvent)->wasRecentlyCreated;
+            } catch (ValidationException) {
+                return false;
+            }
+        }
 
         $attendanceDate = $receivedAt->toDateString();
         $dayStart = $receivedAt->copy()->startOfDay();

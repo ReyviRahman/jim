@@ -2,6 +2,8 @@
 
 namespace App\Livewire\Admin;
 
+use App\Models\Shift;
+use Illuminate\Support\Collection;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Livewire\Attributes\Computed;
@@ -22,18 +24,22 @@ new #[Layout('layouts::admin')] class extends Component
     public $perPage = '50';
     public $shift;
 
+    /** @return Collection<string, string> */
+    #[Computed]
+    public function shiftOptions(): Collection
+    {
+        return Shift::filterOptions([Expense::class]);
+    }
+
     public function mount()
     {
         $user = Auth::user();
         // Cek apakah user sudah login untuk menghindari error
         if ($user) {
-            // Jika role admin, set ke 'all'
             if ($user->role === 'admin') {
-                $this->shift = 'all';
+                $this->shift = '';
             } else {
-                // Jika bukan admin, ambil dari kolom shift milik user tersebut di database
-                // Asumsi di database kamu ada kolom bernama 'shift' (berisi 'pagi' atau 'siang')
-                $this->shift = $user->shift; 
+                $this->shift = mb_strtolower($user->assignedShift?->name ?? '');
             }
         } else {
             // Fallback default jika user belum login (opsional, sesuaikan kebutuhan)
@@ -94,14 +100,8 @@ new #[Layout('layouts::admin')] class extends Component
             ]);
         }
 
-        if ($this->shift === 'pagi') {
-            $query->whereHas('admin', function ($q) {
-                $q->where('shift', 'Pagi');
-            });
-        } elseif ($this->shift === 'siang') {
-            $query->whereHas('admin', function ($q) {
-                $q->where('shift', 'Siang');
-            });
+        if (filled($this->shift)) {
+            $query->where('shift', $this->shift);
         }
 
         return $query;
@@ -142,7 +142,7 @@ new #[Layout('layouts::admin')] class extends Component
 <div>
     <div class="flex sm:flex-row flex-col justify-between items-center mb-6">
         <h5 class="text-xl font-semibold text-heading">
-            Riwayat Pengeluaran Shift {{ $this->shift === 'all' ? 'Pagi & Siang' : ucfirst($this->shift) }}
+            Riwayat Pengeluaran Shift {{ blank($this->shift) ? 'Semua' : ($this->shiftOptions[$this->shift] ?? $this->shift) }}
         </h5>
         <div class="flex gap-2">
             <div>
@@ -186,14 +186,15 @@ new #[Layout('layouts::admin')] class extends Component
                 <select wire:model.live="perPage" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand pr-6 py-2.5 shadow-xs">
                     <option value="10">10 Baris</option>
                     <option value="50">50 Baris</option>
-                    <option value="all">Semua</option>
+                    <option value="">Semua</option>
                 </select>
 
                 {{-- Dropdown Shift --}}
                 <select wire:model.live="shift" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand px-3 py-2.5 shadow-xs pr-6">
-                    <option value="all">Semua Shift</option>
-                    <option value="pagi">Shift Pagi</option>
-                    <option value="siang">Shift Siang</option>
+                    <option value="">Semua Shift</option>
+                    @foreach ($this->shiftOptions as $value => $label)
+                        <option wire:key="snapshot-shift-{{ $value }}" value="{{ $value }}">{{ $label }}</option>
+                    @endforeach
                 </select>
 
                 {{-- Datepicker Custom --}}

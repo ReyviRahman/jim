@@ -97,7 +97,9 @@ class DeviceEventController extends Controller
                     $receivedAt,
                 );
 
-                $this->markTodaysPtBookingAsAttended($user, $receivedAt);
+                if ($user->role === 'member') {
+                    $this->markTodaysPtBookingAsAttended($user, $receivedAt);
+                }
 
                 $this->markDeviceEventAsProcessed($deviceEvent);
             }, attempts: 3);
@@ -227,7 +229,7 @@ class DeviceEventController extends Controller
     private function resolveUser(string $employeeNumber): ?User
     {
         $explicitlyMappedUser = User::query()
-            ->select(['id', 'hikvision_employee_no'])
+            ->select(['id', 'hikvision_employee_no', 'role', 'shift'])
             ->where('hikvision_employee_no', $employeeNumber)
             ->lockForUpdate()
             ->first();
@@ -241,7 +243,7 @@ class DeviceEventController extends Controller
         }
 
         return User::query()
-            ->select(['id', 'hikvision_employee_no'])
+            ->select(['id', 'hikvision_employee_no', 'role', 'shift'])
             ->whereKey($employeeNumber)
             ->whereNull('hikvision_employee_no')
             ->lockForUpdate()

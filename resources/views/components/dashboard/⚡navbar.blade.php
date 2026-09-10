@@ -3,14 +3,25 @@
 use Livewire\Component;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\On;
+use App\Models\Shift;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Validation\Rule;
+use Livewire\Attributes\Computed;
 
 new class extends Component {
     public bool $showShiftModal = false;
     public string $selectedShift = '';
 
+    #[Computed]
+    public function shifts(): Collection
+    {
+        return Shift::query()->forRole(Auth::user()->role)->orderBy('start_time')->orderBy('id')->get();
+    }
+
     public function openShiftModal()
     {
-        $this->selectedShift = Auth::user()->shift ?? '';
+        abort_unless(array_key_exists(Auth::user()->role, Shift::ROLE_LABELS), 403);
+        $this->selectedShift = (string) (Auth::user()->shift ?? '');
         $this->showShiftModal = true;
     }
 
@@ -22,8 +33,9 @@ new class extends Component {
 
     public function saveShift()
     {
+        abort_unless(array_key_exists(Auth::user()->role, Shift::ROLE_LABELS), 403);
         $this->validate([
-            'selectedShift' => 'required|in:Pagi,Siang',
+            'selectedShift' => ['required', 'integer', Rule::exists('shifts', 'id')->where('role', Auth::user()->role)],
         ]);
 
         Auth::user()->update(['shift' => $this->selectedShift]);
@@ -66,7 +78,7 @@ new class extends Component {
             <div class="flex items-center">
                 @auth
                     <div class="sm:ms-4 ms-auto flex items-center md:order-2 space-x-3 md:space-x-0 rtl:space-x-reverse">
-                        @if(in_array(Auth::user()->role, ['admin', 'kasir_gym', 'kasir_minum']))
+                        @if(array_key_exists(Auth::user()->role, \App\Models\Shift::ROLE_LABELS))
                             <button type="button" wire:click="openShiftModal"
                                 class="inline-flex items-center gap-1.5 me-2 sm:me-3 px-2 sm:px-3 py-1.5 text-sm font-medium text-brand bg-[#34342F] border border-default-medium rounded-md hover:bg-neutral-tertiary-medium focus:ring-4 focus:ring-brand focus:outline-none">
                                 <svg class="w-4 h-4" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -74,7 +86,7 @@ new class extends Component {
                                 </svg>
                                 <span class="hidden sm:inline">
                                     @if(Auth::user()->shift)
-                                        Shift: {{ Auth::user()->shift }}
+                                        Shift: {{ Auth::user()->assignedShift?->name }}
                                     @else
                                         Pilih Shift
                                     @endif
@@ -146,14 +158,15 @@ new class extends Component {
                 </div>
 
                 <div class="grid grid-cols-2 gap-3 mb-5">
-                    <button type="button" wire:click="$set('selectedShift', 'Pagi')"
-                        class="px-4 py-3 text-sm font-medium border rounded-lg focus:outline-none focus:ring-4 {{ $selectedShift === 'Pagi' ? 'bg-brand text-secondary border-brand' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50' }}">
-                        Pagi
-                    </button>
-                    <button type="button" wire:click="$set('selectedShift', 'Siang')"
-                        class="px-4 py-3 text-sm font-medium border rounded-lg focus:outline-none focus:ring-4 {{ $selectedShift === 'Siang' ? 'bg-brand text-secondary border-brand' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50' }}">
-                        Siang
-                    </button>
+                    @forelse ($this->shifts as $availableShift)
+                        <button type="button" wire:key="navbar-shift-{{ $availableShift->id }}" wire:click="$set('selectedShift', '{{ $availableShift->id }}')"
+                            class="px-4 py-3 text-sm font-medium border rounded-lg focus:outline-none focus:ring-4 {{ $selectedShift === (string) $availableShift->id ? 'bg-brand text-secondary border-brand' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50' }}">
+                            {{ $availableShift->name }}
+                            <span class="block text-xs">{{ substr($availableShift->start_time, 0, 5) }}–{{ substr($availableShift->end_time, 0, 5) }}</span>
+                        </button>
+                    @empty
+                        <p class="col-span-2 text-sm text-gray-500">Belum ada shift untuk role Anda.</p>
+                    @endforelse
                 </div>
                 @error('selectedShift') <span class="text-xs text-red-500 mb-4 block">{{ $message }}</span> @enderror
 
