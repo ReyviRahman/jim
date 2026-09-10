@@ -3,6 +3,7 @@
 namespace App\Livewire\Admin;
 
 use App\Actions\StoreCompressedPaymentProof;
+use App\Models\Shift;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Livewire\Attributes\Computed;
@@ -64,18 +65,22 @@ new #[Layout('layouts::admin')] class extends Component
         ];
     }
 
+    /** @return Collection<string, string> */
+    #[Computed]
+    public function shiftOptions(): Collection
+    {
+        return Shift::filterOptions([MembershipTransaction::class, Expense::class]);
+    }
+
     public function mount()
     {
         $user = Auth::user();
         // Cek apakah user sudah login untuk menghindari error
         if ($user) {
-            // Jika role admin, set ke 'all'
             if ($user->role === 'admin') {
-                $this->shift = 'all';
+                $this->shift = '';
             } else {
-                // Jika bukan admin, ambil dari kolom shift milik user tersebut di database
-                // Asumsi di database kamu ada kolom bernama 'shift' (berisi 'pagi' atau 'siang')
-                $this->shift = $user->shift; 
+                $this->shift = mb_strtolower($user->assignedShift?->name ?? '');
             }
         } else {
             // Fallback default jika user belum login (opsional, sesuaikan kebutuhan)
@@ -166,6 +171,7 @@ new #[Layout('layouts::admin')] class extends Component
 
         $invoiceNumber = 'INV-INC-' . time() . '-' . strtoupper(\Illuminate\Support\Str::random(3));
 
+        $shiftSnapshot = User::find($this->adminId)?->shiftSnapshot();
         $storedProofPath = null;
 
         try {
@@ -180,7 +186,7 @@ new #[Layout('layouts::admin')] class extends Component
                 'user_id' => $this->selectedUserId,
                 'membership_id' => null,
                 'admin_id' => $this->adminId,
-                'shift' => User::find($this->adminId)?->shift,
+                'shift' => $shiftSnapshot,
                 'transaction_type' => 'Pemasukan Lain',
                 'package_name' => $this->incomeCategory,
                 'amount' => $this->incomeAmount,
@@ -284,10 +290,8 @@ new #[Layout('layouts::admin')] class extends Component
         }
 
         // 3. Logika Filter Shift
-        if ($this->shift === 'pagi') {
-            $query->where('shift', 'Pagi');
-        } elseif ($this->shift === 'siang') {
-            $query->where('shift', 'Siang');
+        if (filled($this->shift)) {
+            $query->where('shift', $this->shift);
         }
 
         return $query;
@@ -588,10 +592,8 @@ new #[Layout('layouts::admin')] class extends Component
         }
 
         // Terapkan Filter Shift ke Pengeluaran
-        if ($this->shift === 'pagi') {
-            $expenseQuery->where('shift', 'Pagi');
-        } elseif ($this->shift === 'siang') {
-            $expenseQuery->where('shift', 'Siang');
+        if (filled($this->shift)) {
+            $expenseQuery->where('shift', $this->shift);
         }
 
         $rincianPengeluaran = $expenseQuery->with('admin')->get();
@@ -654,10 +656,8 @@ new #[Layout('layouts::admin')] class extends Component
             $expenseQuery->whereDate('expense_date', '>=', $this->dateStart)
                          ->whereDate('expense_date', '<=', $this->dateEnd);
         }
-        if ($this->shift === 'pagi') {
-            $expenseQuery->where('shift', 'Pagi');
-        } elseif ($this->shift === 'siang') {
-            $expenseQuery->where('shift', 'Siang');
+        if (filled($this->shift)) {
+            $expenseQuery->where('shift', $this->shift);
         }
         
         $rincianPengeluaran = $expenseQuery->with('admin')->get();
@@ -701,9 +701,10 @@ new #[Layout('layouts::admin')] class extends Component
 ?>
 
 <div>
+    @error('shift')<p role="alert" class="mb-4 text-sm text-red-700">{{ $message }}</p>@enderror
     <div class="flex flex-col items-center justify-between mb-6 sm:flex-row">
         <h5 class="text-xl font-semibold text-heading">
-            Riwayat Penjualan Shift {{ $this->shift === 'all' ? 'Pagi & Siang' : ucfirst($this->shift) }}
+            Riwayat Penjualan Shift {{ blank($this->shift) ? 'Semua' : ($this->shiftOptions[$this->shift] ?? $this->shift) }}
         </h5>
         <div class="flex gap-2 mt-4 sm:mt-0">
             {{-- TOMBOL BUKA MODAL --}}
@@ -749,14 +750,15 @@ new #[Layout('layouts::admin')] class extends Component
                 <select wire:model.live="perPage" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand pr-6 py-2.5 shadow-xs">
                     <option value="10">10 Baris</option>
                     <option value="50">50 Baris</option>
-                    <option value="all">Semua</option>
+                    <option value="">Semua</option>
                 </select>
 
                 {{-- Dropdown Shift --}}
                 <select wire:model.live="shift" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand px-3 py-2.5 shadow-xs pr-6">
-                    <option value="all">Semua Shift</option>
-                    <option value="pagi">Shift Pagi</option>
-                    <option value="siang">Shift Siang</option>
+                    <option value="">Semua Shift</option>
+                    @foreach ($this->shiftOptions as $value => $label)
+                        <option wire:key="snapshot-shift-{{ $value }}" value="{{ $value }}">{{ $label }}</option>
+                    @endforeach
                 </select>
 
                 {{-- Datepicker Custom (Tetap sama seperti sebelumnya) --}}
@@ -965,7 +967,7 @@ new #[Layout('layouts::admin')] class extends Component
         {{-- Judul Besar --}}
         <div class="bg-green-600 text-white font-bold px-4 py-3 text-lg flex justify-center items-center">
             <span>
-                GRAND TOTAL (SHIFT {{ strtoupper($shift === 'all' ? 'PAGI & SIANG' : $shift) }})
+                GRAND TOTAL (SHIFT {{ strtoupper(blank($shift) ? 'SEMUA' : ($this->shiftOptions[$shift] ?? $shift)) }})
             </span>
             
         </div>

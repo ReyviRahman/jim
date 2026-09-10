@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Shift;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
@@ -80,7 +81,7 @@ class CleaningServiceAccountTest extends TestCase
         $admin = User::factory()->create(['role' => 'admin']);
         $cashier = User::factory()->create([
             'role' => 'kasir_gym',
-            'shift' => 'Pagi',
+            'shift' => Shift::factory()->create(['name' => 'Pagi', 'role' => 'kasir_gym'])->id,
             'address' => 'Jl. Kasir No. 1',
             'password' => Hash::make('cashier-secret'),
         ]);

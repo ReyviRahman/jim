@@ -27,7 +27,7 @@ new #[Layout('layouts::admin')] class extends Component
     public function mount()
     {
         $this->nama_staff = auth()->user()->name ?? '';
-        $this->shift = auth()->user()->shift ?? 'pagi';
+        $this->shift = auth()->user()->assignedShift?->name ?? 'pagi';
         $this->expense_date = now()->format('Y-m-d');
     }
 
@@ -117,7 +117,7 @@ new #[Layout('layouts::admin')] class extends Component
                 'beverage_id' => $item['beverage_id'],
                 'nama_staff' => $this->nama_staff,
                 'waktu_transaksi' => $now,
-                'shift' => $this->shift,
+                'shift' => auth()->user()->beverageShiftSnapshot(),
                 'jumlah_beli' => $item['jumlah_beli'],
                 'harga_satuan' => $item['harga_satuan'],
                 'total_harga' => $item['harga_satuan'] * $item['jumlah_beli'],
@@ -133,7 +133,7 @@ new #[Layout('layouts::admin')] class extends Component
         session()->flash('success', 'Transaksi berhasil disimpan! Total: Rp ' . number_format($this->total, 0, ',', '.'));
 
         $this->selectedProducts = [];
-        $this->shift = auth()->user()->shift ?? 'pagi';
+        $this->shift = auth()->user()->assignedShift?->name ?? 'pagi';
         $this->keterangan_bayar = 'cash';
 
         return redirect(request()->header('Referer'));
@@ -162,7 +162,7 @@ new #[Layout('layouts::admin')] class extends Component
         BeverageSale::create([
             'nama_staff' => $this->nama_staff,
             'waktu_transaksi' => $this->expense_date,
-            'shift' => $this->shift,
+            'shift' => auth()->user()->beverageShiftSnapshot(),
             'jumlah_beli' => 0,
             'harga_satuan' => 0,
             'total_harga' => (int) str_replace('.', '', $this->expense_amount),
@@ -211,7 +211,7 @@ new #[Layout('layouts::admin')] class extends Component
     showExpenseModal: false,
     expense_name: '',
     expense_amount: '',
-    shift: '{{ auth()->user()->shift ?? 'pagi' }}',
+    shift: @js(auth()->user()->assignedShift?->name ?? 'pagi'),
     nama_staff: '{{ auth()->user()->name ?? '' }}',
     tanggal: (() => {
                         const d = new Date();
@@ -473,6 +473,7 @@ new #[Layout('layouts::admin')] class extends Component
         document.getElementById('pos-form').submit();
     }
 }">
+    @error('shift')<p role="alert" class="mb-4 text-sm text-red-700">{{ $message }}</p>@enderror
     <div class="flex sm:flex-row flex-col justify-between items-center mb-6">
         <h5 class="text-xl font-semibold text-heading">POS Minuman</h5>
     </div>

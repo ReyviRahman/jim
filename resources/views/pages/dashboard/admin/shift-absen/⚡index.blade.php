@@ -1,17 +1,21 @@
 <?php
 
-use App\Models\AttendanceShift;
+use App\Models\Shift;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Database\Eloquent\Collection;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Locked;
 use Livewire\Attributes\Title;
 use Livewire\Component;
+use Illuminate\Validation\Rule;
 
 new #[Layout('layouts::admin')] #[Title('Shift Absen')] class extends Component
 {
     public string $code = '';
     public string $name = '';
+    public string $role = 'admin';
     public string $start_time = '';
     public string $end_time = '';
     public bool $showModal = false;
@@ -21,30 +25,31 @@ new #[Layout('layouts::admin')] #[Title('Shift Absen')] class extends Component
 
     public function boot(): void
     {
-        $this->authorize('viewAny', AttendanceShift::class);
+        $this->authorize('viewAny', Shift::class);
     }
 
     public function openModal(): void
     {
-        $this->authorize('create', AttendanceShift::class);
+        $this->authorize('create', Shift::class);
         $this->closeModal();
         $this->showModal = true;
     }
 
     public function closeModal(): void
     {
-        $this->reset('code', 'name', 'start_time', 'end_time', 'editingId', 'showModal');
+        $this->reset('code', 'name', 'role', 'start_time', 'end_time', 'editingId', 'showModal');
         $this->resetValidation();
     }
 
     public function edit(int $id): void
     {
-        $shift = AttendanceShift::findOrFail($id);
+        $shift = Shift::findOrFail($id);
         $this->authorize('update', $shift);
         $this->closeModal();
         $this->editingId = $shift->id;
         $this->code = $shift->code;
         $this->name = $shift->name;
+        $this->role = $shift->role;
         $this->start_time = substr($shift->start_time, 0, 5);
         $this->end_time = substr($shift->end_time, 0, 5);
         $this->showModal = true;
@@ -52,13 +57,14 @@ new #[Layout('layouts::admin')] #[Title('Shift Absen')] class extends Component
 
     public function save(): void
     {
-        $shift = $this->editingId === null ? new AttendanceShift : AttendanceShift::findOrFail($this->editingId);
+        $shift = $this->editingId === null ? new Shift : Shift::findOrFail($this->editingId);
         $this->authorize($shift->exists ? 'update' : 'create', $shift);
         $this->code = trim($this->code);
         $this->name = trim($this->name);
         $data = $this->validate([
             'code' => ['required', 'string', 'max:255'],
             'name' => ['required', 'string', 'max:255'],
+            'role' => ['required', Rule::in(array_keys(Shift::ROLE_LABELS))],
             'start_time' => ['required', 'date_format:H:i'],
             'end_time' => ['required', 'date_format:H:i', 'after:start_time'],
         ], [
@@ -68,12 +74,20 @@ new #[Layout('layouts::admin')] #[Title('Shift Absen')] class extends Component
             'date_format' => ':attribute harus menggunakan format 24 jam HH:mm.',
             'after' => 'Jam selesai harus setelah jam mulai pada hari yang sama.',
         ], [
-            'code' => 'Kode', 'name' => 'Nama shift',
+            'code' => 'Kode', 'name' => 'Nama shift', 'role' => 'Role',
             'start_time' => 'Jam mulai', 'end_time' => 'Jam selesai',
         ]);
 
         $message = $shift->exists ? 'Shift berhasil diperbarui.' : 'Shift berhasil ditambahkan.';
-        $shift->fill($data)->save();
+        DB::transaction(function () use ($shift, $data): void {
+            $record = $shift->exists ? Shift::query()->lockForUpdate()->findOrFail($shift->id) : $shift;
+            if ($record->exists && $record->role !== $data['role'] && $record->users()->exists()) {
+                throw ValidationException::withMessages([
+                    'role' => 'Role tidak dapat diubah karena shift ini sedang digunakan oleh user.',
+                ]);
+            }
+            $record->fill($data)->save();
+        });
         unset($this->shifts);
         $this->closeModal();
         session()->flash('success', $message);
@@ -81,23 +95,38 @@ new #[Layout('layouts::admin')] #[Title('Shift Absen')] class extends Component
 
     public function delete(int $id): void
     {
-        $shift = AttendanceShift::findOrFail($id);
+        $shift = Shift::findOrFail($id);
         $this->authorize('delete', $shift);
-        $shift->delete();
+        $deleted = DB::transaction(function () use ($shift): bool {
+            $record = Shift::query()->lockForUpdate()->findOrFail($shift->id);
+            if ($record->users()->exists()) {
+                return false;
+            }
+            $record->delete();
+
+            return true;
+        });
+        if (! $deleted) {
+            $this->addError('deleteShift', 'Shift tidak dapat dihapus karena sedang digunakan oleh user.');
+
+            return;
+        }
+        $this->resetValidation('deleteShift');
         unset($this->shifts);
         session()->flash('success', 'Shift berhasil dihapus.');
     }
 
-    /** @return Collection<int, AttendanceShift> */
+    /** @return Collection<int, Shift> */
     #[Computed]
     public function shifts(): Collection
     {
-        return AttendanceShift::orderByDesc('id')->get();
+        return Shift::orderByDesc('id')->get();
     }
 };
 ?>
 
 <div>
+    @error('deleteShift')<p role="alert" class="mb-4 text-sm text-red-700">{{ $message }}</p>@enderror
     <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
         <h1 class="text-xl font-semibold text-heading">Shift Absen</h1>
         <button type="button" wire:click="openModal" class="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-[#34342F] focus:ring-2 focus:ring-brand">Tambah Shift</button>
@@ -111,6 +140,7 @@ new #[Layout('layouts::admin')] #[Title('Shift Absen')] class extends Component
                 <tr>
                     <th scope="col" class="px-4 py-3">Kode</th>
                     <th scope="col" class="px-4 py-3">Nama Shift</th>
+                    <th scope="col" class="px-4 py-3">Role</th>
                     <th scope="col" class="whitespace-nowrap px-4 py-3">Jam Mulai</th>
                     <th scope="col" class="whitespace-nowrap px-4 py-3">Jam Selesai</th>
                     <th scope="col" class="px-4 py-3">Aksi</th>
@@ -121,6 +151,7 @@ new #[Layout('layouts::admin')] #[Title('Shift Absen')] class extends Component
                     <tr wire:key="shift-{{ $shift->id }}" class="border-t border-default">
                         <td class="max-w-64 break-words px-4 py-3">{{ $shift->code }}</td>
                         <td class="max-w-64 break-words px-4 py-3">{{ $shift->name }}</td>
+                        <td class="px-4 py-3">{{ Shift::ROLE_LABELS[$shift->role] ?? $shift->role }}</td>
                         <td class="px-4 py-3 tabular-nums">{{ substr($shift->start_time, 0, 5) }}</td>
                         <td class="px-4 py-3 tabular-nums">{{ substr($shift->end_time, 0, 5) }}</td>
                         <td class="px-4 py-3">
@@ -131,7 +162,7 @@ new #[Layout('layouts::admin')] #[Title('Shift Absen')] class extends Component
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="5" class="px-4 py-10 text-center text-body">Belum ada shift absen. Klik Tambah Shift untuk membuat shift pertama.</td></tr>
+                    <tr><td colspan="6" class="px-4 py-10 text-center text-body">Belum ada shift absen. Klik Tambah Shift untuk membuat shift pertama.</td></tr>
                 @endforelse
             </tbody>
         </table>
@@ -144,6 +175,15 @@ new #[Layout('layouts::admin')] #[Title('Shift Absen')] class extends Component
                     <button type="button" wire:click="closeModal" aria-label="Tutup" class="rounded px-2 py-1 text-body hover:bg-gray-100">&times;</button>
                 </div>
                 <form wire:submit="save" class="space-y-4">
+                    <div>
+                        <label for="shift-role" class="mb-2 block text-sm font-medium text-heading">Role</label>
+                        <select id="shift-role" wire:model="role" required class="block w-full rounded-lg border border-default bg-neutral-secondary-soft p-2.5 text-sm text-heading focus:border-brand focus:ring-brand">
+                            @foreach (Shift::ROLE_LABELS as $value => $label)
+                                <option wire:key="shift-role-{{ $value }}" value="{{ $value }}">{{ $label }}</option>
+                            @endforeach
+                        </select>
+                        @error('role')<p class="mt-1 text-sm text-red-700">{{ $message }}</p>@enderror
+                    </div>
                     @foreach (['code' => 'Kode', 'name' => 'Nama Shift', 'start_time' => 'Jam Mulai', 'end_time' => 'Jam Selesai'] as $field => $label)
                         <div wire:key="shift-field-{{ $field }}">
                             <label for="shift-{{ $field }}" class="mb-2 block text-sm font-medium text-heading">{{ $label }}</label>

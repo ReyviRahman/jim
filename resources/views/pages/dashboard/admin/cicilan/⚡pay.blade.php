@@ -165,6 +165,7 @@ new #[Layout('layouts::admin')] class extends Component
             }
         }
 
+        $shiftSnapshot = Auth::user()->shiftSnapshot();
         $storedProofPaths = [];
         $storedProfilePhotoPaths = [];
 
@@ -230,7 +231,7 @@ new #[Layout('layouts::admin')] class extends Component
                             'membership_id' => $this->membership->id,
                             'user_id' => $this->membership->user_id,
                             'admin_id' => $this->admin_id,
-                            'shift' => Auth::user()->shift,
+                            'shift' => $shiftSnapshot,
                             'follow_up_id' => $this->membership->follow_up_id ?: null,
                             'follow_up_id_two' => $this->membership->follow_up_id_two ?: null,
                             'transaction_type' => $this->transaction_type,
@@ -258,7 +259,7 @@ new #[Layout('layouts::admin')] class extends Component
                     'membership_id' => $this->membership->id,
                     'user_id' => $this->membership->user_id,
                     'admin_id' => $this->admin_id,
-                    'shift' => Auth::user()->shift,
+                    'shift' => $shiftSnapshot,
                     'follow_up_id' => $this->membership->follow_up_id ?: null,
                     'follow_up_id_two' => $this->membership->follow_up_id_two ?: null,
                     'transaction_type' => $this->transaction_type,
@@ -290,6 +291,7 @@ new #[Layout('layouts::admin')] class extends Component
 ?>
 
 <div>
+    @error('shift')<p role="alert" class="mb-4 text-sm text-red-700">{{ $message }}</p>@enderror
     {{-- Container Fixed di Pojok Kanan Atas --}}
     <div class="fixed top-4 right-4 z-50 flex flex-col gap-3 w-full max-w-sm">
         

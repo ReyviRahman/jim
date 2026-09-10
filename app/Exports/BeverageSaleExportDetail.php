@@ -36,7 +36,7 @@ class BeverageSaleExportDetail implements FromQuery, ShouldAutoSize, WithEvents,
 
     private $totalItem = 0;
 
-    public function __construct($searchProduct, $start_date, $end_date = null)
+    public function __construct($searchProduct, $start_date, $end_date = null, private ?string $shift = null)
     {
         $this->searchProduct = $searchProduct;
         $this->start_date = $start_date;
@@ -65,6 +65,10 @@ class BeverageSaleExportDetail implements FromQuery, ShouldAutoSize, WithEvents,
             } else {
                 $query->whereDate('waktu_transaksi', $this->start_date);
             }
+        }
+
+        if (filled($this->shift)) {
+            $query->where('shift', $this->shift);
         }
 
         return $query->latest();

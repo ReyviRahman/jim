@@ -136,7 +136,7 @@ class BeverageApiController extends Controller
         }
 
         $namaStaff = $request->nama_staff;
-        $shift = $request->shift;
+        $shift = $request->user()->beverageShiftSnapshot();
         $tanggal = $request->tanggal ? Carbon::parse($request->tanggal)->setTimezone('Asia/Jakarta') : now()->setTimezone('Asia/Jakarta');
         $isHutang = $keteranganBayar === 'hutang';
         $isSplitHutang = $keteranganBayar === 'deposit' && $paymentMethodForProducts === 'hutang';

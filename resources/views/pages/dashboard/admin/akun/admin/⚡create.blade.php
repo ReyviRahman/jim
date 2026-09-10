@@ -7,6 +7,10 @@ use Livewire\Attributes\Validate;
 use Livewire\Attributes\Layout;
 use Livewire\WithFileUploads;
 use App\Models\User;
+use App\Models\Shift;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Validation\Rule;
+use Livewire\Attributes\Computed;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
@@ -44,8 +48,27 @@ new #[Layout('layouts::admin')] class extends Component
     #[Validate('required|in:kasir_gym,kasir_minum,pt,sales,cleaning_service')]
     public $role = 'kasir_gym';
 
-    #[Validate('nullable|in:Pagi,Siang,Full')]
     public $shift = null;
+
+    protected function rules(): array
+    {
+        return [
+            'shift' => ['nullable', 'integer', Rule::exists('shifts', 'id')->where('role', $this->role)],
+        ];
+    }
+
+    #[Computed]
+    public function shifts(): Collection
+    {
+        return Shift::query()->forRole($this->role)->orderBy('start_time')->orderBy('id')->get();
+    }
+
+    public function updatedRole(): void
+    {
+        $this->shift = null;
+        unset($this->shifts);
+        $this->resetValidation('shift');
+    }
 
     public function mount()
     {
@@ -72,6 +95,7 @@ new #[Layout('layouts::admin')] class extends Component
             'photo'     => $photoPath,
             'is_active' => true,
             'role'      => $this->role,
+            'shift'     => filled($this->shift) ? (int) $this->shift : null,
         ];
 
         if ($this->role === 'pt') {
@@ -83,7 +107,6 @@ new #[Layout('layouts::admin')] class extends Component
             $userData['password'] = Hash::make(Str::random(32));
         } else {
             $userData['password'] = Hash::make($this->password);
-            $userData['shift'] = in_array($this->role, ['kasir_gym', 'kasir_minum']) ? $this->shift : null;
         }
 
         User::create($userData);
@@ -177,13 +200,14 @@ new #[Layout('layouts::admin')] class extends Component
                     @error('role') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
                 </div>
 
-                <div x-show="currentRole === 'kasir_gym' || currentRole === 'kasir_minum'" x-transition style="display: none;">
+                <div>
                     <label for="shift" class="block mb-2.5 text-sm font-medium text-heading">Jadwal Shift</label>
-                    <select id="shift" wire:model='shift'
+                    <select id="shift" wire:model='shift' wire:key="shift-options-{{ $role }}"
                         class="block w-full px-3 py-2.5 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs placeholder:text-body">
                         <option value="">-- Pilih Shift --</option>
-                        <option value="Pagi">Pagi</option>
-                        <option value="Siang">Siang</option>
+                        @foreach ($this->shifts as $availableShift)
+                            <option value="{{ $availableShift->id }}" wire:key="shift-{{ $availableShift->id }}">{{ $availableShift->name }} ({{ substr($availableShift->start_time, 0, 5) }}–{{ substr($availableShift->end_time, 0, 5) }})</option>
+                        @endforeach
                     </select>
                     @error('shift') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
                 </div>

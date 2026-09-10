@@ -498,7 +498,7 @@ class MembershipTransactionInvoiceTest extends TestCase
             'membership_id' => $membership?->id,
             'user_id' => $payer->id,
             'admin_id' => $admin->id,
-            'shift' => $admin->shift,
+            'shift' => $admin->assignedShift?->name,
             'transaction_type' => $membership ? 'Cicilan Membership' : 'Pemasukan Lain',
             'package_name' => $membership ? 'Paket Membership' : 'Biaya Harian',
             'amount' => 150000,

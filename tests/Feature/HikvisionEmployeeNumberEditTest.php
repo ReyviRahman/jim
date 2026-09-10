@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Shift;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -166,7 +167,7 @@ class HikvisionEmployeeNumberEditTest extends TestCase
     {
         return User::factory()->create([
             'role' => 'kasir_gym',
-            'shift' => 'Pagi',
+            'shift' => Shift::factory()->create(['name' => 'Pagi', 'role' => $attributes['role'] ?? 'kasir_gym'])->id,
             'address' => 'Alamat staf',
             ...$attributes,
         ]);

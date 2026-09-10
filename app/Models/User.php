@@ -5,6 +5,7 @@ namespace App\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -31,6 +32,7 @@ class User extends Authenticatable
     protected function casts(): array
     {
         return [
+            'shift' => 'integer',
             'email_verified_at' => 'datetime',
             'joined_at' => 'date',
             'password' => 'hashed',
@@ -40,6 +42,25 @@ class User extends Authenticatable
     public function isHeadCoach(): bool
     {
         return Str::lower($this->email) === Str::lower(self::HEAD_COACH_EMAIL);
+    }
+
+    public function assignedShift(): BelongsTo
+    {
+        return $this->belongsTo(Shift::class, 'shift');
+    }
+
+    public function shiftSnapshot(): ?string
+    {
+        return $this->assignedShift?->name;
+    }
+
+    public function beverageShiftSnapshot(): string
+    {
+        return match ($name = $this->shiftSnapshot()) {
+            null, 'Pagi' => 'pagi',
+            'Siang' => 'siang',
+            default => $name,
+        };
     }
 
     // --- RELASI BARU ---

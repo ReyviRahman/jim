@@ -17,7 +17,7 @@ class BeverageSaleController extends Controller
         $fileName = 'penjualan_minuman_'.date('Y-m-d_His').'.xlsx';
 
         return Excel::download(
-            new BeverageSaleExport($searchProduct, $start_date, $end_date),
+            new BeverageSaleExport($searchProduct, $start_date, $end_date, $request->string('shift')->toString()),
             $fileName
         );
     }

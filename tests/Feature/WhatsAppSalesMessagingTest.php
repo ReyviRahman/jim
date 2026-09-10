@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\GymPackage;
 use App\Models\Membership;
 use App\Models\MembershipTransaction;
+use App\Models\Shift;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -409,7 +410,7 @@ class WhatsAppSalesMessagingTest extends TestCase
     public function test_existing_sales_roles_can_open_the_prefilled_whatsapp_picker(string $role, bool $isHeadCoach): void
     {
         $actor = $isHeadCoach
-            ? User::factory()->headCoach()->create(['shift' => 'Pagi'])
+            ? User::factory()->headCoach()->create(['shift' => Shift::factory()->create(['name' => 'Pagi', 'role' => 'pt'])->id])
             : $this->createActor($role);
         $payer = $this->createPayer('Pembayar Role', '081299998888');
         $transaction = $this->createTransaction($actor, $payer);
@@ -563,7 +564,7 @@ class WhatsAppSalesMessagingTest extends TestCase
         return User::factory()->create([
             'role' => $role,
             'name' => $name ?? ucfirst($role).' Penjualan',
-            'shift' => 'Pagi',
+            'shift' => Shift::factory()->create(['name' => 'Pagi', 'role' => $role])->id,
         ]);
     }
 
