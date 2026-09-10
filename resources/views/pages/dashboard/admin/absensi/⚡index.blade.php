@@ -7,10 +7,13 @@ use Livewire\Component;
 use Livewire\WithPagination;
 use Livewire\Attributes\Layout;
 use App\Models\Attendance;
+use App\Models\AttendanceEmployee;
+use App\EmployeeAttendanceService;
+use Illuminate\Validation\ValidationException;
 use App\Models\Membership;
 use App\Models\PtBooking;
 use App\Models\User;
-use Carbon\Carbon;
+use Illuminate\Support\Carbon;
 
 new #[Layout('layouts::admin')] class extends Component
 {
@@ -52,25 +55,29 @@ public function processScan()
             return;
         }
 
+        if ($user->role !== 'member') {
+            try {
+                $attendance = app(EmployeeAttendanceService::class)->record($user, Carbon::now(config('app.timezone')));
+                if (! $attendance->wasRecentlyCreated && ! $attendance->wasChanged('check_out_time')) {
+                    session()->flash('success', "Scan {$user->name} sudah tercatat.");
+                } else {
+                    $action = $attendance->wasRecentlyCreated ? 'Check-In' : 'Check-Out';
+                    session()->flash('success', "Berhasil {$action}: {$user->name}.");
+                }
+            } catch (ValidationException $exception) {
+                session()->flash('error', $exception->errors()['attendance'][0] ?? $exception->getMessage());
+            }
+
+            $this->scannedCode = '';
+            return;
+        }
+
         $recentScan = Attendance::where('user_id', $userId)
             ->where('check_in_time', '>=', now()->subMinutes(1))
             ->first();
 
         if ($recentScan) {
             session()->flash('error', "Member {$user->name} Telah Melakukan absen");
-            $this->scannedCode = '';
-            return;
-        }
-
-        if ($user->role === 'pt') {
-            Attendance::create([
-                'user_id' => $user->id,
-                'membership_id' => null,
-                'type' => 'coach_attendance',
-                'check_in_time' => now(),
-            ]);
-
-            session()->flash('success', "Berhasil Check-In Coach: {$user->name}. Selamat bertugas!");
             $this->scannedCode = '';
             return;
         }
@@ -244,7 +251,9 @@ session()->flash('success', "Berhasil Check-In: {$user->name}. {$infoSesi}");
 
     public function with(): array
     {
-        $query = Attendance::with('user');
+        $query = $this->employeesOnly
+            ? AttendanceEmployee::with('user')
+            : Attendance::with('user');
 
         if (trim($this->search) !== '') {
             $query->whereHas('user', function (\Illuminate\Database\Eloquent\Builder $userQuery): void {
@@ -371,6 +380,9 @@ session()->flash('success', "Berhasil Check-In: {$user->name}. {$infoSesi}");
                     <th scope="col" class="px-6 py-3 font-medium">Nama User</th>
                     <th scope="col" class="px-6 py-3 font-medium">Nama di Alat</th>
                     <th scope="col" class="px-6 py-3 font-medium">Role User</th>
+                    @if ($employeesOnly)
+                        <th scope="col" class="px-6 py-3 font-medium">Shift / Jadwal</th>
+                    @endif
                     <th scope="col" class="px-6 py-3 font-medium">Waktu Check-In</th>
                     @if ($employeesOnly)
                         <th scope="col" class="px-6 py-3 font-medium">Waktu Check-Out</th>
@@ -379,7 +391,7 @@ session()->flash('success', "Berhasil Check-In: {$user->name}. {$infoSesi}");
             </thead>
             <tbody>
                 @forelse ($attendances as $attendance)
-                    <tr wire:key="{{ $attendance->id }}" class="bg-neutral-primary-soft border-b border-default hover:bg-neutral-secondary-medium">
+                    <tr wire:key="attendance-{{ $employeesOnly ? 'employee' : 'member' }}-{{ $attendance->id }}" class="bg-neutral-primary-soft border-b border-default hover:bg-neutral-secondary-medium">
                         <td class="px-7 py-4 font-medium text-heading">
                             {{ $loop->iteration + ($attendances->currentPage() - 1) * $attendances->perPage() }}
                         </td>
@@ -420,6 +432,12 @@ session()->flash('success', "Berhasil Check-In: {$user->name}. {$infoSesi}");
                             @endif
                         </td>
                         
+                        @if ($employeesOnly)
+                            <td class="px-6 py-4 text-heading">
+                                <div>{{ $attendance->shift_code }} — {{ $attendance->shift_name }}</div>
+                                <div class="text-xs">{{ substr($attendance->shift_start_time, 0, 5) }}–{{ substr($attendance->shift_end_time, 0, 5) }} WIB</div>
+                            </td>
+                        @endif
                         <td class="px-6 py-4 font-medium text-heading">
                             @if ($attendance->check_in_time)
                                 <div class="flex items-center text-gray-600">
@@ -450,7 +468,7 @@ session()->flash('success', "Berhasil Check-In: {$user->name}. {$infoSesi}");
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="{{ $employeesOnly ? 6 : 5 }}" class="px-6 py-8 text-center text-gray-500">
+                        <td colspan="{{ $employeesOnly ? 7 : 5 }}" class="px-6 py-8 text-center text-gray-500">
                             Tidak ada data absensi.
                         </td>
                     </tr>

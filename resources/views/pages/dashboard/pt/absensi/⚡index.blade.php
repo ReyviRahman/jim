@@ -4,7 +4,7 @@ namespace App\Livewire\Pt;
 use Livewire\Component;
 use Livewire\Attributes\Layout;
 use Illuminate\Support\Facades\Auth;
-use App\Models\Attendance;
+use App\Models\AttendanceEmployee;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
 new #[Layout('layouts::pt')] class extends Component
@@ -13,10 +13,11 @@ new #[Layout('layouts::pt')] class extends Component
     {
         $user = Auth::user();
         
-        // PERBAIKAN: Cek apakah coach BARU SAJA absen (dalam 15 detik terakhir)
-        $justAttended = Attendance::where('user_id', $user->id)
-            ->where('type', 'coach_attendance') 
-            ->where('check_in_time', '>=', now()->subSeconds(15)) // Waktu notif tampil = 15 detik
+        $justAttended = AttendanceEmployee::where('user_id', $user->id)
+            ->where(function ($query): void {
+                $query->where('check_in_time', '>=', now('Asia/Jakarta')->subSeconds(15))
+                    ->orWhere('check_out_time', '>=', now('Asia/Jakarta')->subSeconds(15));
+            })
             ->exists();
 
         $qrData = json_encode([
@@ -26,7 +27,7 @@ new #[Layout('layouts::pt')] class extends Component
         return [
             'user' => $user,
             'qrData' => $qrData,
-            'justAttended' => $justAttended, // Kirim status ini ke view
+            'justAttended' => $justAttended,
         ];
     }
 };

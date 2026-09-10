@@ -49,6 +49,11 @@ class User extends Authenticatable
         return $this->belongsTo(Shift::class, 'shift');
     }
 
+    public function employeeAttendances(): HasMany
+    {
+        return $this->hasMany(AttendanceEmployee::class);
+    }
+
     public function shiftSnapshot(): ?string
     {
         return $this->assignedShift?->name;

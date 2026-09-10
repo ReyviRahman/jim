@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Attendance;
+use App\Models\AttendanceEmployee;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -40,7 +41,8 @@ class AdminAttendanceTableTest extends TestCase
             'check_in_time' => '2026-08-29 09:00:00',
             'check_out_time' => '2026-08-29 18:00:00',
         ]);
-        $this->createAttendance($headCoach, [
+        AttendanceEmployee::factory()->create([
+            'user_id' => $headCoach->id,
             'nama_di_alat' => 'Karyawan di Hikvision',
             'attendance_date' => '2026-08-29',
             'check_in_time' => '2026-08-29 08:05:00',
@@ -101,21 +103,20 @@ class AdminAttendanceTableTest extends TestCase
         $checkoutOnlyEmployee = $this->createUser('head_coach', 'Checkout Only Employee');
         $checkInOnlyEmployee = $this->createUser('pt', 'Check-In Only Employee');
 
-        $this->createAttendance($checkoutOnlyEmployee, [
-            'attendance_status' => 'checkOut',
+        $this->createEmployeeAttendance($checkoutOnlyEmployee, [
             'attendance_date' => '2026-08-29',
-            'check_in_time' => null,
+            'check_in_time' => '2026-08-29 08:00:00',
             'check_out_time' => '2026-08-29 18:30:00',
         ]);
-        $this->createAttendance($checkInOnlyEmployee, [
+        $this->createEmployeeAttendance($checkInOnlyEmployee, [
             'attendance_date' => '2026-08-28',
             'check_in_time' => '2026-08-28 08:15:00',
             'check_out_time' => null,
         ]);
 
-        $response = $this->actingAs($admin)
-            ->get(route('admin.absensi-karyawan.index'))
-            ->assertOk()
+        $this->actingAs($admin);
+
+        $response = Livewire::test('pages::dashboard.admin.absensi.index', ['employeesOnly' => true])
             ->assertSee('Checkout Only Employee')
             ->assertSee('Check-In Only Employee')
             ->assertSee('29 Aug 2026')
@@ -123,17 +124,17 @@ class AdminAttendanceTableTest extends TestCase
             ->assertSee('28 Aug 2026')
             ->assertSee('08:15');
 
-        $contents = $response->getContent();
+        $contents = $response->html();
 
         $this->assertIsString($contents);
         $this->assertSame(
-            2,
+            1,
             substr_count($contents, '<span class="text-gray-500">-</span>'),
             'Each missing check-in or check-out value should render exactly one dash.',
         );
     }
 
-    public function test_employee_attendance_date_filter_includes_checkout_only_and_legacy_rows(): void
+    public function test_employee_attendance_date_filter_excludes_checkout_only_and_legacy_rows(): void
     {
         $admin = $this->createUser('admin');
         $checkoutOnlyEmployee = $this->createUser('head_coach', 'Filtered Checkout Only');
@@ -167,9 +168,10 @@ class AdminAttendanceTableTest extends TestCase
 
         Livewire::test('pages::dashboard.admin.absensi.index', ['employeesOnly' => true])
             ->call('setDateRange', '2026-08-29')
-            ->assertSee('Filtered Checkout Only')
-            ->assertSee('Filtered Legacy Check-In')
-            ->assertSee('Filtered Legacy Checkout')
+            ->assertDontSee('Filtered Checkout Only')
+            ->assertDontSee('Filtered Legacy Check-In')
+            ->assertDontSee('Filtered Legacy Checkout')
+            ->assertSee('Tidak ada data absensi.')
             ->assertDontSee('Outside Date Range');
     }
 
@@ -180,18 +182,17 @@ class AdminAttendanceTableTest extends TestCase
         $tieOlderEmployee = $this->createUser('pt', 'Tie Older Attendance');
         $tieNewerEmployee = $this->createUser('kasir_gym', 'Tie Newer Attendance');
 
-        $newestAttendance = $this->createAttendance($newestEmployee, [
+        $newestAttendance = $this->createEmployeeAttendance($newestEmployee, [
             'attendance_date' => '2026-08-30',
             'check_in_time' => '2026-08-30 08:00:00',
         ]);
-        $tieOlderAttendance = $this->createAttendance($tieOlderEmployee, [
-            'attendance_date' => null,
+        $tieOlderAttendance = $this->createEmployeeAttendance($tieOlderEmployee, [
+            'attendance_date' => '2026-08-29',
             'check_in_time' => '2026-08-29 12:00:00',
         ]);
-        $tieNewerAttendance = $this->createAttendance($tieNewerEmployee, [
-            'attendance_status' => 'checkOut',
+        $tieNewerAttendance = $this->createEmployeeAttendance($tieNewerEmployee, [
             'attendance_date' => '2026-08-29',
-            'check_in_time' => null,
+            'check_in_time' => '2026-08-29 12:00:00',
             'check_out_time' => '2026-08-29 12:00:00',
         ]);
 
@@ -199,8 +200,8 @@ class AdminAttendanceTableTest extends TestCase
             $employee = $this->createUser('head_coach', "Older Attendance {$day}");
             $date = "2026-08-{$day}";
 
-            $this->createAttendance($employee, [
-                'attendance_date' => $day % 2 === 0 ? $date : null,
+            $this->createEmployeeAttendance($employee, [
+                'attendance_date' => $date,
                 'check_in_time' => $date.' 08:00:00',
             ]);
         }
@@ -245,8 +246,13 @@ class AdminAttendanceTableTest extends TestCase
         foreach (['member', 'head_coach'] as $role) {
             foreach (['Budi Santoso', 'Siti Aminah'] as $name) {
                 $user = $this->createUser($role, $name);
-                $this->createAttendance($user, ['attendance_date' => '2026-08-29']);
-                $this->createAttendance($user, ['attendance_date' => '2026-08-28']);
+                foreach (['2026-08-29', '2026-08-28'] as $date) {
+                    if ($role === 'member') {
+                        $this->createAttendance($user, ['attendance_date' => $date]);
+                    } else {
+                        $this->createEmployeeAttendance($user, ['attendance_date' => $date]);
+                    }
+                }
             }
         }
 
@@ -276,7 +282,11 @@ class AdminAttendanceTableTest extends TestCase
             $user = $this->createUser($role, 'Budi Santoso');
 
             for ($index = 0; $index < 11; $index++) {
-                $this->createAttendance($user);
+                if ($role === 'member') {
+                    $this->createAttendance($user);
+                } else {
+                    $this->createEmployeeAttendance($user, ['attendance_date' => now()->subDays($index)->toDateString()]);
+                }
             }
         }
 
@@ -288,6 +298,14 @@ class AdminAttendanceTableTest extends TestCase
                 ->assertSet('paginators.page', 1)
                 ->assertSee('Budi Santoso');
         }
+    }
+
+    /**
+     * @param  array<string, mixed>  $attributes
+     */
+    private function createEmployeeAttendance(User $user, array $attributes = []): AttendanceEmployee
+    {
+        return AttendanceEmployee::factory()->create(array_merge(['user_id' => $user->id], $attributes));
     }
 
     private function createUser(string $role, ?string $name = null): User

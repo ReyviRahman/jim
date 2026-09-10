@@ -4,9 +4,11 @@ namespace Tests\Feature;
 
 use App\HikvisionAttendanceService;
 use App\Models\Attendance;
+use App\Models\AttendanceEmployee;
 use App\Models\DeviceEvent;
 use App\Models\Membership;
 use App\Models\PtBooking;
+use App\Models\Shift;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -201,7 +203,7 @@ XML;
     {
         $this->travelTo(Carbon::parse('2026-08-30 09:00:00', config('app.timezone')));
 
-        $roles = ['admin', 'pt', 'member', 'kasir_gym', 'sales', 'kasir_minum', 'head_coach', 'cleaning_service'];
+        $roles = ['admin', 'pt', 'member', 'kasir_gym', 'sales', 'kasir_minum', 'cleaning_service'];
 
         foreach ($roles as $index => $role) {
             $user = $this->createUser(['role' => $role]);
@@ -212,11 +214,8 @@ XML;
                 sprintf('2025-11-01T09:%02d:00+07:00', $index),
             ))->assertOk();
 
-            $this->assertDatabaseHas('attendances', [
+            $this->assertDatabaseHas($role === 'member' ? 'attendances' : 'attendance_employee', [
                 'user_id' => $user->id,
-                'membership_id' => null,
-                'type' => null,
-                'attendance_status' => null,
                 'attendance_date' => '2026-08-30',
                 'check_in_time' => '2026-08-30 09:00:00',
                 'check_out_time' => null,
@@ -238,7 +237,35 @@ XML;
             'check_in_time' => '2026-08-30 09:00:00',
             'check_out_time' => null,
         ]);
-        $this->assertDatabaseCount('attendances', 9);
+        $this->assertDatabaseCount('attendances', 2);
+        $this->assertDatabaseCount('attendance_employee', 6);
+    }
+
+    public function test_unsupported_employee_role_keeps_device_log_without_attendance(): void
+    {
+        $this->travelTo(Carbon::parse('2026-09-10 09:00:00', 'Asia/Jakarta'));
+        $user = $this->createUser(['role' => 'head_coach', 'shift' => null]);
+
+        $this->postJson('/api/absensi', $this->attendancePayload($user, 'checkIn', '2026-09-10T09:00:00+07:00'))->assertOk();
+
+        $this->assertDatabaseCount('device_events', 1);
+        $this->assertDatabaseCount('attendance_employee', 0);
+        $this->assertDatabaseCount('attendances', 0);
+    }
+
+    public function test_employee_scan_does_not_consume_linked_membership_booking(): void
+    {
+        $this->travelTo(Carbon::parse('2026-09-10 09:00:00', 'Asia/Jakarta'));
+        $user = $this->createUser(['role' => 'pt']);
+        $membership = $this->createPtMembership($user, ['remaining_sessions' => 3]);
+        $booking = $this->createPtBooking($user, $membership);
+
+        $this->postJson('/api/absensi', $this->attendancePayload($user, 'checkIn', '2026-09-10T09:00:00+07:00'))->assertOk();
+
+        $this->assertDatabaseCount('attendance_employee', 1);
+        $this->assertDatabaseCount('attendances', 0);
+        $this->assertSame('not_yet', $booking->fresh()->attendance);
+        $this->assertSame(3, $membership->fresh()->remaining_sessions);
     }
 
     public function test_first_and_subsequent_events_use_server_times_regardless_of_status(): void
@@ -265,12 +292,12 @@ XML;
             ->where('employee_no', (string) $user->id)
             ->oldest('id')
             ->firstOrFail();
-        $attendance = Attendance::query()->whereBelongsTo($user)->firstOrFail();
+        $attendance = AttendanceEmployee::query()->whereBelongsTo($user)->firstOrFail();
 
         $this->assertDatabaseCount('device_events', 2);
-        $this->assertDatabaseCount('attendances', 1);
+        $this->assertDatabaseCount('attendances', 0);
+        $this->assertDatabaseCount('attendance_employee', 1);
         $this->assertSame($creatorEvent->id, $attendance->device_event_id);
-        $this->assertNull($attendance->attendance_status);
         $this->assertSame('2026-08-31', $attendance->attendance_date->format('Y-m-d'));
         $this->assertSame('2026-08-31 08:00:00', $attendance->check_in_time->format('Y-m-d H:i:s'));
         $this->assertSame('2026-08-31 17:00:00', $attendance->check_out_time->format('Y-m-d H:i:s'));
@@ -317,7 +344,7 @@ XML;
     {
         $this->travelTo(Carbon::parse('2026-09-02 07:30:00', config('app.timezone')));
 
-        foreach (['member', 'head_coach'] as $role) {
+        foreach (['member', 'pt'] as $role) {
             $user = $this->createUser(['role' => $role]);
             $this->postJson('/api/absensi', $this->attendancePayload(
                 $user,
@@ -333,7 +360,7 @@ XML;
                 '2020-11-04T08:00:00+07:00',
             ))->assertOk();
 
-            $attendance = Attendance::query()->whereBelongsTo($user)->firstOrFail();
+            $attendance = ($role === 'member' ? Attendance::query() : AttendanceEmployee::query())->whereBelongsTo($user)->firstOrFail();
 
             $this->assertSame('2026-09-02 07:30:00', $attendance->check_in_time->format('Y-m-d H:i:s'));
             $this->assertSame('2026-09-02 18:15:00', $attendance->check_out_time->format('Y-m-d H:i:s'));
@@ -342,7 +369,8 @@ XML;
         }
 
         $this->assertDatabaseCount('device_events', 4);
-        $this->assertDatabaseCount('attendances', 2);
+        $this->assertDatabaseCount('attendances', 1);
+        $this->assertDatabaseCount('attendance_employee', 1);
     }
 
     public function test_check_out_first_then_check_in_uses_the_same_row_and_keeps_the_creator_event(): void
@@ -367,10 +395,11 @@ XML;
             '2025-11-05T08:00:00+07:00',
         ))->assertOk();
 
-        $attendance = Attendance::query()->whereBelongsTo($user)->firstOrFail();
+        $attendance = AttendanceEmployee::query()->whereBelongsTo($user)->firstOrFail();
 
         $this->assertDatabaseCount('device_events', 2);
-        $this->assertDatabaseCount('attendances', 1);
+        $this->assertDatabaseCount('attendances', 0);
+        $this->assertDatabaseCount('attendance_employee', 1);
         $this->assertSame($creatorEvent->id, $attendance->device_event_id);
         $this->assertSame('2026-09-03', $attendance->attendance_date->format('Y-m-d'));
         $this->assertSame('2026-09-03 17:00:00', $attendance->check_in_time->format('Y-m-d H:i:s'));
@@ -1227,7 +1256,7 @@ XML;
         $member = $this->createUser();
         $membership = $this->createPtMembership($member, ['remaining_sessions' => 2]);
         $booking = $this->createPtBooking($member, $membership);
-        $realAttendanceService = new HikvisionAttendanceService;
+        $realAttendanceService = app(HikvisionAttendanceService::class);
         $failingAttendanceService = new class($realAttendanceService) extends HikvisionAttendanceService
         {
             private int $attempts = 0;
@@ -1475,6 +1504,14 @@ XML;
      */
     private function createUser(array $attributes = []): User
     {
+        if (isset($attributes['role']) && $attributes['role'] !== 'member' && ! array_key_exists('shift', $attributes)) {
+            $attributes['shift'] = Shift::factory()->create([
+                'role' => $attributes['role'],
+                'start_time' => '07:00:00',
+                'end_time' => '22:00:00',
+            ])->id;
+        }
+
         return User::factory()->create([
             'age' => 30,
             'gender' => 'Laki-laki',
