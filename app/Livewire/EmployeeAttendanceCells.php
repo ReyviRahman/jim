@@ -45,9 +45,9 @@ trait EmployeeAttendanceCells
         $employee = User::query()->where('role', '!=', 'member')->findOrFail($employeeId);
         $record = $employee->employeeAttendances()->where('attendance_date', $date)->first();
         $lateMinutes = $record?->isLate() ? (int) $record->scheduled_start_at->diffInMinutes($record->check_in_time) : 0;
-        $lateDuration = $lateMinutes >= 60
-            ? intdiv($lateMinutes, 60).' jam'.($lateMinutes % 60 > 0 ? ' '.($lateMinutes % 60).' menit' : '')
-            : $lateMinutes.' menit';
+        $replacementMinutes = $record?->check_out_time !== null && $record?->scheduled_end_at !== null
+            ? max(0, (int) $record->scheduled_end_at->diffInMinutes($record->check_out_time))
+            : 0;
         $this->resetValidation();
         $this->cellEmployeeId = $employee->id;
         $this->cellDate = $date;
@@ -63,7 +63,12 @@ trait EmployeeAttendanceCells
             'device' => $record?->nama_di_alat ?: '—',
             'notes' => $record?->notes,
             'isLate' => $record?->isLate() ?? false,
-            'lateDuration' => $lateDuration,
+            'lateDuration' => $this->formatAttendanceMinutes($lateMinutes),
+            'replacementDuration' => $this->formatAttendanceMinutes($replacementMinutes),
+            'remainingLateDuration' => $this->formatAttendanceMinutes(max(0, $lateMinutes - $replacementMinutes)),
+            'lateRepaid' => $lateMinutes > 0 && $replacementMinutes >= $lateMinutes,
+            'hasCheckOut' => $record?->check_out_time !== null,
+            'hasScheduledEnd' => $record?->scheduled_end_at !== null,
             'hasSnapshot' => $record?->status === EmployeeAttendanceStatus::Hadir,
         ];
         $this->cellShifts = Shift::query()->where('role', $employee->role)->orderBy('start_time')->get(['id', 'name', 'code', 'start_time', 'end_time'])->toArray();
@@ -77,6 +82,13 @@ trait EmployeeAttendanceCells
         $this->editingCell = $record === null && auth()->user()->role === 'admin';
         $this->confirmingCellDeletion = false;
         $this->dispatch('attendance-cell-opened');
+    }
+
+    private function formatAttendanceMinutes(int $minutes): string
+    {
+        return $minutes >= 60
+            ? intdiv($minutes, 60).' jam'.($minutes % 60 > 0 ? ' '.($minutes % 60).' menit' : '')
+            : $minutes.' menit';
     }
 
     public function editAttendanceCell(): void

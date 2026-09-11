@@ -93,6 +93,18 @@
                 <div class="mt-5 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-bold text-red-700">
                     <p>TELAT MASUK {{ $cellDetail['lateDuration'] }}</p>
                     <p class="mt-1">GANTI JAM TELAT {{ $cellDetail['lateDuration'] }}</p>
+                    @if ($cellDetail['lateRepaid'])
+                        <p class="mt-1">SUDAH TERBAYARKAN</p>
+                    @elseif (! $cellDetail['hasCheckOut'])
+                        <p class="mt-1">BELUM TERBAYARKAN — belum ada jam keluar.</p>
+                    @elseif (! $cellDetail['hasScheduledEnd'])
+                        <p class="mt-1">Belum dapat dihitung — jadwal akhir shift tidak tersedia.</p>
+                    @else
+                        <p class="mt-1">BELUM TERBAYARKAN — sisa {{ $cellDetail['remainingLateDuration'] }}</p>
+                    @endif
+                    @if ($cellDetail['hasCheckOut'] && $cellDetail['hasScheduledEnd'])
+                        <p class="mt-1">Waktu pengganti setelah akhir shift: {{ $cellDetail['replacementDuration'] }}</p>
+                    @endif
                 </div>
             @endif
             <dl class="mt-5 grid grid-cols-[auto_1fr] gap-x-5 gap-y-3 border-t border-gray-200 pt-4 text-sm">
