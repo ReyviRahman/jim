@@ -58,6 +58,7 @@ trait EmployeeAttendanceCells
             'out' => $record?->check_out_time?->format('d/m/Y H:i') ?? '—',
             'device' => $record?->nama_di_alat ?: '—',
             'notes' => $record?->notes,
+            'isLate' => $record?->isLate() ?? false,
             'hasSnapshot' => $record?->status === EmployeeAttendanceStatus::Hadir,
         ];
         $this->cellShifts = Shift::query()->where('role', $employee->role)->orderBy('start_time')->get(['id', 'name', 'code', 'start_time', 'end_time'])->toArray();

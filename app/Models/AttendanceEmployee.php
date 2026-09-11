@@ -37,6 +37,14 @@ class AttendanceEmployee extends Model
         ];
     }
 
+    public function isLate(): bool
+    {
+        return $this->status === EmployeeAttendanceStatus::Hadir
+            && $this->check_in_time !== null
+            && $this->scheduled_start_at !== null
+            && $this->check_in_time->greaterThanOrEqualTo($this->scheduled_start_at->copy()->addMinutes(10));
+    }
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);

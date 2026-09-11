@@ -124,7 +124,7 @@
                                             @endphp
                                             <button type="button" wire:click="openAttendanceCell({{ $employee->id }}, '{{ $day->toDateString() }}')" title="{{ $pending ? 'Belum masuk' : $record->status->label() }}" aria-label="Detail {{ $employee->name }}, {{ $day->translatedFormat('d F Y') }}{{ $pending ? ', Belum masuk' : '' }}"
                                                 @disabled($selectingAttendance)
-                                                class="min-h-10 w-full rounded px-1 font-bold focus-visible:outline-2 focus-visible:outline-gray-800 {{ $color }}">
+                                                class="min-h-10 w-full rounded px-1 font-bold focus-visible:outline-2 focus-visible:outline-gray-800 {{ $color }} {{ $record->isLate() ? 'border-2 border-red-600' : '' }}">
                                                 {{ $label }}
                                             </button>
                                         @else

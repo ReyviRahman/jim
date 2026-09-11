@@ -89,6 +89,12 @@
                 <span wire:loading wire:target="saveAttendanceCell" role="status" class="block text-sm text-gray-500">Menyimpan…</span>
             </form>
         @else
+            @if ($cellDetail['isLate'])
+                <div class="mt-5 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-bold text-red-700">
+                    <p>TELAT MASUK</p>
+                    <p class="mt-1">GANTI JAM TELAT</p>
+                </div>
+            @endif
             <dl class="mt-5 grid grid-cols-[auto_1fr] gap-x-5 gap-y-3 border-t border-gray-200 pt-4 text-sm">
                 <dt class="text-gray-500">Status</dt><dd class="font-semibold">{{ $cellDetail['status'] ?? 'Belum ada data' }}</dd>
                 @if ($cellDetail['hasSnapshot'])
@@ -98,7 +104,9 @@
                     <dt class="text-gray-500">Keluar</dt><dd>{{ $cellDetail['out'] }}</dd>
                     <dt class="text-gray-500">Nama di alat</dt><dd>{{ $cellDetail['device'] }}</dd>
                 @endif
-                <dt class="text-gray-500">Catatan</dt><dd class="whitespace-pre-wrap break-words">{{ $cellDetail['notes'] ?: '—' }}</dd>
+                @if (filled($cellDetail['notes']))
+                    <dt class="text-gray-500">Catatan</dt><dd class="whitespace-pre-wrap break-words">{{ $cellDetail['notes'] }}</dd>
+                @endif
             </dl>
             @if (auth()->user()->role === 'admin')
                 <div class="mt-6 flex gap-3">

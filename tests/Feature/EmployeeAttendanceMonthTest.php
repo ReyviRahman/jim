@@ -13,6 +13,53 @@ class EmployeeAttendanceMonthTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_late_cells_and_details_use_the_ten_minute_threshold_and_hide_blank_notes(): void
+    {
+        $this->actingAs(User::factory()->create(['role' => 'admin']));
+        $employee = User::factory()->create(['role' => 'pt', 'is_active' => true]);
+        $record = AttendanceEmployee::factory()->create([
+            'user_id' => $employee->id,
+            'attendance_date' => '2026-09-01',
+            'scheduled_start_at' => '2026-09-01 08:00:00',
+        ]);
+
+        foreach ([
+            ['2026-09-01 07:55:00', false, null],
+            ['2026-09-01 08:00:00', false, ''],
+            ['2026-09-01 08:09:59', false, '   '],
+            ['2026-09-01 08:10:00', true, null],
+            ['2026-09-01 08:25:00', true, 'Menunggu kendaraan'],
+            [null, false, null],
+        ] as [$checkIn, $late, $notes]) {
+            $record->update(['check_in_time' => $checkIn, 'notes' => $notes]);
+            $component = Livewire::test('pages::dashboard.admin.absensi.index', ['employeesOnly' => true])
+                ->set('month', '2026-09')
+                ->call('openAttendanceCell', $employee->id, '2026-09-01')
+                ->assertSet('cellDetail.isLate', $late);
+
+            if ($late) {
+                $component->assertSeeHtml('border-2 border-red-600')
+                    ->assertSee('TELAT MASUK')->assertSee('GANTI JAM TELAT');
+            } else {
+                $component->assertDontSeeHtml('border-2 border-red-600')
+                    ->assertDontSee('TELAT MASUK')->assertDontSee('GANTI JAM TELAT');
+            }
+
+            if (filled($notes)) {
+                $component->assertSee('Catatan')->assertSee($notes);
+            } else {
+                $component->assertDontSee('Catatan');
+            }
+        }
+
+        $record->update(['scheduled_start_at' => '2026-09-01 23:55:00', 'check_in_time' => '2026-09-02 00:05:00']);
+        $this->assertTrue($record->isLate());
+        $record->update(['scheduled_start_at' => null]);
+        $this->assertFalse($record->isLate());
+        $record->update(['scheduled_start_at' => '2026-09-01 23:55:00', 'status' => 'izin']);
+        $this->assertFalse($record->isLate());
+    }
+
     public function test_names_show_current_assigned_shift_code_even_for_historical_months(): void
     {
         $this->actingAs(User::factory()->create(['role' => 'admin']));
