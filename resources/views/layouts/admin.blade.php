@@ -56,6 +56,8 @@
                         <span class="ms-3">Absensi</span>
                     </a>
                 </li>
+                @endif
+                @if($isAdminOrKasir || $isHeadCoach)
                 <li>
                     <a href="{{ route('admin.absensi-karyawan.index') }}" wire:navigate
                         class="{{ request()->routeIs('admin.absensi-karyawan.*') ? 'text-[#34342F] bg-brand' : 'text-white' }} flex items-center px-2 py-1.5 rounded-md hover:bg-brand hover:text-[#34342F] group transition-colors">

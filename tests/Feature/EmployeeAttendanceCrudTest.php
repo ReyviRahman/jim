@@ -145,8 +145,8 @@ class EmployeeAttendanceCrudTest extends TestCase
     public function test_wrong_roles_cannot_mutate_and_member_cannot_be_targeted(): void
     {
         $employee = $this->employee();
-        foreach (['kasir_gym', 'head_coach'] as $role) {
-            $this->actingAs(User::factory()->create(['role' => $role]));
+        foreach ([User::factory()->create(['role' => 'kasir_gym']), User::factory()->headCoach()->create()] as $viewer) {
+            $this->actingAs($viewer);
             $this->page()->call('openAttendanceCell', $employee->id, '2026-09-10')->call('saveAttendanceCell')->assertForbidden();
             $this->page()->call('openAttendanceCell', $employee->id, '2026-09-10')->call('deleteAttendanceCell')->assertForbidden();
         }
