@@ -60,10 +60,10 @@ public function processScan()
         if ($user->role !== 'member') {
             try {
                 $attendance = app(EmployeeAttendanceService::class)->record($user, Carbon::now(config('app.timezone')));
-                if (! $attendance->wasRecentlyCreated && ! $attendance->wasChanged('check_out_time')) {
+                if (! $attendance->wasRecentlyCreated && ! $attendance->wasChanged(['check_in_time', 'check_out_time'])) {
                     session()->flash('success', "Scan {$user->name} sudah tercatat.");
                 } else {
-                    $action = $attendance->wasRecentlyCreated ? 'Check-In' : 'Check-Out';
+                    $action = $attendance->wasRecentlyCreated || $attendance->wasChanged('check_in_time') ? 'Check-In' : 'Check-Out';
                     session()->flash('success', "Berhasil {$action}: {$user->name}.");
                 }
             } catch (ValidationException $exception) {
@@ -249,6 +249,7 @@ session()->flash('success', "Berhasil Check-In: {$user->name}. {$infoSesi}");
     public function updatedSearch(): void
     {
         $this->resetPage();
+        $this->cancelBulkAttendance();
     }
 
     public function with(): array

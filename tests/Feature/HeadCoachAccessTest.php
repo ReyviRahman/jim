@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\AttendanceEmployee;
 use App\Models\Membership;
 use App\Models\PtSchedule;
 use App\Models\User;
@@ -54,7 +55,29 @@ class HeadCoachAccessTest extends TestCase
 
             $this->get(route('admin.sesi-pt.index'))
                 ->assertRedirect(route('home'));
+
+            $this->get(route('admin.absensi-karyawan.index'))->assertRedirect(route('home'));
         }
+    }
+
+    public function test_head_coach_can_open_employee_attendance_from_sidebar_and_read_details(): void
+    {
+        $headCoach = User::factory()->headCoach()->create();
+        $employee = User::factory()->create(['role' => 'pt']);
+        $attendance = AttendanceEmployee::factory()->create(['user_id' => $employee->id]);
+
+        $this->actingAs($headCoach)->get(route('admin.cicilan.index'))
+            ->assertOk()->assertSee('Absensi Karyawan')->assertSee(route('admin.absensi-karyawan.index'), false);
+        $this->get(route('admin.absensi-karyawan.index'))->assertOk()->assertSee('Absensi karyawan');
+
+        $page = Livewire::test('pages::dashboard.admin.absensi.index', ['employeesOnly' => true])
+            ->assertDontSee('Pilih beberapa sel')
+            ->call('openAttendanceCell', $employee->id, $attendance->attendance_date->toDateString())
+            ->assertSet('cellEmployeeId', $employee->id)->assertSet('editingCell', false)
+            ->assertSee($employee->name)->assertDontSee('Simpan absensi');
+        $page->call('editAttendanceCell')->assertForbidden();
+        Livewire::test('pages::dashboard.admin.absensi.index', ['employeesOnly' => true])
+            ->call('beginBulkAttendance')->assertForbidden();
     }
 
     public function test_head_coach_is_redirected_to_head_coach_dashboard_after_login(): void

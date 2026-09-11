@@ -4,6 +4,7 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -47,6 +48,14 @@ class User extends Authenticatable
     public function isHeadCoach(): bool
     {
         return Str::lower($this->email) === Str::lower(self::HEAD_COACH_EMAIL);
+    }
+
+    public function scopeForEmployeeAttendance(Builder $query, string $search = ''): Builder
+    {
+        return $query->whereNotIn('role', ['member', 'admin', 'head_coach'])
+            ->where('is_active', true)->where('is_sales_online', false)
+            ->whereRaw('LOWER(email) != ?', [Str::lower(self::HEAD_COACH_EMAIL)])
+            ->when(trim($search) !== '', fn (Builder $query) => $query->where('name', 'like', '%'.trim($search).'%'));
     }
 
     public function assignedShift(): BelongsTo

@@ -13,6 +13,80 @@ use Illuminate\Validation\ValidationException;
 
 class EmployeeAttendanceEditor
 {
+    /**
+     * @param  array<int, array{employeeId: int, date: string}>  $cells
+     * @param  array{status: string, shift?: string, notes?: string, checkIn?: string, checkOut?: string, checkInDay?: string, checkOutDay?: string}  $form
+     */
+    public function saveBulk(User $actor, array $cells, string $month, string $search, array $form): int
+    {
+        abort_unless($actor->role === 'admin', 403);
+        $form += ['shift' => '', 'notes' => '', 'checkIn' => '', 'checkOut' => '', 'checkInDay' => '0', 'checkOutDay' => '0'];
+        Validator::make(['cells' => $cells, 'month' => $month, 'bulkForm' => $form], [
+            'cells' => ['required', 'array', 'list'],
+            'cells.*' => ['required', 'array:employeeId,date'],
+            'cells.*.employeeId' => ['required', 'integer'],
+            'cells.*.date' => ['required', 'date_format:Y-m-d'],
+            'month' => ['required', 'date_format:Y-m'],
+            'bulkForm.status' => ['required', Rule::enum(EmployeeAttendanceStatus::class)],
+            'bulkForm.shift' => ['exclude_unless:bulkForm.status,hadir', 'required', 'integer'],
+            'bulkForm.notes' => ['nullable', 'string', 'max:1000'],
+            'bulkForm.checkIn' => ['exclude_unless:bulkForm.status,hadir', 'nullable', 'date_format:H:i'],
+            'bulkForm.checkOut' => ['exclude_unless:bulkForm.status,hadir', 'nullable', 'date_format:H:i'],
+            'bulkForm.checkInDay' => ['exclude_unless:bulkForm.status,hadir', Rule::in(['0', '1'])],
+            'bulkForm.checkOutDay' => ['exclude_unless:bulkForm.status,hadir', Rule::in(['0', '1'])],
+        ])->validate();
+        $keys = collect($cells)->map(fn (array $cell): string => $cell['employeeId'].':'.$cell['date']);
+        if ($keys->unique()->count() !== count($cells)) {
+            throw ValidationException::withMessages(['bulkSelection' => 'Pilihan sel tidak boleh berulang.']);
+        }
+
+        return DB::transaction(function () use ($actor, $cells, $month, $search, $form): int {
+            $employees = collect();
+            foreach (collect(array_column($cells, 'employeeId'))->unique()->sort() as $employeeId) {
+                $employee = User::query()->lockForUpdate()->find($employeeId);
+                if ($employee !== null) {
+                    $employees->put($employee->id, $employee);
+                }
+            }
+            $eligible = User::query()->forEmployeeAttendance($search)->whereIn('id', $employees->keys())->pluck('id');
+            $role = null;
+            foreach ($cells as $cell) {
+                $employee = $employees->get($cell['employeeId']);
+                $label = ($employee?->name ?? 'Karyawan #'.$cell['employeeId']).' / '.$cell['date'];
+                if (! $eligible->contains($cell['employeeId']) || substr($cell['date'], 0, 7) !== $month) {
+                    throw ValidationException::withMessages(['bulkSelection' => $label.': sel tidak tersedia pada tabel bulan ini.']);
+                }
+                $role ??= $employee->role;
+                if ($employee->role !== $role) {
+                    throw ValidationException::withMessages(['bulkSelection' => $label.': pilih karyawan dengan role yang sama.']);
+                }
+                $occupied = $employee->employeeAttendances()->where('attendance_date', $cell['date'])->lockForUpdate()->exists();
+                if ($occupied) {
+                    throw ValidationException::withMessages(['bulkSelection' => $label.': absensi sudah terisi. Batalkan pilihan sel ini lalu coba kembali.']);
+                }
+                $single = ['status' => $form['status'], 'shift' => (string) $form['shift'], 'notes' => $form['notes'], 'checkIn' => '', 'checkOut' => ''];
+                if ($form['status'] === EmployeeAttendanceStatus::Hadir->value) {
+                    foreach (['checkIn', 'checkOut'] as $field) {
+                        if (filled($form[$field])) {
+                            $single[$field] = Carbon::parse($cell['date'], config('app.timezone'))->addDays((int) $form[$field.'Day'])->format('Y-m-d').'T'.$form[$field];
+                        }
+                    }
+                }
+                try {
+                    $this->save($actor, $employee->id, $cell['date'], null, $single);
+                } catch (ValidationException $exception) {
+                    $errors = [];
+                    foreach ($exception->errors() as $field => $messages) {
+                        $errors[str_replace('form.', 'bulkForm.', $field)] = array_map(fn (string $message): string => $label.': '.$message, $messages);
+                    }
+                    throw ValidationException::withMessages($errors);
+                }
+            }
+
+            return count($cells);
+        }, attempts: 3);
+    }
+
     public static function revision(?AttendanceEmployee $record): ?string
     {
         return $record === null ? null : hash('sha256', json_encode($record->getRawOriginal(), JSON_THROW_ON_ERROR));
@@ -28,7 +102,7 @@ class EmployeeAttendanceEditor
             'form.status' => ['required', Rule::enum(EmployeeAttendanceStatus::class)],
             'form.notes' => ['nullable', 'string', 'max:1000'],
             'form.shift' => ['required_if:form.status,hadir', 'string'],
-            'form.checkIn' => ['required_if:form.status,hadir', 'nullable', 'date_format:Y-m-d\TH:i'],
+            'form.checkIn' => ['nullable', 'date_format:Y-m-d\TH:i'],
             'form.checkOut' => ['nullable', 'date_format:Y-m-d\TH:i'],
         ])->validate();
 
@@ -96,7 +170,7 @@ class EmployeeAttendanceEditor
             $end->addDay();
         }
         $deadline = $start->copy()->addDay();
-        $checkIn = Carbon::createFromFormat('!Y-m-d\TH:i', $form['checkIn'], config('app.timezone'));
+        $checkIn = filled($form['checkIn']) ? Carbon::createFromFormat('!Y-m-d\TH:i', $form['checkIn'], config('app.timezone')) : null;
         $checkOut = filled($form['checkOut']) ? Carbon::createFromFormat('!Y-m-d\TH:i', $form['checkOut'], config('app.timezone')) : null;
         if ($record?->check_in_time?->format('Y-m-d\TH:i') === $form['checkIn']) {
             $checkIn = $record->check_in_time->copy();
@@ -105,8 +179,11 @@ class EmployeeAttendanceEditor
             $checkOut = $record->check_out_time->copy();
         }
         $now = now(config('app.timezone'));
-        if ($checkIn->greaterThan($now) || ! $checkIn->betweenIncluded($start, $end)) {
+        if ($checkIn !== null && ($checkIn->greaterThan($now) || ! $checkIn->betweenIncluded($start, $end))) {
             throw ValidationException::withMessages(['form.checkIn' => 'Jam masuk harus berada dalam jadwal shift dan tidak boleh melewati waktu sekarang.']);
+        }
+        if ($checkOut !== null && $checkIn === null) {
+            throw ValidationException::withMessages(['form.checkOut' => 'Isi waktu masuk sebelum mengisi waktu keluar.']);
         }
         if ($checkOut !== null && ($checkOut->lessThanOrEqualTo($checkIn) || $checkOut->greaterThanOrEqualTo($deadline) || $checkOut->greaterThan($now))) {
             throw ValidationException::withMessages(['form.checkOut' => 'Jam keluar harus setelah masuk, sebelum batas checkout, dan tidak melewati waktu sekarang.']);

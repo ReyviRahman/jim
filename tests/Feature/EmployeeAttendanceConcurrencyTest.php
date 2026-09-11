@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\EmployeeAttendanceEditor;
 use App\Models\AttendanceEmployee;
 use App\Models\Shift;
 use App\Models\User;
@@ -27,15 +28,35 @@ class EmployeeAttendanceConcurrencyTest extends TestCase
 
     public function test_simultaneous_scans_create_one_attendance_without_checkout_at_the_same_second(): void
     {
+        $this->assertSimultaneousScans(false);
+    }
+
+    public function test_simultaneous_scans_fill_scheduled_attendance_without_checkout(): void
+    {
+        $this->assertSimultaneousScans(true);
+    }
+
+    public function test_bulk_creation_racing_with_scan_never_overwrites_or_partially_saves(): void
+    {
+        $this->assertSimultaneousScans(false, true);
+    }
+
+    private function assertSimultaneousScans(bool $scheduled, bool $bulk = false): void
+    {
         $shift = Shift::factory()->create([
-            'role' => 'admin', 'start_time' => '08:00:00', 'end_time' => '16:00:00',
+            'role' => $bulk ? 'pt' : 'admin', 'start_time' => '08:00:00', 'end_time' => '16:00:00',
         ]);
-        $user = User::factory()->create(['role' => 'admin', 'shift' => $shift->id]);
-        $input = json_encode([
+        $user = User::factory()->create(['role' => $shift->role, 'shift' => $shift->id]);
+        $actor = $bulk ? User::factory()->create(['role' => 'admin']) : $user;
+        if ($scheduled) {
+            app(EmployeeAttendanceEditor::class)->save($user, $user->id, '2026-09-10', null, ['status' => 'hadir', 'shift' => (string) $shift->id]);
+        }
+        $input = [
             'connection' => DB::connection()->getConfig(),
             'user_id' => $user->id,
+            'actor_id' => $actor->id,
             'received_at' => '2026-09-10 08:00:00',
-        ], JSON_THROW_ON_ERROR);
+        ];
         $worker = <<<'PHP'
             require getcwd().'/vendor/autoload.php';
             $input = json_decode(stream_get_contents(STDIN), true, flags: JSON_THROW_ON_ERROR);
@@ -56,6 +77,19 @@ class EmployeeAttendanceConcurrencyTest extends TestCase
             $user = App\Models\User::findOrFail($input['user_id']);
             echo "ready\n";
             flush();
+            if ($input['bulk']) {
+                try {
+                    $count = $app->make(App\EmployeeAttendanceEditor::class)->saveBulk(
+                        App\Models\User::findOrFail($input['actor_id']),
+                        [['employeeId' => $user->id, 'date' => '2026-09-09'], ['employeeId' => $user->id, 'date' => '2026-09-10']],
+                        '2026-09', '', ['status' => 'hadir', 'shift' => (string) $user->shift],
+                    );
+                    echo 'bulk:'.$count."\n";
+                } catch (Illuminate\Validation\ValidationException) {
+                    echo "conflict\n";
+                }
+                exit(0);
+            }
             $attendance = $app->make(App\EmployeeAttendanceService::class)->record(
                 $user,
                 Illuminate\Support\Carbon::parse($input['received_at'], 'Asia/Jakarta'),
@@ -69,7 +103,7 @@ class EmployeeAttendanceConcurrencyTest extends TestCase
             User::query()->whereKey($user->id)->lockForUpdate()->firstOrFail();
             for ($index = 0; $index < 2; $index++) {
                 $process = new Process([PHP_BINARY, '-r', $worker], base_path(), ['APP_ENV' => 'testing']);
-                $process->setInput($input);
+                $process->setInput(json_encode($input + ['bulk' => $bulk && $index === 1], JSON_THROW_ON_ERROR));
                 $process->setTimeout(30);
                 $processes[] = $process;
                 $process->start();
@@ -87,10 +121,15 @@ class EmployeeAttendanceConcurrencyTest extends TestCase
             foreach ($processes as $process) {
                 $this->assertSame(0, $process->wait(), $process->getErrorOutput());
             }
-            $this->assertDatabaseCount('attendance_employee', 1);
-            $attendance = AttendanceEmployee::query()->sole();
-            foreach ($processes as $process) {
+            $bulkSaved = $bulk && str_contains($processes[1]->getOutput(), 'bulk:2');
+            $this->assertDatabaseCount('attendance_employee', $bulkSaved ? 2 : 1);
+            $attendance = AttendanceEmployee::query()->where('attendance_date', '2026-09-10')->sole();
+            foreach ($bulk ? [$processes[0]] : $processes as $process) {
                 $this->assertStringContainsString('attendance:'.$attendance->id."\n", $process->getOutput());
+            }
+            if ($bulk && ! $bulkSaved) {
+                $this->assertStringContainsString('conflict', $processes[1]->getOutput());
+                $this->assertDatabaseMissing('attendance_employee', ['attendance_date' => '2026-09-09']);
             }
             $this->assertSame($user->id, $attendance->user_id);
             $this->assertSame('2026-09-10 08:00:00', $attendance->check_in_time->format('Y-m-d H:i:s'));

@@ -13,6 +13,7 @@ use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Livewire\Features\SupportTesting\Testable;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -144,8 +145,8 @@ class EmployeeAttendanceCrudTest extends TestCase
     public function test_wrong_roles_cannot_mutate_and_member_cannot_be_targeted(): void
     {
         $employee = $this->employee();
-        foreach (['kasir_gym', 'head_coach'] as $role) {
-            $this->actingAs(User::factory()->create(['role' => $role]));
+        foreach ([User::factory()->create(['role' => 'kasir_gym']), User::factory()->headCoach()->create()] as $viewer) {
+            $this->actingAs($viewer);
             $this->page()->call('openAttendanceCell', $employee->id, '2026-09-10')->call('saveAttendanceCell')->assertForbidden();
             $this->page()->call('openAttendanceCell', $employee->id, '2026-09-10')->call('deleteAttendanceCell')->assertForbidden();
         }
@@ -178,7 +179,6 @@ class EmployeeAttendanceCrudTest extends TestCase
     {
         $employee = $this->employee();
         $component = $this->page()->call('openAttendanceCell', $employee->id, '2026-09-10')
-            ->call('saveAttendanceCell')->assertHasErrors('form.checkIn')
             ->set('form.checkIn', '2026-09-10T07:00')->call('saveAttendanceCell')->assertHasErrors('form.checkIn')
             ->set('form.checkIn', '2026-09-10T08:00')->set('form.checkOut', '2026-09-10T07:00')->call('saveAttendanceCell')->assertHasErrors('form.checkOut')
             ->set('form.checkOut', '2026-09-11T08:00')->call('saveAttendanceCell')->assertHasErrors('form.checkOut');
@@ -224,6 +224,61 @@ class EmployeeAttendanceCrudTest extends TestCase
         $this->assertSame(EmployeeAttendanceStatus::Hadir, AttendanceEmployee::findOrFail($id)->status);
         $this->expectException(UniqueConstraintViolationException::class);
         DB::table('attendance_employee')->insert($attributes);
+    }
+
+    public function test_future_schedule_stays_pending_until_qr_check_in(): void
+    {
+        $employee = $this->employee();
+        $page = $this->page()->set('month', '2026-10')
+            ->call('openAttendanceCell', $employee->id, '2026-10-01')
+            ->call('saveAttendanceCell')->assertHasNoErrors()->assertSee('bg-[#FFED00]/20', false)->assertDontSee('blur-', false);
+        $row = AttendanceEmployee::query()->sole();
+        $this->assertNull($row->check_in_time);
+        $this->assertSame('2026-10-01 08:00', $row->scheduled_start_at->format('Y-m-d H:i'));
+        $this->assertSame(0, $page->instance()->with()['totals'][$employee->id]['all']);
+        $page->call('openAttendanceCell', $employee->id, '2026-10-01')->assertSee('Belum masuk')
+            ->call('editAttendanceCell')->set('form.notes', 'Jadwal besok')
+            ->call('saveAttendanceCell')->assertHasNoErrors();
+        $page->call('openAttendanceCell', $employee->id, '2026-10-01')->call('editAttendanceCell')
+            ->set('form.checkOut', '2026-10-01T16:00')->call('saveAttendanceCell')->assertHasErrors('form.checkOut');
+        $page->call('closeAttendanceCell');
+        $this->travelTo(Carbon::parse('2026-10-01 08:00:00', 'Asia/Jakarta'));
+        $page->set('scannedCode', json_encode(['user_id' => $employee->id]))->call('processScan')->assertSee('Berhasil Check-In');
+        $this->assertSame('08:00:00', $row->fresh()->check_in_time->format('H:i:s'));
+        $this->assertNull($row->fresh()->check_out_time);
+        $this->assertSame(1, $page->instance()->with()['totals'][$employee->id]['hadir']);
+        $this->assertSame(1, $page->instance()->with()['totals'][$employee->id]['all']);
+        $this->travelTo(Carbon::parse('2026-10-01 17:00:00', 'Asia/Jakarta'));
+        $page->set('scannedCode', json_encode(['user_id' => $employee->id]))->call('processScan')->assertSee('Berhasil Check-Out');
+        $this->assertSame('17:00:00', $row->fresh()->check_out_time->format('H:i:s'));
+        $this->assertDatabaseCount('attendance_employee', 1);
+    }
+
+    public function test_pending_schedule_uses_snapshot_and_inclusive_boundaries(): void
+    {
+        foreach (['07:00:00', '16:00:00'] as $time) {
+            $employee = $this->employee();
+            $employee->assignedShift->update(['start_time' => '07:00:00']);
+            $this->page()->call('openAttendanceCell', $employee->id, '2026-10-01')
+                ->call('saveAttendanceCell')->assertHasNoErrors();
+            $row = $employee->employeeAttendances()->sole();
+            $employee->update(['shift' => null]);
+            $service = app(EmployeeAttendanceService::class);
+            foreach (['2026-10-01 06:59:59', '2026-10-01 16:00:01'] as $rejected) {
+                try {
+                    $service->record($employee, Carbon::parse($rejected));
+                    $this->fail('Scan outside the scheduled shift must be rejected.');
+                } catch (ValidationException) {
+                    $this->assertNull($row->fresh()->check_in_time);
+                    $this->assertNull($row->fresh()->check_out_time);
+                }
+            }
+            $result = $service->record($employee, Carbon::parse('2026-10-01 '.$time));
+            $this->assertSame($row->id, $result->id);
+            $this->assertSame($time, $result->check_in_time->format('H:i:s'));
+            $service->record($employee, Carbon::parse('2026-10-01 '.$time));
+            $this->assertNull($row->fresh()->check_out_time);
+        }
     }
 
     private function employee(): User

@@ -38,6 +38,21 @@ class EmployeeAttendanceService
                 ->latest('scheduled_start_at')->lockForUpdate()->first();
 
             if ($attendance !== null) {
+                if ($attendance->check_in_time === null) {
+                    if (! $receivedAt->betweenIncluded($attendance->scheduled_start_at, $attendance->scheduled_end_at)) {
+                        throw ValidationException::withMessages(['attendance' => 'Check-in hanya diperbolehkan dalam jadwal shift absensi.']);
+                    }
+
+                    $attendance->check_in_time = $receivedAt;
+                    if ($deviceEvent !== null) {
+                        $attendance->device_event_id = $deviceEvent->id;
+                        $attendance->nama_di_alat = $deviceEvent->name;
+                    }
+                    $attendance->save();
+
+                    return $attendance;
+                }
+
                 $lastScan = $attendance->check_out_time ?? $attendance->check_in_time;
                 if ($receivedAt->greaterThan($lastScan)) {
                     $attendance->update(['check_out_time' => $receivedAt]);

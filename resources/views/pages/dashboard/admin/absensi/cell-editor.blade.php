@@ -63,7 +63,7 @@
                                 time: @js(filled($form[$field]) ? substr($form[$field], 11, 5) : ''),
                                 sync() { $wire.set('form.{{ $field }}', this.date && this.time ? this.date + 'T' + this.time : '', false) }
                             }">
-                            <legend class="mb-1 text-sm font-semibold">Waktu {{ $label }} @if ($field === 'checkOut')<span class="font-normal text-gray-500">(opsional)</span>@endif</legend>
+                            <legend class="mb-1 text-sm font-semibold">Waktu {{ $label }} <span class="font-normal text-gray-500">(opsional)</span></legend>
                             <div class="grid grid-cols-2 gap-2">
                                 <div>
                                     <label for="cell-{{ $field }}-date" class="mb-1 block text-xs text-gray-500">Tanggal {{ $label }}</label>
@@ -71,7 +71,7 @@
                                 </div>
                                 <div>
                                     <label for="cell-{{ $field }}-time" class="mb-1 block text-xs text-gray-500">Jam {{ $label }}</label>
-                                    <input id="cell-{{ $field }}-time" type="time" x-model="time" x-on:change="sync()" aria-invalid="{{ $errors->has('form.'.$field) ? 'true' : 'false' }}" aria-describedby="cell-{{ $field }}-error" @required($field === 'checkIn') class="w-full min-w-0 rounded-lg border border-gray-300 px-3 py-2.5">
+                                    <input id="cell-{{ $field }}-time" type="time" x-model="time" x-on:change="sync()" aria-invalid="{{ $errors->has('form.'.$field) ? 'true' : 'false' }}" aria-describedby="cell-{{ $field }}-error" class="w-full min-w-0 rounded-lg border border-gray-300 px-3 py-2.5">
                                 </div>
                             </div>
                             @error('form.'.$field)<p id="cell-{{ $field }}-error" class="mt-1 text-sm text-red-700">{{ $message }}</p>@enderror

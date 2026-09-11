@@ -1,6 +1,8 @@
 <section class="space-y-5 text-[#34342F] [--total-width:2.25rem] sm:[--total-width:3.5rem]" x-data
     x-on:attendance-cell-opened.window="if (!$refs.attendanceDialog.open) $refs.attendanceDialog.showModal()"
-    x-on:attendance-cell-closed.window="$refs.attendanceDialog.close()">
+    x-on:attendance-cell-closed.window="$refs.attendanceDialog.close()"
+    x-on:attendance-bulk-opened.window="if (!$refs.bulkAttendanceDialog.open) $refs.bulkAttendanceDialog.showModal()"
+    x-on:attendance-bulk-closed.window="$refs.bulkAttendanceDialog.close()">
     <div class="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
         <div>
             <h1 class="text-2xl font-bold tracking-tight">Absensi karyawan</h1>
@@ -34,6 +36,19 @@
                 <input id="attendance-search" type="search" wire:model.live.debounce.300ms="search" placeholder="Cari nama karyawan..." class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
             </div>
         </div>
+        @if (auth()->user()->role === 'admin')
+            <div class="flex flex-wrap items-center gap-3 border-b border-gray-200 px-4 py-3">
+                @if ($selectingAttendance)
+                    <span class="text-sm font-semibold" role="status">{{ count($bulkSelection) }} sel dipilih{{ $bulkRole ? ' · '.($roleLabels[$bulkRole] ?? $bulkRole) : '' }}</span>
+                    <button type="button" wire:click="openBulkAttendance" wire:loading.attr="disabled" @disabled($bulkSelection === []) class="rounded-lg bg-[#FFED00] px-3 py-2 text-sm font-semibold disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-gray-600">Isi absensi</button>
+                    <button type="button" wire:click="cancelBulkAttendance" class="rounded-lg border border-gray-300 px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-gray-600">Batal</button>
+                    <p class="w-full text-xs text-gray-600">Klik sel kosong untuk memilih atau membatalkan. Pilih karyawan dengan role yang sama. Mengganti bulan atau pencarian menghapus pilihan.</p>
+                    @error('bulkSelection')<p role="alert" class="w-full text-sm text-red-700">{{ $message }}</p>@enderror
+                @else
+                    <button type="button" wire:click="beginBulkAttendance" class="rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold focus-visible:ring-2 focus-visible:ring-gray-600">Pilih beberapa sel</button>
+                @endif
+            </div>
+        @endif
         <div class="flex flex-wrap items-center gap-x-5 gap-y-2 px-4 py-3 text-xs text-gray-600">
             <span>{{ $employeeCount }} karyawan</span>
             @foreach ($legend as $entry)
@@ -43,6 +58,7 @@
             <span class="inline-flex items-center gap-2"><span class="rounded bg-purple-100 px-2 py-1 font-bold text-purple-800">SAKIT</span>Sakit</span>
             <span class="inline-flex items-center gap-2"><span class="rounded bg-red-100 px-2 py-1 font-bold text-red-800">OFF</span>Off</span>
             <span>— Belum ada data</span>
+            <span class="inline-flex items-center gap-2"><span class="rounded bg-[#FFED00]/20 px-2 py-1 font-bold text-[#34342F]" aria-hidden="true">P</span>Belum masuk</span>
             <span class="ml-auto" wire:loading role="status">Memuat rekap…</span>
         </div>
         <div class="max-h-[65vh] overflow-auto" tabindex="0" aria-label="Tabel absensi bulanan, geser untuk melihat semua tanggal" wire:loading.class="opacity-50">
@@ -89,6 +105,7 @@
                                         @if ($records->isNotEmpty())
                                             @php
                                                 $record = $records->first();
+                                                $pending = $record->status === \App\EmployeeAttendanceStatus::Hadir && $record->check_in_time === null;
                                                 $label = match ($record->status) {
                                                     \App\EmployeeAttendanceStatus::Izin => 'IZIN',
                                                     \App\EmployeeAttendanceStatus::Sakit => 'SAKIT',
@@ -98,16 +115,29 @@
                                                 $color = match ($record->status) {
                                                     \App\EmployeeAttendanceStatus::Izin, \App\EmployeeAttendanceStatus::Sakit => 'bg-purple-100 text-purple-800',
                                                     \App\EmployeeAttendanceStatus::Off => 'bg-red-100 text-red-800',
-                                                    default => match ($record->shift_code) { 'P' => 'bg-[#FFED00]', 'S' => 'bg-[#BAE6FD]', default => 'bg-gray-100' },
+                                                    default => match ($record->shift_code) {
+                                                        'P' => $pending ? 'bg-[#FFED00]/20' : 'bg-[#FFED00]',
+                                                        'S' => $pending ? 'bg-[#BAE6FD]/20' : 'bg-[#BAE6FD]',
+                                                        default => $pending ? 'bg-gray-100/20' : 'bg-gray-100',
+                                                    },
                                                 };
                                             @endphp
-                                            <button type="button" wire:click="openAttendanceCell({{ $employee->id }}, '{{ $day->toDateString() }}')" aria-label="Detail {{ $employee->name }}, {{ $day->translatedFormat('d F Y') }}"
+                                            <button type="button" wire:click="openAttendanceCell({{ $employee->id }}, '{{ $day->toDateString() }}')" title="{{ $pending ? 'Belum masuk' : $record->status->label() }}" aria-label="Detail {{ $employee->name }}, {{ $day->translatedFormat('d F Y') }}{{ $pending ? ', Belum masuk' : '' }}"
+                                                @disabled($selectingAttendance)
                                                 class="min-h-10 w-full rounded px-1 font-bold focus-visible:outline-2 focus-visible:outline-gray-800 {{ $color }}">
                                                 {{ $label }}
                                             </button>
                                         @else
                                             @if (auth()->user()->role === 'admin')
+                                                @if ($selectingAttendance)
+                                                    @php($selected = isset($bulkSelection[$employee->id.':'.$day->toDateString()]))
+                                                    <button type="button" wire:click="toggleAttendanceSelection({{ $employee->id }}, '{{ $day->toDateString() }}')" wire:loading.attr="disabled"
+                                                        aria-label="Pilih absensi {{ $employee->name }}, {{ $day->translatedFormat('d F Y') }}" aria-pressed="{{ $selected ? 'true' : 'false' }}"
+                                                        @disabled($bulkRole !== null && $employee->role !== $bulkRole)
+                                                        @class(['min-h-10 w-full rounded focus-visible:outline-2 focus-visible:outline-gray-800 disabled:cursor-not-allowed', 'bg-[#FFED00]/30 ring-2 ring-inset ring-gray-700 font-bold' => $selected, 'text-gray-400 hover:bg-yellow-50 disabled:text-gray-200' => ! $selected])>{{ $selected ? '✓' : '—' }}</button>
+                                                @else
                                                 <button type="button" wire:click="openAttendanceCell({{ $employee->id }}, '{{ $day->toDateString() }}')" aria-label="Tambah absensi {{ $employee->name }}, {{ $day->translatedFormat('d F Y') }}" class="min-h-10 w-full rounded text-gray-400 hover:bg-yellow-50 hover:text-gray-800 focus-visible:outline-2 focus-visible:outline-gray-800">—</button>
+                                                @endif
                                             @else
                                                 <span class="text-gray-300" title="Belum ada data">—</span>
                                             @endif
@@ -129,4 +159,5 @@
         <p class="border-t border-gray-200 px-4 py-3 text-xs text-gray-500">{{ auth()->user()->role === 'admin' ? 'Klik sel untuk mengelola absensi.' : 'Klik sel terisi untuk melihat detail absensi.' }} Tanggal merah menandai hari Minggu, bukan status libur.</p>
     </div>
     @include('pages.dashboard.admin.absensi.cell-editor')
+    @include('pages.dashboard.admin.absensi.bulk-editor')
 </section>

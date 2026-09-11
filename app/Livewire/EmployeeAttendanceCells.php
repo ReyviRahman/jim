@@ -39,7 +39,8 @@ trait EmployeeAttendanceCells
 
     public function openAttendanceCell(int $employeeId, string $date): void
     {
-        abort_unless($this->employeesOnly && in_array(auth()->user()?->role, ['admin', 'kasir_gym', 'head_coach'], true), 403);
+        $actor = auth()->user();
+        abort_unless($this->employeesOnly && (in_array($actor?->role, ['admin', 'kasir_gym'], true) || $actor?->isHeadCoach()), 403);
         Validator::make(['date' => $date], ['date' => ['required', 'date_format:Y-m-d']])->validate();
         $employee = User::query()->where('role', '!=', 'member')->findOrFail($employeeId);
         $record = $employee->employeeAttendances()->where('attendance_date', $date)->first();
@@ -53,7 +54,7 @@ trait EmployeeAttendanceCells
             'status' => $record?->status->label(),
             'shift' => $record?->shift_code.' / '.$record?->shift_name,
             'schedule' => substr($record?->shift_start_time ?? '', 0, 5).' – '.substr($record?->shift_end_time ?? '', 0, 5),
-            'in' => $record?->check_in_time?->format('d/m/Y H:i') ?? '—',
+            'in' => $record?->check_in_time?->format('d/m/Y H:i') ?? ($record?->status === EmployeeAttendanceStatus::Hadir ? 'Belum masuk' : '—'),
             'out' => $record?->check_out_time?->format('d/m/Y H:i') ?? '—',
             'device' => $record?->nama_di_alat ?: '—',
             'notes' => $record?->notes,
