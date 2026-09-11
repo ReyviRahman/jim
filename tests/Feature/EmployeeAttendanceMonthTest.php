@@ -29,6 +29,8 @@ class EmployeeAttendanceMonthTest extends TestCase
             ['2026-09-01 08:09:59', false, '   '],
             ['2026-09-01 08:10:00', true, null],
             ['2026-09-01 08:25:00', true, 'Menunggu kendaraan'],
+            ['2026-09-01 09:00:00', true, null],
+            ['2026-09-01 09:05:00', true, null],
             [null, false, null],
         ] as [$checkIn, $late, $notes]) {
             $record->update(['check_in_time' => $checkIn, 'notes' => $notes]);
@@ -40,6 +42,14 @@ class EmployeeAttendanceMonthTest extends TestCase
             if ($late) {
                 $component->assertSeeHtml('border-2 border-red-600')
                     ->assertSee('TELAT MASUK')->assertSee('GANTI JAM TELAT');
+                $duration = match ($checkIn) {
+                    '2026-09-01 08:10:00' => '10 menit',
+                    '2026-09-01 08:25:00' => '25 menit',
+                    '2026-09-01 09:00:00' => '1 jam',
+                    '2026-09-01 09:05:00' => '1 jam 5 menit',
+                };
+                $component->assertSee('TELAT MASUK '.$duration)
+                    ->assertSee('GANTI JAM TELAT '.$duration);
             } else {
                 $component->assertDontSeeHtml('border-2 border-red-600')
                     ->assertDontSee('TELAT MASUK')->assertDontSee('GANTI JAM TELAT');

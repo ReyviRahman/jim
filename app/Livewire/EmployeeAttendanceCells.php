@@ -44,6 +44,10 @@ trait EmployeeAttendanceCells
         Validator::make(['date' => $date], ['date' => ['required', 'date_format:Y-m-d']])->validate();
         $employee = User::query()->where('role', '!=', 'member')->findOrFail($employeeId);
         $record = $employee->employeeAttendances()->where('attendance_date', $date)->first();
+        $lateMinutes = $record?->isLate() ? (int) $record->scheduled_start_at->diffInMinutes($record->check_in_time) : 0;
+        $lateDuration = $lateMinutes >= 60
+            ? intdiv($lateMinutes, 60).' jam'.($lateMinutes % 60 > 0 ? ' '.($lateMinutes % 60).' menit' : '')
+            : $lateMinutes.' menit';
         $this->resetValidation();
         $this->cellEmployeeId = $employee->id;
         $this->cellDate = $date;
@@ -59,6 +63,7 @@ trait EmployeeAttendanceCells
             'device' => $record?->nama_di_alat ?: '—',
             'notes' => $record?->notes,
             'isLate' => $record?->isLate() ?? false,
+            'lateDuration' => $lateDuration,
             'hasSnapshot' => $record?->status === EmployeeAttendanceStatus::Hadir,
         ];
         $this->cellShifts = Shift::query()->where('role', $employee->role)->orderBy('start_time')->get(['id', 'name', 'code', 'start_time', 'end_time'])->toArray();

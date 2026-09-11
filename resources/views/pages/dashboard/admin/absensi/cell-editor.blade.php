@@ -91,8 +91,8 @@
         @else
             @if ($cellDetail['isLate'])
                 <div class="mt-5 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-bold text-red-700">
-                    <p>TELAT MASUK</p>
-                    <p class="mt-1">GANTI JAM TELAT</p>
+                    <p>TELAT MASUK {{ $cellDetail['lateDuration'] }}</p>
+                    <p class="mt-1">GANTI JAM TELAT {{ $cellDetail['lateDuration'] }}</p>
                 </div>
             @endif
             <dl class="mt-5 grid grid-cols-[auto_1fr] gap-x-5 gap-y-3 border-t border-gray-200 pt-4 text-sm">
