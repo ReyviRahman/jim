@@ -53,7 +53,7 @@ trait EmployeeAttendanceCells
             'status' => $record?->status->label(),
             'shift' => $record?->shift_code.' / '.$record?->shift_name,
             'schedule' => substr($record?->shift_start_time ?? '', 0, 5).' – '.substr($record?->shift_end_time ?? '', 0, 5),
-            'in' => $record?->check_in_time?->format('d/m/Y H:i') ?? '—',
+            'in' => $record?->check_in_time?->format('d/m/Y H:i') ?? ($record?->status === EmployeeAttendanceStatus::Hadir ? 'Belum masuk' : '—'),
             'out' => $record?->check_out_time?->format('d/m/Y H:i') ?? '—',
             'device' => $record?->nama_di_alat ?: '—',
             'notes' => $record?->notes,
