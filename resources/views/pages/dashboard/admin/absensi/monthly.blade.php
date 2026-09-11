@@ -58,7 +58,6 @@
             <span class="inline-flex items-center gap-2"><span class="rounded bg-purple-100 px-2 py-1 font-bold text-purple-800">SAKIT</span>Sakit</span>
             <span class="inline-flex items-center gap-2"><span class="rounded bg-red-100 px-2 py-1 font-bold text-red-800">OFF</span>Off</span>
             <span>— Belum ada data</span>
-            <span class="inline-flex items-center gap-2"><span class="rounded bg-[#FFED00]/20 px-2 py-1 font-bold text-[#34342F]" aria-hidden="true">P</span>Belum masuk</span>
             <span class="ml-auto" wire:loading role="status">Memuat rekap…</span>
         </div>
         <div class="max-h-[65vh] overflow-auto" tabindex="0" aria-label="Tabel absensi bulanan, geser untuk melihat semua tanggal" wire:loading.class="opacity-50">
@@ -116,9 +115,9 @@
                                                     \App\EmployeeAttendanceStatus::Izin, \App\EmployeeAttendanceStatus::Sakit => 'bg-purple-100 text-purple-800',
                                                     \App\EmployeeAttendanceStatus::Off => 'bg-red-100 text-red-800',
                                                     default => match ($record->shift_code) {
-                                                        'P' => $pending ? 'bg-[#FFED00]/20' : 'bg-[#FFED00]',
-                                                        'S' => $pending ? 'bg-[#BAE6FD]/20' : 'bg-[#BAE6FD]',
-                                                        default => $pending ? 'bg-gray-100/20' : 'bg-gray-100',
+                                                        'P' => $pending ? '' : 'bg-[#FFED00]',
+                                                        'S' => $pending ? '' : 'bg-[#BAE6FD]',
+                                                        default => $pending ? '' : 'bg-gray-100',
                                                     },
                                                 };
                                             @endphp

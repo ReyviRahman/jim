@@ -231,7 +231,7 @@ class EmployeeAttendanceCrudTest extends TestCase
         $employee = $this->employee();
         $page = $this->page()->set('month', '2026-10')
             ->call('openAttendanceCell', $employee->id, '2026-10-01')
-            ->call('saveAttendanceCell')->assertHasNoErrors()->assertSee('bg-[#FFED00]/20', false)->assertDontSee('blur-', false);
+            ->call('saveAttendanceCell')->assertHasNoErrors()->assertDontSee('bg-[#FFED00]/20', false)->assertDontSee('blur-', false);
         $row = AttendanceEmployee::query()->sole();
         $this->assertNull($row->check_in_time);
         $this->assertSame('2026-10-01 08:00', $row->scheduled_start_at->format('Y-m-d H:i'));
