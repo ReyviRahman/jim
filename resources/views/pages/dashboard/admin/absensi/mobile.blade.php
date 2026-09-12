@@ -1,4 +1,4 @@
-<div class="space-y-5 bg-gray-50 p-2 sm:p-4 lg:hidden" wire:loading.class="opacity-50">
+<div class="space-y-5 bg-gray-50 p-2 sm:p-4 md:hidden" wire:loading.class="opacity-50">
     @forelse ($employeeGroups as $role => $employees)
         <section wire:key="mobile-group-{{ $role }}" class="space-y-3" aria-label="{{ $roleLabels[$role] ?? \Illuminate\Support\Str::headline($role) }}">
             <h3 class="px-1 text-sm font-bold">{{ $roleLabels[$role] ?? \Illuminate\Support\Str::headline($role) }}</h3>

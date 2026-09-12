@@ -21,7 +21,7 @@
     @endforeach
     <div class="overflow-hidden rounded-xl border border-gray-200 bg-white">
         <div class="flex flex-wrap items-center justify-between gap-4 border-b border-gray-200 p-4">
-            <div class="flex w-full min-w-0 flex-wrap items-center gap-2 lg:w-auto">
+            <div class="flex w-full min-w-0 flex-wrap items-center gap-2 md:w-auto">
                 <div class="flex w-full min-w-0 items-center justify-between gap-1 sm:w-auto">
                     <button type="button" wire:click="previousMonth" aria-label="Bulan sebelumnya" class="rounded-lg border border-gray-200 px-3 py-2 hover:bg-gray-100 focus-visible:ring-2 focus-visible:ring-gray-600">‹</button>
                     <h2 class="min-w-0 px-2 text-center text-lg font-bold">{{ $monthLabel }}</h2>
@@ -61,7 +61,7 @@
             <span class="ml-auto" wire:loading role="status">Memuat rekap…</span>
         </div>
         @include('pages.dashboard.admin.absensi.mobile')
-        <div class="hidden max-h-[65vh] overflow-auto lg:block" tabindex="0" aria-label="Tabel absensi bulanan, geser untuk melihat semua tanggal" wire:loading.class="opacity-50">
+        <div class="hidden max-h-[65vh] overflow-auto md:block" tabindex="0" aria-label="Tabel absensi bulanan, geser untuk melihat semua tanggal" wire:loading.class="opacity-50">
             <table class="w-full border-separate border-spacing-0 text-center text-xs">
                 <caption class="sr-only">Rekap absensi {{ $monthLabel }}</caption>
                 <thead class="sticky top-0 z-30">
