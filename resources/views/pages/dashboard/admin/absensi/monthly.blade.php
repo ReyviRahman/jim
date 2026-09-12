@@ -21,14 +21,14 @@
     @endforeach
     <div class="overflow-hidden rounded-xl border border-gray-200 bg-white">
         <div class="flex flex-wrap items-center justify-between gap-4 border-b border-gray-200 p-4">
-            <div class="flex flex-wrap items-center gap-2">
-                <div class="flex items-center gap-1">
+            <div class="flex w-full min-w-0 flex-wrap items-center gap-2 lg:w-auto">
+                <div class="flex w-full min-w-0 items-center justify-between gap-1 sm:w-auto">
                     <button type="button" wire:click="previousMonth" aria-label="Bulan sebelumnya" class="rounded-lg border border-gray-200 px-3 py-2 hover:bg-gray-100 focus-visible:ring-2 focus-visible:ring-gray-600">‹</button>
-                    <h2 class="min-w-40 px-2 text-center text-lg font-bold">{{ $monthLabel }}</h2>
+                    <h2 class="min-w-0 px-2 text-center text-lg font-bold">{{ $monthLabel }}</h2>
                     <button type="button" wire:click="nextMonth" aria-label="Bulan berikutnya" class="rounded-lg border border-gray-200 px-3 py-2 hover:bg-gray-100 focus-visible:ring-2 focus-visible:ring-gray-600">›</button>
                 </div>
                 <label class="sr-only" for="attendance-month">Pilih bulan</label>
-                <input id="attendance-month" type="month" min="1000-01" max="9999-12" wire:model.live="month" class="rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                <input id="attendance-month" type="month" min="1000-01" max="9999-12" wire:model.live="month" class="min-w-0 max-w-full flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm sm:flex-none">
                 <button type="button" wire:click="currentMonth" class="rounded-lg bg-[#FFED00] px-3 py-2 text-sm font-semibold focus-visible:ring-2 focus-visible:ring-gray-600">Bulan ini</button>
             </div>
             <div class="w-full sm:w-60">
@@ -60,7 +60,8 @@
             <span>— Belum ada data</span>
             <span class="ml-auto" wire:loading role="status">Memuat rekap…</span>
         </div>
-        <div class="max-h-[65vh] overflow-auto" tabindex="0" aria-label="Tabel absensi bulanan, geser untuk melihat semua tanggal" wire:loading.class="opacity-50">
+        @include('pages.dashboard.admin.absensi.mobile')
+        <div class="hidden max-h-[65vh] overflow-auto lg:block" tabindex="0" aria-label="Tabel absensi bulanan, geser untuk melihat semua tanggal" wire:loading.class="opacity-50">
             <table class="w-full border-separate border-spacing-0 text-center text-xs">
                 <caption class="sr-only">Rekap absensi {{ $monthLabel }}</caption>
                 <thead class="sticky top-0 z-30">

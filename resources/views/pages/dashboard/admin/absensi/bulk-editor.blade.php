@@ -10,7 +10,7 @@
         <ul aria-label="Sel terpilih" class="mt-3 max-h-36 space-y-2 overflow-y-auto rounded-lg bg-gray-50 p-3 text-sm">
             @foreach ($bulkSelection as $key => $cell)
                 <li wire:key="bulk-summary-{{ $key }}" class="flex items-center justify-between gap-3">
-                    <span>{{ $cell['name'] }} · {{ \Illuminate\Support\Carbon::parse($cell['date'])->locale('id')->translatedFormat('d F Y') }}</span>
+                    <span class="min-w-0 wrap-anywhere">{{ $cell['name'] }} · {{ \Illuminate\Support\Carbon::parse($cell['date'])->locale('id')->translatedFormat('d F Y') }}</span>
                     <button type="button" wire:click="toggleAttendanceSelection({{ $cell['employeeId'] }}, '{{ $cell['date'] }}')" aria-label="Batalkan pilihan {{ $cell['name'] }}, {{ $cell['date'] }}" class="shrink-0 rounded px-2 py-1 text-red-700 underline focus-visible:ring-2 focus-visible:ring-gray-600">Batal pilih</button>
                 </li>
             @endforeach

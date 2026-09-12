@@ -14,6 +14,30 @@ class EmployeeAttendanceUiTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_mobile_calendars_align_dates_to_monday_and_render_every_day(): void
+    {
+        $this->actingAs(User::factory()->create(['role' => 'admin']));
+        $employee = User::factory()->create(['role' => 'pt', 'is_active' => true]);
+        $component = Livewire::test('pages::dashboard.admin.absensi.index', ['employeesOnly' => true]);
+
+        foreach (['2026-02' => [28, 6], '2024-02' => [29, 3], '2026-09' => [30, 1], '2026-08' => [31, 5]] as $month => [$dayCount, $offset]) {
+            $component->set('month', $month)->assertDontSee('Lihat absensi')->assertDontSee('Tutup absensi');
+            $document = new \DOMDocument;
+            @$document->loadHTML('<?xml encoding="UTF-8">'.$component->html());
+            $xpath = new \DOMXPath($document);
+            $calendar = $xpath->query('//*[@id="mobile-calendar-'.$employee->id.'"]')->item(0);
+
+            $this->assertNotNull($calendar);
+            $buttons = $xpath->query('.//button', $calendar);
+            $this->assertCount($dayCount, $buttons);
+            $this->assertStringContainsString($month.'-01', $buttons->item(0)->getAttribute('wire:click'));
+            $this->assertStringContainsString($month.'-'.$dayCount, $buttons->item($dayCount - 1)->getAttribute('wire:click'));
+            $this->assertCount($offset, $xpath->query('.//span[@aria-hidden="true"]', $calendar));
+            $this->assertFalse($calendar->hasAttribute('x-show'));
+            $this->assertFalse($calendar->hasAttribute('x-cloak'));
+        }
+    }
+
     public function test_employee_list_only_shows_new_snapshots_without_legacy_history_control(): void
     {
         $this->actingAs(User::factory()->create(['role' => 'admin']));

@@ -7,11 +7,11 @@
     class="m-auto max-h-[85vh] w-[calc(100%-2rem)] max-w-lg overflow-y-auto rounded-xl border border-gray-200 bg-white p-5 text-[#34342F] shadow-xl backdrop:bg-black/40 sm:p-6">
     @if ($cellEmployeeId !== null)
         <div class="flex items-start justify-between gap-4">
-            <div>
-                <h2 id="attendance-detail-title" class="text-lg font-bold">{{ $cellDetail['name'] }}</h2>
+            <div class="min-w-0">
+                <h2 id="attendance-detail-title" class="wrap-anywhere text-lg font-bold">{{ $cellDetail['name'] }}</h2>
                 <p class="mt-1 text-sm text-gray-500">{{ $cellDetail['date'] }}</p>
             </div>
-            <button type="button" wire:click="closeAttendanceCell" class="rounded-lg border border-gray-300 px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-gray-600">Tutup</button>
+            <button type="button" wire:click="closeAttendanceCell" class="shrink-0 rounded-lg border border-gray-300 px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-gray-600">Tutup</button>
         </div>
         @if ($errors->any())
             <div id="cell-error-summary" tabindex="-1" class="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-800" role="alert">
@@ -64,7 +64,7 @@
                                 sync() { $wire.set('form.{{ $field }}', this.date && this.time ? this.date + 'T' + this.time : '', false) }
                             }">
                             <legend class="mb-1 text-sm font-semibold">Waktu {{ $label }} <span class="font-normal text-gray-500">(opsional)</span></legend>
-                            <div class="grid grid-cols-2 gap-2">
+                            <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
                                 <div>
                                     <label for="cell-{{ $field }}-date" class="mb-1 block text-xs text-gray-500">Tanggal {{ $label }}</label>
                                     <input id="cell-{{ $field }}-date" type="date" x-model="date" x-on:change="sync()" value="{{ filled($form[$field]) ? substr($form[$field], 0, 10) : $cellDate }}" required class="w-full min-w-0 rounded-lg border border-gray-300 px-3 py-2.5">
@@ -107,7 +107,7 @@
                     @endif
                 </div>
             @endif
-            <dl class="mt-5 grid grid-cols-[auto_1fr] gap-x-5 gap-y-3 border-t border-gray-200 pt-4 text-sm">
+            <dl class="mt-5 grid grid-cols-[auto_minmax(0,1fr)] gap-x-5 gap-y-3 wrap-anywhere border-t border-gray-200 pt-4 text-sm">
                 <dt class="text-gray-500">Status</dt><dd class="font-semibold">{{ $cellDetail['status'] ?? 'Belum ada data' }}</dd>
                 @if ($cellDetail['hasSnapshot'])
                     <dt class="text-gray-500">Shift</dt><dd>{{ $cellDetail['shift'] }}</dd>
