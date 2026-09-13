@@ -70,9 +70,9 @@ class EmployeeAttendanceTest extends TestCase
         $shift = $user->assignedShift;
         $user->update(['shift' => null]);
         $shift->delete();
-        $this->record($user, '2026-09-11 07:59:59');
+        $this->record($user, '2026-09-10 23:59:59');
         $this->assertSame('Pagi', $row->fresh()->shift_name);
-        $this->assertSame('2026-09-11 07:59:59', $row->fresh()->check_out_time->toDateTimeString());
+        $this->assertSame('2026-09-10 23:59:59', $row->fresh()->check_out_time->toDateTimeString());
         $this->assertSame('2026-09-11 08:00:00', $row->fresh()->checkout_deadline_at->toDateTimeString());
         $this->assertRejected($user, '2026-09-11 08:00:00');
         $this->assertDatabaseCount('attendance_employee', 1);
@@ -89,24 +89,66 @@ class EmployeeAttendanceTest extends TestCase
         $this->assertDatabaseCount('attendance_employee', 2);
     }
 
-    public function test_overnight_shift_uses_start_date_and_exclusive_next_start_deadline(): void
+    public function test_next_day_scan_creates_check_in_instead_of_previous_day_checkout(): void
+    {
+        $user = $this->employee(['start_time' => '14:00:00', 'end_time' => '22:00:00']);
+        $first = $this->record($user, '2026-09-11 14:01:00');
+        $user->assignedShift->update(['start_time' => '07:00:00', 'end_time' => '16:00:00']);
+
+        $second = $this->record($user, '2026-09-12 07:00:00');
+
+        $this->assertNotSame($first->id, $second->id);
+        $this->assertSame('2026-09-11 14:01:00', $first->fresh()->check_in_time->toDateTimeString());
+        $this->assertNull($first->fresh()->check_out_time);
+        $this->assertSame('2026-09-12', $second->attendance_date->toDateString());
+        $this->assertSame('2026-09-12 07:00:00', $second->check_in_time->toDateTimeString());
+        $this->assertNull($second->check_out_time);
+        $this->assertDatabaseCount('attendance_employee', 2);
+    }
+
+    public function test_next_day_scan_fills_existing_check_in_without_touching_yesterday(): void
+    {
+        $user = $this->employee(['start_time' => '14:00:00', 'end_time' => '22:00:00']);
+        $first = $this->record($user, '2026-09-11 14:01:00');
+        $scheduled = AttendanceEmployee::factory()->create([
+            'user_id' => $user->id,
+            'attendance_date' => '2026-09-12',
+            'check_in_time' => null,
+            'scheduled_start_at' => '2026-09-12 07:00:00',
+            'scheduled_end_at' => '2026-09-12 16:00:00',
+            'checkout_deadline_at' => '2026-09-13 07:00:00',
+        ]);
+
+        $second = $this->record($user, '2026-09-12 07:00:00');
+
+        $this->assertSame($scheduled->id, $second->id);
+        $this->assertNull($first->fresh()->check_out_time);
+        $this->assertSame('2026-09-12 07:00:00', $scheduled->fresh()->check_in_time->toDateTimeString());
+        $this->assertNull($scheduled->fresh()->check_out_time);
+        $this->record($user, '2026-09-12 16:00:00');
+        $this->assertSame('2026-09-12 16:00:00', $scheduled->fresh()->check_out_time->toDateTimeString());
+        $this->assertNull($first->fresh()->check_out_time);
+        $this->assertDatabaseCount('attendance_employee', 2);
+    }
+
+    public function test_overnight_shift_uses_scan_date_and_same_day_checkout(): void
     {
         $user = $this->employee(['start_time' => '22:00:00', 'end_time' => '06:00:00']);
         $row = $this->record($user, '2026-09-11 02:00:00');
         $this->record($user, '2026-09-11 21:59:59');
-        $this->assertSame('2026-09-10', $row->attendance_date->toDateString());
+        $this->assertSame('2026-09-11', $row->attendance_date->toDateString());
         $this->assertSame('2026-09-10 22:00:00', $row->scheduled_start_at->toDateTimeString());
         $this->assertSame('2026-09-11 06:00:00', $row->scheduled_end_at->toDateTimeString());
         $this->assertSame('2026-09-11 22:00:00', $row->checkout_deadline_at->toDateTimeString());
         $this->assertSame('2026-09-11 21:59:59', $row->fresh()->check_out_time->toDateTimeString());
-        $this->assertSame('2026-09-11', $this->record($user, '2026-09-11 22:00:00')->attendance_date->toDateString());
+        $this->assertSame('2026-09-12', $this->record($user, '2026-09-12 02:00:00')->attendance_date->toDateString());
     }
 
     public function test_overnight_end_is_inclusive_and_daytime_gap_rejected(): void
     {
         $shift = ['start_time' => '22:00:00', 'end_time' => '06:00:00'];
         $row = $this->record($this->employee($shift), '2026-09-11 06:00:00');
-        $this->assertSame('2026-09-10', $row->attendance_date->toDateString());
+        $this->assertSame('2026-09-11', $row->attendance_date->toDateString());
         $this->assertRejected($this->employee($shift), '2026-09-11 06:00:01');
         $this->assertRejected($this->employee($shift), '2026-09-11 21:59:59');
     }

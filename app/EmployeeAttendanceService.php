@@ -32,6 +32,7 @@ class EmployeeAttendanceService
             }
 
             $attendance = $employee->employeeAttendances()
+                ->where('attendance_date', $receivedAt->toDateString())
                 ->where('status', EmployeeAttendanceStatus::Hadir)
                 ->where('scheduled_start_at', '<=', $receivedAt)
                 ->where('checkout_deadline_at', '>', $receivedAt)
@@ -83,7 +84,7 @@ class EmployeeAttendanceService
                 throw ValidationException::withMessages(['attendance' => 'Check-in hanya diperbolehkan pada jam shift '.$shift->name.' ('.$shift->start_time.'–'.$shift->end_time.').']);
             }
 
-            $existing = $employee->employeeAttendances()->where('attendance_date', $start->toDateString())->lockForUpdate()->first();
+            $existing = $employee->employeeAttendances()->where('attendance_date', $receivedAt->toDateString())->lockForUpdate()->first();
             if ($existing !== null) {
                 $this->ensurePresent($existing);
 
@@ -93,7 +94,7 @@ class EmployeeAttendanceService
             return $employee->employeeAttendances()->create([
                 'device_event_id' => $deviceEvent?->id,
                 'nama_di_alat' => $deviceEvent?->name,
-                'attendance_date' => $start->toDateString(),
+                'attendance_date' => $receivedAt->toDateString(),
                 'status' => EmployeeAttendanceStatus::Hadir,
                 'check_in_time' => $receivedAt,
                 'shift_code' => $shift->code,

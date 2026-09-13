@@ -34,11 +34,11 @@ class EmployeeAttendanceStatusScanTest extends TestCase
         }
     }
 
-    public function test_overnight_scan_checks_status_of_shift_start_date(): void
+    public function test_overnight_scan_checks_status_of_scan_date(): void
     {
         $employee = $this->employee(true);
         $this->absence($employee, EmployeeAttendanceStatus::Off);
-        $this->assertStatusRejected($employee, '2026-09-11 02:00:00', EmployeeAttendanceStatus::Off);
+        $this->assertStatusRejected($employee, '2026-09-10 02:00:00', EmployeeAttendanceStatus::Off);
         $row = app(EmployeeAttendanceService::class)->record($employee, Carbon::parse('2026-09-11 22:00:00'));
         $this->assertSame('2026-09-11', $row->attendance_date->toDateString());
         $this->assertSame(EmployeeAttendanceStatus::Hadir, $row->status);

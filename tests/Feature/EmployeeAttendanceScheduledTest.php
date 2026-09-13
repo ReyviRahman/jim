@@ -53,19 +53,19 @@ class EmployeeAttendanceScheduledTest extends TestCase
         $this->assertDatabaseCount('attendance_employee', 2);
     }
 
-    public function test_overnight_schedule_accepts_next_day_check_in_and_checkout(): void
+    public function test_previous_day_schedule_is_not_filled_by_next_day_scan(): void
     {
         $employee = $this->employee();
         $employee->assignedShift->update(['start_time' => '22:00:00', 'end_time' => '06:00:00']);
         $row = $this->schedule($employee, '2026-10-01');
         $employee->assignedShift->update(['start_time' => '07:00:00', 'end_time' => '16:00:00']);
         $service = app(EmployeeAttendanceService::class);
-        $service->record($employee, Carbon::parse('2026-10-02 02:00:00'));
-        $service->record($employee, Carbon::parse('2026-10-02 07:00:00'));
+        $next = $service->record($employee, Carbon::parse('2026-10-02 07:00:00'));
         $this->assertSame('2026-10-01', $row->fresh()->attendance_date->toDateString());
-        $this->assertSame('02:00:00', $row->fresh()->check_in_time->format('H:i:s'));
-        $this->assertSame('07:00:00', $row->fresh()->check_out_time->format('H:i:s'));
-        $this->assertDatabaseCount('attendance_employee', 1);
+        $this->assertNull($row->fresh()->check_in_time);
+        $this->assertNull($row->fresh()->check_out_time);
+        $this->assertSame('2026-10-02 07:00:00', $next->check_in_time->toDateTimeString());
+        $this->assertDatabaseCount('attendance_employee', 2);
     }
 
     private function employee(): User
