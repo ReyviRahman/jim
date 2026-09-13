@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Actions\BuildMembershipInvoiceData;
+use App\Actions\BuildMembershipTransactionInvoiceData;
 use App\Models\GymPackage;
 use App\Models\Membership;
 use App\Models\MembershipTransaction;
@@ -10,6 +11,7 @@ use App\Models\User;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Barryvdh\DomPDF\PDF as PdfDocument;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
 use Mockery;
 use Tests\TestCase;
@@ -17,6 +19,57 @@ use Tests\TestCase;
 class MembershipInvoiceTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_waiver_signatures_are_opt_in_and_public_verification_never_displays_them(): void
+    {
+        Storage::fake('local');
+        $membership = $this->createMembershipWithInstallments();
+        $signaturePath = 'membership-waivers/'.$membership->id.'/abcd-1234.png';
+        $png = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a5FoAAAAASUVORK5CYII=');
+        Storage::disk('local')->put($signaturePath, $png);
+        $membership->waivers()->create([
+            'user_id' => $membership->user_id,
+            'member_name' => 'Nama snapshot member',
+            'accepted' => false,
+            'signature_path' => $signaturePath,
+            'recorded_at' => now(),
+            'admin_id' => $membership->admin_id,
+            'terms_snapshot' => ['heading' => 'Ketentuan versi tersimpan', 'introduction' => 'Pengantar tersimpan', 'items' => ['Ketentuan tersimpan']],
+            'consent_label' => 'Label persetujuan tersimpan',
+        ]);
+        $builder = app(BuildMembershipInvoiceData::class);
+        $this->assertSame([], $builder->execute($membership)['waivers']);
+        $data = $builder->execute($membership, includeWaivers: true);
+        $this->assertSame('data:image/png;base64,'.base64_encode($png), $data['waivers'][0]['signature_data_uri']);
+        $this->assertFalse($data['waivers'][0]['accepted']);
+        $this->view('pages.dashboard.admin.riwayat.invoice-pdf', $data)
+            ->assertSee('Nama snapshot member')->assertSee('Ketentuan versi tersimpan')->assertSee('Belum dicentang');
+
+        $transaction = $membership->transactions()->first();
+        $transactionBuilder = app(BuildMembershipTransactionInvoiceData::class);
+        $this->assertSame([], $transactionBuilder->execute($transaction)['waivers']);
+        $transactionData = $transactionBuilder->execute($transaction, includeWaivers: true);
+        $this->view('pages.dashboard.admin.penjualan.invoice-pdf', $transactionData)
+            ->assertSee('Nama snapshot member')->assertSee('Ketentuan versi tersimpan')->assertSee('Belum dicentang');
+
+        $this->get($data['verificationUrl'])->assertOk()->assertDontSee('Nama snapshot member')->assertDontSee(base64_encode($png));
+        $this->get($transactionData['verificationUrl'])->assertOk()->assertDontSee('Nama snapshot member')->assertDontSee(base64_encode($png));
+    }
+
+    public function test_waiver_without_signature_and_legacy_membership_render_safely(): void
+    {
+        $membership = $this->createMembershipWithInstallments();
+        $builder = app(BuildMembershipInvoiceData::class);
+        $this->assertSame([], $builder->execute($membership, includeWaivers: true)['waivers']);
+        $membership->waivers()->create([
+            'user_id' => $membership->user_id, 'member_name' => 'Member Tanpa Tanda Tangan',
+            'accepted' => true, 'recorded_at' => now(), 'admin_id' => $membership->admin_id,
+            'terms_snapshot' => ['heading' => 'Ketentuan', 'introduction' => 'Pengantar', 'items' => ['Aturan']],
+            'consent_label' => 'Persetujuan',
+        ]);
+        $this->view('pages.dashboard.admin.riwayat.invoice-pdf', $builder->execute($membership->fresh(), includeWaivers: true))
+            ->assertSee('Disetujui')->assertSee('Tidak diisi');
+    }
 
     public function test_authorized_user_can_download_membership_invoice_with_payment_history(): void
     {

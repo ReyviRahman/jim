@@ -469,5 +469,6 @@
         </section>
     @endif
 
+    <x-membership-waiver-appendix :waivers="$waivers ?? []" />
 </body>
 </html>

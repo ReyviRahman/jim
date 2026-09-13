@@ -3,6 +3,7 @@
 namespace App\Livewire\Admin\Membership;
 
 use App\Actions\StoreCompressedPaymentProof;
+use App\Actions\StoreMembershipWaivers;
 use App\Actions\StoreCompressedProfilePhoto;
 use App\Livewire\Concerns\HandlesRequiredMemberProfilePhotos;
 use Livewire\Component;
@@ -25,7 +26,11 @@ new #[Layout('layouts::admin')] class extends Component
     use WithFileUploads;
 
     public MembershipModel $oldMembership;
-    public $selectedUsers; 
+    #[\Livewire\Attributes\Locked]
+    public $selectedUsers;
+
+    /** @var array<int, array{accepted?: bool, signature?: string|null}> */
+    public array $waivers = [];
     public $mainUser; 
     public $toastMessage = '';
     public $toastType = '';
@@ -303,6 +308,7 @@ new #[Layout('layouts::admin')] class extends Component
     )
     {
         $this->validateRequiredMemberProfilePhotos();
+        $validatedWaivers = app(StoreMembershipWaivers::class)->validate($this->selectedUsers, $this->waivers);
 
         $this->admin_fee = blank($this->admin_fee) ? 0 : $this->admin_fee;
 
@@ -387,6 +393,7 @@ new #[Layout('layouts::admin')] class extends Component
         $shiftSnapshot = User::find($this->admin_id)?->shiftSnapshot();
         $storedProofPaths = [];
         $storedProfilePhotoPaths = [];
+        $storedWaiverPaths = [];
 
         try {
             DB::beginTransaction();
@@ -445,6 +452,7 @@ new #[Layout('layouts::admin')] class extends Component
             ]);
 
             $newMembership->members()->attach($this->selectedUsers->pluck('id')->toArray());
+            $storedWaiverPaths = app(StoreMembershipWaivers::class)->execute($newMembership, $validatedWaivers, Auth::id());
 
             // Jika paket lama adalah PT, update pt_end_date paket lama agar mengikuti nilai pt_end_date yang dipilih
             if ($this->payment_type === 'paid' && $this->oldMembership->type === 'pt') {
@@ -488,6 +496,7 @@ new #[Layout('layouts::admin')] class extends Component
             DB::rollBack();
             Storage::disk('public')->delete($storedProofPaths);
             Storage::disk('public')->delete($storedProfilePhotoPaths);
+            Storage::disk('local')->delete($storedWaiverPaths);
             session()->flash('error', 'Terjadi kesalahan sistem saat memperpanjang paket: ' . $e->getMessage());
         }
     }
@@ -670,6 +679,7 @@ new #[Layout('layouts::admin')] class extends Component
                     @endif
                 </div>
             </div>
+            <x-membership-waiver-form :members="$selectedUsers" />
         </div>
 
         {{-- KOLOM KANAN: Ringkasan & Pembayaran Kasir --}}
@@ -919,5 +929,5 @@ new #[Layout('layouts::admin')] class extends Component
                 </button>
             </div>
         </div>
-    </div>
+    </form>
 </div>

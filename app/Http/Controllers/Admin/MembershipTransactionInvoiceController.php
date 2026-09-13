@@ -18,7 +18,7 @@ class MembershipTransactionInvoiceController extends Controller
         $invoiceSlug = Str::slug($membershipTransaction->invoice_number, '_') ?: (string) $membershipTransaction->id;
         $response = Pdf::loadView(
             'pages.dashboard.admin.penjualan.invoice-pdf',
-            $buildInvoiceData->execute($membershipTransaction, includePaymentProof: true),
+            $buildInvoiceData->execute($membershipTransaction, includePaymentProof: true, includeWaivers: true),
         )->setPaper('a4')->download('Invoice_Transaksi_'.$invoiceSlug.'.pdf');
 
         $response->headers->set('Cache-Control', 'private, no-store, max-age=0');

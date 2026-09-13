@@ -3,6 +3,7 @@
 namespace App\Livewire\Admin; 
 
 use App\Actions\StoreCompressedPaymentProof;
+use App\Actions\StoreMembershipWaivers;
 use App\Actions\StoreCompressedProfilePhoto;
 use App\Livewire\Concerns\HandlesRequiredMemberProfilePhotos;
 use Livewire\Component;
@@ -24,7 +25,11 @@ new #[Layout('layouts::admin')] class extends Component
     use HandlesRequiredMemberProfilePhotos;
     use WithFileUploads;
 
-    public $selectedUsers; 
+    #[\Livewire\Attributes\Locked]
+    public $selectedUsers;
+
+    /** @var array<int, array{accepted?: bool, signature?: string|null}> */
+    public array $waivers = [];
     public $mainUser; 
 
     // --- FORM INPUTS ---
@@ -355,6 +360,7 @@ new #[Layout('layouts::admin')] class extends Component
     )
     {
         $this->validateRequiredMemberProfilePhotos();
+        $validatedWaivers = app(StoreMembershipWaivers::class)->validate($this->selectedUsers, $this->waivers);
 
         $this->admin_fee = blank($this->admin_fee) ? 0 : $this->admin_fee;
 
@@ -460,6 +466,7 @@ new #[Layout('layouts::admin')] class extends Component
         $shiftSnapshot = User::find($this->admin_id)?->shiftSnapshot();
         $storedProofPaths = [];
         $storedProfilePhotoPaths = [];
+        $storedWaiverPaths = [];
 
         // 👇 MULAI DATABASE TRANSACTION DI SINI 👇
         try {
@@ -504,6 +511,7 @@ new #[Layout('layouts::admin')] class extends Component
             ]);
 
             $membership->members()->attach($this->selectedUsers->pluck('id')->toArray());
+            $storedWaiverPaths = app(StoreMembershipWaivers::class)->execute($membership, $validatedWaivers, Auth::id());
 
             // 2. CATAT TRANSAKSI KEUANGAN KASIR
             $packageNameStr = 'Paket Custom';
@@ -587,6 +595,7 @@ new #[Layout('layouts::admin')] class extends Component
             DB::rollBack();
             Storage::disk('public')->delete($storedProofPaths);
             Storage::disk('public')->delete($storedProfilePhotoPaths);
+            Storage::disk('local')->delete($storedWaiverPaths);
             
             // Tampilkan pesan error ke layar agar kasir tahu
             session()->flash('error', 'Terjadi kesalahan sistem saat memproses transaksi: ' . $e->getMessage());
@@ -896,6 +905,7 @@ new #[Layout('layouts::admin')] class extends Component
 
                 </div>
             </div>
+            <x-membership-waiver-form :members="$selectedUsers" />
         </div>
 
         {{-- KOLOM KANAN: Ringkasan & Pembayaran Kasir --}}

@@ -470,5 +470,6 @@
         </div>
         <div class="generated">Invoice ini dibuat otomatis oleh Sistem FRANS GYM pada {{ now()->locale('id')->translatedFormat('d F Y H:i') }} WIB.</div>
     </footer>
+    <x-membership-waiver-appendix :waivers="$waivers ?? []" />
 </body>
 </html>

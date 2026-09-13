@@ -119,6 +119,11 @@ class Membership extends Model
         return $this->hasMany(MembershipTransaction::class);
     }
 
+    public function waivers(): HasMany
+    {
+        return $this->hasMany(MembershipWaiver::class);
+    }
+
     public function ptSchedule(): HasOne
     {
         return $this->hasOne(PtSchedule::class);

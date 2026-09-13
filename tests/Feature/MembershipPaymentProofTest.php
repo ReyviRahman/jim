@@ -306,7 +306,7 @@ class MembershipPaymentProofTest extends TestCase
         $membership = $this->createMembership($cashier);
         $transaction = $this->createTransaction($membership, $cashier, 'transfer');
 
-        Livewire::test('pages::dashboard.admin.membership.edit', ['id' => $membership->id])
+        Livewire::actingAs(User::factory()->create(['role' => 'admin']))->test('pages::dashboard.admin.membership.edit', ['id' => $membership->id])
             ->call('save')
             ->assertHasNoErrors();
 
@@ -320,7 +320,7 @@ class MembershipPaymentProofTest extends TestCase
         $membership = $this->createMembership($cashier);
         $transaction = $this->createTransaction($membership, $cashier, 'cash');
 
-        $component = Livewire::test('pages::dashboard.admin.membership.edit', ['id' => $membership->id])
+        $component = Livewire::actingAs(User::factory()->create(['role' => 'admin']))->test('pages::dashboard.admin.membership.edit', ['id' => $membership->id])
             ->set('transactions.0.payment_method', 'qris');
 
         $component->call('save')
@@ -334,7 +334,7 @@ class MembershipPaymentProofTest extends TestCase
         $this->assertNotNull($firstProofPath);
         Storage::disk('public')->assertExists($firstProofPath);
 
-        Livewire::test('pages::dashboard.admin.membership.edit', ['id' => $membership->id])
+        Livewire::actingAs(User::factory()->create(['role' => 'admin']))->test('pages::dashboard.admin.membership.edit', ['id' => $membership->id])
             ->set('transaction_payment_proofs.0', UploadedFile::fake()->image('replacement.jpg'))
             ->call('save')
             ->assertHasNoErrors();
@@ -354,7 +354,7 @@ class MembershipPaymentProofTest extends TestCase
         Storage::disk('public')->put($oldProofPath, 'legacy-proof');
         $transaction = $this->createTransaction($membership, $cashier, 'debit', $oldProofPath);
 
-        Livewire::test('pages::dashboard.admin.membership.edit', ['id' => $membership->id])
+        Livewire::actingAs(User::factory()->create(['role' => 'admin']))->test('pages::dashboard.admin.membership.edit', ['id' => $membership->id])
             ->set('transactions.0.payment_method', 'cash')
             ->call('save')
             ->assertHasNoErrors();
@@ -372,7 +372,7 @@ class MembershipPaymentProofTest extends TestCase
         Storage::disk('public')->put($oldProofPath, 'original-proof');
         $transaction = $this->createTransaction($membership, $cashier, 'qris', $oldProofPath);
 
-        $component = Livewire::test('pages::dashboard.admin.membership.edit', ['id' => $membership->id])
+        $component = Livewire::actingAs(User::factory()->create(['role' => 'admin']))->test('pages::dashboard.admin.membership.edit', ['id' => $membership->id])
             ->set('transaction_payment_proofs.0', UploadedFile::fake()->image('new-proof.jpg'));
         $shouldFail = true;
         DB::listen(function (QueryExecuted $query) use (&$shouldFail): void {

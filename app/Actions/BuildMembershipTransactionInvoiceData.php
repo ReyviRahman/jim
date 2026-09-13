@@ -16,6 +16,7 @@ class BuildMembershipTransactionInvoiceData
     public function execute(
         MembershipTransaction $membershipTransaction,
         bool $includePaymentProof = false,
+        bool $includeWaivers = false,
     ): array {
         $membershipTransaction->load([
             'user:id,name,phone,email',
@@ -37,6 +38,9 @@ class BuildMembershipTransactionInvoiceData
         ]);
 
         return [
+            'waivers' => $includeWaivers && $membershipTransaction->membership
+                ? app(BuildMembershipWaiverData::class)->execute($membershipTransaction->membership)
+                : [],
             'membershipTransaction' => $membershipTransaction,
             'members' => $members,
             'isMembershipTransaction' => $isMembershipTransaction,

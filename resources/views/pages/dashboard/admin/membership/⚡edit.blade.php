@@ -3,6 +3,8 @@
 namespace App\Livewire\Admin;
 
 use App\Actions\StoreCompressedPaymentProof;
+use App\Actions\StoreMembershipWaivers;
+use App\Actions\BuildMembershipWaiverData;
 use App\Models\GymPackage;
 use App\Models\Membership as MembershipModel;
 use App\Models\MembershipTransaction;
@@ -12,6 +14,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Livewire\WithFileUploads;
@@ -20,11 +23,24 @@ new #[Layout('layouts::admin')] class extends Component
 {
     use WithFileUploads;
 
+    #[Locked]
     public $membershipId;
 
     public $membership;
 
+    #[Locked]
     public $selectedUsers;
+
+    public array $waivers = [];
+
+    #[Locked]
+    public array $waiverRecords = [];
+
+    #[Computed]
+    public function waiverMembers(): \Illuminate\Database\Eloquent\Collection
+    {
+        return $this->membership->members()->get()->prepend($this->membership->user()->first())->filter()->unique('id');
+    }
 
     public $mainUser;
 
@@ -136,6 +152,7 @@ new #[Layout('layouts::admin')] class extends Component
 
     public function mount($id)
     {
+        abort_unless(auth()->user()?->role === 'admin' || auth()->user()?->isHeadCoach(), 403);
         $this->membershipId = $id;
         $this->redirectTo = request()->query('redirect_to', '');
         $this->redirectId = request()->query('redirect_id', '');
@@ -143,6 +160,17 @@ new #[Layout('layouts::admin')] class extends Component
 
         $this->selectedUsers = $this->membership->members;
         $this->mainUser = $this->membership->user;
+
+        foreach (app(BuildMembershipWaiverData::class)->execute($this->membership) as $waiver) {
+            $this->waiverRecords[$waiver['user_id']] = [
+                'terms_snapshot' => $waiver['terms_snapshot'],
+                'consent_label' => $waiver['consent_label'],
+            ];
+            $this->waivers[$waiver['user_id']] = [
+                'accepted' => $waiver['accepted'],
+                'signature' => $waiver['signature_data_uri'],
+            ];
+        }
 
         $this->registration_type = $this->membership->type;
         $this->gym_package_id = $this->membership->gym_package_id;
@@ -504,8 +532,11 @@ new #[Layout('layouts::admin')] class extends Component
         return Carbon::parse($date)->translatedFormat('l, d F Y');
     }
 
-    public function save(StoreCompressedPaymentProof $storeCompressedPaymentProof)
+    public function save(StoreCompressedPaymentProof $storeCompressedPaymentProof, StoreMembershipWaivers $storeMembershipWaivers)
     {
+        abort_unless(auth()->user()?->role === 'admin' || auth()->user()?->isHeadCoach(), 403);
+        $members = $this->membership->members()->get()->prepend($this->membership->user()->first())->filter()->unique('id');
+        $validatedWaivers = $storeMembershipWaivers->validate($members, $this->waivers);
         $this->admin_fee = blank($this->admin_fee) ? 0 : $this->admin_fee;
 
         if (! $this->registration_type) {
@@ -619,6 +650,8 @@ new #[Layout('layouts::admin')] class extends Component
 
         $storedProofPaths = [];
         $obsoleteProofPaths = [];
+        $storedWaiverPaths = [];
+        $oldWaiverPaths = $this->membership->waivers()->whereNotNull('signature_path')->pluck('signature_path')->all();
 
         try {
             DB::beginTransaction();
@@ -698,16 +731,21 @@ new #[Layout('layouts::admin')] class extends Component
                 'payment_status' => $paymentStatus,
             ]);
 
+            $storedWaiverPaths = $storeMembershipWaivers->execute($this->membership, $validatedWaivers, auth()->id(), update: true);
+
             DB::commit();
         } catch (\Throwable $e) {
             DB::rollBack();
             Storage::disk('public')->delete($storedProofPaths);
+            Storage::disk('local')->delete($storedWaiverPaths);
             session()->flash('error', 'Terjadi kesalahan sistem: '.$e->getMessage());
 
             return;
         }
 
         Storage::disk('public')->delete(array_values(array_unique($obsoleteProofPaths)));
+        $currentWaiverPaths = $this->membership->waivers()->whereNotNull('signature_path')->pluck('signature_path')->all();
+        Storage::disk('local')->delete(array_values(array_diff($oldWaiverPaths, $currentWaiverPaths)));
         session()->flash('success', 'Data membership dan transaksi berhasil diperbarui.');
 
         if ($this->redirectTo && $this->redirectId) {
@@ -1313,6 +1351,10 @@ new #[Layout('layouts::admin')] class extends Component
                         </div>
                     @endif
 
+                </div>
+
+                <div class="mb-6">
+                    <x-membership-waiver-form :members="$this->waiverMembers" :records="$waiverRecords" />
                 </div>
 
                 <div class="pt-4 border-t border-default-medium space-y-3">

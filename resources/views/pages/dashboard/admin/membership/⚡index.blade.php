@@ -3,6 +3,7 @@
 namespace App\Livewire\Admin;
 
 use App\Exports\MembershipExport;
+use App\Actions\BuildMembershipWaiverData;
 use App\Models\Membership;
 use App\Models\User;
 use Livewire\Attributes\Computed;
@@ -82,6 +83,17 @@ new #[Layout('layouts::admin')] class extends Component
 
         return Membership::with(['user', 'members', 'admin', 'followUp', 'followUpTwo', 'personalTrainer', 'gymPackage', 'ptPackage'])
             ->find($this->selectedMembershipId);
+    }
+
+    #[Computed]
+    public function membershipWaivers(): array
+    {
+        $user = auth()->user();
+        abort_unless($user && (in_array($user->role, ['admin', 'kasir_gym'], true) || $user->isHeadCoach()), 403);
+
+        return $this->selectedMembership
+            ? app(BuildMembershipWaiverData::class)->execute($this->selectedMembership)
+            : [];
     }
 
     public function saveCoach()
@@ -613,6 +625,25 @@ new #[Layout('layouts::admin')] class extends Component
                     @endif
 
                 </div>
+
+                <section class="px-6 pb-6 space-y-3" aria-label="Persetujuan dan waiver">
+                    <h4 class="font-semibold text-heading">Persetujuan &amp; Waiver</h4>
+                    @forelse($this->membershipWaivers as $waiver)
+                        <div wire:key="saved-waiver-{{ $waiver['id'] }}" class="rounded-lg border border-gray-200 p-4 space-y-2">
+                            <p class="font-semibold text-heading">{{ $waiver['member_name'] }}</p>
+                            <p class="text-sm text-gray-600">{{ $waiver['consent_label'] }}</p>
+                            <p class="text-sm font-medium">{{ $waiver['accepted'] ? 'Disetujui' : 'Belum dicentang' }}</p>
+                            <p class="text-xs font-semibold text-gray-500">Tanda tangan</p>
+                            @if($waiver['signature_data_uri'])
+                                <img src="{{ $waiver['signature_data_uri'] }}" alt="Tanda tangan {{ $waiver['member_name'] }}" width="800" height="480" class="h-28 w-full object-contain rounded-md bg-gray-50">
+                            @else
+                                <p class="text-sm text-gray-500">Tidak diisi</p>
+                            @endif
+                        </div>
+                    @empty
+                        <p class="text-sm text-gray-500">Belum ada data persetujuan.</p>
+                    @endforelse
+                </section>
 
                 {{-- Footer Buttons --}}
                 @if(auth()->check() && ! auth()->user()->isHeadCoach())

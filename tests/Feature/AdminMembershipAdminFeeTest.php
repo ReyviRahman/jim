@@ -93,7 +93,7 @@ class AdminMembershipAdminFeeTest extends TestCase
     {
         $membership = $this->createMembership();
 
-        Livewire::test('pages::dashboard.admin.membership.edit', ['id' => $membership->id])
+        Livewire::actingAs(User::factory()->create(['role' => 'admin']))->test('pages::dashboard.admin.membership.edit', ['id' => $membership->id])
             ->set('admin_fee', 20000)
             ->assertSet('price_paid', 270000);
     }
@@ -102,7 +102,7 @@ class AdminMembershipAdminFeeTest extends TestCase
     {
         $membership = $this->createMembership();
 
-        Livewire::test('pages::dashboard.admin.membership.edit', ['id' => $membership->id])
+        Livewire::actingAs(User::factory()->create(['role' => 'admin']))->test('pages::dashboard.admin.membership.edit', ['id' => $membership->id])
             ->set('admin_fee', '')
             ->assertSet('admin_fee', 0)
             ->assertSet('price_paid', 250000);
@@ -112,7 +112,7 @@ class AdminMembershipAdminFeeTest extends TestCase
     {
         $membership = $this->createMembership();
 
-        Livewire::test('pages::dashboard.admin.membership.edit', ['id' => $membership->id])
+        Livewire::actingAs(User::factory()->create(['role' => 'admin']))->test('pages::dashboard.admin.membership.edit', ['id' => $membership->id])
             ->assertSet('membership_status', 'active')
             ->assertSeeHtml('<option value="active">Active</option>')
             ->assertSeeHtml('<option value="completed">Completed</option>')
@@ -121,7 +121,7 @@ class AdminMembershipAdminFeeTest extends TestCase
         $pendingMembership = $this->createMembership();
         $pendingMembership->update(['status' => 'pending']);
 
-        Livewire::test('pages::dashboard.admin.membership.edit', ['id' => $pendingMembership->id])
+        Livewire::actingAs(User::factory()->create(['role' => 'admin']))->test('pages::dashboard.admin.membership.edit', ['id' => $pendingMembership->id])
             ->assertSet('membership_status', 'pending');
     }
 
@@ -153,7 +153,7 @@ class AdminMembershipAdminFeeTest extends TestCase
             'notes' => 'Catatan',
         ]);
 
-        Livewire::test('pages::dashboard.admin.membership.edit', ['id' => $membership->id])
+        Livewire::actingAs(User::factory()->create(['role' => 'admin']))->test('pages::dashboard.admin.membership.edit', ['id' => $membership->id])
             ->set('normal_price_ref', 320000)
             ->set('net_price_ref', '')
             ->set('unrecommended_price_ref', 240000)
@@ -170,7 +170,7 @@ class AdminMembershipAdminFeeTest extends TestCase
     {
         $membership = $this->createMembership();
 
-        Livewire::test('pages::dashboard.admin.membership.edit', ['id' => $membership->id])
+        Livewire::actingAs(User::factory()->create(['role' => 'admin']))->test('pages::dashboard.admin.membership.edit', ['id' => $membership->id])
             ->set('normal_price_ref', -1)
             ->call('save')
             ->assertHasErrors(['normal_price_ref' => 'min']);

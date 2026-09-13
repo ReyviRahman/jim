@@ -18,8 +18,12 @@ class MembershipInvoiceController extends Controller
             str($membership->user?->name ?? 'Member')->slug('_'),
         );
 
-        return Pdf::loadView('pages.dashboard.admin.riwayat.invoice-pdf', $buildInvoiceData->execute($membership))
+        $response = Pdf::loadView('pages.dashboard.admin.riwayat.invoice-pdf', $buildInvoiceData->execute($membership, includeWaivers: true))
             ->setPaper('a4')
             ->download($fileName);
+
+        $response->headers->set('Cache-Control', 'private, no-store, max-age=0');
+
+        return $response;
     }
 }

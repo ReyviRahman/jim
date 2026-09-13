@@ -11,7 +11,7 @@ class BuildMembershipInvoiceData
     /**
      * @return array<string, mixed>
      */
-    public function execute(Membership $membership): array
+    public function execute(Membership $membership, bool $includeWaivers = false): array
     {
         $membership->load([
             'user',
@@ -35,6 +35,7 @@ class BuildMembershipInvoiceData
         ]);
 
         return [
+            'waivers' => $includeWaivers ? app(BuildMembershipWaiverData::class)->execute($membership) : [],
             'membership' => $membership,
             'members' => $members,
             'invoiceNumber' => $latestTransaction?->invoice_number ?? sprintf('MEM-%06d', $membership->id),
