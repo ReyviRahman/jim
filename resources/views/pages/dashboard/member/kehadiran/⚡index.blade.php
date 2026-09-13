@@ -124,9 +124,6 @@ new #[Layout('layouts::member')] class extends Component
                     </div>
                     <h2 class="text-lg font-bold">Belum ada {{ strtolower($label) }}</h2>
                     <p class="mx-auto mt-2 max-w-xs text-pretty text-sm leading-6 text-gray-600">{{ $isCheckOut ? 'Catatan kepulanganmu akan muncul di sini setelah check-out tercatat.' : 'Catatan kedatanganmu akan muncul di sini setelah kamu melakukan absensi.' }}</p>
-                    @unless ($isCheckOut)
-                        <a href="{{ route('member.absensi') }}" wire:navigate class="mt-6 inline-flex min-h-12 touch-manipulation items-center justify-center rounded-xl bg-brand px-6 py-3 text-sm font-bold text-secondary hover:bg-yellow-300 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-secondary">Buka absensi</a>
-                    @endunless
                 </div>
             @endforelse
         </div>
