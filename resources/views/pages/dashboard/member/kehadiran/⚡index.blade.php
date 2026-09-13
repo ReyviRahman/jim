@@ -1,121 +1,134 @@
 <?php
 
-namespace App\Livewire\Member; // Sesuaikan jika namespace kamu berbeda
-
-use Livewire\Component;
-use Livewire\WithPagination;
-use Livewire\Attributes\Layout;
 use App\Models\Attendance;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
+use Livewire\Attributes\Layout;
+use Livewire\Attributes\Url;
+use Livewire\Component;
 
 new #[Layout('layouts::member')] class extends Component
 {
-    use WithPagination;
+    #[Url]
+    public string $tab = 'check-in';
 
     public function with(): array
     {
+        $today = today();
+        $tomorrow = $today->copy()->addDay();
+        $attendances = Attendance::where('user_id', Auth::id())
+            ->where(function (Builder $query) use ($today, $tomorrow): void {
+                $query->where(function (Builder $query) use ($today, $tomorrow): void {
+                    $query->where('check_in_time', '>=', $today)->where('check_in_time', '<', $tomorrow);
+                })->orWhere(function (Builder $query) use ($today, $tomorrow): void {
+                    $query->where('check_out_time', '>=', $today)->where('check_out_time', '<', $tomorrow);
+                });
+            })
+            ->get();
+        $checkIns = $attendances->filter(fn (Attendance $attendance): bool => $attendance->check_in_time?->isSameDay($today) ?? false)->sortByDesc('check_in_time');
+        $checkOuts = $attendances->filter(fn (Attendance $attendance): bool => $attendance->check_out_time?->isSameDay($today) ?? false)->sortByDesc('check_out_time');
+        $isCheckOut = $this->tab === 'check-out';
+
         return [
-            // Eager loading sudah benar, memanggil user tidak perlu karena ini halaman milik user itu sendiri
-            'attendances' => Attendance::with(['membership.gymPackage', 'membership.ptPackage', 'membership.personalTrainer'])
-                ->where('user_id', Auth::id())
-                ->latest('check_in_time')
-                ->paginate(10),
+            'checkIns' => $checkIns,
+            'checkOuts' => $checkOuts,
+            'isCheckOut' => $isCheckOut,
+            'records' => $isCheckOut ? $checkOuts : $checkIns,
+            'label' => $isCheckOut ? 'Check-out' : 'Check-in',
         ];
     }
 };
-
 ?>
 
-<div class="max-w-4xl mx-auto p-4 sm:p-6 lg:p-8">
-    
-    <div class="mb-6">
-        <h2 class="text-2xl font-bold text-heading">Riwayat Kehadiran</h2>
-        <p class="text-sm text-body mt-1">Daftar riwayat kedatangan dan penggunaan sesi kamu di Frans Gym.</p>
-    </div>
+<main class="mx-auto max-w-2xl py-2 text-secondary sm:px-4 sm:py-6" wire:poll.30s>
+    <nav aria-label="Data absensi" class="mb-7 grid grid-cols-2 gap-1 rounded-2xl bg-gray-100 p-1.5">
+        @foreach (['check-in' => 'Check-in', 'check-out' => 'Check-out'] as $value => $name)
+            <a href="{{ route('member.kehadiran.index', ['tab' => $value]) }}" wire:navigate wire:key="tab-{{ $value }}"
+                @if (($value === 'check-out') === $isCheckOut) aria-current="page" @endif
+                @class(['flex min-h-12 touch-manipulation items-center justify-center gap-2 rounded-xl px-2 py-3 text-sm font-bold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary', 'bg-secondary text-white shadow-sm' => ($value === 'check-out') === $isCheckOut, 'text-gray-600 hover:bg-white' => ($value === 'check-out') !== $isCheckOut])>
+                {{ $name }}
+            </a>
+        @endforeach
+    </nav>
 
-    <div class="relative overflow-hidden bg-neutral-primary-soft shadow-xs rounded-md border border-default">
-        <table data-responsive-table data-responsive-breakpoint="lg" class="table-fixed w-full text-sm text-left rtl:text-right text-body">
-            
-            <thead class="text-sm text-body bg-neutral-secondary-medium border-b border-default-medium">
-                <tr>
-                    <th scope="col" class="px-6 py-3 font-medium">Tanggal & Waktu</th>
-                    <th scope="col" class="px-6 py-3 font-medium">Tipe Kedatangan</th>
-                    <th scope="col" class="px-6 py-3 font-medium">Detail Paket</th>
-                </tr>
-            </thead>
-            
-            <tbody>
-                @forelse ($attendances as $absen)
-                    <tr wire:key="{{ $absen->id }}" class="bg-neutral-primary-soft border-b border-default hover:bg-neutral-secondary-medium transition-colors">
-                        
-                        <td class="px-6 py-4 font-medium text-heading">
-                            <div class="flex items-center text-gray-600">
-                                {{ \Carbon\Carbon::parse($absen->check_in_time)->format('d M Y') }}
-                                <span class="ml-2 font-bold text-gray-800">
-                                    {{ \Carbon\Carbon::parse($absen->check_in_time)->format('H:i') }}
-                                </span>
-                            </div>
-                        </td>
-
-                        <td class="px-6 py-4">
-                            @if($absen->type === 'gym')
-                                <span class="px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-md bg-emerald-100 text-emerald-800 border border-emerald-200">
-                                    ??? Gym Mandiri
-                                </span>
-                            @elseif($absen->type === 'pt')
-                                <span class="px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-md bg-indigo-100 text-indigo-800 border border-indigo-200">
-                                    ????? Sesi PT
-                                </span>
-                            @elseif($absen->type === 'visit')
-                                <span class="px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-md bg-orange-100 text-orange-800 border border-orange-200">
-                                    ??? Visit Harian
-                                </span>
-                            @endif
-                        </td>
-
-                        <td class="px-6 py-4 font-medium text-heading">
-                            @if($absen->membership)
-                                <div class="flex flex-col gap-1">
-                                    
-                                    @if(in_array($absen->type, ['gym', 'visit']) && $absen->membership->gymPackage)
-                                        <div class="text-sm font-semibold text-emerald-700">
-                                            {{ $absen->membership->gymPackage->name }}
-                                        </div>
-                                    @endif
-
-                                    @if($absen->type === 'pt' && $absen->membership->ptPackage)
-                                        <div class="text-sm font-semibold text-indigo-700">
-                                            {{ $absen->membership->ptPackage->name }}
-                                        </div>
-                                        <div class="text-xs text-gray-600 mt-0.5">
-                                            Coach: <span class="font-bold">{{ $absen->membership->personalTrainer->name ?? '-' }}</span>
-                                        </div>
-                                    @endif
-
-                                </div>
-                            @else
-                                <span class="text-red-500 italic">-</span>
-                            @endif
-                        </td>
-
-                    </tr>
-                @empty
-                    <tr>
-                        <td colspan="3" class="px-6 py-12 text-center text-gray-500">
-                            <svg class="w-12 h-12 text-gray-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+    <section aria-label="{{ $label }} hari ini" aria-live="polite">
+        @if ($records->isNotEmpty())
+            <header class="mb-7 text-center">
+                <div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-brand text-secondary">
+                    <svg aria-hidden="true" class="h-8 w-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M8 3v4m8-4v4M4 10h16M6 5h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Zm3 10 2 2 4-4" />
+                    </svg>
+                </div>
+                <h1 class="text-2xl font-extrabold tracking-tight sm:text-3xl">{{ $label }} berhasil</h1>
+                <p class="mx-auto mt-2 max-w-sm break-words text-sm leading-6 text-gray-600">
+                    @if ($isCheckOut)
+                        Sesi latihanmu tercatat. Sampai jumpa lagi, {{ \Illuminate\Support\Str::title(Auth::user()->name) }}!
+                    @else
+                        Halo, {{ \Illuminate\Support\Str::title(Auth::user()->name) }}! Siap jadi lebih kuat? Selamat latihan di Frans Gym!
+                    @endif
+                </p>
+            </header>
+        @endif
+        <div class="space-y-4">
+            @forelse ($records as $attendance)
+                @php
+                    $time = $isCheckOut ? $attendance->check_out_time : $attendance->check_in_time;
+                @endphp
+                <article wire:key="{{ $tab }}-{{ $attendance->id }}" class="overflow-hidden rounded-2xl border border-gray-200 bg-white">
+                    <header class="border-b border-gray-200 bg-gray-50 px-5 py-4 sm:px-6">
+                        <time datetime="{{ $time->toDateString() }}" class="text-sm font-semibold leading-6 text-secondary">{{ $time->locale('id')->translatedFormat('l, j F Y') }}</time>
+                    </header>
+                    <div class="flex items-center gap-4 px-5 py-6 sm:px-6">
+                        <div @class(['flex h-12 w-12 shrink-0 items-center justify-center rounded-full', 'bg-brand text-secondary' => !$isCheckOut, 'bg-secondary text-white' => $isCheckOut])>
+                            <svg aria-hidden="true" class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                                @if ($isCheckOut)
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H5v14h4m5-12 5 5-5 5m-5-5h10" />
+                                @else
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 5h4v14h-4M9 7l5 5-5 5M4 12h10" />
+                                @endif
                             </svg>
-                            <p class="font-medium text-base">Belum ada riwayat kehadiran.</p>
-                            <p class="text-sm text-gray-400 mt-1">Ayo mulai latihan pertamamu di Frans Gym!</p>
-                        </td>
-                    </tr>
-                @endforelse
-            </tbody>
-        </table>
-    </div>
-
-    <div class="mt-4">
-        {{ $attendances->links() }} 
-    </div>
-
-</div>
+                        </div>
+                        <div class="min-w-0">
+                            <p class="mb-1 text-xs font-medium text-gray-500">Waktu {{ strtolower($label) }}</p>
+                            <time datetime="{{ $time->toIso8601String() }}" class="block">
+                                <span class="block text-4xl font-extrabold tracking-tight tabular-nums sm:text-5xl">{{ $time->format('H:i') }}</span>
+                            </time>
+                        </div>
+                    </div>
+                    @if ($isCheckOut)
+                        @php
+                            $durationMinutes = $attendance->check_in_time && $time->greaterThanOrEqualTo($attendance->check_in_time)
+                                ? intdiv($time->getTimestamp() - $attendance->check_in_time->getTimestamp(), 60)
+                                : null;
+                        @endphp
+                        <div class="border-t border-gray-200 bg-gray-50 px-5 py-4 sm:px-6">
+                            <p class="text-xs font-medium text-gray-500">Durasi Sesi</p>
+                            <p class="mt-1 text-base font-bold tabular-nums text-secondary">
+                                @if ($durationMinutes === null)
+                                    Belum tersedia
+                                @elseif ($durationMinutes < 1)
+                                    Kurang dari 1 menit
+                                @elseif ($durationMinutes < 60)
+                                    {{ $durationMinutes }} menit
+                                @else
+                                    {{ intdiv($durationMinutes, 60) }} jam {{ $durationMinutes % 60 }} menit
+                                @endif
+                            </p>
+                        </div>
+                    @endif
+                </article>
+            @empty
+                <div class="rounded-2xl border border-gray-200 bg-gray-50 px-5 py-10 text-center sm:py-14">
+                    <div class="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-white ring-1 ring-gray-200">
+                        <svg aria-hidden="true" class="h-7 w-7 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="8.5" /><path stroke-linecap="round" d="M12 7v5l3 2" /></svg>
+                    </div>
+                    <h2 class="text-lg font-bold">Belum ada {{ strtolower($label) }}</h2>
+                    <p class="mx-auto mt-2 max-w-xs text-pretty text-sm leading-6 text-gray-600">{{ $isCheckOut ? 'Catatan kepulanganmu akan muncul di sini setelah check-out tercatat.' : 'Catatan kedatanganmu akan muncul di sini setelah kamu melakukan absensi.' }}</p>
+                    @unless ($isCheckOut)
+                        <a href="{{ route('member.absensi') }}" wire:navigate class="mt-6 inline-flex min-h-12 touch-manipulation items-center justify-center rounded-xl bg-brand px-6 py-3 text-sm font-bold text-secondary hover:bg-yellow-300 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-secondary">Buka absensi</a>
+                    @endunless
+                </div>
+            @endforelse
+        </div>
+    </section>
+</main>
