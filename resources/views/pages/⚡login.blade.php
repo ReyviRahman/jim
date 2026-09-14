@@ -45,29 +45,7 @@ new class extends Component {
             // 4. Jika akun aktif, regenerasi session untuk keamanan
             session()->regenerate();
 
-            // 5. Cek Role & Redirect
-            if ($user->isHeadCoach()) {
-                return $this->redirectRoute('admin.cicilan.index', navigate: true);
-            }
-
-            if ($user->role === 'admin') {
-                return $this->redirectRoute('admin.absensi.index', navigate: true);
-            }
-
-            if ($user->role === 'kasir_gym') {
-                return $this->redirectRoute('admin.absensi.index', navigate: true);
-            } 
-
-            if ($user->role === 'pt') {
-                return $this->redirectRoute('pt.absensi', navigate: true);
-            } 
-
-            if ($user->role === 'kasir_minum') {
-                return $this->redirectRoute('admin.beverages.index', navigate: true);
-            } 
-            
-            // Default ke member dashboard
-            return $this->redirectRoute('member.dashboard', navigate: true);
+            return $this->redirectRoute($user->dashboardRoute(), navigate: true);
         }
 
         // Jika Gagal Login (Email atau Password salah sama sekali)

@@ -5,9 +5,17 @@ use App\Http\Controllers\Admin\MembershipInvoiceController;
 use App\Http\Controllers\Admin\MembershipTransactionInvoiceController;
 use App\Http\Controllers\Admin\SesiPtSlipController;
 use App\Http\Controllers\BeverageApiController;
+use App\Http\Controllers\ImpersonationController;
 use App\Http\Controllers\MembershipInvoiceVerificationController;
 use App\Http\Controllers\MembershipTransactionInvoiceVerificationController;
 use Illuminate\Support\Facades\Route;
+
+Route::middleware('auth')->group(function () {
+    Route::post('/impersonation/{user}/start', [ImpersonationController::class, 'start'])
+        ->middleware('throttle:10,1')->name('impersonation.start');
+    Route::post('/impersonation/stop', [ImpersonationController::class, 'stop'])
+        ->name('impersonation.stop');
+});
 
 // --- HALAMAN PUBLIK (Bisa diakses siapa saja) ---
 Route::livewire('/', 'pages::index')

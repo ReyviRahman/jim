@@ -44,6 +44,7 @@
         </aside>
 
         <div id="dashboard-content" class="p-4 sm:ml-64 mt-14 transition-[margin] duration-300 ease-in-out">
+            <x-impersonation-banner />
             <div class="p-4 border-1 border-default rounded-md">
                 {{ $slot }}
             </div>
@@ -52,4 +53,3 @@
         @livewireScripts
     </body>
 </html>
-

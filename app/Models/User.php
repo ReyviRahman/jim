@@ -50,6 +50,20 @@ class User extends Authenticatable
         return Str::lower($this->email) === Str::lower(self::HEAD_COACH_EMAIL);
     }
 
+    public function dashboardRoute(): string
+    {
+        if ($this->isHeadCoach()) {
+            return 'admin.cicilan.index';
+        }
+
+        return match ($this->role) {
+            'admin', 'kasir_gym' => 'admin.absensi.index',
+            'pt' => 'pt.absensi',
+            'kasir_minum' => 'admin.beverages.index',
+            default => 'member.dashboard',
+        };
+    }
+
     public function scopeForEmployeeAttendance(Builder $query, string $search = ''): Builder
     {
         return $query->whereNotIn('role', ['member', 'admin', 'head_coach'])
