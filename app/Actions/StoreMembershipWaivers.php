@@ -20,15 +20,25 @@ class StoreMembershipWaivers
      * @param  array<int, array{accepted?: bool, signature?: string|null}>  $input
      * @return array<int, array{accepted: bool, signature: string|null}>
      */
-    public function validate(Collection $members, array $input): array
+    public function validate(Collection $members, array $input, bool $required = false): array
     {
         $ids = $members->modelKeys();
-        $validated = Validator::make(['waivers' => $input], [
+        $rules = [
             'waivers' => ['array:'.implode(',', $ids)],
             'waivers.*' => ['array:accepted,signature'],
             'waivers.*.accepted' => ['sometimes', 'boolean'],
             'waivers.*.signature' => ['nullable', 'string', 'max:1398126'],
-        ], [
+        ];
+        if ($required) {
+            foreach ($ids as $id) {
+                $rules['waivers.'.$id.'.accepted'] = ['accepted'];
+                $rules['waivers.'.$id.'.signature'] = ['required', 'string', 'max:1398126'];
+            }
+        }
+
+        $validated = Validator::make(['waivers' => $input], $rules, [
+            'waivers.*.accepted.accepted' => 'Persetujuan wajib dicentang.',
+            'waivers.*.signature.required' => 'Tanda tangan wajib diisi.',
             'waivers.array' => 'Member persetujuan tidak sesuai dengan daftar member.',
             'waivers.*.signature.max' => 'Tanda tangan maksimal 1 MB. Hapus lalu gambar ulang.',
         ])->validate()['waivers'];

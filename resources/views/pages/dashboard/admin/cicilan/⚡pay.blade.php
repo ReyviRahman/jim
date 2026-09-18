@@ -189,7 +189,7 @@ new #[Layout('layouts::admin')] class extends Component
             ]);
 
             // 2. Ambil data transaksi SEBELUMNYA untuk menjaga konsistensi
-            $previousTransaction = $this->membership->transactions()->latest()->first();
+            $previousTransaction = $this->membership->packageTransactions()->latest()->first();
 
             if ($previousTransaction) {
                 // Ambil data dari transaksi lama

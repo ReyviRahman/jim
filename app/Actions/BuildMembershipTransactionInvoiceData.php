@@ -22,6 +22,7 @@ class BuildMembershipTransactionInvoiceData
             'user:id,name,phone,email',
             'admin:id,name',
             'membership.members:id,name',
+            'hold',
         ]);
 
         $isMembershipTransaction = $membershipTransaction->membership_id !== null;
@@ -38,6 +39,7 @@ class BuildMembershipTransactionInvoiceData
         ]);
 
         return [
+            'hold' => $membershipTransaction->hold,
             'waivers' => $includeWaivers && $membershipTransaction->membership
                 ? app(BuildMembershipWaiverData::class)->execute($membershipTransaction->membership)
                 : [],

@@ -134,6 +134,10 @@ Route::middleware('auth')->group(function () {
         Route::livewire('/membership/paket', 'pages::dashboard.admin.membership.paket')
             ->name('admin.membership.paket');
 
+        Route::livewire('/membership/{membership}/hold', 'pages::dashboard.admin.membership.hold')
+            ->middleware('role:admin')
+            ->name('admin.membership.hold');
+
         Route::livewire('/akun/member', 'pages::dashboard.admin.akun.member.index')
             ->name('admin.akun.member.index');
 

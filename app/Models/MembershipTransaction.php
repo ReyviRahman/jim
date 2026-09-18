@@ -3,12 +3,14 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class MembershipTransaction extends Model
 {
     protected $fillable = [
         'invoice_number',
         'membership_id',
+        'membership_hold_id',
         'user_id',
         'admin_id',
         'shift',
@@ -57,5 +59,10 @@ class MembershipTransaction extends Model
     public function membership()
     {
         return $this->belongsTo(Membership::class, 'membership_id');
+    }
+
+    public function hold(): BelongsTo
+    {
+        return $this->belongsTo(MembershipHold::class, 'membership_hold_id');
     }
 }

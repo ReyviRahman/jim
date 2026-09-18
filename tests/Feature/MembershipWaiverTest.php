@@ -25,31 +25,49 @@ class MembershipWaiverTest extends TestCase
     public static function formCases(): array
     {
         return [
-            'new single empty' => [false, 1, false],
-            'new couple empty' => [false, 2, false],
-            'new group mixed' => [false, 4, true],
-            'renew single empty' => [true, 1, false],
-            'renew couple empty' => [true, 2, false],
-            'renew group mixed' => [true, 4, true],
+            'new single' => [false, 1],
+            'new couple' => [false, 2],
+            'new group' => [false, 4],
+            'renew single' => [true, 1],
+            'renew couple' => [true, 2],
+            'renew group' => [true, 4],
         ];
     }
 
     #[DataProvider('formCases')]
-    public function test_optional_waivers_save_for_each_member(bool $renew, int $count, bool $mixed): void
+    public function test_required_waivers_validate_and_save_for_each_member(bool $renew, int $count): void
     {
         Storage::fake('local');
         [$form, $members, $oldMembership, $admin] = $this->form($renew, $count);
         $html = $form->html();
         $this->assertSame($count, substr_count($html, '<canvas '));
         $form->assertSee('Persetujuan & Waiver')->assertSee(MembershipWaiverTerms::CONSENT_LABEL);
-        $this->assertSame([], $form->get('waivers'));
-
-        if ($mixed) {
-            $form->set('waivers.'.$members[0]->id.'.accepted', true)
-                ->set('waivers.'.$members[1]->id.'.signature', $this->signature())
-                ->set('waivers.'.$members[2]->id.'.accepted', true)
-                ->set('waivers.'.$members[2]->id.'.signature', $this->signature());
+        $form->set('waivers', []);
+        $errors = [];
+        foreach ($members as $member) {
+            $errors['waivers.'.$member->id.'.accepted'] = 'accepted';
+            $errors['waivers.'.$member->id.'.signature'] = 'required';
         }
+        $form->call('save')->assertHasErrors($errors)
+            ->assertDispatched('membership-waiver-invalid', field: 'waivers.'.$members[0]->id.'.accepted')
+            ->assertSee('Persetujuan wajib dicentang.')
+            ->assertSee('Tanda tangan wajib diisi.');
+        $this->assertDatabaseCount('memberships', $renew ? 1 : 0);
+        $this->assertDatabaseCount('membership_transactions', 0);
+        $this->assertSame([], Storage::disk('local')->allFiles());
+
+        foreach ($members as $member) {
+            $form->set('waivers.'.$member->id.'.accepted', true)
+                ->set('waivers.'.$member->id.'.signature', $this->signature());
+        }
+        $last = $members->last();
+        $form->set('waivers.'.$last->id.'.signature', null)->call('save')
+            ->assertHasErrors(['waivers.'.$last->id.'.signature' => 'required'])
+            ->assertDispatched('membership-waiver-invalid', field: 'waivers.'.$last->id.'.signature');
+        $form->set('waivers.'.$last->id.'.signature', $this->signature())
+            ->set('waivers.'.$last->id.'.accepted', false)->call('save')
+            ->assertHasErrors(['waivers.'.$last->id.'.accepted' => 'accepted']);
+        $form->set('waivers.'.$last->id.'.accepted', true);
 
         $form->call('save')->assertHasNoErrors()->assertRedirect();
         $membership = Membership::latest('id')->firstOrFail();
@@ -59,14 +77,10 @@ class MembershipWaiverTest extends TestCase
             $this->assertSame($members[$index]->id, $waiver->user_id);
             $this->assertSame($members[$index]->name, $waiver->member_name);
             $this->assertSame($admin->id, $waiver->admin_id);
-            $this->assertSame($mixed && in_array($index, [0, 2], true), $waiver->accepted);
+            $this->assertTrue($waiver->accepted);
             $this->assertEquals(MembershipWaiverTerms::snapshot(), $waiver->terms_snapshot);
-            if ($mixed && in_array($index, [1, 2], true)) {
-                Storage::disk('local')->assertExists($waiver->signature_path);
-                $this->assertSame(IMAGETYPE_PNG, getimagesizefromstring(Storage::disk('local')->get($waiver->signature_path))[2]);
-            } else {
-                $this->assertNull($waiver->signature_path);
-            }
+            Storage::disk('local')->assertExists($waiver->signature_path);
+            $this->assertSame(IMAGETYPE_PNG, getimagesizefromstring(Storage::disk('local')->get($waiver->signature_path))[2]);
         }
         if ($renew) {
             $this->assertNotSame($oldMembership->id, $membership->id);
@@ -81,9 +95,9 @@ class MembershipWaiverTest extends TestCase
         $other = User::factory()->create();
         $form->set('waivers', [$other->id => ['accepted' => true]])
             ->call('save')->assertHasErrors('waivers');
-        $form->set('waivers', [$members[0]->id => ['signature' => 'data:image/png;base64,invalid']])
+        $form->set('waivers', [$members[0]->id => ['accepted' => true, 'signature' => 'data:image/png;base64,invalid']])
             ->call('save')->assertHasErrors('waivers.'.$members[0]->id.'.signature');
-        $form->set('waivers', [$members[0]->id => ['signature' => 'data:image/png;base64,'.base64_encode(str_repeat('x', 1048577))]])
+        $form->set('waivers', [$members[0]->id => ['accepted' => true, 'signature' => 'data:image/png;base64,'.base64_encode(str_repeat('x', 1048577))]])
             ->call('save')->assertHasErrors('waivers.'.$members[0]->id.'.signature');
         $this->assertDatabaseCount('memberships', 0);
         $this->assertSame([], Storage::disk('local')->allFiles());
@@ -183,6 +197,11 @@ class MembershipWaiverTest extends TestCase
             ->set('transaction_type', 'MEMBERSHIP')->set('package_name', 'Paket Waiver')->set('notes', 'Test waiver')
             ->set('payment_method', 'cash')->set('payment_type', 'paid');
 
+        foreach ($members as $member) {
+            $form->set('waivers.'.$member->id.'.accepted', true)
+                ->set('waivers.'.$member->id.'.signature', $this->signature());
+        }
+
         return [$form, $members, $old, $admin];
     }
 
@@ -212,7 +231,8 @@ class MembershipWaiverTest extends TestCase
         try {
             $edit->set('waivers.'.$members[0]->id.'.signature', $this->signature(70))->call('save');
             $this->assertSame($replacementPath, $waiver->fresh()->signature_path);
-            $this->assertSame([$replacementPath], Storage::disk('local')->allFiles());
+            $this->assertCount(2, Storage::disk('local')->allFiles());
+            Storage::disk('local')->assertExists($replacementPath);
         } finally {
             MembershipWaiver::flushEventListeners();
         }

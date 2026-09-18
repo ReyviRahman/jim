@@ -226,7 +226,7 @@ new #[Layout('layouts::admin')] class extends Component
             ? $this->membership->status
             : '';
 
-        $latestTxn = $this->membership->transactions->sortByDesc('payment_date')->first();
+        $latestTxn = $this->membership->transactions->whereNull('membership_hold_id')->sortByDesc('payment_date')->first();
 
         if ($latestTxn) {
             $this->payment_method = $latestTxn->payment_method;
@@ -248,7 +248,7 @@ new #[Layout('layouts::admin')] class extends Component
             $this->follow_up_id_two = $this->membership->follow_up_id_two;
         }
 
-        foreach ($this->membership->transactions as $txn) {
+        foreach ($this->membership->transactions->whereNull('membership_hold_id') as $txn) {
             $this->transactions[] = [
                 'id' => $txn->id,
                 'invoice_number' => $txn->invoice_number,
@@ -577,7 +577,7 @@ new #[Layout('layouts::admin')] class extends Component
             'manual_discount.max' => 'Diskon tidak boleh melebihi total harga paket.',
         ];
 
-        $existingTransactions = $this->membership->transactions()->get()->keyBy('id');
+        $existingTransactions = $this->membership->packageTransactions()->get()->keyBy('id');
 
         foreach ($this->transactions as $index => $transactionData) {
             $existingTransaction = $existingTransactions->get((int) ($transactionData['id'] ?? 0));
@@ -686,7 +686,7 @@ new #[Layout('layouts::admin')] class extends Component
             $this->membership->members()->sync($this->selectedUsers->pluck('id')->toArray());
 
             foreach ($this->transactions as $index => $txnData) {
-                $txn = $this->membership->transactions()->findOrFail($txnData['id']);
+                $txn = $this->membership->packageTransactions()->findOrFail($txnData['id']);
                 $paymentProofPath = $txn->payment_proof_path;
                 $newPaymentProof = $this->transaction_payment_proofs[$index] ?? null;
 
@@ -723,7 +723,7 @@ new #[Layout('layouts::admin')] class extends Component
                 ]);
             }
 
-            $calculatedTotalPaid = collect($this->transactions)->sum(fn ($t) => (float) $t['amount']);
+            $calculatedTotalPaid = $this->membership->packageTransactions()->sum('amount');
             $paymentStatus = $calculatedTotalPaid >= $this->price_paid ? 'paid' : 'partial';
 
             $this->membership->update([
@@ -1356,6 +1356,20 @@ new #[Layout('layouts::admin')] class extends Component
                 <div class="mb-6">
                     <x-membership-waiver-form :members="$this->waiverMembers" :records="$waiverRecords" />
                 </div>
+
+                @if($membership->holds()->exists())
+                    <section class="mb-6 rounded-md border border-default-medium p-4 text-sm text-body">
+                        <h2 class="mb-3 font-semibold text-heading">Riwayat Hold PT (tidak dapat diedit)</h2>
+                        @foreach($membership->holds()->with('transactions')->orderBy('id')->get() as $hold)
+                            <div wire:key="membership-hold-{{ $hold->id }}" class="mb-3">
+                                <x-membership-hold-description :hold="$hold" />
+                                @foreach($hold->transactions as $transaction)
+                                    <a wire:key="hold-transaction-{{ $transaction->id }}" href="{{ route('admin.penjualan.invoice', $transaction) }}" class="mt-1 block text-fg-brand">{{ $transaction->invoice_number }} · {{ strtoupper($transaction->payment_method) }} · Rp {{ number_format($transaction->amount, 0, ',', '.') }}</a>
+                                @endforeach
+                            </div>
+                        @endforeach
+                    </section>
+                @endif
 
                 <div class="pt-4 border-t border-default-medium space-y-3">
                     <button

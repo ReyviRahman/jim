@@ -20,7 +20,8 @@ class BuildMembershipInvoiceData
             'personalTrainer',
             'gymPackage',
             'ptPackage',
-            'transactions' => fn ($query) => $query->with('admin')->orderBy('payment_date')->orderBy('id'),
+            'transactions' => fn ($query) => $query->with(['admin', 'hold'])->orderBy('payment_date')->orderBy('id'),
+            'holds',
         ]);
 
         $members = collect([$membership->user])
@@ -30,11 +31,17 @@ class BuildMembershipInvoiceData
             ->values();
 
         $latestTransaction = $membership->transactions->last();
+        $holdTotal = (int) $membership->holds->sum('total_amount');
+        $holdPaid = (int) $membership->transactions->whereNotNull('membership_hold_id')->sum('amount');
         $verificationUrl = URL::signedRoute('membership.invoice.verify', [
             'membership' => $membership,
         ]);
 
         return [
+            'holdTotal' => $holdTotal,
+            'holdPaid' => $holdPaid,
+            'overallTotal' => (int) $membership->price_paid + $holdTotal,
+            'overallPaid' => (int) $membership->total_paid + $holdPaid,
             'waivers' => $includeWaivers ? app(BuildMembershipWaiverData::class)->execute($membership) : [],
             'membership' => $membership,
             'members' => $members,

@@ -119,6 +119,27 @@ class Membership extends Model
         return $this->hasMany(MembershipTransaction::class);
     }
 
+    public function holds(): HasMany
+    {
+        return $this->hasMany(MembershipHold::class);
+    }
+
+    public function packageTransactions(): HasMany
+    {
+        return $this->transactions()->whereNull('membership_hold_id');
+    }
+
+    public function holdIneligibilityReason(): ?string
+    {
+        return match (true) {
+            $this->type !== 'pt' => 'Hold hanya tersedia untuk paket PT.',
+            ! in_array($this->status, ['active', 'completed'], true) => 'Paket pending atau ditolak tidak dapat di-hold.',
+            $this->pt_end_date === null => 'Tanggal akhir PT belum ditentukan.',
+            (int) $this->remaining_sessions <= 0 => 'Paket tanpa sisa sesi tidak dapat di-hold.',
+            default => null,
+        };
+    }
+
     public function waivers(): HasMany
     {
         return $this->hasMany(MembershipWaiver::class);

@@ -308,7 +308,12 @@ new #[Layout('layouts::admin')] class extends Component
     )
     {
         $this->validateRequiredMemberProfilePhotos();
-        $validatedWaivers = app(StoreMembershipWaivers::class)->validate($this->selectedUsers, $this->waivers);
+        try {
+            $validatedWaivers = app(StoreMembershipWaivers::class)->validate($this->selectedUsers, $this->waivers, required: true);
+        } catch (\Illuminate\Validation\ValidationException $exception) {
+            $this->dispatch('membership-waiver-invalid', field: array_key_first($exception->errors()));
+            throw $exception;
+        }
 
         $this->admin_fee = blank($this->admin_fee) ? 0 : $this->admin_fee;
 
@@ -679,7 +684,7 @@ new #[Layout('layouts::admin')] class extends Component
                     @endif
                 </div>
             </div>
-            <x-membership-waiver-form :members="$selectedUsers" />
+            <x-membership-waiver-form :members="$selectedUsers" :required="true" />
         </div>
 
         {{-- KOLOM KANAN: Ringkasan & Pembayaran Kasir --}}

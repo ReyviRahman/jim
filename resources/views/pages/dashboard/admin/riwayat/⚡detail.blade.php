@@ -161,6 +161,9 @@ new #[Layout('layouts::admin')] class extends Component
                             {{-- AKSI --}}
                             <td class="px-6 py-4 text-center">
                                 <div class="flex items-center justify-center gap-2">
+                                    @if($membership->type === 'pt')
+                                        <a href="{{ route('admin.membership.hold', ['membership' => $membership, 'user' => $user->id]) }}" wire:navigate class="inline-flex items-center justify-center rounded-md border border-default-medium px-2 py-1 text-sm font-medium text-fg-brand hover:text-brand-strong">Hold</a>
+                                    @endif
                                     <a href="{{ route('admin.membership.edit', $membership->id) }}" wire:navigate class="inline-flex items-center justify-center text-fg-brand hover:text-brand-strong" title="Edit">
                                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />

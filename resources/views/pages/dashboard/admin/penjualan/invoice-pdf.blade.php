@@ -338,7 +338,13 @@
                 <td class="invoice-cell">
                     <div class="invoice-heading">INVOICE</div>
                     <table class="invoice-meta">
-                        <tr><td class="meta-label">INVOICE NO.</td><td class="meta-separator">:</td><td class="meta-value">{{ $invoiceNumber }}</td></tr>
+                        <tr><td class="meta-label">INVOICE NO.</td><td class="meta-separator">:</td><td class="meta-value">
+                            @if(strlen($invoiceNumber) > 22 && str_contains($invoiceNumber, '-'))
+                                {{ str($invoiceNumber)->beforeLast('-') }}-<br>{{ str($invoiceNumber)->afterLast('-') }}
+                            @else
+                                {{ $invoiceNumber }}
+                            @endif
+                        </td></tr>
                         <tr><td class="meta-label">TANGGAL</td><td class="meta-separator">:</td><td class="meta-value">{{ $invoiceDate?->locale('id')->translatedFormat('d F Y') ?? '-' }}</td></tr>
                         <tr><td class="meta-label">STATUS</td><td class="meta-separator">:</td><td><span class="status-badge {{ $paymentStatusClass }}">{{ $paymentStatusLabel }}</span></td></tr>
                     </table>
@@ -385,6 +391,14 @@
                 </td>
             </tr>
         </table>
+
+        @if($hold)
+            <section class="notes">
+                <div class="notes-title">Rincian Hold PT</div>
+                <x-membership-hold-description :hold="$hold" />
+                <div>Nominal pada invoice ini: Rp {{ number_format($membershipTransaction->amount, 0, ',', '.') }} ({{ $paymentMethod }}).</div>
+            </section>
+        @endif
 
         <section class="payment-section section">
             <table class="section-heading">

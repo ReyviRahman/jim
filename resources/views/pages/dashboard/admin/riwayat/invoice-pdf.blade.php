@@ -313,7 +313,13 @@
                         <tr>
                             <td class="meta-label">INVOICE NO.</td>
                             <td class="meta-separator">:</td>
-                            <td class="meta-value">{{ $invoiceNumber }}</td>
+                            <td class="meta-value">
+                                @if(strlen($invoiceNumber) > 22 && str_contains($invoiceNumber, '-'))
+                                    {{ str($invoiceNumber)->beforeLast('-') }}-<br>{{ str($invoiceNumber)->afterLast('-') }}
+                                @else
+                                    {{ $invoiceNumber }}
+                                @endif
+                            </td>
                         </tr>
                         <tr>
                             <td class="meta-label">TANGGAL</td>
@@ -374,7 +380,7 @@
             </tr>
         </table>
 
-        <div class="payment-sections {{ $membership->transactions->count() > 5 ? 'payment-sections-long' : '' }}">
+        <div class="payment-sections {{ $membership->transactions->count() > 5 || $holdTotal > 0 ? 'payment-sections-long' : '' }}">
             <section class="summary-section section">
                 <table class="section-heading">
                     <tr>
@@ -388,6 +394,12 @@
                     <tr class="total"><td>Total Tagihan</td><td>Rp {{ number_format($membership->price_paid, 0, ',', '.') }}</td></tr>
                     <tr><td>Total Dibayar</td><td>Rp {{ number_format($membership->total_paid, 0, ',', '.') }}</td></tr>
                     <tr class="balance"><td>Sisa Tagihan</td><td>Rp {{ number_format($remainingBalance, 0, ',', '.') }}</td></tr>
+                    @if($holdTotal > 0)
+                        <tr><td>Biaya Hold PT</td><td>Rp {{ number_format($holdTotal, 0, ',', '.') }}</td></tr>
+                        <tr><td>Pembayaran Hold PT</td><td>Rp {{ number_format($holdPaid, 0, ',', '.') }}</td></tr>
+                        <tr class="total"><td>Total Paket + Hold</td><td>Rp {{ number_format($overallTotal, 0, ',', '.') }}</td></tr>
+                        <tr><td>Total Dibayar + Hold</td><td>Rp {{ number_format($overallPaid, 0, ',', '.') }}</td></tr>
+                    @endif
                 </table>
             </section>
             <section class="history-section">
@@ -412,7 +424,13 @@
                                 <td>{{ $transaction->payment_date?->locale('id')->translatedFormat('d M Y') ?? '-' }}</td>
                                 <td class="method">{{ str($transaction->payment_method)->upper() }}</td>
                                 <td class="amount">Rp {{ number_format($transaction->amount, 0, ',', '.') }}</td>
-                                <td>{{ $transaction->transaction_type ?: ($transaction->notes ?: '-') }}</td>
+                                <td>
+                                    @if($transaction->hold)
+                                        <x-membership-hold-description :hold="$transaction->hold" />
+                                    @else
+                                        {{ $transaction->transaction_type ?: ($transaction->notes ?: '-') }}
+                                    @endif
+                                </td>
                             </tr>
                         @empty
                             <tr><td colspan="4" class="empty">Belum ada riwayat pembayaran.</td></tr>

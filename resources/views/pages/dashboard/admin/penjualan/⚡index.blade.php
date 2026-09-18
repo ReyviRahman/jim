@@ -257,6 +257,7 @@ new #[Layout('layouts::admin')] class extends Component
             'membership.members',
             'membership.gymPackage',
             'membership.ptPackage',
+            'hold',
         ]);
 
         // 1. Logika Pencarian
@@ -392,6 +393,11 @@ new #[Layout('layouts::admin')] class extends Component
 
     private function activePeriodLabel(MembershipTransaction $transaction): string
     {
+        if ($transaction->hold) {
+            return $transaction->hold->months.' BULAN ('.$transaction->hold->previous_end_date->format('d/m/Y')
+                .' - '.$transaction->hold->new_end_date->format('d/m/Y').')';
+        }
+
         if ($transaction->membership_id === null
             || ! $transaction->start_date
             || ! $transaction->end_date
@@ -435,6 +441,10 @@ new #[Layout('layouts::admin')] class extends Component
 
     private function serviceTypeLabel(MembershipTransaction $transaction): string
     {
+        if ($transaction->membership_hold_id !== null) {
+            return 'HOLD PT';
+        }
+
         $membership = $transaction->membership;
         $serviceLabel = match ($membership?->type) {
             'membership' => 'MEMBERSHIP',
@@ -478,7 +488,7 @@ new #[Layout('layouts::admin')] class extends Component
 
     private function paymentStatusLabel(MembershipTransaction $transaction): string
     {
-        if ($transaction->membership_id === null) {
+        if ($transaction->membership_id === null || $transaction->membership_hold_id !== null) {
             return 'LUNAS';
         }
 
@@ -564,13 +574,14 @@ new #[Layout('layouts::admin')] class extends Component
         
         // Statistik Uang Berdasarkan Kategori Paket (Kanan)
         $visitData = $data->filter(fn($item) => $item->membership && $item->membership->type === 'visit');
-        $ptData = $data->filter(fn($item) => $item->membership && $item->membership->type === 'pt');
+        $ptData = $data->filter(fn($item) => $item->membership && $item->membership->type === 'pt' && $item->membership_hold_id === null);
         $nimbangData = $data->filter(fn($item) => is_null($item->membership_id));
         
         $totalUangVisit = $visitData->sum('amount');
         $totalUangPT = $ptData->sum('amount');
         $totalUangNimbang = $nimbangData->sum('amount');
-        $totalUangMember = $totalSystemBalance - $totalUangVisit - $totalUangPT - $totalUangNimbang; 
+        $totalUangHold = $data->whereNotNull('membership_hold_id')->sum('amount');
+        $totalUangMember = $totalSystemBalance - $totalUangVisit - $totalUangPT - $totalUangNimbang - $totalUangHold;
 
         // ==========================================
         // 2. DATA PENGELUARAN (Expenses)
@@ -615,6 +626,7 @@ new #[Layout('layouts::admin')] class extends Component
             'uang_visit' => $totalUangVisit,
             'uang_pt' => $totalUangPT,
             'uang_nimbang' => $totalUangNimbang,
+            'uang_hold' => $totalUangHold,
             'uang_total' => $totalSystemBalance, 
             'rincian_pengeluaran' => $rincianPengeluaran,
         ];
@@ -636,13 +648,14 @@ new #[Layout('layouts::admin')] class extends Component
         $totalSystemBalance = $transfer + $debit + $qris + $cash;
 
         $visitData = $transactions->filter(fn($item) => $item->membership && $item->membership->type === 'visit');
-        $ptData = $transactions->filter(fn($item) => $item->membership && $item->membership->type === 'pt');
+        $ptData = $transactions->filter(fn($item) => $item->membership && $item->membership->type === 'pt' && $item->membership_hold_id === null);
         $nimbangData = $transactions->filter(fn($item) => is_null($item->membership_id));
         
         $uangVisit = $visitData->sum('amount');
         $uangPT = $ptData->sum('amount');
         $uangNimbang = $nimbangData->sum('amount');
-        $uangMember = $totalSystemBalance - $uangVisit - $uangPT - $uangNimbang;
+        $uangHold = $transactions->whereNotNull('membership_hold_id')->sum('amount');
+        $uangMember = $totalSystemBalance - $uangVisit - $uangPT - $uangNimbang - $uangHold;
 
         // 3. Ambil data pengeluaran dengan filter yang sama persis
         $expenseQuery = \App\Models\Expense::query();
@@ -672,6 +685,7 @@ new #[Layout('layouts::admin')] class extends Component
             'balance_hijau' => $totalSystemBalance - $pengeluaran,
             'uang_member' => $uangMember, 'uang_visit' => $uangVisit, 'uang_pt' => $uangPT,
             'uang_nimbang' => $uangNimbang,
+            'uang_hold' => $uangHold,
             'uang_total' => $totalSystemBalance,
             'rincian_pengeluaran' => $rincianPengeluaran // Rincian teks pengeluaran dilempar ke Excel
         ];
@@ -1008,6 +1022,12 @@ new #[Layout('layouts::admin')] class extends Component
                         <td class="px-4 py-3"></td>
                         <td class="px-4 py-3"></td>
                         
+                        <td class="px-4 py-3 font-medium border-l border-gray-200">HOLD</td>
+                        <td class="px-4 py-3 text-right font-bold">Rp {{ number_format($this->summary['uang_hold'], 0, ',', '.') }}</td>
+                    </tr>
+                    <tr class="border-b border-gray-100">
+                        <td class="px-4 py-3"></td>
+                        <td class="px-4 py-3"></td>
                         {{-- Balance Kategori Pendapatan (Sisi Kanan) --}}
                         <td class="px-4 py-3 bg-emerald-50 text-emerald-800 font-bold uppercase tracking-wide border-l border-gray-200">BALANCE</td>
                         <td class="px-4 py-3 bg-emerald-50 text-emerald-800 text-right font-black text-lg">Rp {{ number_format($this->summary['uang_total'], 0, ',', '.') }}</td>

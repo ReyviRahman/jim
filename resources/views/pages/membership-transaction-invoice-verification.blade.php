@@ -75,6 +75,13 @@
                         </div>
                     @endif
                 </dl>
+                @if($hold)
+                    <section class="mt-6 rounded-xl border border-white/10 p-5 text-sm leading-6">
+                        <h2 class="mb-2 font-semibold text-brand">Rincian Hold PT</h2>
+                        <x-membership-hold-description :hold="$hold" />
+                        <p>Nominal pada invoice ini: Rp {{ number_format($membershipTransaction->amount, 0, ',', '.') }} ({{ $paymentMethod }}).</p>
+                    </section>
+                @endif
 
                 <p class="mt-8 text-center text-xs leading-5 text-white/40">
                     Halaman ini hanya dapat dibuka melalui tautan verifikasi yang ditandatangani sistem FRANS GYM.

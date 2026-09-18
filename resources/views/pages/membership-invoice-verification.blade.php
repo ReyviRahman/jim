@@ -65,6 +65,30 @@
                         <dd class="mt-2 font-bold text-brand">{{ $paymentStatusLabel }}</dd>
                     </div>
                 </dl>
+                <section class="mt-6 space-y-4 text-sm leading-6">
+                    <h2 class="font-semibold text-brand">Rincian Pembayaran</h2>
+                    <dl class="grid gap-3 sm:grid-cols-2">
+                        <div><dt>Tagihan Paket</dt><dd>Rp {{ number_format($membership->price_paid, 0, ',', '.') }}</dd></div>
+                        <div><dt>Pembayaran Paket</dt><dd>Rp {{ number_format($membership->total_paid, 0, ',', '.') }}</dd></div>
+                        <div><dt>Biaya Hold PT</dt><dd>Rp {{ number_format($holdTotal, 0, ',', '.') }}</dd></div>
+                        <div><dt>Pembayaran Hold PT</dt><dd>Rp {{ number_format($holdPaid, 0, ',', '.') }}</dd></div>
+                        <div><dt>Total Paket + Hold</dt><dd>Rp {{ number_format($overallTotal, 0, ',', '.') }}</dd></div>
+                        <div><dt>Total Dibayar + Hold</dt><dd>Rp {{ number_format($overallPaid, 0, ',', '.') }}</dd></div>
+                        <div><dt>Sisa Tagihan Paket</dt><dd>Rp {{ number_format($remainingBalance, 0, ',', '.') }}</dd></div>
+                    </dl>
+                    <h2 class="font-semibold text-brand">Riwayat Pembayaran</h2>
+                    @foreach($membership->transactions as $transaction)
+                        <div class="rounded-xl border border-white/10 p-4">
+                            <p>{{ $transaction->invoice_number }} · {{ $transaction->payment_date?->format('d/m/Y') }} · {{ strtoupper($transaction->payment_method) }}</p>
+                            <p class="font-semibold">Rp {{ number_format($transaction->amount, 0, ',', '.') }}</p>
+                            @if($transaction->hold)
+                                <x-membership-hold-description :hold="$transaction->hold" />
+                            @else
+                                <p>{{ $transaction->transaction_type }} · {{ $transaction->package_name }}</p>
+                            @endif
+                        </div>
+                    @endforeach
+                </section>
 
                 <p class="mt-8 text-center text-xs leading-5 text-white/40">
                     Halaman ini hanya dapat dibuka melalui tautan verifikasi yang ditandatangani sistem FRANS GYM.
