@@ -170,7 +170,14 @@ new #[Layout('layouts::empty')] class extends Component
                                     @endif
                                 </td>
                                 <td class="px-4 py-3 text-sm text-gray-700">
-                                    {{ $event->is_member === null ? 'Belum diketahui' : ($event->is_member ? 'Ya' : 'Tidak') }}
+                                    <span @class([
+                                        'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium',
+                                        'bg-gray-100 text-gray-800' => $event->is_member === null,
+                                        'bg-green-100 text-green-800' => $event->is_member === true,
+                                        'bg-red-100 text-red-800' => $event->is_member === false,
+                                    ])>
+                                        {{ $event->is_member === null ? 'Belum diketahui' : ($event->is_member ? 'Ya' : 'Tidak') }}
+                                    </span>
                                 </td>
                                 <td class="px-4 py-3 text-sm text-gray-700">
                                     {{ $event->name ?? '-' }}
