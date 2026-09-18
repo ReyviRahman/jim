@@ -19,6 +19,47 @@ class DeviceEventMonitoringTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_employee_filter_defaults_to_false_and_distinguishes_null(): void
+    {
+        foreach (['Employee row' => true, 'Member row' => false, 'Unknown row' => null] as $name => $value) {
+            DeviceEvent::create(['device_code' => 'FILTER', 'name' => $name, 'is_karyawan' => $value, 'payload' => '']);
+        }
+
+        Livewire::test('pages::device-events')
+            ->assertSet('employeeFilter', '0')
+            ->assertSee('Member row')->assertDontSee('Employee row')->assertDontSee('Unknown row')
+            ->set('employeeFilter', '1')
+            ->assertSee('Employee row')->assertDontSee('Member row')->assertDontSee('Unknown row')
+            ->set('employeeFilter', 'unknown')
+            ->assertSee('Unknown row')->assertDontSee('Member row')->assertDontSee('Employee row')
+            ->call('setPage', 2)
+            ->set('employeeFilter', '')
+            ->assertSet('paginators.page', 1)
+            ->assertSee('Member row')->assertSee('Employee row')->assertSee('Unknown row')
+            ->set('dateStart', '2000-01-01')->set('dateEnd', '2000-01-01')
+            ->assertSee('Belum ada log event.');
+    }
+
+    public function test_employee_badges_and_nullable_default_are_displayed(): void
+    {
+        foreach ([true, false, null] as $value) {
+            $event = DeviceEvent::create([
+                'device_code' => 'BADGE',
+                'payload' => '',
+                ...($value === null ? [] : ['is_karyawan' => $value]),
+            ]);
+            $this->assertSame($value, $event->fresh()->is_karyawan);
+        }
+
+        Livewire::test('pages::device-events')
+            ->set('employeeFilter', '')
+            ->assertSee('Karyawan')
+            ->assertSeeHtml('bg-green-100 text-green-800')
+            ->assertSeeHtml('bg-red-100 text-red-800')
+            ->assertSeeHtml('bg-gray-100 text-gray-800')
+            ->assertSee('Ya')->assertSee('Tidak')->assertSee('Belum diketahui');
+    }
+
     public function test_page_hides_found_active_members_and_keeps_other_snapshots(): void
     {
         foreach (['Active snapshot' => true, 'Inactive snapshot' => false, 'Unknown snapshot' => null] as $name => $value) {
@@ -32,6 +73,7 @@ class DeviceEventMonitoringTest extends TestCase
         }
 
         Livewire::test('pages::device-events')
+            ->set('employeeFilter', '')
             ->assertDontSee('Active snapshot')->assertSee('Inactive snapshot')->assertSee('Unknown snapshot')
             ->assertSee('Belum diketahui')
             ->assertDontSee('memberFilter');
@@ -42,6 +84,7 @@ class DeviceEventMonitoringTest extends TestCase
         DeviceEvent::create([
             'device_code' => 'HQ-BIO-01',
             'event_type' => 'AccessControllerEvent',
+            'is_karyawan' => false,
             'payload' => '<EventNotificationAlert><eventType>AccessControllerEvent</eventType></EventNotificationAlert>',
         ]);
 
@@ -52,7 +95,7 @@ class DeviceEventMonitoringTest extends TestCase
         $response->assertSee('AccessControllerEvent');
         $response->assertDontSee('Sinkronkan Member Terbaru');
         $response->assertSee('Rentang Tanggal');
-        $response->assertDontSee('wire:model.live', false);
+        $response->assertSee('employeeFilter');
     }
 
     public function test_page_displays_found_and_unknown_users_without_filtering(): void
@@ -67,6 +110,7 @@ class DeviceEventMonitoringTest extends TestCase
         }
 
         Livewire::test('pages::device-events')
+            ->set('employeeFilter', '')
             ->assertSee('Matched employee')
             ->assertSee('Unknown employee')
             ->assertDontSee('foundFilter');
@@ -83,6 +127,7 @@ class DeviceEventMonitoringTest extends TestCase
         }
 
         Livewire::test('pages::device-events')
+            ->set('employeeFilter', '')
             ->call('setPage', 2)
             ->assertSet('paginators.page', 2)
             ->set('dateStart', '2000-01-01')
@@ -112,6 +157,7 @@ class DeviceEventMonitoringTest extends TestCase
         Http::fake(['http://hikvision.test/*' => Http::response([], 200)]);
 
         Livewire::test('pages::device-events')
+            ->set('employeeFilter', '')
             ->call('syncLatestMember')
             ->assertSee("Member {$latestMember->name} (ID: {$latestMember->id}) berhasil dikirim ke Hikvision.");
 
@@ -140,6 +186,7 @@ class DeviceEventMonitoringTest extends TestCase
         Http::preventStrayRequests();
 
         Livewire::test('pages::device-events')
+            ->set('employeeFilter', '')
             ->call('syncLatestMember')
             ->assertSee('Belum ada member yang dapat disinkronkan.');
 
@@ -654,6 +701,7 @@ class DeviceEventMonitoringTest extends TestCase
         Http::fake(['http://hikvision.test/*' => Http::response([], 500)]);
 
         Livewire::test('pages::device-events')
+            ->set('employeeFilter', '')
             ->call('syncLatestMember')
             ->assertSee('Gagal mengirim member ke Hikvision. Periksa koneksi dan konfigurasi perangkat.');
 

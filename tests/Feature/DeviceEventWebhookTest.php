@@ -20,6 +20,21 @@ class DeviceEventWebhookTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_employee_snapshot_uses_the_resolved_user_role_and_survives_duplicates(): void
+    {
+        foreach (['member', 'admin', 'pt', 'kasir_gym', 'sales', 'kasir_minum'] as $role) {
+            $user = $this->createUser(['role' => $role, 'hikvision_employee_no' => 'ROLE-'.$role]);
+            $payload = $this->attendancePayloadForEmployeeNumber($user->hikvision_employee_no, $user->name);
+            $this->postJson('/api/absensi', $payload)->assertOk();
+            $event = DeviceEvent::where('employee_no', $user->hikvision_employee_no)->sole();
+            $this->assertSame($role !== 'member', $event->is_karyawan);
+
+            $user->update(['role' => $role === 'member' ? 'admin' : 'member']);
+            $this->postJson('/api/absensi', $payload)->assertOk();
+            $this->assertSame($role !== 'member', $event->fresh()->is_karyawan);
+        }
+    }
+
     public function test_membership_snapshot_uses_only_linked_membership_status(): void
     {
         foreach (['active', 'pending', 'rejected', 'completed'] as $status) {
@@ -82,13 +97,18 @@ class DeviceEventWebhookTest extends TestCase
         $this->postJson('/api/absensi', $payload)->assertOk();
         $this->assertTrue(DeviceEvent::query()->sole()->is_member);
         $this->assertSame('failed', DeviceEvent::query()->sole()->status);
+        $this->assertFalse(DeviceEvent::query()->sole()->is_karyawan);
+        $user->update(['role' => 'admin']);
         $membership->update(['status' => 'completed']);
         $this->postJson('/api/absensi', $payload)->assertOk();
         $this->assertTrue(DeviceEvent::query()->sole()->is_member);
 
+        $this->assertFalse(DeviceEvent::query()->sole()->is_karyawan);
+        $user->update(['role' => 'member']);
         $this->postJson('/api/absensi', $payload)->assertOk();
         $this->assertTrue(DeviceEvent::query()->sole()->is_member);
         $this->assertSame('received', DeviceEvent::query()->sole()->status);
+        $this->assertFalse(DeviceEvent::query()->sole()->is_karyawan);
     }
 
     public function test_it_stores_hikvision_xml_event(): void
@@ -122,6 +142,7 @@ XML;
         $this->assertDatabaseHas('device_events', [
             'device_code' => 'HQ-BIO-01',
             'employee_no' => 'EMP001',
+            'is_karyawan' => null,
             'is_member' => null,
             'name' => 'John Doe',
             'card_no' => '1234567890',

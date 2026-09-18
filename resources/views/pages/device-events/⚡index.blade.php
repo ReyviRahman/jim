@@ -17,6 +17,7 @@ new #[Layout('layouts::empty')] class extends Component
 
     public ?string $dateStart = null;
     public ?string $dateEnd = null;
+    public string $employeeFilter = '0';
 
     public function syncLatestMember(HikvisionUserService $hikvisionUserService): void
     {
@@ -48,7 +49,7 @@ new #[Layout('layouts::empty')] class extends Component
 
     public function updating($property): void
     {
-        if (in_array($property, ['dateStart', 'dateEnd'])) {
+        if (in_array($property, ['dateStart', 'dateEnd', 'employeeFilter'])) {
             $this->resetPage();
         }
     }
@@ -60,6 +61,12 @@ new #[Layout('layouts::empty')] class extends Component
                 ->orWhere('is_member', false)
                 ->orWhereNull('is_member');
         });
+
+        if (in_array($this->employeeFilter, ['1', '0'], true)) {
+            $query->where('is_karyawan', $this->employeeFilter === '1');
+        } elseif ($this->employeeFilter === 'unknown') {
+            $query->whereNull('is_karyawan');
+        }
 
         if ($this->dateStart && $this->dateEnd) {
             $query->whereBetween('created_at', [
@@ -97,6 +104,16 @@ new #[Layout('layouts::empty')] class extends Component
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
+                    <label for="employee-filter" class="block text-xs font-medium text-gray-700 mb-1">Karyawan</label>
+                    <select id="employee-filter" wire:model.live="employeeFilter"
+                        class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm">
+                        <option value="">Semua</option>
+                        <option value="1">Ya</option>
+                        <option value="0">Tidak</option>
+                        <option value="unknown">Belum diketahui</option>
+                    </select>
+                </div>
+                <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Rentang Tanggal</label>
                     <input type="text" x-data
                         x-init="flatpickr($el, {
@@ -133,6 +150,7 @@ new #[Layout('layouts::empty')] class extends Component
                             <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID Pegawai</th>
                             <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ditemukan</th>
                             <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Member aktif</th>
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Karyawan</th>
                             <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nama</th>
                             <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kartu</th>
                             <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pintu</th>
@@ -180,6 +198,16 @@ new #[Layout('layouts::empty')] class extends Component
                                     </span>
                                 </td>
                                 <td class="px-4 py-3 text-sm text-gray-700">
+                                    <span @class([
+                                        'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium',
+                                        'bg-gray-100 text-gray-800' => $event->is_karyawan === null,
+                                        'bg-green-100 text-green-800' => $event->is_karyawan === true,
+                                        'bg-red-100 text-red-800' => $event->is_karyawan === false,
+                                    ])>
+                                        {{ $event->is_karyawan === null ? 'Belum diketahui' : ($event->is_karyawan ? 'Ya' : 'Tidak') }}
+                                    </span>
+                                </td>
+                                <td class="px-4 py-3 text-sm text-gray-700">
                                     {{ $event->name ?? '-' }}
                                 </td>
                                 <td class="px-4 py-3 text-sm text-gray-700">
@@ -219,7 +247,7 @@ new #[Layout('layouts::empty')] class extends Component
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="14" class="px-4 py-8 text-center text-sm text-gray-500">
+                                <td colspan="15" class="px-4 py-8 text-center text-sm text-gray-500">
                                     Belum ada log event.
                                 </td>
                             </tr>

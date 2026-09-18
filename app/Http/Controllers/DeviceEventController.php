@@ -267,6 +267,7 @@ class DeviceEventController extends Controller
             'event_type' => $eventData['event_type'],
             'employee_no' => $eventData['employee_no'],
             'is_found' => $user !== null,
+            'is_karyawan' => $user === null ? null : $user->role !== 'member',
             'is_member' => $user === null ? null : MembershipUser::query()
                 ->where('user_id', $user->id)
                 ->whereHas('membership', fn (Builder $query): Builder => $query->where('status', 'active'))
@@ -332,7 +333,7 @@ class DeviceEventController extends Controller
                     return;
                 }
 
-                unset($attributes['is_member']);
+                unset($attributes['is_member'], $attributes['is_karyawan']);
                 $deviceEvent->update($attributes);
             }, attempts: 3);
         } catch (Throwable) {
