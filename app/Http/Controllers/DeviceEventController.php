@@ -9,6 +9,7 @@ use App\Models\Membership;
 use App\Models\MembershipUser;
 use App\Models\PtBooking;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Carbon;
@@ -65,7 +66,7 @@ class DeviceEventController extends Controller
                     $device,
                     $sourceIp,
                     $eventData,
-                    $user !== null,
+                    $user,
                 );
                 $deviceEvent = DeviceEvent::query()->createOrFirst(
                     ['event_hash' => $eventHash],
@@ -258,14 +259,18 @@ class DeviceEventController extends Controller
         string $device,
         ?string $sourceIp,
         array $eventData,
-        bool $isFound,
+        ?User $user,
     ): array {
         return [
             'device_code' => $device,
             'source_ip' => $sourceIp,
             'event_type' => $eventData['event_type'],
             'employee_no' => $eventData['employee_no'],
-            'is_found' => $isFound,
+            'is_found' => $user !== null,
+            'is_member' => $user === null ? null : MembershipUser::query()
+                ->where('user_id', $user->id)
+                ->whereHas('membership', fn (Builder $query): Builder => $query->where('status', 'active'))
+                ->exists(),
             'name' => $eventData['name'],
             'card_no' => $eventData['card_no'],
             'door_no' => $eventData['door_no'],
@@ -313,7 +318,7 @@ class DeviceEventController extends Controller
                 }
 
                 $attributes = [
-                    ...$this->deviceEventAttributes($device, $sourceIp, $eventData, $user !== null),
+                    ...$this->deviceEventAttributes($device, $sourceIp, $eventData, $user),
                     'status' => 'failed',
                     'error_message' => 'Attendance processing failed.',
                 ];
@@ -327,6 +332,7 @@ class DeviceEventController extends Controller
                     return;
                 }
 
+                unset($attributes['is_member']);
                 $deviceEvent->update($attributes);
             }, attempts: 3);
         } catch (Throwable) {

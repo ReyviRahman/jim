@@ -16,6 +16,7 @@ class DeviceEvent extends Model
         'event_type',
         'employee_no',
         'is_found',
+        'is_member',
         'name',
         'card_no',
         'door_no',
@@ -33,6 +34,7 @@ class DeviceEvent extends Model
     {
         return [
             'is_found' => 'boolean',
+            'is_member' => 'boolean',
             'accessed_at' => 'datetime',
         ];
     }

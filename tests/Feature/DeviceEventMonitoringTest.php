@@ -19,6 +19,24 @@ class DeviceEventMonitoringTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_page_hides_found_active_members_and_keeps_other_snapshots(): void
+    {
+        foreach (['Active snapshot' => true, 'Inactive snapshot' => false, 'Unknown snapshot' => null] as $name => $value) {
+            DeviceEvent::create([
+                'device_code' => 'HQ-BIO-01',
+                'name' => $name,
+                'is_found' => $value !== null,
+                'is_member' => $value,
+                'payload' => '',
+            ]);
+        }
+
+        Livewire::test('pages::device-events')
+            ->assertDontSee('Active snapshot')->assertSee('Inactive snapshot')->assertSee('Unknown snapshot')
+            ->assertSee('Belum diketahui')
+            ->assertDontSee('memberFilter');
+    }
+
     public function test_public_monitoring_page_displays_device_events(): void
     {
         DeviceEvent::create([
@@ -32,10 +50,12 @@ class DeviceEventMonitoringTest extends TestCase
         $response->assertStatus(200);
         $response->assertSee('HQ-BIO-01');
         $response->assertSee('AccessControllerEvent');
-        $response->assertSee('Sinkronkan Member Terbaru');
+        $response->assertDontSee('Sinkronkan Member Terbaru');
+        $response->assertSee('Rentang Tanggal');
+        $response->assertDontSee('wire:model.live', false);
     }
 
-    public function test_found_filter_shows_matching_events_and_can_be_cleared(): void
+    public function test_page_displays_found_and_unknown_users_without_filtering(): void
     {
         foreach ([true, false] as $found) {
             DeviceEvent::create([
@@ -47,24 +67,12 @@ class DeviceEventMonitoringTest extends TestCase
         }
 
         Livewire::test('pages::device-events')
-            ->assertSet('foundFilter', '0')
-            ->assertDontSee('Matched employee')
-            ->assertSee('Unknown employee')
-            ->set('foundFilter', '1')
             ->assertSee('Matched employee')
-            ->assertDontSee('Unknown employee')
-            ->set('foundFilter', '0')
             ->assertSee('Unknown employee')
-            ->assertDontSee('Matched employee')
-            ->set('search', 'Matched employee')
-            ->assertSee('Belum ada log event.')
-            ->set('search', '')
-            ->set('foundFilter', '')
-            ->assertSee('Matched employee')
-            ->assertSee('Unknown employee');
+            ->assertDontSee('foundFilter');
     }
 
-    public function test_found_filter_resets_pagination(): void
+    public function test_date_filter_resets_pagination(): void
     {
         for ($index = 0; $index < 26; $index++) {
             DeviceEvent::create([
@@ -77,7 +85,8 @@ class DeviceEventMonitoringTest extends TestCase
         Livewire::test('pages::device-events')
             ->call('setPage', 2)
             ->assertSet('paginators.page', 2)
-            ->set('foundFilter', '1')
+            ->set('dateStart', '2000-01-01')
+            ->set('dateEnd', '2000-01-01')
             ->assertSet('paginators.page', 1)
             ->assertSee('Belum ada log event.');
     }

@@ -5,6 +5,7 @@ namespace App\Livewire;
 use App\HikvisionUserService;
 use App\Models\DeviceEvent;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Log;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -14,11 +15,6 @@ new #[Layout('layouts::empty')] class extends Component
 {
     use WithPagination;
 
-    public string $search = '';
-    public string $deviceFilter = '';
-    public string $eventTypeFilter = '';
-    public string $statusFilter = '';
-    public string $foundFilter = '0';
     public ?string $dateStart = null;
     public ?string $dateEnd = null;
 
@@ -52,38 +48,18 @@ new #[Layout('layouts::empty')] class extends Component
 
     public function updating($property): void
     {
-        if (in_array($property, ['search', 'deviceFilter', 'eventTypeFilter', 'statusFilter', 'foundFilter', 'dateStart', 'dateEnd'])) {
+        if (in_array($property, ['dateStart', 'dateEnd'])) {
             $this->resetPage();
         }
     }
 
     public function with(): array
     {
-        $query = DeviceEvent::query();
-
-        if ($this->search !== '') {
-            $search = '%'.$this->search.'%';
-            $query->where(function ($query) use ($search) {
-                $query->where('employee_no', 'like', $search)
-                    ->orWhere('name', 'like', $search);
-            });
-        }
-
-        if ($this->deviceFilter !== '') {
-            $query->where('device_code', $this->deviceFilter);
-        }
-
-        if ($this->eventTypeFilter !== '') {
-            $query->where('event_type', $this->eventTypeFilter);
-        }
-
-        if ($this->statusFilter !== '') {
-            $query->where('status', $this->statusFilter);
-        }
-
-        if (in_array($this->foundFilter, ['1', '0'], true)) {
-            $query->where('is_found', $this->foundFilter === '1');
-        }
+        $query = DeviceEvent::query()->where(function (Builder $query): void {
+            $query->where('is_found', false)
+                ->orWhere('is_member', false)
+                ->orWhereNull('is_member');
+        });
 
         if ($this->dateStart && $this->dateEnd) {
             $query->whereBetween('created_at', [
@@ -94,8 +70,6 @@ new #[Layout('layouts::empty')] class extends Component
 
         return [
             'events' => $query->latest('created_at')->paginate(25),
-            'devices' => DeviceEvent::distinct()->orderBy('device_code')->pluck('device_code'),
-            'eventTypes' => DeviceEvent::whereNotNull('event_type')->distinct()->orderBy('event_type')->pluck('event_type'),
         ];
     }
 };
@@ -120,65 +94,8 @@ new #[Layout('layouts::empty')] class extends Component
             </div>
         @endif
 
-        <div class="mb-6 flex justify-end">
-            <button type="button" wire:click="syncLatestMember"
-                class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 data-loading:pointer-events-none data-loading:opacity-50">
-                <span wire:loading.remove wire:target="syncLatestMember">Sinkronkan Member Terbaru</span>
-                <span wire:loading wire:target="syncLatestMember">Mengirim...</span>
-            </button>
-        </div>
-
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div>
-                    <label class="block text-xs font-medium text-gray-700 mb-1">Cari payload</label>
-                    <input type="text" wire:model.live.debounce.300ms="search"
-                        class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
-                        placeholder="Kata kunci...">
-                </div>
-
-                <div>
-                    <label class="block text-xs font-medium text-gray-700 mb-1">Perangkat</label>
-                    <select wire:model.live="deviceFilter"
-                        class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm">
-                        <option value="">Semua</option>
-                        @foreach ($devices as $device)
-                            <option value="{{ $device }}">{{ $device }}</option>
-                        @endforeach
-                    </select>
-                </div>
-
-                <div>
-                    <label class="block text-xs font-medium text-gray-700 mb-1">Tipe Event</label>
-                    <select wire:model.live="eventTypeFilter"
-                        class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm">
-                        <option value="">Semua</option>
-                        @foreach ($eventTypes as $type)
-                            <option value="{{ $type }}">{{ $type }}</option>
-                        @endforeach
-                    </select>
-                </div>
-
-                <div>
-                    <label class="block text-xs font-medium text-gray-700 mb-1">Status</label>
-                    <select wire:model.live="statusFilter"
-                        class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm">
-                        <option value="">Semua</option>
-                        <option value="received">Received</option>
-                        <option value="failed">Failed</option>
-                    </select>
-                </div>
-
-                <div>
-                    <label for="found-filter" class="block text-xs font-medium text-gray-700 mb-1">Ditemukan</label>
-                    <select id="found-filter" wire:model.live="foundFilter"
-                        class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm">
-                        <option value="">Semua</option>
-                        <option value="1">Ditemukan</option>
-                        <option value="0">Tidak ditemukan</option>
-                    </select>
-                </div>
-
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Rentang Tanggal</label>
                     <input type="text" x-data
@@ -215,6 +132,7 @@ new #[Layout('layouts::empty')] class extends Component
                             <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipe Event</th>
                             <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID Pegawai</th>
                             <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ditemukan</th>
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Member aktif</th>
                             <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nama</th>
                             <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kartu</th>
                             <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pintu</th>
@@ -250,6 +168,9 @@ new #[Layout('layouts::empty')] class extends Component
                                             Tidak
                                         </span>
                                     @endif
+                                </td>
+                                <td class="px-4 py-3 text-sm text-gray-700">
+                                    {{ $event->is_member === null ? 'Belum diketahui' : ($event->is_member ? 'Ya' : 'Tidak') }}
                                 </td>
                                 <td class="px-4 py-3 text-sm text-gray-700">
                                     {{ $event->name ?? '-' }}
@@ -291,7 +212,7 @@ new #[Layout('layouts::empty')] class extends Component
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="13" class="px-4 py-8 text-center text-sm text-gray-500">
+                                <td colspan="14" class="px-4 py-8 text-center text-sm text-gray-500">
                                     Belum ada log event.
                                 </td>
                             </tr>

@@ -20,6 +20,77 @@ class DeviceEventWebhookTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_membership_snapshot_uses_only_linked_membership_status(): void
+    {
+        foreach (['active', 'pending', 'rejected', 'completed'] as $status) {
+            $user = $this->createUser(['hikvision_employee_no' => 'MEM-'.$status]);
+            $this->createPtMembership($user, [
+                'status' => $status,
+                'is_active' => false,
+                'pt_end_date' => today()->subDay(),
+                'membership_end_date' => today()->subDay(),
+            ]);
+
+            $this->postJson('/api/absensi', $this->attendancePayloadForEmployeeNumber(
+                $user->hikvision_employee_no, $user->name,
+            ))->assertOk();
+
+            $this->assertSame($status === 'active', DeviceEvent::where('employee_no', $user->hikvision_employee_no)->sole()->is_member);
+        }
+
+        $user = $this->createUser();
+        $this->postJson('/api/absensi', $this->attendancePayload($user, 'checkIn', '2026-09-01T08:00:00+07:00'))->assertOk();
+        $this->assertFalse(DeviceEvent::where('employee_no', (string) $user->id)->sole()->is_member);
+    }
+
+    public function test_membership_snapshot_is_preserved_on_duplicate_events(): void
+    {
+        $user = $this->createUser();
+        $this->createPtMembership($user, ['status' => 'completed']);
+        $membership = $this->createPtMembership($user);
+        $payload = $this->attendancePayload($user, 'checkIn', '2026-09-01T08:00:00+07:00');
+        $this->postJson('/api/absensi', $payload)->assertOk();
+        $this->assertTrue(DeviceEvent::query()->sole()->is_member);
+
+        $membership->update(['status' => 'completed']);
+        $this->postJson('/api/absensi', $payload)->assertOk();
+        $this->assertTrue(DeviceEvent::query()->sole()->is_member);
+    }
+
+    public function test_failed_membership_snapshot_survives_failed_and_successful_retries(): void
+    {
+        $user = $this->createUser();
+        $membership = $this->createPtMembership($user);
+        $realService = app(HikvisionAttendanceService::class);
+        $this->app->instance(HikvisionAttendanceService::class, new class($realService) extends HikvisionAttendanceService
+        {
+            private int $attempts = 0;
+
+            public function __construct(private HikvisionAttendanceService $realService) {}
+
+            public function record(User $user, DeviceEvent $deviceEvent, Carbon $receivedAt): bool
+            {
+                if ($this->attempts++ < 2) {
+                    throw new RuntimeException('Test failure');
+                }
+
+                return $this->realService->record($user, $deviceEvent, $receivedAt);
+            }
+        });
+        $payload = $this->attendancePayload($user, 'checkIn', '2026-09-01T08:00:00+07:00');
+
+        $this->postJson('/api/absensi', $payload)->assertOk();
+        $this->assertTrue(DeviceEvent::query()->sole()->is_member);
+        $this->assertSame('failed', DeviceEvent::query()->sole()->status);
+        $membership->update(['status' => 'completed']);
+        $this->postJson('/api/absensi', $payload)->assertOk();
+        $this->assertTrue(DeviceEvent::query()->sole()->is_member);
+
+        $this->postJson('/api/absensi', $payload)->assertOk();
+        $this->assertTrue(DeviceEvent::query()->sole()->is_member);
+        $this->assertSame('received', DeviceEvent::query()->sole()->status);
+    }
+
     public function test_it_stores_hikvision_xml_event(): void
     {
         $xml = <<<'XML'
@@ -51,6 +122,7 @@ XML;
         $this->assertDatabaseHas('device_events', [
             'device_code' => 'HQ-BIO-01',
             'employee_no' => 'EMP001',
+            'is_member' => null,
             'name' => 'John Doe',
             'card_no' => '1234567890',
             'door_no' => '1',
