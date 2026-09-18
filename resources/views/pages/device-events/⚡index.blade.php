@@ -63,9 +63,15 @@ new #[Layout('layouts::empty')] class extends Component
         });
 
         if (in_array($this->employeeFilter, ['1', '0'], true)) {
-            $query->where('is_karyawan', $this->employeeFilter === '1');
+            $query->where(function (Builder $query): void {
+                $query->where('is_found', false)
+                    ->orWhere('is_karyawan', $this->employeeFilter === '1');
+            });
         } elseif ($this->employeeFilter === 'unknown') {
-            $query->whereNull('is_karyawan');
+            $query->where(function (Builder $query): void {
+                $query->where('is_found', false)
+                    ->orWhereNull('is_karyawan');
+            });
         }
 
         if ($this->dateStart && $this->dateEnd) {

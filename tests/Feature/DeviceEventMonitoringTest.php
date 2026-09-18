@@ -22,7 +22,7 @@ class DeviceEventMonitoringTest extends TestCase
     public function test_employee_filter_defaults_to_false_and_distinguishes_null(): void
     {
         foreach (['Employee row' => true, 'Member row' => false, 'Unknown row' => null] as $name => $value) {
-            DeviceEvent::create(['device_code' => 'FILTER', 'name' => $name, 'is_karyawan' => $value, 'payload' => '']);
+            DeviceEvent::create(['device_code' => 'FILTER', 'name' => $name, 'is_found' => true, 'is_karyawan' => $value, 'payload' => '']);
         }
 
         Livewire::test('pages::device-events')
@@ -38,6 +38,35 @@ class DeviceEventMonitoringTest extends TestCase
             ->assertSee('Member row')->assertSee('Employee row')->assertSee('Unknown row')
             ->set('dateStart', '2000-01-01')->set('dateEnd', '2000-01-01')
             ->assertSee('Belum ada log event.');
+    }
+
+    public function test_unmatched_events_appear_for_every_employee_filter_within_the_date_range(): void
+    {
+        foreach ([true, false, null] as $index => $value) {
+            DeviceEvent::forceCreate([
+                'device_code' => 'UNMATCHED', 'name' => 'Unmatched '.$index,
+                'is_found' => false, 'is_karyawan' => $value, 'payload' => '',
+                'created_at' => '2026-09-18 12:00:00',
+            ]);
+        }
+        DeviceEvent::forceCreate([
+            'device_code' => 'OLD', 'name' => 'Outside range', 'is_found' => false,
+            'payload' => '', 'created_at' => '2026-09-17 12:00:00',
+        ]);
+        DeviceEvent::forceCreate([
+            'device_code' => 'ACTIVE', 'name' => 'Hidden active member', 'is_found' => true,
+            'is_member' => true, 'is_karyawan' => false, 'payload' => '',
+            'created_at' => '2026-09-18 12:00:00',
+        ]);
+
+        $component = Livewire::test('pages::device-events')
+            ->set('dateStart', '2026-09-18')->set('dateEnd', '2026-09-18');
+
+        foreach (['0', '1', 'unknown', ''] as $filter) {
+            $component->set('employeeFilter', $filter)
+                ->assertSee('Unmatched 0')->assertSee('Unmatched 1')->assertSee('Unmatched 2')
+                ->assertDontSee('Outside range')->assertDontSee('Hidden active member');
+        }
     }
 
     public function test_employee_badges_and_nullable_default_are_displayed(): void
