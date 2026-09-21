@@ -89,24 +89,6 @@
                 <span wire:loading wire:target="saveAttendanceCell" role="status" class="block text-sm text-gray-500">Menyimpan…</span>
             </form>
         @else
-            @if ($cellDetail['isLate'])
-                <div class="mt-5 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-bold text-red-700">
-                    <p>TELAT MASUK {{ $cellDetail['lateDuration'] }}</p>
-                    <p class="mt-1">GANTI JAM TELAT {{ $cellDetail['lateDuration'] }}</p>
-                    @if ($cellDetail['lateRepaid'])
-                        <p class="mt-1">SUDAH TERBAYARKAN</p>
-                    @elseif (! $cellDetail['hasCheckOut'])
-                        <p class="mt-1">BELUM TERBAYARKAN — belum ada jam keluar.</p>
-                    @elseif (! $cellDetail['hasScheduledEnd'])
-                        <p class="mt-1">Belum dapat dihitung — jadwal akhir shift tidak tersedia.</p>
-                    @else
-                        <p class="mt-1">BELUM TERBAYARKAN — sisa {{ $cellDetail['remainingLateDuration'] }}</p>
-                    @endif
-                    @if ($cellDetail['hasCheckOut'] && $cellDetail['hasScheduledEnd'])
-                        <p class="mt-1">Waktu pengganti setelah akhir shift: {{ $cellDetail['replacementDuration'] }}</p>
-                    @endif
-                </div>
-            @endif
             <dl class="mt-5 grid grid-cols-[auto_minmax(0,1fr)] gap-x-5 gap-y-3 wrap-anywhere border-t border-gray-200 pt-4 text-sm">
                 <dt class="text-gray-500">Status</dt><dd class="font-semibold">{{ $cellDetail['status'] ?? 'Belum ada data' }}</dd>
                 @if ($cellDetail['hasSnapshot'])
@@ -115,6 +97,21 @@
                     <dt class="text-gray-500">Masuk</dt><dd>{{ $cellDetail['in'] }}</dd>
                     <dt class="text-gray-500">Keluar</dt><dd>{{ $cellDetail['out'] }}</dd>
                     <dt class="text-gray-500">Nama di alat</dt><dd>{{ $cellDetail['device'] }}</dd>
+                @endif
+                @if ($cellDetail['isLate'])
+                    <dt class="text-red-700">TELAT MASUK</dt><dd class="text-red-700">{{ $cellDetail['lateDuration'] }}</dd>
+                    <dt class="text-red-700">Penggantian</dt>
+                    <dd class="text-red-700">
+                        @if ($cellDetail['lateRepaid'])
+                            SUDAH TERBAYARKAN
+                        @elseif (! $cellDetail['hasCheckOut'])
+                            BELUM TERBAYARKAN — belum ada jam keluar.
+                        @elseif (! $cellDetail['hasScheduledEnd'])
+                            Belum dapat dihitung — jadwal akhir shift tidak tersedia.
+                        @else
+                            BELUM TERBAYARKAN — sisa {{ $cellDetail['remainingLateDuration'] }}
+                        @endif
+                    </dd>
                 @endif
                 @if (filled($cellDetail['notes']))
                     <dt class="text-gray-500">Catatan</dt><dd class="whitespace-pre-wrap break-words">{{ $cellDetail['notes'] }}</dd>
