@@ -184,6 +184,11 @@ class Membership extends Model
         });
     }
 
+    public function scopeRunningPt(Builder $query): Builder
+    {
+        return $query->whereNotNull('pt_package_id')->where('is_active', true)->where('status', 'active');
+    }
+
     public function getPriceLabel(): ?array
     {
         $pricePaid = (float) $this->price_paid;

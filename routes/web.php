@@ -116,6 +116,12 @@ Route::middleware('auth')->group(function () {
         Route::livewire('/pt-berjalan', 'pages::dashboard.admin.pt-berjalan')
             ->name('admin.pt-berjalan.index');
 
+        Route::livewire('/pt-berjalan/coach/{coach}', 'pages::dashboard.admin.pt-berjalan.coach')
+            ->whereNumber('coach')->name('admin.pt-berjalan.coach');
+
+        Route::livewire('/pt-berjalan/belum-ada-coach', 'pages::dashboard.admin.pt-berjalan.coach')
+            ->name('admin.pt-berjalan.unassigned');
+
         Route::livewire('/riwayat', 'pages::dashboard.admin.riwayat.index')
             ->name('admin.riwayat.index');
 
