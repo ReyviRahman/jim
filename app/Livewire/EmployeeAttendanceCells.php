@@ -40,7 +40,7 @@ trait EmployeeAttendanceCells
     public function openAttendanceCell(int $employeeId, string $date): void
     {
         $actor = auth()->user();
-        abort_unless($this->employeesOnly && (in_array($actor?->role, ['admin', 'kasir_gym'], true) || $actor?->isHeadCoach()), 403);
+        abort_unless($this->employeesOnly && $actor?->can('view-employee-attendance'), 403);
         Validator::make(['date' => $date], ['date' => ['required', 'date_format:Y-m-d']])->validate();
         $employee = User::query()->where('role', '!=', 'member')->findOrFail($employeeId);
         $record = $employee->employeeAttendances()->where('attendance_date', $date)->first();

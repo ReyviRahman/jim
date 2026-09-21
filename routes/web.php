@@ -100,6 +100,7 @@ Route::middleware('auth')->group(function () {
             ->name('admin.absensi.index');
 
         Route::livewire('/absensi-karyawan', 'pages::dashboard.admin.absensi')
+            ->middleware('can:view-employee-attendance')
             ->defaults('employeesOnly', true)
             ->name('admin.absensi-karyawan.index');
 

@@ -124,6 +124,35 @@ class HeadCoachAccessTest extends TestCase
             ->call('beginBulkAttendance')->assertForbidden();
     }
 
+    public function test_gym_cashier_cannot_access_employee_attendance_or_see_its_navigation(): void
+    {
+        $cashier = User::factory()->create(['role' => 'kasir_gym']);
+
+        $this->actingAs($cashier)->get(route('admin.absensi.index'))
+            ->assertOk()
+            ->assertDontSeeHtml('href="'.route('admin.absensi-karyawan.index').'"');
+
+        $this->get(route('admin.absensi-karyawan.index'))->assertForbidden();
+
+        Livewire::test('pages::dashboard.admin.absensi.index', ['employeesOnly' => true])
+            ->call('openAttendanceCell', $cashier->id, today()->toDateString())
+            ->assertForbidden();
+    }
+
+    public function test_admin_can_access_employee_attendance_and_see_its_navigation(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $this->actingAs($admin)->get(route('admin.absensi-karyawan.index'))
+            ->assertOk()
+            ->assertSeeHtml('href="'.route('admin.absensi-karyawan.index').'"');
+    }
+
+    public function test_employee_attendance_requires_login(): void
+    {
+        $this->get(route('admin.absensi-karyawan.index'))->assertRedirect(route('login'));
+    }
+
     public function test_head_coach_is_redirected_to_head_coach_dashboard_after_login(): void
     {
         User::factory()->headCoach()->create();
