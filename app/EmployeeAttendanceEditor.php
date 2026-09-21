@@ -179,8 +179,8 @@ class EmployeeAttendanceEditor
             $checkOut = $record->check_out_time->copy();
         }
         $now = now(config('app.timezone'));
-        if ($checkIn !== null && ($checkIn->greaterThan($now) || ! $checkIn->betweenIncluded($start, $end))) {
-            throw ValidationException::withMessages(['form.checkIn' => 'Jam masuk harus berada dalam jadwal shift dan tidak boleh melewati waktu sekarang.']);
+        if ($checkIn !== null && $checkIn->greaterThan($now)) {
+            throw ValidationException::withMessages(['form.checkIn' => 'Jam masuk tidak boleh melewati waktu sekarang.']);
         }
         if ($checkOut !== null && $checkIn === null) {
             throw ValidationException::withMessages(['form.checkOut' => 'Isi waktu masuk sebelum mengisi waktu keluar.']);

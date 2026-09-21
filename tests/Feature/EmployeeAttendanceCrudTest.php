@@ -13,7 +13,6 @@ use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\ValidationException;
 use Livewire\Features\SupportTesting\Testable;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -179,7 +178,6 @@ class EmployeeAttendanceCrudTest extends TestCase
     {
         $employee = $this->employee();
         $component = $this->page()->call('openAttendanceCell', $employee->id, '2026-09-10')
-            ->set('form.checkIn', '2026-09-10T07:00')->call('saveAttendanceCell')->assertHasErrors('form.checkIn')
             ->set('form.checkIn', '2026-09-10T08:00')->set('form.checkOut', '2026-09-10T07:00')->call('saveAttendanceCell')->assertHasErrors('form.checkOut')
             ->set('form.checkOut', '2026-09-11T08:00')->call('saveAttendanceCell')->assertHasErrors('form.checkOut');
         $wrongShift = Shift::factory()->create(['role' => 'sales']);
@@ -189,6 +187,26 @@ class EmployeeAttendanceCrudTest extends TestCase
         $this->page()->call('openAttendanceCell', $employee->id, '2026-10-01')->set('form.checkIn', '2026-10-01T08:00')
             ->call('saveAttendanceCell')->assertHasErrors('form.checkIn');
         $this->assertDatabaseCount('attendance_employee', 0);
+    }
+
+    public function test_edit_accepts_check_in_before_or_after_shift_without_changing_schedule(): void
+    {
+        $employee = $this->employee();
+        $this->page()->call('openAttendanceCell', $employee->id, '2026-09-10')
+            ->set('form.checkIn', '2026-09-10T08:00')->call('saveAttendanceCell')->assertHasNoErrors();
+        $record = AttendanceEmployee::query()->sole();
+        $schedule = $record->only(['shift_code', 'shift_name', 'scheduled_start_at', 'scheduled_end_at', 'checkout_deadline_at']);
+
+        foreach (['06:00', '17:00'] as $time) {
+            $this->page()->call('openAttendanceCell', $employee->id, '2026-09-10')
+                ->set('form.checkIn', '2026-09-10T'.$time)->set('form.checkOut', '2026-09-10T18:00')
+                ->call('saveAttendanceCell')->assertHasNoErrors();
+            $record->refresh();
+            $this->assertSame($time, $record->check_in_time->format('H:i'));
+            $this->assertSame('18:00', $record->check_out_time->format('H:i'));
+            $this->assertEquals($schedule, $record->only(array_keys($schedule)));
+            $this->assertDatabaseCount('attendance_employee', 1);
+        }
     }
 
     public function test_manual_overnight_attendance_uses_selected_start_date(): void
@@ -254,9 +272,9 @@ class EmployeeAttendanceCrudTest extends TestCase
         $this->assertDatabaseCount('attendance_employee', 1);
     }
 
-    public function test_pending_schedule_uses_snapshot_and_inclusive_boundaries(): void
+    public function test_pending_schedule_accepts_scans_outside_shift_without_assignment(): void
     {
-        foreach (['07:00:00', '16:00:00'] as $time) {
+        foreach (['06:59:59', '07:00:00', '16:00:00', '16:00:01'] as $time) {
             $employee = $this->employee();
             $employee->assignedShift->update(['start_time' => '07:00:00']);
             $this->page()->call('openAttendanceCell', $employee->id, '2026-10-01')
@@ -264,15 +282,6 @@ class EmployeeAttendanceCrudTest extends TestCase
             $row = $employee->employeeAttendances()->sole();
             $employee->update(['shift' => null]);
             $service = app(EmployeeAttendanceService::class);
-            foreach (['2026-10-01 06:59:59', '2026-10-01 16:00:01'] as $rejected) {
-                try {
-                    $service->record($employee, Carbon::parse($rejected));
-                    $this->fail('Scan outside the scheduled shift must be rejected.');
-                } catch (ValidationException) {
-                    $this->assertNull($row->fresh()->check_in_time);
-                    $this->assertNull($row->fresh()->check_out_time);
-                }
-            }
             $result = $service->record($employee, Carbon::parse('2026-10-01 '.$time));
             $this->assertSame($row->id, $result->id);
             $this->assertSame($time, $result->check_in_time->format('H:i:s'));
