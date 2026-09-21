@@ -60,6 +60,50 @@ class HeadCoachAccessTest extends TestCase
         }
     }
 
+    public function test_head_coach_can_open_membership_history_from_sidebar_and_read_details(): void
+    {
+        $headCoach = User::factory()->headCoach()->create();
+        $member = User::factory()->create(['role' => 'member']);
+
+        $this->actingAs($headCoach)->get(route('admin.cicilan.index'))
+            ->assertOk()
+            ->assertSee('Riwayat Member')
+            ->assertSeeHtml('href="'.route('admin.riwayat.index').'"')
+            ->assertDontSeeHtml('href="'.route('admin.penjualan.index').'"')
+            ->assertDontSeeHtml('href="'.route('admin.pengeluaran.index').'"');
+
+        $this->get(route('admin.riwayat.index'))->assertOk();
+        $this->get(route('admin.riwayat.detail', $member))->assertOk()->assertSee($member->name);
+    }
+
+    public function test_admin_and_gym_cashier_keep_membership_history_navigation(): void
+    {
+        foreach (['admin', 'kasir_gym'] as $role) {
+            $user = User::factory()->create(['role' => $role]);
+
+            $this->actingAs($user)->get(route('admin.riwayat.index'))
+                ->assertOk()
+                ->assertSee('Riwayat Member')
+                ->assertSeeHtml('href="'.route('admin.riwayat.index').'"')
+                ->assertSeeHtml('href="'.route('admin.penjualan.index').'"')
+                ->assertSeeHtml('href="'.route('admin.pengeluaran.index').'"');
+        }
+    }
+
+    public function test_regular_pt_and_legacy_head_coach_cannot_access_membership_history(): void
+    {
+        $member = User::factory()->create(['role' => 'member']);
+
+        foreach (['pt', 'head_coach'] as $role) {
+            $user = User::factory()->create(['role' => $role]);
+
+            $this->actingAs($user)->get(route('admin.riwayat.index'))
+                ->assertRedirect(route('home'));
+            $this->get(route('admin.riwayat.detail', $member))
+                ->assertRedirect(route('home'));
+        }
+    }
+
     public function test_head_coach_can_open_employee_attendance_from_sidebar_and_read_details(): void
     {
         $headCoach = User::factory()->headCoach()->create();

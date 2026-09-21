@@ -179,7 +179,7 @@
             </div>
             @endif
             <ul class="space-y-2 font-medium px-3">
-                @if($isAdminOrKasir)
+                @if($isAdminOrKasir || $isHeadCoach)
                 <li>
                     <a href="{{ route('admin.riwayat.index') }}" wire:navigate 
                         class="{{ request()->routeIs('admin.riwayat.*') ? 'text-[#34342F] bg-brand' : 'text-white' }} flex items-center px-2 py-1.5 rounded-md hover:bg-brand hover:text-[#34342F] group transition-colors">
@@ -189,6 +189,8 @@
                         <span class="ms-3">Riwayat Member</span>
                     </a>
                 </li>
+                @endif
+                @if($isAdminOrKasir)
                 <li>
                     <a href="{{ route('admin.penjualan.index') }}" wire:navigate 
                         class="{{ request()->routeIs('admin.penjualan.*') ? 'text-[#34342F] bg-brand' : 'text-white' }} flex items-center px-2 py-1.5 rounded-md hover:bg-brand hover:text-[#34342F] group transition-colors">
