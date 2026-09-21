@@ -193,6 +193,7 @@ class MembershipWaiverTest extends TestCase
             $form = Livewire::withQueryParams(['users' => $members->modelKeys()])->test('pages::dashboard.admin.membership.paket');
         }
         $form->set('registration_type', 'membership')->set('gym_package_id', $package->id)
+            ->set('pt_trial_interest', 'no')
             ->set('admin_id', $admin->id)->set('follow_up_id', $admin->id)->set('follow_up_id_two', $admin->id)
             ->set('transaction_type', 'MEMBERSHIP')->set('package_name', 'Paket Waiver')->set('notes', 'Test waiver')
             ->set('payment_method', 'cash')->set('payment_type', 'paid');

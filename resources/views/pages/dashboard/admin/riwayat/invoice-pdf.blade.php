@@ -370,6 +370,7 @@
                         </table>
                         <table class="info-table">
                             <tr><td class="info-label">Paket</td><td class="info-separator">:</td><td class="info-value">{{ $packageName }}</td></tr>
+                            <tr><td class="info-label">Minat program PT / trial</td><td class="info-separator">:</td><td class="info-value">{{ $membership->ptTrialInterestLabel() }}</td></tr>
                             <tr><td class="info-label">Tanggal Mulai</td><td class="info-separator">:</td><td class="info-value">{{ $membership->start_date?->locale('id')->translatedFormat('d F Y') ?? '-' }}</td></tr>
                             <tr><td class="info-label">Tanggal Berakhir</td><td class="info-separator">:</td><td class="info-value">{{ $membershipEndDate }}</td></tr>
                             <tr><td class="info-label">Metode Pembayaran</td><td class="info-separator">:</td><td class="info-value">{{ $paymentMethod }}</td></tr>

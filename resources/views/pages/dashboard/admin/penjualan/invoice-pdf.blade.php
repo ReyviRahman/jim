@@ -383,6 +383,7 @@
                             <tr><td class="info-label">{{ $detailLabel }}</td><td class="info-separator">:</td><td class="info-value">{{ $detailName }}</td></tr>
                             <tr><td class="info-label">Metode Pembayaran</td><td class="info-separator">:</td><td class="info-value">{{ $paymentMethod }}</td></tr>
                             @if($isMembershipTransaction)
+                                <tr><td class="info-label">Minat program PT / trial</td><td class="info-separator">:</td><td class="info-value">{{ $membershipTransaction->membership?->ptTrialInterestLabel() ?? 'Belum diisi' }}</td></tr>
                                 <tr><td class="info-label">Tanggal Mulai</td><td class="info-separator">:</td><td class="info-value">{{ $membershipTransaction->start_date?->locale('id')->translatedFormat('d F Y') ?? '-' }}</td></tr>
                                 <tr><td class="info-label">Tanggal Berakhir</td><td class="info-separator">:</td><td class="info-value">{{ $membershipTransaction->end_date?->locale('id')->translatedFormat('d F Y') ?? '-' }}</td></tr>
                             @endif

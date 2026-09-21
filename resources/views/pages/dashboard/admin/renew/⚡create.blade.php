@@ -68,6 +68,7 @@ new #[Layout('layouts::admin')] class extends Component
     public $transaction_type = '';
     public $package_name = '';
     public $notes = '';
+    public ?string $pt_trial_interest = null;
     
     public $admin_id = '';
     public $follow_up_id = '';
@@ -336,6 +337,7 @@ new #[Layout('layouts::admin')] class extends Component
             'transaction_type' => 'required|string',
             'package_name' => 'required|string',
             'notes' => 'nullable|string',
+            'pt_trial_interest' => ['required', \Illuminate\Validation\Rule::in(array_keys(MembershipModel::PT_TRIAL_INTEREST_OPTIONS))],
             'is_active' => 'required|boolean',
             'manual_discount' => 'nullable|numeric|min:0|max:' . $this->base_price,
             'admin_fee' => 'nullable|numeric|min:0',
@@ -361,6 +363,8 @@ new #[Layout('layouts::admin')] class extends Component
         }
 
         $this->validate($rules, [
+            'pt_trial_interest.required' => 'Pilih minat program personal trainer atau trial.',
+            'pt_trial_interest.in' => 'Pilih Iya, Tidak, atau Mungkin nanti.',
             'amount_paid.max' => 'Nominal cicilan tidak boleh lebih atau sama dengan total tagihan.',
             'amount_paid.min' => 'Nominal cicilan harus lebih dari 0.',
             'manual_discount.max' => 'Diskon tidak boleh melebihi total harga paket.',
@@ -452,6 +456,7 @@ new #[Layout('layouts::admin')] class extends Component
                 'status' => $this->payment_type === 'paid' ? 'active' : 'pending',
                 'is_active' => $this->payment_type === 'paid' ? $this->is_active : false,
                 'notes' => $this->notes,
+                'pt_trial_interest' => $this->pt_trial_interest ?: null,
                 'transaction_type' => $this->transaction_type,
                 'package_name' => $this->package_name,
             ]);
@@ -684,6 +689,7 @@ new #[Layout('layouts::admin')] class extends Component
                     @endif
                 </div>
             </div>
+            <x-membership-pt-trial-interest />
             <x-membership-waiver-form :members="$selectedUsers" :required="true" />
         </div>
 

@@ -11,6 +11,12 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Membership extends Model
 {
+    public const PT_TRIAL_INTEREST_OPTIONS = [
+        'yes' => 'Iya',
+        'no' => 'Tidak',
+        'later' => 'Mungkin nanti',
+    ];
+
     protected $attributes = [
         'admin_fee' => 0,
     ];
@@ -36,6 +42,7 @@ class Membership extends Model
         'total_sessions',
         'remaining_sessions',
         'member_goal',
+        'pt_trial_interest',
         'start_date',
         'pt_end_date',
         'membership_end_date',
@@ -60,6 +67,11 @@ class Membership extends Model
         'sesi_hangus' => 'integer',
         'is_active' => 'boolean',
     ];
+
+    public function ptTrialInterestLabel(): string
+    {
+        return self::PT_TRIAL_INTEREST_OPTIONS[$this->pt_trial_interest] ?? 'Belum diisi';
+    }
 
     /**
      * Relasi ke Pembayar / Pendaftar Utama

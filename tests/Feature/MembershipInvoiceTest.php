@@ -20,6 +20,16 @@ class MembershipInvoiceTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_legacy_invoices_show_unanswered_trial_interest(): void
+    {
+        $membership = $this->createMembershipWithInstallments();
+        $this->assertNull($membership->pt_trial_interest);
+        $this->view('pages.dashboard.admin.riwayat.invoice-pdf', app(BuildMembershipInvoiceData::class)->execute($membership))
+            ->assertSee('Minat program PT / trial')->assertSee('Belum diisi');
+        $this->view('pages.dashboard.admin.penjualan.invoice-pdf', app(BuildMembershipTransactionInvoiceData::class)->execute($membership->transactions()->firstOrFail()))
+            ->assertSee('Minat program PT / trial')->assertSee('Belum diisi');
+    }
+
     public function test_waiver_signatures_are_opt_in_and_public_verification_never_displays_them(): void
     {
         Storage::fake('local');
