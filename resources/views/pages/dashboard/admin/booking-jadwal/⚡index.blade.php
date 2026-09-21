@@ -1200,6 +1200,7 @@ new #[Layout('layouts::admin')] class extends Component
                                                             @endif">
                                                             @if($booking->attendance === 'attended') Hadir
                                                             @elseif($booking->attendance === 'noshow') Hangus
+                                                            @elseif($booking->attendance === 'not_yet' && $booking->booking_date->lt(today(config('app.timezone')))) Tidak Hadir
                                                             @else Belum
                                                             @endif
                                                         </span>
@@ -1385,6 +1386,7 @@ new #[Layout('layouts::admin')] class extends Component
                                         @endif">
                                         @if($booking->attendance === 'attended') Hadir
                                         @elseif($booking->attendance === 'noshow') Hangus
+                                        @elseif($booking->attendance === 'not_yet' && $booking->booking_date->lt(today(config('app.timezone')))) Tidak Hadir
                                         @else Belum Absen
                                         @endif
                                     </span>
