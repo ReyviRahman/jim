@@ -249,6 +249,10 @@ new #[Layout('layouts::admin')] class extends Component
                     @endphp
 
                     <div class="space-y-2 mt-2">
+                        <div class="space-y-1 text-xs text-gray-500">
+                            <p><span class="font-medium">Tanggal Mulai Paket:</span> {{ $membership->start_date?->format('d M Y') ?? '—' }}</p>
+                            <p><span class="font-medium">Tanggal Berakhir PT:</span> {{ $membership->pt_end_date?->format('d M Y') ?? '—' }}</p>
+                        </div>
                         <div class="space-y-1">
                             <div class="flex justify-between items-center text-xs">
                                 <span class="text-xs font-medium text-indigo-700 truncate max-w-[50%]">{{ $membership->ptPackage->name ?? 'Paket Terhapus' }}</span>
@@ -410,8 +414,16 @@ new #[Layout('layouts::admin')] class extends Component
                     </div>
 
                         <div class="bg-neutral-secondary-medium p-3 rounded-md">
-                            <p class="text-xs text-gray-500 uppercase font-bold mb-1">Tanggal Mulai</p>
+                            <p class="text-xs text-gray-500 uppercase font-bold mb-1">Booking Pertama</p>
                             <p class="font-medium text-heading">{{ $this->selectedMembership->first_approved_booking_date?->format('d M Y') ?? 'Belum ada booking' }}</p>
+                        </div>
+                        <div class="bg-neutral-secondary-medium p-3 rounded-md">
+                            <p class="text-xs text-gray-500 uppercase font-bold mb-1">Tanggal Mulai Paket</p>
+                            <p class="font-medium text-heading">{{ $this->selectedMembership->start_date?->format('d M Y') ?? '—' }}</p>
+                        </div>
+                        <div class="bg-neutral-secondary-medium p-3 rounded-md">
+                            <p class="text-xs text-gray-500 uppercase font-bold mb-1">Tanggal Berakhir PT</p>
+                            <p class="font-medium text-heading">{{ $this->selectedMembership->pt_end_date?->format('d M Y') ?? '—' }}</p>
                         </div>
                 </div>
 

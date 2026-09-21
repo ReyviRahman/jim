@@ -173,7 +173,7 @@ class PtBerjalanTest extends TestCase
 
             Livewire::test('pages::dashboard.admin.pt-berjalan.coach', ['coach' => $assignedCoach?->id])
                 ->call('openDetailModal', $membership->id)
-                ->assertSee('05 Jul 2026')->assertDontSee('14 Jul 2026')->assertDontSee('01 Jun 2026');
+                ->assertSee('05 Jul 2026')->assertSee('14 Jul 2026')->assertDontSee('01 Jun 2026');
             $this->assertSame('2026-07-14', $membership->fresh()->start_date->toDateString());
         }
     }
@@ -184,12 +184,27 @@ class PtBerjalanTest extends TestCase
         $membership = $this->membership($coach, ['start_date' => '2026-07-14']);
         $page = Livewire::test('pages::dashboard.admin.pt-berjalan.coach', ['coach' => $coach->id])
             ->call('openDetailModal', $membership->id)
-            ->assertSee('Tanggal Mulai')->assertSee('Belum ada booking')->assertDontSee('14 Jul 2026');
+            ->assertSee('Tanggal Mulai')->assertSee('Belum ada booking')->assertSee('14 Jul 2026');
         $membership->ptBookings()->create([
             'member_id' => $membership->user_id, 'pt_id' => $coach->id,
             'booking_date' => '2026-07-05', 'booking_time' => '07:00:00', 'status' => 'pending',
         ]);
         $page->call('openDetailModal', $membership->id)->assertSee('Belum ada booking');
+    }
+
+    public function test_package_dates_are_visible_on_cards_and_in_details(): void
+    {
+        $coach = $this->coach('Coach Dates');
+        $membership = $this->membership($coach, ['start_date' => '2026-07-14', 'pt_end_date' => '2026-10-14']);
+        $page = Livewire::test('pages::dashboard.admin.pt-berjalan.coach', ['coach' => $coach->id])
+            ->assertSee('Tanggal Mulai Paket')->assertSee('14 Jul 2026')
+            ->assertSee('Tanggal Berakhir PT')->assertSee('14 Oct 2026');
+        $page->call('openDetailModal', $membership->id);
+        $this->assertSame(2, substr_count($page->html(), '14 Jul 2026'));
+        $this->assertSame(2, substr_count($page->html(), '14 Oct 2026'));
+        $membership->update(['start_date' => null, 'pt_end_date' => null]);
+        $page->call('openDetailModal', $membership->id)->assertSee('—')
+            ->assertDontSee('14 Jul 2026')->assertDontSee('14 Oct 2026');
     }
 
     private function coach(string $name, bool $active = true): User
