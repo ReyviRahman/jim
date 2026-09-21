@@ -189,6 +189,15 @@ class Membership extends Model
         return $query->whereNotNull('pt_package_id')->where('is_active', true)->where('status', 'active');
     }
 
+    public function scopeRecentlyExpiredPt(Builder $query): Builder
+    {
+        $today = today('Asia/Jakarta');
+
+        return $query->where('type', 'pt')
+            ->where('pt_end_date', '>=', $today->copy()->subDays(30)->toDateString())
+            ->where('pt_end_date', '<', $today->toDateString());
+    }
+
     public function getPriceLabel(): ?array
     {
         $pricePaid = (float) $this->price_paid;

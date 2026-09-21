@@ -122,6 +122,15 @@ Route::middleware('auth')->group(function () {
         Route::livewire('/pt-berjalan/belum-ada-coach', 'pages::dashboard.admin.pt-berjalan.coach')
             ->name('admin.pt-berjalan.unassigned');
 
+        Route::livewire('/pt-expired', 'pages::dashboard.admin.pt-berjalan')
+            ->defaults('expired', true)->name('admin.pt-expired.index');
+
+        Route::livewire('/pt-expired/coach/{coach}', 'pages::dashboard.admin.pt-berjalan.coach')
+            ->defaults('expired', true)->whereNumber('coach')->name('admin.pt-expired.coach');
+
+        Route::livewire('/pt-expired/belum-ada-coach', 'pages::dashboard.admin.pt-berjalan.coach')
+            ->defaults('coach', null)->defaults('expired', true)->name('admin.pt-expired.unassigned');
+
         Route::livewire('/riwayat', 'pages::dashboard.admin.riwayat.index')
             ->name('admin.riwayat.index');
 

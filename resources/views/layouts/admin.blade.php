@@ -311,6 +311,13 @@
                         <span class="ms-3">PT Berjalan</span>
                     </a>
                 </li>
+                <li>
+                    <a href="{{ route('admin.pt-expired.index') }}" wire:navigate
+                        class="{{ request()->routeIs('admin.pt-expired.*') ? 'text-[#34342F] bg-brand' : 'text-white' }} flex items-center px-2 py-1.5 rounded-md hover:bg-brand hover:text-[#34342F] group transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+                        <span class="ms-3">PT Expired</span>
+                    </a>
+                </li>
             </ul>
             @endif
         </div>

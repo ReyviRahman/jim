@@ -23,11 +23,16 @@ new #[Layout('layouts::admin')] class extends Component
     #[Locked]
     public ?int $coachId = null;
 
-    public function mount(?int $coach = null): void
+    #[Locked]
+    public bool $expired = false;
+
+    public function mount(?int $coach = null, bool $expired = false): void
     {
+        $this->expired = $expired;
         if ($coach !== null) {
             $coach = User::findOrFail($coach);
-            abort_unless($coach->role === 'pt' && ($coach->is_active || $coach->ptMemberships()->runningPt()->exists()), 404);
+            $packages = Membership::query()->where('pt_id', $coach->id);
+            abort_unless($coach->role === 'pt' && ($coach->is_active || ($this->expired ? $packages->recentlyExpiredPt() : $packages->runningPt())->exists()), 404);
             $this->coachId = $coach->id;
         }
     }
@@ -39,7 +44,9 @@ new #[Layout('layouts::admin')] class extends Component
 
     private function membershipQuery(): Builder
     {
-        return Membership::query()->runningPt()->where('pt_id', $this->coachId);
+        $query = Membership::query()->where('pt_id', $this->coachId);
+
+        return $this->expired ? $query->recentlyExpiredPt() : $query->runningPt();
     }
 
     #[Computed]
@@ -182,9 +189,9 @@ new #[Layout('layouts::admin')] class extends Component
 <div>
     <div class="flex sm:flex-row flex-col justify-between items-center mb-6">
     <div>
-        <a href="{{ route('admin.pt-berjalan.index') }}" wire:navigate class="text-sm text-body hover:underline">Kembali ke daftar coach</a>
+        <a href="{{ route($expired ? 'admin.pt-expired.index' : 'admin.pt-berjalan.index') }}" wire:navigate class="text-sm text-body hover:underline">Kembali ke daftar coach</a>
         <h1 class="mt-2 text-xl font-semibold text-heading">{{ $this->coachName }}</h1>
-        <p class="mt-1 text-sm text-body">{{ $this->packageCount }} paket aktif</p>
+        <p class="mt-1 text-sm text-body">{{ $this->packageCount }} paket {{ $expired ? 'expired' : 'aktif' }}</p>
     </div>
     <div class="flex gap-2">
         </div>
@@ -286,7 +293,7 @@ new #[Layout('layouts::admin')] class extends Component
                 </div>
             @empty
                 <div class="col-span-full py-8 text-center text-gray-500 bg-neutral-primary-soft rounded-lg border border-default">
-                    {{ $search !== '' ? 'Tidak ada member yang cocok dengan pencarian.' : 'Belum ada paket PT berjalan untuk coach ini.' }}
+                    {{ $search !== '' ? 'Tidak ada member yang cocok dengan pencarian.' : ($expired ? 'Belum ada paket PT expired untuk coach ini.' : 'Belum ada paket PT berjalan untuk coach ini.') }}
                 </div>
             @endforelse
         </div>
@@ -327,7 +334,7 @@ new #[Layout('layouts::admin')] class extends Component
                             </div>
                             <div class="mt-2">
                                 <p class="text-xs text-gray-500 uppercase font-bold">Paket Trainer</p>
-                                <p class="font-semibold text-heading text-indigo-600">{{ $coachMembership->ptPackage->name }}</p>
+                                <p class="font-semibold text-heading text-indigo-600">{{ $coachMembership->ptPackage->name ?? 'Paket Terhapus' }}</p>
                             </div>
                         </div>
                     @endif
@@ -365,7 +372,7 @@ new #[Layout('layouts::admin')] class extends Component
         <div class="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm">
             <div class="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto">
                 <div class="p-6 border-b border-default-medium flex items-center justify-between">
-                    <h3 class="text-lg font-semibold text-heading">Detail PT Berjalan</h3>
+                    <h3 class="text-lg font-semibold text-heading">Detail PT {{ $expired ? 'Expired' : 'Berjalan' }}</h3>
                     <button type="button" wire:click="closeDetailModal()" class="text-body hover:text-heading">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
