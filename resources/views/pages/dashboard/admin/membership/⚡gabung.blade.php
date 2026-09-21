@@ -2,178 +2,122 @@
 
 namespace App\Livewire\Admin;
 
-use Livewire\Component;
-use Livewire\Attributes\Layout;
-use Livewire\Attributes\Computed; 
-use Livewire\WithPagination;
 use App\Models\Membership;
-use App\Models\User;
-use Carbon\Carbon;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
+use Livewire\Attributes\Computed;
+use Livewire\Attributes\Layout;
+use Livewire\Attributes\Locked;
+use Livewire\Component;
+use Livewire\WithPagination;
+
 
 new #[Layout('layouts::admin')] class extends Component
 {
     use WithPagination;
 
-    public $search = '';
-    public $selectedMembershipId = null;
-    public $startDate = '';
-    public $endDate = '';
-    public $showModal = false;
-    public $showCoachModal = false;
-    public $selectedMembershipForCoach = null;
-    public $selectedCoachId = null;
-    public $showActionModal = false;
-    public $selectedMembershipForAction = null;
+    public string $search = '';
 
-    #[Computed]
-    public function trainers()
+    #[Locked]
+    public ?int $selectedMembershipId = null;
+
+    public string $startDate = '';
+    public string $endDate = '';
+    public bool $showModal = false;
+
+
+    public function boot(): void
     {
-        return User::where('role', 'pt')->where('is_active', true)->get();
+        abort_unless(auth()->check() && (in_array(auth()->user()->role, ['admin', 'kasir_gym'], true) || auth()->user()->isHeadCoach()), 403);
     }
 
-    public function openCoachModal($membershipId)
+    private function membershipQuery(): Builder
     {
-        $this->selectedMembershipForCoach = $membershipId;
-        $this->selectedCoachId = null;
-        $membership = Membership::find($membershipId);
-        if ($membership && $membership->pt_id) {
-            $this->selectedCoachId = $membership->pt_id;
-        }
-        $this->showCoachModal = true;
+        return Membership::query()->where('status', 'active')
+            ->where('type', 'membership')->where('is_active', false);
     }
 
-    public function closeCoachModal()
-    {
-        $this->showCoachModal = false;
-        $this->selectedMembershipForCoach = null;
-        $this->selectedCoachId = null;
-    }
-
-    public function openActionModal($membershipId)
-    {
-        $this->selectedMembershipForAction = $membershipId;
-        $this->showActionModal = true;
-    }
-
-    public function closeActionModal()
-    {
-        $this->showActionModal = false;
-        $this->selectedMembershipForAction = null;
-    }
-
-    public function chooseCoachFromAction()
-    {
-        $this->showActionModal = false;
-        $this->openCoachModal($this->selectedMembershipForAction);
-    }
-
-    public function activateFromAction()
-    {
-        $this->showActionModal = false;
-        $this->openModal($this->selectedMembershipForAction);
-    }
-
-    public function saveCoach()
-    {
-        if (!$this->selectedCoachId) {
-            $this->addError('coach', 'Pilih coach terlebih dahulu.');
-            return;
-        }
-
-        $membership = Membership::find($this->selectedMembershipForCoach);
-        if ($membership) {
-            $membership->update(['pt_id' => $this->selectedCoachId]);
-            session()->flash('success', 'Coach berhasil dipilih!');
-        }
-        $this->closeCoachModal();
-    }
-
-    public function updatedSearch()
+    public function updatedSearch(): void
     {
         $this->resetPage();
     }
 
-    public function openModal($membershipId)
+    public function openModal(int $membershipId): void
     {
+        abort_unless($this->membershipQuery()->whereKey($membershipId)->exists(), 404);
+        $this->closeModal();
         $this->selectedMembershipId = $membershipId;
-        $this->startDate = '';
-        $this->endDate = '';
         $this->showModal = true;
     }
 
-    public function closeModal()
+    public function closeModal(): void
     {
-        $this->showModal = false;
-        $this->selectedMembershipId = null;
+        $this->reset('selectedMembershipId', 'startDate', 'endDate', 'showModal');
+        $this->resetValidation();
+        unset($this->selectedMembership);
     }
 
-    // Fungsi untuk menampilkan format tanggal + hari bahasa Indonesia
-    public function getFormattedDate($date)
+    #[Computed]
+    public function selectedMembership(): ?Membership
     {
-        if (!$date) return '';
-        Carbon::setLocale('id');
-        return Carbon::parse($date)->translatedFormat('l, d F Y');
+        return $this->selectedMembershipId === null ? null : $this->membershipQuery()
+            ->with(['user', 'gymPackage'])->find($this->selectedMembershipId);
     }
 
-    public function aktivatekan()
+    public function aktivatekan(): void
     {
-        if (!$this->startDate || !$this->endDate) {
-            $this->addError('dates', 'Tanggal mulai dan selesai harus diisi.');
-            return;
-        }
+        $validated = $this->validate([
+            'startDate' => ['required', 'date_format:Y-m-d'],
+            'endDate' => ['required', 'date_format:Y-m-d', 'after_or_equal:startDate'],
 
-        if (strtotime($this->startDate) > strtotime($this->endDate)) {
-            $this->addError('dates', 'Tanggal mulai tidak boleh lebih besar dari tanggal selesai.');
-            return;
-        }
+        ], [
+            'startDate.required' => 'Tanggal mulai harus diisi.',
+            'startDate.date_format' => 'Tanggal mulai tidak valid.',
+            'endDate.required' => 'Tanggal selesai harus diisi.',
+            'endDate.date_format' => 'Tanggal selesai tidak valid.',
+            'endDate.after_or_equal' => 'Tanggal selesai tidak boleh sebelum tanggal mulai.',
 
-        $membership = Membership::find($this->selectedMembershipId);
-        
-        if (!$membership) {
-            $this->addError('membership', 'Membership tidak ditemukan.');
-            return;
-        }
+        ]);
 
-        $updateData = [
-            'is_active' => true,
-            'start_date' => $this->startDate,
-        ];
+        DB::transaction(function () use ($validated): void {
+            $membership = $this->membershipQuery()->lockForUpdate()->find($this->selectedMembershipId);
+            if (! $membership) {
+                throw ValidationException::withMessages(['membership' => 'Paket sudah berubah atau tidak lagi tersedia untuk aktivasi. Muat ulang daftar.']);
+            }
 
-        // Jika ada gym_package_id, isi membership_end_date
-        if ($membership->gym_package_id) {
-            $updateData['membership_end_date'] = $this->endDate;
-        }
-
-        // Jika ada pt_package_id, isi pt_end_date
-        if ($membership->pt_package_id) {
-            $updateData['pt_end_date'] = $this->endDate;
-        }
-
-        $membership->update($updateData);
+            $membership->update([
+                'is_active' => true,
+                'start_date' => $validated['startDate'],
+                'membership_end_date' => $validated['endDate'],
+            ]);
+        });
 
         session()->flash('success', 'Member berhasil diaktifkan!');
         $this->closeModal();
         $this->resetPage();
+        unset($this->memberships);
     }
 
     #[Computed]
-    public function memberships()
+    public function memberships(): LengthAwarePaginator
     {
-        return Membership::where('status', 'active')
-            ->where('is_active', false)
-            ->with('user', 'gymPackage', 'ptPackage', 'personalTrainer', 'followUp', 'followUpTwo')
-            ->where(function ($query) {
-                $query->whereHas('user', function ($q) {
-                    $q->where('name', 'like', '%' . $this->search . '%')
-                      ->orWhere('email', 'like', '%' . $this->search . '%');
-                })
-                ->orWhere('notes', 'like', '%' . $this->search . '%');
+        return $this->membershipQuery()
+            ->with(['user', 'gymPackage', 'followUp', 'followUpTwo'])
+            ->where(function (Builder $query): void {
+                $query->whereHas('user', function (Builder $user): void {
+                    $user->where(function (Builder $contact): void {
+                        $contact->where('name', 'like', '%'.$this->search.'%')
+                            ->orWhere('email', 'like', '%'.$this->search.'%');
+                    });
+                })->orWhere('notes', 'like', '%'.$this->search.'%');
             })
-            ->latest()
-            ->paginate(10);
+            ->latest()->orderByDesc('id')->paginate(10);
     }
 };
 ?>
+
 
 <div>
     @if (session()->has('error'))
@@ -219,7 +163,7 @@ new #[Layout('layouts::admin')] class extends Component
             </thead>
             <tbody>
                 @forelse ($this->memberships as $membership)
-                    <tr wire:key="{{ $membership->id }}" wire:click="openActionModal({{ $membership->id }})" class="bg-neutral-primary-soft border-b border-default hover:bg-neutral-secondary-medium cursor-pointer">
+                    <tr wire:key="{{ $membership->id }}" wire:click="openModal({{ $membership->id }})" class="bg-neutral-primary-soft border-b border-default hover:bg-neutral-secondary-medium cursor-pointer">
                         
                         {{-- Nomor Urut --}}
                         <td class="px-6 py-4 font-medium text-heading">
@@ -257,30 +201,6 @@ new #[Layout('layouts::admin')] class extends Component
                                     </div>
                                 @endif
 
-                                {{-- Jika ada Paket PT --}}
-                                @if($membership->ptPackage)
-                                    <div class="{{ $membership->gymPackage ? 'border-t border-gray-200 pt-2' : '' }}">
-                                        <div class="text-[10px] text-gray-400 uppercase tracking-wider font-bold mb-0.5">Paket Trainer</div>
-                                        <div class="font-medium text-indigo-600">{{ $membership->ptPackage->name }}</div>
-                                        
-                                        <div class="flex items-center gap-3 mt-1">
-                                            <div class="text-xs text-gray-500">
-                                                Coach: <span class="font-medium text-gray-700">{{ $membership->personalTrainer->name ?? '-' }}</span>
-                                            </div>
-                                            
-                                            {{-- Informasi Sesi Coach --}}
-                                            @if ($membership->total_sessions)
-                                                <div class="text-xs text-gray-500 border-l border-gray-300 pl-3">
-                                                    Sisa Sesi: 
-                                                    <span class="font-bold {{ $membership->remaining_sessions <= 2 ? 'text-red-600' : 'text-green-600' }}">
-                                                        {{ $membership->remaining_sessions }}
-                                                    </span> 
-                                                    <span class="text-gray-400">/ {{ $membership->total_sessions }}</span>
-                                                </div>
-                                            @endif
-                                        </div>
-                                    </div>
-                                @endif
                             </div>
                         </td>
 
@@ -317,281 +237,45 @@ new #[Layout('layouts::admin')] class extends Component
         </div>
     </div>
 
+
     @if ($showModal && $selectedMembershipId)
-        @php
-            $modalMembership = \App\Models\Membership::find($selectedMembershipId);
-            $durationText = '';
-            
-            if ($startDate && $endDate) {
-                // LOGIKA CARBON DIFF YANG SUDAH DIPERBAIKI
-                $start = \Carbon\Carbon::parse($startDate)->startOfDay();
-                $end = \Carbon\Carbon::parse($endDate)->startOfDay();
-                $diff = $start->diff($end);
-                
-                $months = ($diff->y * 12) + $diff->m;
-                $days = $diff->d;
-                
-                $parts = [];
-                if ($months > 0) $parts[] = $months . ' Bulan';
-                if ($days > 0) $parts[] = $days . ' Hari';
-                
-                if (empty($parts)) {
-                    $durationText = 'Hari yang sama';
-                } else {
-                    $durationText = implode(' ', $parts);
-                }
-            }
-        @endphp
-    <div class="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm">
-        <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
-            <div class="p-6 border-b border-default-medium flex items-center justify-between">
-                <h3 class="text-lg font-semibold text-heading">Aktivasi Member</h3>
-                <button type="button" wire:click="closeModal()" class="text-body hover:text-heading">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
-                </button>
-            </div>
-
-            <form wire:submit.prevent="aktivatekan">
-                <div class="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
-                    @if ($errors->has('dates'))
-                        <div class="p-3 bg-red-100 border border-red-400 text-red-700 rounded text-sm">
-                            {{ $errors->first('dates') }}
-                        </div>
-                    @endif
-                    @if ($errors->has('membership'))
-                        <div class="p-3 bg-red-100 border border-red-400 text-red-700 rounded text-sm">
-                            {{ $errors->first('membership') }}
-                        </div>
-                    @endif
-
-                    {{-- Info Member --}}
-                    @if($modalMembership)
-                        <div class="bg-neutral-secondary-medium p-3 rounded-md space-y-2">
-                            <div>
-                                <p class="text-xs text-gray-500 uppercase font-bold">Member</p>
-                                <p class="font-semibold text-heading">{{ $modalMembership->user->name }}</p>
-                            </div>
-
-                            {{-- Nama Paket --}}
-                            <div>
-                                <p class="text-xs text-gray-500 uppercase font-bold">Paket</p>
-                                <p class="font-semibold text-heading">
-                                    @if($modalMembership->gymPackage && $modalMembership->ptPackage)
-                                        {{ $modalMembership->gymPackage->name }} + {{ $modalMembership->ptPackage->name }}
-                                    @elseif($modalMembership->gymPackage)
-                                        {{ $modalMembership->gymPackage->name }}
-                                    @elseif($modalMembership->ptPackage)
-                                        {{ $modalMembership->ptPackage->name }}
-                                    @else
-                                        -
-                                    @endif
-                                </p>
-                            </div>
-
-                            {{-- Coach (jika ada PT) --}}
-                            @if($modalMembership->ptPackage && $modalMembership->personalTrainer)
-                                <div>
-                                    <p class="text-xs text-gray-500 uppercase font-bold">Coach</p>
-                                    <p class="font-semibold text-heading">{{ $modalMembership->personalTrainer->name }}</p>
-                                </div>
-                            @endif
-
-                            {{-- Follow Up --}}
-                            @if($modalMembership->followUp)
-                                <div>
-                                    <p class="text-xs text-gray-500 uppercase font-bold">Admin Follow Up</p>
-                                    <p class="font-semibold text-heading">{{ $modalMembership->followUp->name }}</p>
-                                </div>
-                            @endif
-
-                            {{-- Sales Follow Up --}}
-                            @if($modalMembership->followUpTwo)
-                                <div>
-                                    <p class="text-xs text-gray-500 uppercase font-bold">Sales Follow Up</p>
-                                    <p class="font-semibold text-heading">{{ $modalMembership->followUpTwo->name }}</p>
-                                </div>
-                            @endif
-                        </div>
-                    @endif
-
-                    <div>
-                        <label for="startDate" class="block text-sm font-medium text-heading mb-1">
-                            Tanggal Mulai
-                        </label>
-                        <input type="date" id="startDate" wire:model.live="startDate"
-                            class="w-full px-3 py-2 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs">
-                        {{-- Menampilkan format teks tanggal dan hari (cth: Jumat, 01 Mei 2026) --}}
-                        <p class="mt-1.5 text-xs text-brand-strong font-medium">{{ $this->getFormattedDate($startDate) }}</p>
-                    </div>
-
-                    <div>
-                        <label for="endDate" class="block text-sm font-medium text-heading mb-1">
-                            Tanggal Selesai
-                        </label>
-                        <input type="date" id="endDate" wire:model.live="endDate"
-                            class="w-full px-3 py-2 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs">
-                        {{-- Menampilkan format teks tanggal dan hari (cth: Jumat, 01 Mei 2026) --}}
-                        <p class="mt-1.5 text-xs text-brand-strong font-medium">{{ $this->getFormattedDate($endDate) }}</p>
-                    </div>
-
-                    {{-- Duration Display --}}
-                    @if($durationText)
-                        <div class="bg-blue-50 border border-blue-200 p-3 rounded-md">
-                            <p class="text-xs text-blue-600 uppercase font-bold mb-1">Total Durasi Program</p>
-                            <p class="text-lg font-bold text-blue-700">{{ $durationText }}</p>
-                        </div>
-                    @endif
-                </div>
-
-                <div class="p-6 border-t border-default-medium flex gap-3 justify-end">
-                    <button type="button" wire:click="closeModal()"
-                        class="px-4 py-2 text-heading bg-neutral-secondary-medium border border-default-medium rounded-md hover:bg-neutral-secondary-strong font-medium text-sm">
-                        Batal
-                    </button>
-                    <button type="submit"
-                        class="px-4 py-2 text-white bg-brand hover:bg-brand-strong rounded-md font-medium text-sm">
-                        Aktivasi
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-    @endif
-
-    @if ($showCoachModal && $selectedMembershipForCoach)
-        @php
-            $coachMembership = \App\Models\Membership::find($selectedMembershipForCoach);
-        @endphp
-    <div class="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm">
-        <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
-            <div class="p-6 border-b border-default-medium flex items-center justify-between">
-                <h3 class="text-lg font-semibold text-heading">Pilih Coach</h3>
-                <button type="button" wire:click="closeCoachModal()" class="text-body hover:text-heading">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
-                </button>
-            </div>
-
-            <form wire:submit.prevent="saveCoach">
-                <div class="p-6 space-y-4">
-                    @if ($errors->has('coach'))
-                        <div class="p-3 bg-red-100 border border-red-400 text-red-700 rounded text-sm">
-                            {{ $errors->first('coach') }}
-                        </div>
-                    @endif
-
-                    @if($coachMembership)
-                        <div class="bg-neutral-secondary-medium p-3 rounded-md">
-                            <div>
-                                <p class="text-xs text-gray-500 uppercase font-bold">Member</p>
-                                <p class="font-semibold text-heading">{{ $coachMembership->user->name }}</p>
-                            </div>
-                            <div class="mt-2">
-                                <p class="text-xs text-gray-500 uppercase font-bold">Paket Trainer</p>
-                                <p class="font-semibold text-heading text-indigo-600">{{ $coachMembership->ptPackage->name }}</p>
-                            </div>
-                        </div>
-                    @endif
-
-                    <div>
-                        <label for="selectedCoachId" class="block text-sm font-medium text-heading mb-1">
-                            Pilih Coach
-                        </label>
-                        <select id="selectedCoachId" wire:model.live="selectedCoachId"
-                            class="w-full px-3 py-2 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs">
-                            <option value="">-- Pilih Coach --</option>
-                            @foreach($this->trainers as $trainer)
-                                <option value="{{ $trainer->id }}">{{ $trainer->name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                </div>
-
-                <div class="p-6 border-t border-default-medium flex gap-3 justify-end">
-                    <button type="button" wire:click="closeCoachModal()"
-                        class="px-4 py-2 text-heading bg-neutral-secondary-medium border border-default-medium rounded-md hover:bg-neutral-secondary-strong font-medium text-sm">
-                        Batal
-                    </button>
-                    <button type="submit"
-                        class="px-4 py-2 text-white bg-indigo-600 hover:bg-indigo-700 rounded-md font-medium text-sm">
-                        Simpan Coach
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-    @endif
-
-    @if ($showActionModal && $selectedMembershipForAction)
-        @php
-            $actionMembership = \App\Models\Membership::find($selectedMembershipForAction);
-        @endphp
-        <div class="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm">
+        <div class="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="activation-title">
             <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
-                <div class="p-6 border-b border-default-medium flex items-center justify-between">
-                    <h3 class="text-lg font-semibold text-heading">Pilih Tindakan</h3>
-                    <button type="button" wire:click="closeActionModal()" class="text-body hover:text-heading">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                        </svg>
-                    </button>
+                <div class="p-6 border-b border-default-medium">
+                    <h3 id="activation-title" class="text-lg font-semibold text-heading">Aktivasi Member</h3>
                 </div>
-
-                <div class="p-6 space-y-4">
-                    @if($actionMembership)
-                        <div class="bg-neutral-secondary-medium p-3 rounded-md space-y-2">
-                            <div>
-                                <p class="text-xs text-gray-500 uppercase font-bold">Member</p>
-                                <p class="font-semibold text-heading">{{ $actionMembership->user->name }}</p>
+                <form wire:submit="aktivatekan">
+                    <div class="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+                        @error('membership')
+                            <p class="text-sm text-red-600" role="alert">{{ $message }}</p>
+                        @enderror
+                        @if ($this->selectedMembership)
+                            <div class="bg-neutral-secondary-medium p-3 rounded-md">
+                                <p class="font-semibold text-heading">{{ $this->selectedMembership->user?->name ?? '-' }}</p>
+                                <p class="text-sm text-body">{{ $this->selectedMembership->package_name ?? $this->selectedMembership->gymPackage?->name ?? '-' }}</p>
                             </div>
-                            <div>
-                                <p class="text-xs text-gray-500 uppercase font-bold">Paket</p>
-                                <p class="font-semibold text-heading">
-                                    @if($actionMembership->gymPackage && $actionMembership->ptPackage)
-                                        {{ $actionMembership->gymPackage->name }} + {{ $actionMembership->ptPackage->name }}
-                                    @elseif($actionMembership->gymPackage)
-                                        {{ $actionMembership->gymPackage->name }}
-                                    @elseif($actionMembership->ptPackage)
-                                        {{ $actionMembership->ptPackage->name }}
-                                    @else
-                                        -
-                                    @endif
-                                </p>
-                            </div>
-                        </div>
-                    @endif
-
-                    <div class="grid grid-cols-1 gap-3">
-                        @if($actionMembership && $actionMembership->ptPackage)
-                            <button type="button" wire:click="chooseCoachFromAction"
-                                class="inline-flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-md hover:bg-indigo-100 focus:ring-2 focus:ring-indigo-300 transition-colors">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                                    <circle cx="12" cy="7" r="4"></circle>
-                                </svg>
-                                {{ $actionMembership->pt_id ? 'Ganti Coach' : 'Pilih Coach' }}
-                            </button>
                         @endif
 
-                        <button type="button" wire:click="activateFromAction"
-                            class="inline-flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium text-white bg-brand hover:bg-brand-strong rounded-md focus:ring-2 focus:ring-brand-medium transition-colors">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M12 5v14M5 12h14"/>
-                            </svg>
-                            Aktivasi
-                        </button>
+                        <div>
+                            <label for="startDate" class="block text-sm font-medium text-heading mb-1">Tanggal Mulai</label>
+                            <input type="date" id="startDate" wire:model="startDate" required
+                                class="w-full px-3 py-2 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs">
+                            @error('startDate') <p class="text-sm text-red-600">{{ $message }}</p> @enderror
+                        </div>
+                        <div>
+                            <label for="endDate" class="block text-sm font-medium text-heading mb-1">Tanggal Membership Berakhir</label>
+                            <input type="date" id="endDate" wire:model="endDate" required
+                                class="w-full px-3 py-2 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs">
+                            @error('endDate') <p class="text-sm text-red-600">{{ $message }}</p> @enderror
+                        </div>
                     </div>
-                </div>
-
-                <div class="p-6 border-t border-default-medium flex justify-end">
-                    <button type="button" wire:click="closeActionModal()"
-                        class="px-4 py-2 text-heading bg-neutral-secondary-medium border border-default-medium rounded-md hover:bg-neutral-secondary-strong font-medium text-sm">
-                        Batal
-                    </button>
-                </div>
+                    <div class="p-6 border-t border-default-medium flex gap-3 justify-end">
+                        <button type="button" wire:click="closeModal"
+                            class="px-4 py-2 text-heading bg-neutral-secondary-medium border border-default-medium rounded-md hover:bg-neutral-secondary-strong font-medium text-sm">Batal</button>
+                        <button type="submit" wire:loading.attr="disabled" wire:target="aktivatekan"
+                            class="px-4 py-2 text-white bg-brand hover:bg-brand-strong rounded-md font-medium text-sm">Aktivasi Member</button>
+                    </div>
+                </form>
             </div>
         </div>
     @endif

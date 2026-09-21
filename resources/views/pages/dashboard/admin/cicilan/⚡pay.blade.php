@@ -91,7 +91,7 @@ new #[Layout('layouts::admin')] class extends Component
         // Pengecekan keamanan: Jika sudah lunas, lempar kembali ke halaman cicilan
         if ($this->membership->payment_status === 'paid') {
             session()->flash('error', 'Membership ini sudah lunas sepenuhnya.');
-            return redirect()->route('admin.cicilan.index');
+            return redirect()->route($this->membership->type === 'pt' ? 'admin.pt-cicilan.index' : 'admin.cicilan.index');
         }
 
         $this->payment_date = now()->format('Y-m-d');
@@ -369,7 +369,7 @@ new #[Layout('layouts::admin')] class extends Component
     </div>
 
     <div class="mb-6 flex items-center gap-3">
-        <a href="{{ route('admin.cicilan.index') }}" wire:navigate class="p-2 bg-white border border-default rounded-md hover:bg-gray-50 text-gray-600 transition-colors">
+        <a href="{{ route($membership->type === 'pt' ? 'admin.pt-cicilan.index' : 'admin.cicilan.index') }}" wire:navigate class="p-2 bg-white border border-default rounded-md hover:bg-gray-50 text-gray-600 transition-colors">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
         </a>
         <div>

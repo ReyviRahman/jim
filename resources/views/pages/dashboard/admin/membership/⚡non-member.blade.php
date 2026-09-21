@@ -2,9 +2,12 @@
 
 namespace App\Livewire\Admin;
 
-use App\Models\User;
+use App\Models\Membership;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -12,28 +15,78 @@ new #[Layout('layouts::admin')] class extends Component
 {
     use WithPagination;
 
-    public $search = '';
+    public string $search = '';
 
-    public function updatingSearch()
+    #[Locked]
+    public ?int $selectedMembershipId = null;
+
+    public function boot(): void
+    {
+        abort_unless(auth()->check() && (in_array(auth()->user()->role, ['admin', 'kasir_gym'], true) || auth()->user()->isHeadCoach()), 403);
+    }
+
+    public function openDetailModal(int $membershipId): void
+    {
+        abort_unless($this->membershipQuery()->whereKey($membershipId)->exists(), 404);
+        $this->selectedMembershipId = $membershipId;
+        unset($this->selectedMembership);
+    }
+
+    public function closeDetailModal(): void
+    {
+        $this->selectedMembershipId = null;
+        unset($this->selectedMembership);
+    }
+
+    #[Computed]
+    public function selectedMembership(): ?Membership
+    {
+        return $this->selectedMembershipId === null ? null : $this->membershipQuery()->find($this->selectedMembershipId);
+    }
+
+    public function updatingSearch(): void
     {
         $this->resetPage();
     }
 
+    /** @return array{start: \Illuminate\Support\Carbon, end: \Illuminate\Support\Carbon} */
     #[Computed]
-    public function members()
+    public function dateRange(): array
     {
-        return User::where('role', 'member')
-            ->whereDoesntHave('memberships', function ($query) {
-                $query->whereIn('status', ['active', 'pending']);
-            })
-            ->when($this->search, function ($query) {
-                $query->where(function ($q) {
-                    $q->where('name', 'like', '%' . $this->search . '%')
-                      ->orWhere('email', 'like', '%' . $this->search . '%')
-                      ->orWhere('phone', 'like', '%' . $this->search . '%');
+        $today = today('Asia/Jakarta');
+
+        return ['start' => $today->copy()->subDays(30), 'end' => $today->copy()->subDay()];
+    }
+
+    private function membershipQuery(): Builder
+    {
+        return Membership::with(['user', 'members', 'gymPackage', 'ptPackage'])
+            ->whereBetween('membership_end_date', [
+                $this->dateRange['start']->toDateString(),
+                $this->dateRange['end']->toDateString(),
+            ]);
+    }
+
+    #[Computed]
+    public function memberships(): LengthAwarePaginator
+    {
+        return $this->membershipQuery()
+            ->when($this->search !== '', function (Builder $query): void {
+                $matchesContact = function (Builder $contact): void {
+                    $contact->where(function (Builder $fields): void {
+                        $fields->where('name', 'like', '%'.$this->search.'%')
+                            ->orWhere('email', 'like', '%'.$this->search.'%')
+                            ->orWhere('phone', 'like', '%'.$this->search.'%');
+                    });
+                };
+
+                $query->where(function (Builder $people) use ($matchesContact): void {
+                    $people->whereHas('user', $matchesContact)
+                        ->orWhereHas('members', $matchesContact);
                 });
             })
-            ->latest()
+            ->orderByDesc('membership_end_date')
+            ->orderByDesc('id')
             ->paginate(20);
     }
 };
@@ -41,7 +94,10 @@ new #[Layout('layouts::admin')] class extends Component
 
 <div>
     <div class="flex sm:flex-row flex-col justify-between items-center mb-6">
-        <h5 class="text-xl font-semibold text-heading">Member Tanpa Membership</h5>
+        <div>
+            <h5 class="text-xl font-semibold text-heading">Member Expired</h5>
+            <p class="text-sm text-body">Membership berakhir {{ $this->dateRange['start']->format('d M Y') }} sampai {{ $this->dateRange['end']->format('d M Y') }} (30 hari terakhir).</p>
+        </div>
     </div>
 
     @if (session()->has('success'))
@@ -60,59 +116,67 @@ new #[Layout('layouts::admin')] class extends Component
             </div>
         </div>
 
-        <table data-responsive-table data-responsive-breakpoint="lg" class="table-fixed w-full text-sm text-left rtl:text-right text-body">
-            <thead class="text-xs text-body bg-neutral-secondary-medium border-b border-default-medium">
-                <tr>
-                    <th class="px-6 py-3 font-medium">No</th>
-                    <th class="px-6 py-3 font-medium">Nama</th>
-                    <th class="px-6 py-3 font-medium">Email</th>
-                    <th class="px-6 py-3 font-medium">No. HP</th>
-                    <th class="px-6 py-3 font-medium">Jenis Kelamin</th>
-                    <th class="px-6 py-3 font-medium text-center">Tgl Daftar Akun</th>
-                    {{-- <th class="px-6 py-3 font-medium text-right">Aksi</th> --}}
-                </tr>
-            </thead>
-            <tbody>
-                @forelse ($this->members as $index => $user)
-                    <tr wire:key="{{ $user->id }}" class="bg-white border-b border-gray-100 hover:bg-gray-50">
-                        <td class="px-6 py-4">{{ $loop->iteration + ($this->members->currentPage() - 1) * $this->members->perPage() }}</td>
-                        <td class="px-6 py-4 font-bold text-gray-800">
-                            <div class="flex items-center gap-3">
-                                @if($user->photo)
-                                    <img class="w-8 h-8 rounded-full object-cover" src="{{ asset('storage/' . $user->photo) }}" alt="{{ $user->name }}">
-                                @else
-                                    <div class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold text-gray-500">
-                                        {{ strtoupper(substr($user->name, 0, 2)) }}
-                                    </div>
-                                @endif
-                                {{ $user->name }}
-                            </div>
-                        </td>
-                        <td class="px-6 py-4">{{ $user->email ?? '-' }}</td>
-                        <td class="px-6 py-4">{{ $user->phone ?? '-' }}</td>
-                        <td class="px-6 py-4 capitalize">{{ $user->gender ?? '-' }}</td>
-                        <td class="px-6 py-4 text-center">
-                            {{ $user->created_at ? \Carbon\Carbon::parse($user->created_at)->format('d M Y') : '-' }}
-                        </td>
-                        {{-- <td class="px-6 py-4 text-right">
-                            <a href="{{ route('admin.membership.paket', ['users' => [$user->id]]) }}" wire:navigate class="inline-flex items-center text-white bg-brand hover:bg-brand-strong focus:ring-4 focus:ring-brand-medium font-medium rounded-md text-xs px-3 py-2 transition-colors">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-1"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
-                                Daftarkan
-                            </a>
-                        </td> --}}
-                    </tr>
+        <div class="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-3 gap-2">
+                @forelse ($this->memberships as $membership)
+                    <button type="button" wire:key="membership-{{ $membership->id }}" wire:click="openDetailModal({{ $membership->id }})" aria-haspopup="dialog"
+                        class="min-w-0 text-left bg-neutral-primary-soft rounded-lg border border-default shadow-sm p-2 hover:shadow-md transition-shadow cursor-pointer focus-visible:ring-2 focus-visible:ring-brand">
+                        <span class="block font-bold text-heading text-base truncate">{{ $membership->members->isNotEmpty() ? $membership->members->pluck('name')->implode(', ') : ($membership->user?->name ?? '-') }}</span>
+                        <span class="block space-y-2 mt-2">
+                            <span class="block space-y-1 text-xs text-gray-500">
+                                <span class="block"><span class="font-medium">Tanggal Mulai Paket:</span> {{ $membership->start_date?->format('d M Y') ?? '-' }}</span>
+                                <span class="block"><span class="font-medium">Tanggal Membership Berakhir:</span> {{ $membership->membership_end_date->format('d M Y') }}</span>
+                            </span>
+                            <span class="flex justify-between items-center gap-2 text-xs">
+                                <span class="font-medium text-indigo-700 truncate">{{ $membership->package_name ?? $membership->gymPackage?->name ?? $membership->ptPackage?->name ?? '-' }}</span>
+                                <span class="font-medium text-red-600">Expired</span>
+                            </span>
+                            <span class="block text-xs text-gray-500"><span class="font-medium">Pemilik:</span> {{ $membership->user?->name ?? '-' }}</span>
+                        </span>
+                    </button>
                 @empty
-                    <tr>
-                        <td colspan="7" class="px-6 py-8 text-center text-gray-500">
-                            Tidak ada member yang tanpa membership aktif atau pending.
-                        </td>
-                    </tr>
+                    <div class="col-span-full py-8 text-center text-gray-500 bg-neutral-primary-soft rounded-lg border border-default">
+                            Tidak ada membership expired dalam 30 hari terakhir yang sesuai pencarian.
+                    </div>
                 @endforelse
-            </tbody>
-        </table>
+        </div>
     </div>
 
     <div class="mb-6">
-        {{ $this->members->links() }}
+        {{ $this->memberships->links() }}
     </div>
+
+    @if ($this->selectedMembership)
+        @php($detail = $this->selectedMembership)
+        <div x-data x-init="$nextTick(() => $refs.close.focus())" x-on:keydown.escape.window="$wire.closeDetailModal()" wire:click.self="closeDetailModal"
+            class="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm">
+            <section role="dialog" aria-modal="true" aria-labelledby="member-expired-detail-title" x-trap.inert.noscroll="true"
+                class="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto">
+                <div class="p-6 border-b border-default-medium flex items-center justify-between">
+                    <h3 id="member-expired-detail-title" class="text-lg font-semibold text-heading">Detail Member Expired</h3>
+                    <button x-ref="close" type="button" wire:click="closeDetailModal" aria-label="Tutup detail" class="text-body hover:text-heading">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+                <div class="p-6 space-y-4">
+                    <div class="bg-neutral-secondary-medium p-4 rounded-md">
+                        <p class="text-xs text-gray-500 uppercase font-bold mb-1">Nama Pemilik</p>
+                        <p class="font-semibold text-heading">{{ $detail->user?->name ?? '-' }}</p>
+                        <dl class="mt-3 space-y-2 text-sm">
+                            <div><dt class="text-gray-500">Email</dt><dd class="text-heading break-words">{{ $detail->user?->email ?? '-' }}</dd></div>
+                            <div><dt class="text-gray-500">No. HP</dt><dd class="text-heading">{{ $detail->user?->phone ?? '-' }}</dd></div>
+                        </dl>
+                    </div>
+                    <dl class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                        <div class="sm:col-span-2"><dt class="text-gray-500">Nama Paket</dt><dd class="font-semibold text-indigo-700">{{ $detail->package_name ?? $detail->gymPackage?->name ?? $detail->ptPackage?->name ?? '-' }}</dd></div>
+                        <div><dt class="text-gray-500">Tanggal Mulai Paket</dt><dd class="font-medium text-heading">{{ $detail->start_date?->format('d M Y') ?? '-' }}</dd></div>
+                        <div><dt class="text-gray-500">Tanggal Membership Berakhir</dt><dd class="font-medium text-red-600">{{ $detail->membership_end_date->format('d M Y') }}</dd></div>
+                        <div class="sm:col-span-2"><dt class="text-gray-500">Anggota Paket</dt><dd class="font-medium text-heading">{{ $detail->members->pluck('name')->implode(', ') ?: '-' }}</dd></div>
+                    </dl>
+                </div>
+                <div class="p-6 border-t border-default-medium flex justify-end">
+                    <button type="button" wire:click="closeDetailModal" class="px-4 py-2 text-heading bg-neutral-secondary-medium border border-default-medium rounded-md hover:bg-neutral-secondary-strong font-medium text-sm">Tutup</button>
+                </div>
+            </section>
+        </div>
+    @endif
 </div>

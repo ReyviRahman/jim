@@ -110,7 +110,7 @@ new #[Layout('layouts::pt')] class extends Component
 <div class="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
     <div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-            <h2 class="text-2xl font-bold text-gray-800">Booking Jadwal PT</h2>
+            <h2 class="text-2xl font-bold text-gray-800">PT Schedule</h2>
             <p class="text-sm text-gray-500 mt-1">Daftar booking sesi per pertemuan dari member Anda.</p>
         </div>
 

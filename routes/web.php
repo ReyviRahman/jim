@@ -166,6 +166,7 @@ Route::middleware('auth')->group(function () {
         //     ->name('admin.akun.detail');
 
         Route::livewire('/membership/cicilan', 'pages::dashboard.admin.cicilan.index')->name('admin.cicilan.index');
+        Route::livewire('/pt-cicilan', 'pages::dashboard.admin.cicilan.index')->defaults('ptOnly', true)->name('admin.pt-cicilan.index');
         Route::livewire('/membership/cicilan/{membership}/pay', 'pages::dashboard.admin.cicilan.pay')->name('admin.cicilan.pay');
 
         Route::livewire('/membership/non-member', 'pages::dashboard.admin.membership.non-member')

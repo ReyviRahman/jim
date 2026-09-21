@@ -1001,7 +1001,7 @@ new #[Layout('layouts::admin')] class extends Component
     @endif
 
     <div class="flex sm:flex-row flex-col justify-between items-center mb-6">
-        <h5 class="text-xl font-semibold text-heading">Booking Jadwal PT</h5>
+        <h5 class="text-xl font-semibold text-heading">PT Schedule</h5>
     </div>
 
     <div x-data="bookingDayFilter" class="relative overflow-hidden bg-neutral-primary-soft shadow-xs rounded-md border border-default">

@@ -195,6 +195,7 @@ new #[Layout('layouts::admin')] class extends Component
     public function memberships()
     {
         $query = Membership::with(['user', 'members', 'admin', 'followUp', 'followUpTwo', 'personalTrainer', 'gymPackage', 'ptPackage'])
+            ->where('type', '!=', 'pt')
             ->where('is_active', true)
             ->where('status', 'active');
 
@@ -358,13 +359,13 @@ new #[Layout('layouts::admin')] class extends Component
 
                     {{-- Progress Bar Masa Aktif --}}
                     @php
-                        $now = now();
+                        $today = today();
                         
-                        $getProgressData = function($startDate, $endDate) use ($now) {
+                        $getProgressData = function($startDate, $endDate) use ($today) {
                             if (!$startDate || !$endDate) return null;
                             
-                            $totalDays = $startDate->diffInDays($endDate);
-                            $remainingDays = $now->diffInDays($endDate, false);
+                            $totalDays = (int) $startDate->diffInDays($endDate) + 1;
+                            $remainingDays = (int) $today->diffInDays($endDate, false) + 1;
                             
                             if ($totalDays <= 0) return null;
                             

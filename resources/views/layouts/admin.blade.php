@@ -236,7 +236,7 @@
                         
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.5"><path d="M12 12a4 4 0 1 0 0-8a4 4 0 0 0 0 8M5.5 17a6.5 6.5 0 0 1 13 0"/><path d="m17 21l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"/></g></svg>
                         
-                        <span class="ms-3">Member Tidak Aktif</span>
+                        <span class="ms-3">Member Expired</span>
                     </a>
                 </li>
                 <li>
@@ -282,7 +282,7 @@
                             <a href="{{ route('admin.sesi-pt.index') }}" wire:navigate
                                 class="{{ request()->routeIs('admin.sesi-pt.*') ? 'text-[#34342F] bg-brand' : 'text-white' }} flex items-center px-2 py-1.5 rounded-md hover:bg-brand hover:text-[#34342F] group transition-colors">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 16 16"><path fill="currentColor" d="M15 8c0 .454-.044.906-.13 1.345a.5.5 0 1 1-.981-.192a6.1 6.1 0 0 0 0-2.304a.499.499 0 1 1 .981-.192c.086.438.13.891.13 1.344zm-3.777-5.062a6.1 6.1 0 0 1 1.823 1.814a.5.5 0 1 0 .839-.542a7.1 7.1 0 0 0-2.126-2.115a.5.5 0 0 0-.537.842zM8 2c.469 0 .935.054 1.385.161a.5.5 0 0 0 .231-.974A7 7 0 0 0 8.001 1c-3.859 0-7 3.14-7 7s3.141 7 7 7c.546 0 1.089-.063 1.615-.187a.5.5 0 1 0-.231-.974A6.006 6.006 0 0 1 2 8c0-3.309 2.691-6 6-6m5.747 9.08a.5.5 0 0 0-.69.151a6.1 6.1 0 0 1-1.826 1.826a.499.499 0 1 0 .54.841a7.05 7.05 0 0 0 2.129-2.129a.5.5 0 0 0-.151-.69z"/></svg>
-                                <span class="ms-3">Sesi PT</span>
+                                <span class="ms-3">Coach Performance</span>
                             </a>
                         </li>
                     @endif
@@ -292,7 +292,7 @@
                         class="{{ request()->routeIs('admin.pt-booking.*') ? 'text-[#34342F] bg-brand' : 'text-white' }} flex items-center px-2 py-1.5 rounded-md hover:bg-brand hover:text-[#34342F] group transition-colors"
                         >
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20h6m-3-6v6M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zm5 3h6"/></svg>
-                        <span class="ms-3">PT Booking</span>
+                        <span class="ms-3">PT Onboarding</span>
                     </a>
                 </li>
                 <li>
@@ -300,7 +300,7 @@
                         class="{{ request()->routeIs('admin.booking-jadwal.*') ? 'text-[#34342F] bg-brand' : 'text-white' }} flex items-center px-2 py-1.5 rounded-md hover:bg-brand hover:text-[#34342F] group transition-colors"
                         >
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                        <span class="ms-3">Booking Jadwal</span>
+                        <span class="ms-3">PT Schedule</span>
                     </a>
                 </li>
                 <li>
@@ -308,7 +308,7 @@
                         class="{{ request()->routeIs('admin.pt-berjalan.*') ? 'text-[#34342F] bg-brand' : 'text-white' }} flex items-center px-2 py-1.5 rounded-md hover:bg-brand hover:text-[#34342F] group transition-colors"
                         >
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><g fill="currentColor"><path d="M13.75 6.5a2.25 2.25 0 1 0 0-4.5a2.25 2.25 0 0 0 0 4.5m.026 5.747l-.509 2.18l2.621 2.541l1.074 3.757a1 1 0 0 1-1.923.55l-.927-3.243l-4.647-4.505a1 1 0 0 1-.404-.876l.195-2.736c-.693.783-1.379 1.906-1.794 3.36a1 1 0 0 1-1.923-.55c.546-1.911 1.492-3.392 2.47-4.407a7 7 0 0 1 1.482-1.19c.461-.267.992-.478 1.51-.478q.075 0 .149.011q.1-.002.2.007a3.18 3.18 0 0 1 2.567 1.756q.034.046.062.1l1.23 2.264a2 2 0 0 0 1.365 1.007l1.122.225a1 1 0 1 1-.392 1.96l-1.122-.224a4 4 0 0 1-2.406-1.51"/><path d="m8.145 18.404l1.208-3.626l1.596 1.538l-.907 2.72a2 2 0 0 1-.648.93L7.125 21.78a1 1 0 1 1-1.25-1.562z"/></g></svg>
-                        <span class="ms-3">PT Berjalan</span>
+                        <span class="ms-3">Active Clients</span>
                     </a>
                 </li>
                 <li>
@@ -316,6 +316,13 @@
                         class="{{ request()->routeIs('admin.pt-expired.*') ? 'text-[#34342F] bg-brand' : 'text-white' }} flex items-center px-2 py-1.5 rounded-md hover:bg-brand hover:text-[#34342F] group transition-colors">
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
                         <span class="ms-3">PT Expired</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ route('admin.pt-cicilan.index') }}" wire:navigate
+                        class="{{ request()->routeIs('admin.pt-cicilan.*') ? 'text-[#34342F] bg-brand' : 'text-white' }} flex items-center px-2 py-1.5 rounded-md hover:bg-brand hover:text-[#34342F] group transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h3"/></svg>
+                        <span class="ms-3">PT Cicilan</span>
                     </a>
                 </li>
             </ul>

@@ -5,12 +5,21 @@ use Livewire\Component;
 use Livewire\WithPagination;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Computed; 
+use Livewire\Attributes\Locked;
 
 new #[Layout('layouts::admin')] class extends Component
 {
     use WithPagination;
 
     public $search = '';
+
+    #[Locked]
+    public bool $ptOnly = false;
+
+    public function mount(bool $ptOnly = false): void
+    {
+        $this->ptOnly = $ptOnly;
+    }
 
     public function updatingSearch()
     {
@@ -23,6 +32,7 @@ new #[Layout('layouts::admin')] class extends Component
         // Tambahkan 'members' di dalam array with()
         return Membership::with(['user', 'members', 'admin', 'followUp', 'gymPackage', 'ptPackage'])
             ->whereIn('payment_status', ['partial', 'unpaid'])
+            ->where('type', $this->ptOnly ? '=' : '!=', 'pt')
             ->when($this->search, function ($query) {
                 $query->where(function ($q) {
                     // Cari di nama pendaftar utama
@@ -44,8 +54,8 @@ new #[Layout('layouts::admin')] class extends Component
 <div>
     <div class="mb-6 flex justify-between items-end">
         <div>
-            <h5 class="text-xl font-semibold text-heading mb-2">Daftar Tagihan & Cicilan</h5>
-            <p class="text-body text-sm">Daftar member yang masih memiliki sisa tagihan membership atau PT.</p>
+            <h5 class="text-xl font-semibold text-heading mb-2">{{ $ptOnly ? 'PT Cicilan' : 'Member Cicilan' }}</h5>
+            <p class="text-body text-sm">{{ $ptOnly ? 'Daftar member yang masih memiliki sisa tagihan PT.' : 'Daftar member yang masih memiliki sisa tagihan membership.' }}</p>
         </div>
         <div class="w-72">
             <input type="text" wire:model.live.debounce.500ms="search" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2" placeholder="Cari nama member...">
@@ -68,7 +78,7 @@ new #[Layout('layouts::admin')] class extends Component
             </thead>
             <tbody>
                 @forelse($this->memberships as $m)
-                    <tr class="border-b border-default hover:bg-gray-50">
+                    <tr wire:key="membership-{{ $m->id }}" class="border-b border-default hover:bg-gray-50">
                         <td class="px-4 py-3 font-medium text-heading">
                             <div class="flex flex-col gap-1 mb-1.5">
                                 @if($m->members && $m->members->count() > 0)
@@ -112,7 +122,7 @@ new #[Layout('layouts::admin')] class extends Component
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="7" class="px-4 py-8 text-center text-gray-400">
+                        <td colspan="8" class="px-4 py-8 text-center text-gray-400">
                             Tidak ada data cicilan atau tagihan yang tertunda. Semua lunas! 🎉
                         </td>
                     </tr>
