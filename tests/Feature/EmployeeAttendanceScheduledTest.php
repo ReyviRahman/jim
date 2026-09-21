@@ -36,6 +36,47 @@ class EmployeeAttendanceScheduledTest extends TestCase
         $this->assertDatabaseCount('attendances', 0);
     }
 
+    public function test_device_replaces_empty_schedule_shift_and_preserves_admin_notes(): void
+    {
+        $employee = $this->employee();
+        $row = $this->schedule($employee, '2026-10-01');
+        $row->update(['notes' => 'Catatan admin']);
+        $shift = Shift::factory()->create(['role' => 'pt', 'name' => 'Siang', 'start_time' => '14:00:00', 'end_time' => '22:00:00']);
+        $payload = ['eventType' => 'AccessControllerEvent', 'dateTime' => '2030-01-01T08:00:00+07:00', 'AccessControllerEvent' => ['employeeNoString' => (string) $employee->id, 'name' => 'Nama Perangkat', 'attendanceStatus' => 'checkIn', 'currentVerifyMode' => 'cardOrFaceOrFp']];
+        $this->travelTo(Carbon::parse('2026-10-01 13:00:00', 'Asia/Jakarta'));
+        $this->postJson('/api/absensi', $payload)->assertOk();
+        $row->refresh();
+        $this->assertSame('13:00:00', $row->check_in_time->format('H:i:s'));
+        $this->assertSame($shift->code, $row->shift_code);
+        $this->assertSame('Siang', $row->shift_name);
+        $this->assertSame('pt', $row->shift_role);
+        $this->assertSame('14:00:00', $row->shift_start_time);
+        $this->assertSame('22:00:00', $row->shift_end_time);
+        $this->assertSame('2026-10-01 14:00:00', $row->scheduled_start_at->toDateTimeString());
+        $this->assertSame('2026-10-01 22:00:00', $row->scheduled_end_at->toDateTimeString());
+        $this->assertSame('2026-10-02 14:00:00', $row->checkout_deadline_at->toDateTimeString());
+        $this->assertSame('Catatan admin', $row->notes);
+        $this->assertSame(DeviceEvent::query()->sole()->id, $row->device_event_id);
+        $this->assertSame('Nama Perangkat', $row->nama_di_alat);
+        $this->assertNull($row->check_out_time);
+        $this->assertDatabaseCount('attendance_employee', 1);
+    }
+
+    public function test_scan_fills_empty_schedule_before_start_or_after_old_deadline(): void
+    {
+        $employee = $this->employee();
+        foreach (['06:00:00', '23:00:00'] as $index => $time) {
+            $date = '2026-10-0'.($index + 1);
+            $row = $this->schedule($employee, $date);
+            $row->update(['checkout_deadline_at' => $date.' 17:00:00']);
+            $result = app(EmployeeAttendanceService::class)->record($employee, Carbon::parse($date.' '.$time));
+            $this->assertSame($row->id, $result->id);
+            $this->assertSame($time, $result->check_in_time->format('H:i:s'));
+            $this->assertNull($result->check_out_time);
+        }
+        $this->assertDatabaseCount('attendance_employee', 2);
+    }
+
     public function test_consecutive_schedules_and_older_scans_preserve_previous_times(): void
     {
         $employee = $this->employee();

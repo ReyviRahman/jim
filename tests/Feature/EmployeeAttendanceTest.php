@@ -17,7 +17,13 @@ class EmployeeAttendanceTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_inclusive_check_in_window_and_snapshot(): void
+    protected function setUp(): void
+    {
+        parent::setUp();
+        Shift::query()->delete();
+    }
+
+    public function test_single_role_shift_records_actual_time_and_snapshot(): void
     {
         foreach (['08:00:00', '12:00:00', '16:00:00'] as $time) {
             $row = $this->record($this->employee(), '2026-09-10 '.$time);
@@ -35,15 +41,23 @@ class EmployeeAttendanceTest extends TestCase
         $this->assertDatabaseCount('attendances', 0);
     }
 
-    public function test_outside_window_and_invalid_assignments_are_rejected(): void
+    public function test_outside_window_and_missing_assignment_use_nearest_role_shift(): void
     {
         foreach (['07:00:00', '07:59:59', '16:00:01', '23:00:00'] as $time) {
-            $this->assertRejected($this->employee(), '2026-09-10 '.$time);
+            $row = $this->record($this->employee(), '2026-09-10 '.$time);
+            $this->assertSame($time, $row->check_in_time->format('H:i:s'));
         }
         $missing = User::factory()->create(['role' => 'admin', 'shift' => null]);
+        $this->assertSame('admin', $this->record($missing, '2026-09-10 08:00:00')->shift_role);
+        $this->assertDatabaseCount('attendance_employee', 5);
+    }
+
+    public function test_missing_role_shifts_and_invalid_shift_times_are_rejected(): void
+    {
+        $missing = User::factory()->create(['role' => 'pt', 'shift' => null]);
         $mismatch = $this->employee();
         $mismatch->update(['role' => 'sales']);
-        foreach ([$missing, $mismatch, $this->employee(['end_time' => '08:00:00'])] as $user) {
+        foreach ([$missing, $mismatch, $this->employee(['role' => 'cleaning_service', 'end_time' => '08:00:00'])] as $user) {
             $this->assertRejected($user, '2026-09-10 08:00:00');
         }
         $this->assertDatabaseCount('attendance_employee', 0);
@@ -144,13 +158,15 @@ class EmployeeAttendanceTest extends TestCase
         $this->assertSame('2026-09-12', $this->record($user, '2026-09-12 02:00:00')->attendance_date->toDateString());
     }
 
-    public function test_overnight_end_is_inclusive_and_daytime_gap_rejected(): void
+    public function test_overnight_shift_accepts_scans_outside_its_hours(): void
     {
         $shift = ['start_time' => '22:00:00', 'end_time' => '06:00:00'];
         $row = $this->record($this->employee($shift), '2026-09-11 06:00:00');
         $this->assertSame('2026-09-11', $row->attendance_date->toDateString());
-        $this->assertRejected($this->employee($shift), '2026-09-11 06:00:01');
-        $this->assertRejected($this->employee($shift), '2026-09-11 21:59:59');
+        $this->assertSame('06:00:01', $this->record($this->employee($shift), '2026-09-11 06:00:01')->check_in_time->format('H:i:s'));
+        $early = $this->record($this->employee($shift), '2026-09-11 21:59:59');
+        $this->assertSame('2026-09-11 22:00:00', $early->scheduled_start_at->toDateTimeString());
+        $this->assertSame('2026-09-12 06:00:00', $early->scheduled_end_at->toDateTimeString());
     }
 
     public function test_assignment_change_does_not_open_second_row_on_same_date(): void
@@ -186,12 +202,63 @@ class EmployeeAttendanceTest extends TestCase
     public function test_rejected_device_scan_keeps_log_but_not_attendance(): void
     {
         $user = $this->employee();
+        $user->update(['role' => 'sales']);
         $this->travelTo(Carbon::parse('2026-09-10 07:00:00', 'Asia/Jakarta'));
         $this->postJson('/api/absensi', $this->payload($user, '2026-09-10T09:00:00+07:00'))->assertOk();
         $this->assertDatabaseCount('device_events', 1);
         $this->assertTrue(DeviceEvent::query()->sole()->is_found);
         $this->assertDatabaseCount('attendance_employee', 0);
         $this->assertDatabaseCount('attendances', 0);
+    }
+
+    public function test_early_device_check_in_uses_server_time_and_allows_checkout_before_shift_start(): void
+    {
+        $user = $this->employee(['start_time' => '07:00:00']);
+        $payload = $this->payload($user, '2030-01-01T20:00:00+07:00');
+        $this->travelTo(Carbon::parse('2026-09-10 06:00:00', 'Asia/Jakarta'));
+        $this->postJson('/api/absensi', $payload)->assertOk();
+        $row = AttendanceEmployee::query()->sole();
+        $this->assertSame('2026-09-10 06:00:00', $row->check_in_time->toDateTimeString());
+        $this->assertSame('2026-09-10 07:00:00', $row->scheduled_start_at->toDateTimeString());
+        $this->travelTo(Carbon::parse('2026-09-10 06:30:00', 'Asia/Jakarta'));
+        $this->postJson('/api/absensi', $payload)->assertOk();
+        $this->assertNull($row->fresh()->check_out_time);
+        $this->postJson('/api/absensi', $this->payload($user, '2030-01-01T20:01:00+07:00'))->assertOk();
+        $this->assertSame('06:30:00', $row->fresh()->check_out_time->format('H:i:s'));
+        $this->assertSame('Pagi', $row->fresh()->shift_name);
+        $this->assertDatabaseCount('attendance_employee', 1);
+    }
+
+    public function test_nearest_shift_ignores_assignment_other_roles_and_invalid_shifts(): void
+    {
+        $user = $this->employee(['start_time' => '07:00:00']);
+        $middle = Shift::factory()->create(['code' => 'SIANG', 'role' => 'admin', 'start_time' => '14:00:00', 'end_time' => '22:00:00']);
+        Shift::factory()->create(['role' => 'sales', 'start_time' => '13:00:00', 'end_time' => '21:00:00']);
+        Shift::factory()->create(['role' => 'admin', 'start_time' => '13:00:00', 'end_time' => '13:00:00']);
+        $row = $this->record($user, '2026-09-10 13:00:00');
+        $this->assertSame($middle->code, $row->shift_code);
+        $this->assertSame('13:00:00', $row->check_in_time->format('H:i:s'));
+        $this->assertSame($user->shift, $user->fresh()->shift);
+    }
+
+    public function test_nearest_shift_can_start_before_scan_and_ties_use_earlier_start_then_id(): void
+    {
+        $user = $this->employee(['start_time' => '14:00:00', 'end_time' => '22:00:00']);
+        $morning = Shift::factory()->create(['code' => 'PAGI-1', 'role' => 'admin', 'start_time' => '08:00:00', 'end_time' => '16:00:00']);
+        Shift::factory()->create(['code' => 'PAGI-2', 'role' => 'admin', 'start_time' => '08:00:00', 'end_time' => '17:00:00']);
+        $this->assertSame($morning->code, $this->record($user, '2026-09-10 11:00:00')->shift_code);
+        $this->assertSame($morning->code, $this->record($user, '2026-09-11 09:00:00')->shift_code);
+    }
+
+    public function test_nearest_shift_compares_starts_across_midnight(): void
+    {
+        $user = $this->employee(['start_time' => '07:00:00']);
+        $night = Shift::factory()->create(['role' => 'admin', 'start_time' => '22:00:00', 'end_time' => '06:00:00']);
+        $row = $this->record($user, '2026-09-10 02:00:00');
+        $this->assertSame($night->code, $row->shift_code);
+        $this->assertSame('2026-09-10', $row->attendance_date->toDateString());
+        $this->assertSame('2026-09-09 22:00:00', $row->scheduled_start_at->toDateTimeString());
+        $this->assertSame('2026-09-10 06:00:00', $row->scheduled_end_at->toDateTimeString());
     }
 
     public function test_head_coach_uses_pt_shift(): void

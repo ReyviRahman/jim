@@ -33,25 +33,16 @@ class EmployeeAttendanceService
 
             $attendance = $employee->employeeAttendances()
                 ->where('attendance_date', $receivedAt->toDateString())
-                ->where('status', EmployeeAttendanceStatus::Hadir)
-                ->where('scheduled_start_at', '<=', $receivedAt)
-                ->where('checkout_deadline_at', '>', $receivedAt)
-                ->latest('scheduled_start_at')->lockForUpdate()->first();
+                ->lockForUpdate()->first();
 
             if ($attendance !== null) {
-                if ($attendance->check_in_time === null) {
-                    if (! $receivedAt->betweenIncluded($attendance->scheduled_start_at, $attendance->scheduled_end_at)) {
-                        throw ValidationException::withMessages(['attendance' => 'Check-in hanya diperbolehkan dalam jadwal shift absensi.']);
-                    }
+                $this->ensurePresent($attendance);
+            }
 
-                    $attendance->check_in_time = $receivedAt;
-                    if ($deviceEvent !== null) {
-                        $attendance->device_event_id = $deviceEvent->id;
-                        $attendance->nama_di_alat = $deviceEvent->name;
-                    }
-                    $attendance->save();
-
-                    return $attendance;
+            if ($attendance?->check_in_time !== null) {
+                $checkoutStart = $attendance->check_in_time->min($attendance->scheduled_start_at);
+                if ($receivedAt->lessThan($checkoutStart) || $receivedAt->greaterThanOrEqualTo($attendance->checkout_deadline_at)) {
+                    throw ValidationException::withMessages(['attendance' => 'Presensi untuk tanggal shift ini sudah tercatat.']);
                 }
 
                 $lastScan = $attendance->check_out_time ?? $attendance->check_in_time;
@@ -62,38 +53,14 @@ class EmployeeAttendanceService
                 return $attendance;
             }
 
-            $shift = $employee->assignedShift;
-            if ($shift === null || $shift->role !== $employee->role) {
-                throw ValidationException::withMessages(['attendance' => 'Shift karyawan belum diatur atau tidak sesuai role.']);
-            }
-
-            $start = $receivedAt->copy()->setTimeFromTimeString($shift->start_time);
-            $end = $receivedAt->copy()->setTimeFromTimeString($shift->end_time);
-            if ($start->equalTo($end)) {
-                throw ValidationException::withMessages(['attendance' => 'Jam mulai dan selesai shift tidak boleh sama.']);
-            }
+            ['shift' => $shift, 'start' => $start] = $this->nearestShift($employee, $receivedAt);
+            $end = $start->copy()->setTimeFromTimeString($shift->end_time);
             if ($end->lessThan($start)) {
-                if ($receivedAt->lessThan($start)) {
-                    $start->subDay();
-                } else {
-                    $end->addDay();
-                }
+                $end->addDay();
             }
 
-            if (! $receivedAt->betweenIncluded($start, $end)) {
-                throw ValidationException::withMessages(['attendance' => 'Check-in hanya diperbolehkan pada jam shift '.$shift->name.' ('.$shift->start_time.'–'.$shift->end_time.').']);
-            }
-
-            $existing = $employee->employeeAttendances()->where('attendance_date', $receivedAt->toDateString())->lockForUpdate()->first();
-            if ($existing !== null) {
-                $this->ensurePresent($existing);
-
-                throw ValidationException::withMessages(['attendance' => 'Presensi untuk tanggal shift ini sudah tercatat.']);
-            }
-
-            return $employee->employeeAttendances()->create([
-                'device_event_id' => $deviceEvent?->id,
-                'nama_di_alat' => $deviceEvent?->name,
+            $attendance ??= $employee->employeeAttendances()->make();
+            $attendance->fill([
                 'attendance_date' => $receivedAt->toDateString(),
                 'status' => EmployeeAttendanceStatus::Hadir,
                 'check_in_time' => $receivedAt,
@@ -106,7 +73,40 @@ class EmployeeAttendanceService
                 'scheduled_end_at' => $end,
                 'checkout_deadline_at' => $start->copy()->addDay(),
             ]);
+            if ($deviceEvent !== null) {
+                $attendance->device_event_id = $deviceEvent->id;
+                $attendance->nama_di_alat = $deviceEvent->name;
+            }
+            $attendance->save();
+
+            return $attendance;
         }, attempts: 3);
+    }
+
+    /** @return array{shift: Shift, start: Carbon} */
+    private function nearestShift(User $employee, Carbon $receivedAt): array
+    {
+        $nearest = null;
+        $nearestDistance = PHP_INT_MAX;
+        $shifts = Shift::query()->forRole($employee->role)
+            ->whereColumn('start_time', '!=', 'end_time')->orderBy('id')->get();
+
+        foreach ($shifts as $shift) {
+            foreach ([-1, 0, 1] as $dayOffset) {
+                $start = $receivedAt->copy()->addDays($dayOffset)->setTimeFromTimeString($shift->start_time);
+                $distance = abs($start->getTimestamp() - $receivedAt->getTimestamp());
+                if ($distance < $nearestDistance || ($distance === $nearestDistance && $start->lessThan($nearest['start']))) {
+                    $nearest = ['shift' => $shift, 'start' => $start];
+                    $nearestDistance = $distance;
+                }
+            }
+        }
+
+        if ($nearest === null) {
+            throw ValidationException::withMessages(['attendance' => 'Tidak ada shift valid untuk role karyawan ini.']);
+        }
+
+        return $nearest;
     }
 
     private function ensurePresent(AttendanceEmployee $attendance): void
