@@ -9,8 +9,10 @@
         <div class="member-package-shade absolute inset-0 -z-10" aria-hidden="true"></div>
         <div class="flex items-start justify-between gap-4 px-5 pt-6 sm:px-9 sm:pt-8">
             <div>
-                <p class="text-base font-extrabold sm:text-2xl">{{ $summary['has_pt'] ? 'Data Absen PT Client' : 'Data Membership' }}</p>
-                <p class="mt-1 text-[11px] text-white/70 sm:text-sm">Detail paket dan kehadiran {{ $summary['has_pt'] ? 'client' : 'member' }}</p>
+                @unless ($summary['has_pt'])
+                    <p class="text-base font-extrabold sm:text-2xl">Data Membership</p>
+                    <p class="mt-1 text-[11px] text-white/70 sm:text-sm">Detail paket dan kehadiran member</p>
+                @endunless
             </div>
             <div class="shrink-0 text-right" aria-label="Frans Gym Fitness Jambi">
                 <p class="text-sm font-black tracking-tight text-brand sm:text-2xl">FRANSGYM</p>
@@ -19,9 +21,15 @@
         </div>
         <div class="member-package-intro px-5 pb-20 pt-10 sm:px-9 sm:pb-24 sm:pt-14">
             <div class="member-package-copy">
-                <p class="inline-block rounded-full bg-brand px-3 py-1.5 text-[9px] font-extrabold tracking-[0.16em] text-black sm:px-5 sm:text-xs">{{ $summary['label'] }}</p>
-                <h2 id="package-title-{{ $summary['id'] }}" class="mt-3 text-balance text-[clamp(1.65rem,4vw,3.5rem)] font-black leading-[1.07] tracking-tight">{{ $summary['name'] }}</h2>
-                <p class="mt-3 text-xs font-bold tracking-[0.14em] sm:text-lg">{{ $summary['has_pt'] ? $summary['total_sessions'].' SESI' : 'MEMBERSHIP GYM' }}</p>
+                @if ($summary['has_pt'])
+                    <h2 id="package-title-{{ $summary['id'] }}" class="sr-only">1-ON-1 TRANSFORMATION</h2>
+                    <p class="sr-only">PERSONALIZED PROGRAM. REAL PROGRESS. A STRONGER YOU.</p>
+                    <img src="{{ asset('member-pt-transformation.png') }}" alt="" aria-hidden="true" width="1983" height="793" class="-ml-[6%] block h-auto w-[140%] max-w-none mix-blend-screen">
+                @else
+                    <p class="inline-block rounded-full bg-brand px-3 py-1.5 text-[9px] font-extrabold tracking-[0.16em] text-black sm:px-5 sm:text-xs">{{ $summary['label'] }}</p>
+                    <h2 id="package-title-{{ $summary['id'] }}" class="mt-3 text-balance text-[clamp(1.65rem,4vw,3.5rem)] font-black leading-[1.07] tracking-tight">{{ $summary['name'] }}</h2>
+                    <p class="mt-3 text-xs font-bold tracking-[0.14em] sm:text-lg">MEMBERSHIP GYM</p>
+                @endif
                 <span class="mt-4 block h-1 w-12 rounded-full bg-brand" aria-hidden="true"></span>
                 <p class="mt-4 max-w-60 text-xs leading-relaxed text-white/85 sm:text-base">{{ $summary['has_pt'] ? 'Latihan lebih terarah, hasil lebih maksimal.' : 'Ruang untuk bergerak, semangat untuk lebih kuat.' }}</p>
                 <p class="mt-2 text-[10px] text-white/65 sm:text-xs">Mulai {{ $summary['starting_price'] }}</p>

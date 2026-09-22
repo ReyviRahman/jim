@@ -59,7 +59,11 @@ class MemberDashboardTest extends TestCase
         Livewire::actingAs($owner)
             ->test('pages::dashboard.member.home')
             ->assertCount('ownedPackages', 1)
-            ->assertSee('Paket Couple Bersama');
+            ->assertSee('Paket Couple Bersama')
+            ->assertSee('Data Membership')
+            ->assertSee('Detail paket dan kehadiran member')
+            ->assertSee('MEMBERSHIP GYM')
+            ->assertDontSee('TRANSFORMATION');
 
         Livewire::actingAs($sharedMember)
             ->test('pages::dashboard.member.home')
@@ -553,7 +557,13 @@ class MemberDashboardTest extends TestCase
         Livewire::actingAs($member)->test('pages::dashboard.member.home')
             ->assertCount('ownedPackages', 1)
             ->assertSeeHtml('data-testid="owned-package-'.$purchase->id.'"')
-            ->assertSee('Paket PT Anda')
+            ->assertSeeInOrder(['1-ON-1', 'TRANSFORMATION', 'PERSONALIZED PROGRAM.', 'REAL PROGRESS.', 'A STRONGER YOU.'])
+            ->assertDontSee('Paket PT Anda')
+            ->assertDontSee('Data Absen PT Client')
+            ->assertDontSee('Detail paket dan kehadiran client')
+            ->assertDontSeeText('PT Privat Aktif')
+            ->assertSee('Jumlah Sesi')
+            ->assertSee('Progress Kehadiran')
             ->assertSee('Mulai Rp 500.000')
             ->assertSee('PT Privat Aktif')
             ->assertDontSee('Sisa sesi PT: 0 sesi')
@@ -595,7 +605,11 @@ class MemberDashboardTest extends TestCase
                     };
             })
                 ->assertSee('Gym Bundle / PT Bundle')
-                ->assertSee('Paket Bundle Anda')
+                ->assertSeeInOrder(['1-ON-1', 'TRANSFORMATION', 'PERSONALIZED PROGRAM.', 'REAL PROGRESS.', 'A STRONGER YOU.'])
+                ->assertDontSee('Paket Bundle Anda')
+                ->assertDontSeeText('Gym Bundle / PT Bundle')
+                ->assertDontSee('Data Absen PT Client')
+                ->assertDontSee('Detail paket dan kehadiran client')
                 ->assertSee('Mulai Rp 500.000')
                 ->assertDontSee('Total Harga');
             $this->assertSame(1, substr_count($component->html(), 'data-testid="owned-package-'.$purchase->id.'"'));

@@ -368,8 +368,7 @@ new #[Layout('layouts::member')] class extends Component
 
 <main x-data class="member-pt-schedule mx-auto w-full max-w-[1200px] px-4 pb-10 sm:px-6">
     <header class="relative isolate -mx-4 flex min-h-56 flex-col justify-end overflow-hidden px-4 pb-8 pt-12 sm:-mx-6 sm:rounded-t-3xl sm:px-6 sm:pt-16">
-        <img src="{{ asset('ruangan.webp') }}" alt="" aria-hidden="true" class="absolute inset-0 -z-20 size-full object-cover opacity-60">
-        <div class="absolute inset-0 -z-10 bg-linear-to-t from-[#080c0e] via-[#080c0e]/25 to-transparent" aria-hidden="true"></div>
+        <img src="{{ asset('member-pt-studio-wide.png') }}" alt="" aria-hidden="true" class="absolute inset-0 -z-20 size-full object-contain">
         <h1 class="text-3xl font-extrabold tracking-tight text-white sm:text-4xl">Jadwal Booking</h1>
         <p class="mt-2 text-lg text-gray-300">Personal Training</p>
     </header>
