@@ -50,7 +50,9 @@ class MemberTodayAttendanceTest extends TestCase
     {
         $member = User::factory()->create(['role' => 'member']);
         $component = Livewire::actingAs($member)->test('pages::dashboard.member.kehadiran')
-            ->assertSee('Belum ada check-in')->assertSee('Buka absensi')->assertDontSee('Check-in berhasil');
+            ->assertSee('Belum ada check-in')
+            ->assertSee('Catatan kedatanganmu akan muncul di sini setelah kamu melakukan absensi.')
+            ->assertDontSee('Buka absensi')->assertDontSee('Check-in berhasil');
         $this->attendance($member, now()->toDateTimeString());
         $component->set('tab', 'check-out')->assertSee('Belum ada check-out')->assertDontSee('Buka absensi');
         $this->assertCount(0, $component->viewData('records'));

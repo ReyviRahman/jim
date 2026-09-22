@@ -45,7 +45,7 @@ class MemberPtScheduleTest extends TestCase
         $latest = $this->membership(['user_id' => $older->user_id, 'start_date' => '2026-09-20']);
         $this->membership(['user_id' => $older->user_id, 'start_date' => '2026-09-21', 'is_active' => false]);
         $this->booking($this->membership(['pt_id' => $latest->pt_id]));
-        $page = $this->page($older)->assertSet('selectedMembershipId', $latest->id)->assertSee('Dibooking member lain');
+        $page = $this->page($older)->call('setDayView', 'all')->assertSet('selectedMembershipId', $latest->id)->assertSee('Dibooking member lain');
         $this->assertTrue($page->get('calendar')[1]['slots'][0]['occupied']);
         $page->set('selectedMembershipId', $older->id);
         $this->assertFalse($page->get('calendar')[1]['slots'][0]['occupied']);
@@ -69,11 +69,57 @@ class MemberPtScheduleTest extends TestCase
     public function test_member_calendar_uses_shared_admin_table_layout_and_date_controls(): void
     {
         $this->page($this->membership())
-            ->assertSee('data-booking-schedule', false)
-            ->assertSee('data-responsive-table', false)
-            ->assertSee('data-booking-schedule-today-header', false)
-            ->assertSee('Pilih tanggal jadwal')->assertSee('Kemarin')->assertSee('Besok')
+            ->assertSeeHtml('data-member-pt-calendar')
+            ->assertDontSeeHtml('data-booking-schedule')
+            ->assertDontSeeHtml('data-responsive-table')
+            ->assertSee('Pilih tanggal jadwal')
+            ->call('setDayView', 'today')->assertSee('Kemarin')->assertSee('Besok')
             ->assertDontSee('Pilih hari');
+    }
+
+    public function test_calendar_shows_selected_day_by_default_and_can_switch_to_weekly_view(): void
+    {
+        $page = $this->page($this->membership(), weekly: false)->assertSet('dayView', 'today')
+            ->assertSeeHtml('data-date="2026-09-21"')
+            ->assertDontSeeHtml('data-date="2026-09-22"')
+            ->call('setDayView', 'all');
+
+        foreach (range(21, 27) as $day) {
+            $page->assertSeeHtml('data-date="2026-09-'.$day.'"');
+        }
+
+        $page->call('setDayView', 'today')
+            ->assertSeeHtml('data-date="2026-09-21"')
+            ->assertDontSeeHtml('data-date="2026-09-22"')
+            ->call('nextDay')
+            ->assertSeeHtml('data-date="2026-09-22"')
+            ->assertDontSeeHtml('data-date="2026-09-21"')
+            ->call('setDayView', 'all')
+            ->assertSeeHtml('data-date="2026-09-21"')
+            ->assertSeeHtml('data-date="2026-09-27"');
+    }
+
+    public function test_daily_booking_count_counts_unique_active_bookings_of_the_selected_package(): void
+    {
+        $membership = $this->membership();
+        $this->booking($membership, ['booking_time' => '07:30:00', 'status' => 'pending']);
+        $this->booking($membership, ['booking_time' => '10:00:00']);
+        $this->booking($membership, ['booking_time' => '12:00:00', 'cancellation_requested_at' => now()]);
+        $this->booking($membership, ['booking_time' => '14:00:00', 'status' => 'cancelled']);
+        $this->booking($membership, ['booking_time' => '15:00:00', 'status' => 'rejected']);
+        $this->booking($membership, ['booking_date' => '2026-09-23']);
+        $otherPackage = $this->membership(['user_id' => $membership->user_id, 'pt_id' => $membership->pt_id]);
+        $this->booking($otherPackage, ['booking_time' => '16:00:00']);
+        $this->booking($this->membership(['pt_id' => $membership->pt_id]), ['booking_time' => '18:00:00']);
+
+        $page = $this->page($membership)->set('selectedMembershipId', $membership->id);
+        $calendar = $page->get('calendar');
+        $this->assertSame(0, $calendar[0]['bookingCount']);
+        $this->assertSame(3, $calendar[1]['bookingCount']);
+        $this->assertSame(1, $calendar[2]['bookingCount']);
+
+        $page->set('selectedMembershipId', $otherPackage->id);
+        $this->assertSame(1, $page->get('calendar')[1]['bookingCount']);
     }
 
     public function test_member_submits_pending_booking_without_decrementing_sessions(): void
@@ -556,9 +602,11 @@ class MemberPtScheduleTest extends TestCase
         $this->assertNull($booking->fresh()->cancelled_at);
     }
 
-    private function page(Membership $membership): Testable
+    private function page(Membership $membership, bool $weekly = true): Testable
     {
-        return Livewire::actingAs($membership->user)->test('pages::dashboard.member.jadwal-pt.index');
+        $page = Livewire::actingAs($membership->user)->test('pages::dashboard.member.jadwal-pt.index');
+
+        return $weekly ? $page->call('setDayView', 'all') : $page;
     }
 
     private function submit(Membership $membership, string $time = '07:00', string $date = '2026-09-22'): PtBooking

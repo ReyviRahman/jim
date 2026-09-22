@@ -1,6 +1,10 @@
 {
+  "public/member-attendance-gym.png": {
+    "file": "assets/member-attendance-gym-BzDiuUTt.png",
+    "src": "public/member-attendance-gym.png"
+  },
   "resources/css/app.css": {
-    "file": "assets/app-DyQXEqTm.css",
+    "file": "assets/app-if2l3K2U.css",
     "src": "resources/css/app.css",
     "isEntry": true,
     "name": "app",

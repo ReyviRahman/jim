@@ -94,6 +94,55 @@ class MemberAttendanceTest extends TestCase
         $this->assertNull($component->viewData('qrCode'));
     }
 
+    public function test_pt_qr_requires_booking_and_switching_package_resets_booking(): void
+    {
+        $member = $this->createUser();
+        $trainer = $this->createUser(['role' => 'pt']);
+        $pt = $this->createMembership($member, [
+            'type' => 'pt',
+            'pt_id' => $trainer->id,
+            'pt_end_date' => today()->addMonth()->toDateString(),
+            'total_sessions' => 10,
+            'remaining_sessions' => 10,
+        ]);
+        $gym = $this->createMembership($member);
+        $booking = $this->createBooking($pt, $member);
+
+        $component = Livewire::actingAs($member)->test('pages::dashboard.member.absensi')
+            ->set('selectedMembershipId', $pt->id)
+            ->assertSee('Pilih jadwal booking terlebih dahulu')
+            ->assertSee('08:00')
+            ->assertDontSee('Paket Aktif Anda')
+            ->assertDontSee('Manual Input Data (Untuk Admin)');
+
+        $this->assertNull($component->viewData('qrCode'));
+        $component->set('selectedBookingId', $booking->id);
+        $this->assertNotNull($component->viewData('qrCode'));
+
+        $component->set('selectedMembershipId', $gym->id)
+            ->assertSet('selectedBookingId', null);
+        $this->assertNotNull($component->viewData('qrCode'));
+
+        $component->set('hasCheckedIn', true)->assertSee('Berhasil!')
+            ->set('hasCheckedIn', false)->assertSee('CHECK-IN');
+    }
+
+    public function test_pt_without_booking_shows_booking_instruction_without_a_qr(): void
+    {
+        $member = $this->createUser();
+        $this->createMembership($member, [
+            'type' => 'pt',
+            'pt_end_date' => today()->addMonth()->toDateString(),
+            'remaining_sessions' => 10,
+            'total_sessions' => 10,
+        ]);
+
+        $component = Livewire::actingAs($member)->test('pages::dashboard.member.absensi')
+            ->assertSee('Silakan Booking Jadwal terlebih dahulu');
+
+        $this->assertNull($component->viewData('qrCode'));
+    }
+
     /** @param array<string, mixed> $attributes */
     private function createUser(array $attributes = []): User
     {

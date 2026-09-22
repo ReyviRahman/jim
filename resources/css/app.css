@@ -1,5 +1,7 @@
 @import "flatpickr/dist/flatpickr.min.css";
 @import 'tailwindcss';
+@import './member-attendance.css';
+@import './member-check-in.css';
 @import "flowbite/src/themes/default";
 @plugin "flowbite/plugin";
 @source "../../node_modules/flowbite";
@@ -15,6 +17,125 @@
     --color-brand: #FFED00;
     --color-secondary: #34342F;
     --color-fg-brand: #FFED00;
+}
+
+.member-package-hero {
+    min-height: 460px;
+}
+
+.member-empty-stripe {
+    inset: 20% -20% -25%;
+    background: linear-gradient(140deg, transparent 42%, #ffed00 42%, #ffed00 61%, transparent 61%);
+}
+
+.member-empty-panel {
+    background: linear-gradient(145deg, #1b1b1b, #080808 65%);
+    box-shadow: 0 16px 36px rgb(0 0 0 / 45%);
+}
+
+.member-empty-calendar {
+    box-shadow: 0 0 50px rgb(255 237 0 / 20%);
+}
+
+.member-pt-page {
+    background: #080c0e;
+    color: #f9fafb;
+    color-scheme: dark;
+}
+
+.member-pt-page > nav,
+.member-pt-page > aside > div {
+    background: #080c0e;
+    border-color: rgb(255 255 255 / 12%);
+}
+
+.pt-schedule-control {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    border: 1px solid rgb(255 255 255 / 18%);
+    border-radius: 12px;
+    background-color: #151b1e;
+    padding: 10px 14px;
+    color: #e5e7eb;
+    font-size: 14px;
+}
+
+.pt-schedule-control-selected {
+    border-color: #ffed00;
+    background-color: rgb(255 237 0 / 10%);
+    color: #ffed00;
+}
+
+.member-pt-schedule :is(button, a, input, select, textarea):focus-visible {
+    outline: 2px solid #ffed00;
+    outline-offset: 3px;
+}
+
+.member-pt-schedule textarea {
+    background-color: #151b1e;
+    color: #f9fafb;
+}
+
+.member-package-photo {
+    object-position: center;
+}
+
+.member-package-shade {
+    background: linear-gradient(90deg, rgb(0 0 0 / 86%) 0%, rgb(0 0 0 / 58%) 35%, transparent 75%), linear-gradient(0deg, rgb(0 0 0 / 45%), transparent 35%);
+}
+
+.member-package-copy {
+    width: 50%;
+}
+
+.member-package-price {
+    font-size: clamp(1rem, 2.7vw, 2.5rem);
+    overflow-wrap: anywhere;
+}
+
+.member-package-progress {
+    appearance: none;
+    overflow: hidden;
+    border: none;
+    border-radius: 999px;
+    background: #f0f1f3;
+}
+
+.member-package-progress::-webkit-progress-bar {
+    background: #f0f1f3;
+    border-radius: 999px;
+}
+
+.member-package-progress::-webkit-progress-value {
+    background: #ffed00;
+    border-radius: 999px;
+}
+
+.member-package-progress::-moz-progress-bar {
+    background: #ffed00;
+    border-radius: 999px;
+}
+
+@media (min-width: 640px) {
+    .member-package-hero {
+        min-height: 550px;
+    }
+
+    .member-package-photo {
+        object-position: center;
+    }
+
+    .member-package-copy {
+        width: 48%;
+    }
+}
+
+@media (min-width: 640px) and (max-width: 1023px) {
+    .member-package-photo {
+        object-position: center 25%;
+    }
 }
 
 /* Mengubah warna batang loading utama */

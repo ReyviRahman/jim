@@ -23,7 +23,8 @@ class MemberSidebarNavigationTest extends TestCase
             ->assertSee('href="'.route('member.dashboard').'"', false)
             ->assertSee('Dashboard')
             ->assertSee('href="'.route('member.absensi').'"', false)
-            ->assertSee('Absensi');
+            ->assertSee('Absensi')
+            ->assertDontSee('/dashboard/member/membership');
     }
 
     public function test_member_absensi_route_preserves_the_check_in_page(): void
@@ -35,8 +36,10 @@ class MemberSidebarNavigationTest extends TestCase
         $this->actingAs($member)
             ->get(route('member.absensi'))
             ->assertOk()
-            ->assertSee('Scan QR Code ini pada scanner admin untuk Check-in')
-            ->assertSee('Manual Input Data (Untuk Admin)');
+            ->assertSee('Scan QR Code ini pada scanner admin untuk')
+            ->assertSee('CHECK-IN')
+            ->assertDontSee('Paket Aktif Anda')
+            ->assertDontSee('Manual Input Data (Untuk Admin)');
     }
 
     public function test_member_without_pt_membership_does_not_see_pt_schedule_navigation(): void
@@ -46,7 +49,7 @@ class MemberSidebarNavigationTest extends TestCase
         $gymMembership->members()->attach($member);
 
         $this->actingAs($member)
-            ->get(route('member.membership.index'))
+            ->get(route('member.dashboard'))
             ->assertOk()
             ->assertDontSee('href="'.route('member.jadwal-pt.index').'"', false);
     }
@@ -57,7 +60,7 @@ class MemberSidebarNavigationTest extends TestCase
         $this->createMembership($member, 'pt');
 
         $this->actingAs($member)
-            ->get(route('member.membership.index'))
+            ->get(route('member.dashboard'))
             ->assertOk()
             ->assertSee('href="'.route('member.jadwal-pt.index').'"', false)
             ->assertSee('Jadwal PT');
@@ -71,7 +74,7 @@ class MemberSidebarNavigationTest extends TestCase
         $ptMembership->members()->attach($sharedMember);
 
         $this->actingAs($sharedMember)
-            ->get(route('member.membership.index'))
+            ->get(route('member.dashboard'))
             ->assertOk()
             ->assertSee('href="'.route('member.jadwal-pt.index').'"', false)
             ->assertSee('Jadwal PT');

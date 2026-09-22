@@ -66,9 +66,6 @@ Route::middleware('auth')->group(function () {
         Route::livewire('/riwayat-kehadiran', 'pages::dashboard.member.kehadiran')
             ->name('member.kehadiran.index');
 
-        Route::livewire('/membership', 'pages::dashboard.member.membership')
-            ->name('member.membership.index');
-
         Route::livewire('/jadwal-pt', 'pages::dashboard.member.jadwal-pt.index')
             ->name('member.jadwal-pt.index');
 

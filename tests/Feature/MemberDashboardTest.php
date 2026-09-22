@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\GymPackage;
 use App\Models\Membership;
+use App\Models\PtBooking;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -38,13 +39,10 @@ class MemberDashboardTest extends TestCase
             ->get(route('member.dashboard'))
             ->assertOk()
             ->assertSee('Dashboard Membership')
-            ->assertSee('Jam Operasional')
-            ->assertSee('Senin - Jum’at')
-            ->assertSee('07.00 - 22.00')
-            ->assertSee('Sabtu')
-            ->assertSee('07.00 - 20.00')
-            ->assertSee('Minggu')
-            ->assertSee('07.00 - 19.00')
+            ->assertSeeText('Setelah Anda memiliki membership atau PT aktif, informasi akan otomatis ditampilkan di sini.')
+            ->assertSee('HUBUNGI ADMIN')
+            ->assertSee(route('home').'#lokasi', false)
+            ->assertDontSee('Jam Operasional')
             ->assertDontSeeText('Lihat masa aktif membership dan rekomendasi paket terbaik untuk Anda.');
     }
 
@@ -60,12 +58,12 @@ class MemberDashboardTest extends TestCase
 
         Livewire::actingAs($owner)
             ->test('pages::dashboard.member.home')
-            ->assertSet('selectedMembershipId', $membership->id)
+            ->assertCount('ownedPackages', 1)
             ->assertSee('Paket Couple Bersama');
 
         Livewire::actingAs($sharedMember)
             ->test('pages::dashboard.member.home')
-            ->assertSet('selectedMembershipId', $membership->id)
+            ->assertCount('ownedPackages', 1)
             ->assertSee('Paket Couple Bersama');
     }
 
@@ -89,13 +87,8 @@ class MemberDashboardTest extends TestCase
 
         Livewire::actingAs($member)
             ->test('pages::dashboard.member.home')
-            ->assertSet('selectedMembershipId', $latestFurthestMembership->id)
-            ->assertSeeHtml('wire:model.live.number="selectedMembershipId"')
-            ->set('selectedMembershipId', $nearMembership->id)
-            ->assertSet('selectedMembershipId', $nearMembership->id)
-            ->assertSee('Paket Berakhir Lebih Dekat')
-            ->assertSee('Paket Terjauh Pertama')
-            ->assertSee('Paket Terjauh Terbaru')
+            ->assertDontSeeHtml('wire:model.live.number="selectedMembershipId"')
+            ->assertSeeInOrder(['Paket Terjauh Terbaru', 'Paket Terjauh Pertama', 'Paket Berakhir Lebih Dekat'])
             ->assertCount('ownedPackages', 3);
     }
 
@@ -114,9 +107,9 @@ class MemberDashboardTest extends TestCase
 
         Livewire::actingAs($member)
             ->test('pages::dashboard.member.home')
-            ->assertSet('selectedMembershipId', $ownedMembership->id)
-            ->set('selectedMembershipId', $unrelatedMembership->id)
-            ->assertForbidden();
+            ->assertCount('ownedPackages', 1)
+            ->assertSee('Paket Milik Sendiri')
+            ->assertDontSee('Paket Milik Orang Lain');
     }
 
     public function test_current_memberships_are_filtered_by_type_status_active_flag_and_dates(): void
@@ -155,7 +148,7 @@ class MemberDashboardTest extends TestCase
 
         Livewire::actingAs($member)
             ->test('pages::dashboard.member.home')
-            ->assertSet('selectedMembershipId', $currentMembership->id)
+            ->assertCount('ownedPackages', 2)
             ->assertSee('Paket Valid Saat Ini')
             ->assertDontSee('Paket Pending')
             ->assertDontSee('Paket Selesai')
@@ -302,7 +295,7 @@ class MemberDashboardTest extends TestCase
             ->assertSee('Harga Paket')
             ->assertSee('Rp 500.000')
             ->assertSee('Total Pembayaran')
-            ->assertSee('Total Harga');
+            ->assertDontSee('Total Harga');
     }
 
     public function test_highest_tier_membership_has_no_upgrade_recommendation(): void
@@ -338,7 +331,7 @@ class MemberDashboardTest extends TestCase
 
         Livewire::actingAs($member)
             ->test('pages::dashboard.member.home')
-            ->assertSet('selectedMembershipId', $membership->id)
+            ->assertCount('ownedPackages', 1)
             ->assertSee('Paket Snapshot Lama')
             ->assertDontSee('Rekomendasi paket belum tersedia.')
             ->assertSee('Membership Anda')
@@ -352,7 +345,7 @@ class MemberDashboardTest extends TestCase
 
         Livewire::actingAs($member)
             ->test('pages::dashboard.member.home')
-            ->assertSet('selectedMembershipId', $membership->id)
+            ->assertCount('ownedPackages', 1)
             ->assertSee('Paket Membership');
     }
 
@@ -363,8 +356,8 @@ class MemberDashboardTest extends TestCase
 
         Livewire::actingAs($member)
             ->test('pages::dashboard.member.home')
-            ->assertSet('selectedMembershipId', null)
-            ->assertSee('Belum ada membership atau PT aktif')
+            ->assertCount('ownedPackages', 0)
+            ->assertSeeText('Belum ada membership atau PT aktif')
             ->assertDontSee('Paket Nonaktif');
     }
 
@@ -391,8 +384,8 @@ class MemberDashboardTest extends TestCase
 
         Livewire::actingAs($member)
             ->test('pages::dashboard.member.home')
-            ->assertSet('selectedMembershipId', null)
-            ->assertSee('Belum ada membership atau PT aktif')
+            ->assertCount('ownedPackages', 0)
+            ->assertSeeText('Belum ada membership atau PT aktif')
             ->assertDontSee('Belum ada paket membership yang tersedia saat ini.');
     }
 
@@ -418,8 +411,8 @@ class MemberDashboardTest extends TestCase
 
         Livewire::actingAs($member)
             ->test('pages::dashboard.member.home')
-            ->assertSet('selectedMembershipId', null)
-            ->assertSee('Belum ada membership atau PT aktif')
+            ->assertCount('ownedPackages', 0)
+            ->assertSeeText('Belum ada membership atau PT aktif')
             ->assertDontSee($cheapestPackage->name)
             ->assertDontSee('Paket Single Efektif Mahal')
             ->assertDontSee('Paket Couple Lebih Murah')
@@ -486,7 +479,9 @@ class MemberDashboardTest extends TestCase
 
         Livewire::actingAs($member)
             ->test('pages::dashboard.member.home')
-            ->assertSee('Sisa sesi PT aktif Anda: 9 sesi.');
+            ->assertCount('ownedPackages', 3)
+            ->assertSet('ownedPackageSummaries', fn ($summaries): bool => $summaries->sum('remaining_sessions') === 9)
+            ->assertDontSee('Sisa sesi PT aktif Anda:');
     }
 
     public function test_dashboard_formats_calendar_duration_and_upgrade_currency_without_a_next_button(): void
@@ -511,18 +506,17 @@ class MemberDashboardTest extends TestCase
 
         Livewire::actingAs($member)
             ->test('pages::dashboard.member.home')
-            ->assertSee('Membership Saat Ini')
+            ->assertDontSee('Membership Saat Ini')
             ->assertSee('16 bulan | 28 hari tersisa')
             ->assertDontSeeText('Upgrade Membership')
             ->assertDontSee($upgradePackage->name)
-            ->assertSee('Lihat Detail')
-            ->assertSee('Rincian Harga')
+            ->assertSee('Lihat Riwayat Absen')
             ->assertSee('Harga Paket')
             ->assertSee('Rp 2.400.000')
             ->assertSee('Diskon')
             ->assertSee('Rp 114.000')
             ->assertSee('Total Pembayaran')
-            ->assertSee('Total Harga')
+            ->assertDontSee('Total Harga')
             ->assertSee('Rp 2.286.000')
             ->assertDontSee('Next');
     }
@@ -537,7 +531,7 @@ class MemberDashboardTest extends TestCase
 
         Livewire::actingAs($member)
             ->test('pages::dashboard.member.home')
-            ->assertSet('selectedMembershipId', $membership->id)
+            ->assertCount('ownedPackages', 1)
             ->assertSee('Paket Berakhir Hari Ini')
             ->assertSee('Berakhir hari ini');
     }
@@ -557,7 +551,6 @@ class MemberDashboardTest extends TestCase
         $this->createMembership($owner, $this->createPackage('Paket Rahasia'));
 
         Livewire::actingAs($member)->test('pages::dashboard.member.home')
-            ->assertSet('selectedMembershipId', null)
             ->assertCount('ownedPackages', 1)
             ->assertSeeHtml('data-testid="owned-package-'.$purchase->id.'"')
             ->assertSee('Paket PT Anda')
@@ -586,14 +579,92 @@ class MemberDashboardTest extends TestCase
             ->assertCount('ownedPackages', $expectedCount);
 
         if ($expectedCount === 1) {
-            $component->assertSee('Gym Bundle / PT Bundle')
+            $component->assertSet('ownedPackageSummaries', function ($summaries) use ($gymDays, $ptDays): bool {
+                $summary = $summaries->first();
+
+                return $summary['has_gym'] === true
+                    && $summary['has_pt'] === true
+                    && $summary['gym_active'] === ($gymDays >= 0)
+                    && $summary['pt_active'] === ($ptDays >= 0)
+                    && $summary['gym_end'] === today()->addDays($gymDays)->locale('id')->translatedFormat('d M Y')
+                    && $summary['pt_end'] === today()->addDays($ptDays)->locale('id')->translatedFormat('d M Y')
+                    && $summary['gym_duration'] === match (true) {
+                        $gymDays < 0 => 'Masa aktif berakhir',
+                        $gymDays === 0 => 'Berakhir hari ini',
+                        default => $gymDays.' hari tersisa',
+                    };
+            })
+                ->assertSee('Gym Bundle / PT Bundle')
                 ->assertSee('Paket Bundle Anda')
                 ->assertSee('Mulai Rp 500.000')
-                ->assertSee('Total Harga');
+                ->assertDontSee('Total Harga');
             $this->assertSame(1, substr_count($component->html(), 'data-testid="owned-package-'.$purchase->id.'"'));
         } else {
-            $component->assertSee('Belum ada membership atau PT aktif');
+            $component->assertSeeText('Belum ada membership atau PT aktif');
         }
+    }
+
+    public function test_pt_progress_counts_attended_bookings_for_the_shared_purchase_only(): void
+    {
+        $member = $this->createUser();
+        $owner = $this->createUser();
+        $trainer = $this->createUser(['role' => 'pt']);
+        $purchase = $this->createMembership($owner, null, [
+            'type' => 'pt',
+            'membership_end_date' => null,
+            'pt_end_date' => today()->addMonth(),
+            'total_sessions' => 10,
+            'remaining_sessions' => 6,
+        ], [$member]);
+        $otherPurchase = $this->createMembership($owner, null, [
+            'type' => 'pt',
+            'membership_end_date' => null,
+            'pt_end_date' => today()->addMonth(),
+        ]);
+
+        foreach ([[$purchase, $owner, 'attended'], [$purchase, $member, 'attended'], [$purchase, $member, 'noshow'], [$purchase, $member, 'not_yet'], [$otherPurchase, $owner, 'attended']] as [$membership, $attendee, $attendance]) {
+            PtBooking::create([
+                'membership_id' => $membership->id,
+                'member_id' => $attendee->id,
+                'pt_id' => $trainer->id,
+                'booking_date' => today(),
+                'booking_time' => '09:00:00',
+                'status' => 'approved',
+                'attendance' => $attendance,
+            ]);
+        }
+
+        Livewire::actingAs($member)->test('pages::dashboard.member.home')
+            ->assertCount('ownedPackages', 1)
+            ->assertSet('ownedPackageSummaries', function ($summaries) use ($purchase): bool {
+                $summary = $summaries->first();
+
+                return $summary['id'] === $purchase->id
+                    && $summary['total_sessions'] === 10
+                    && $summary['remaining_sessions'] === 6
+                    && $summary['attended_sessions'] === 2
+                    && (int) $summary['progress'] === 20;
+            })
+            ->assertSee('Progress Kehadiran')
+            ->assertSee('20%')
+            ->assertSee('Lihat Riwayat Absen');
+    }
+
+    public function test_pt_progress_handles_zero_total_sessions(): void
+    {
+        $member = $this->createUser();
+        $this->createMembership($member, null, [
+            'type' => 'pt',
+            'membership_end_date' => null,
+            'pt_end_date' => today()->addMonth(),
+            'total_sessions' => 0,
+            'remaining_sessions' => 0,
+        ]);
+
+        Livewire::actingAs($member)->test('pages::dashboard.member.home')
+            ->assertSet('ownedPackageSummaries', fn ($summaries): bool => (int) $summaries->first()['progress'] === 0)
+            ->assertSee('0%')
+            ->assertSee('Sisa Sesi');
     }
 
     /** @return array<string, array{int, int, int}> */
@@ -603,6 +674,7 @@ class MemberDashboardTest extends TestCase
             'gym expired' => [-1, 10, 1],
             'pt expired' => [10, -1, 1],
             'both expired' => [-1, -1, 0],
+            'both end today' => [0, 0, 1],
         ];
     }
 

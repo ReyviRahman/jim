@@ -105,7 +105,7 @@ new #[Layout('layouts::member')] class extends Component
         ]);
 
         session()->flash('message', 'Pendaftaran berhasil!');
-        return $this->redirectRoute('member.membership.index', navigate: true);
+        return $this->redirectRoute('member.dashboard', navigate: true);
     }
 };
 ?>
