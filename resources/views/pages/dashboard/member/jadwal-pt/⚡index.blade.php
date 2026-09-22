@@ -48,8 +48,9 @@ new #[Layout('layouts::member')] class extends Component
     public function memberships(): Collection
     {
         return app(MemberPtSchedule::class)->memberships(Auth::user())
+            ->where('status', 'active')
+            ->where('is_active', true)
             ->with(['personalTrainer', 'ptPackage'])
-            ->orderByRaw("CASE WHEN is_active = 1 AND status = 'active' THEN 0 ELSE 1 END")
             ->orderByDesc('start_date')->orderByDesc('id')->get();
     }
 

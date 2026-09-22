@@ -51,6 +51,42 @@ class MemberPtScheduleTest extends TestCase
         $this->assertFalse($page->get('calendar')[1]['slots'][0]['occupied']);
     }
 
+    #[DataProvider('unselectableMemberships')]
+    public function test_only_active_memberships_can_be_selected(array $attributes): void
+    {
+        $active = $this->membership();
+        $inactive = $this->membership(['user_id' => $active->user_id, ...$attributes]);
+        $groupMembership = $this->membership($attributes);
+        $groupMembership->members()->attach($active->user);
+
+        $page = $this->page($active)->assertSet('selectedMembershipId', $active->id);
+
+        $this->assertSame([$active->id], $page->get('memberships')->modelKeys());
+        $page->set('selectedMembershipId', $inactive->id)->assertForbidden();
+        $this->page($active)->set('selectedMembershipId', $groupMembership->id)->assertForbidden();
+    }
+
+    public static function unselectableMemberships(): array
+    {
+        return [
+            [['status' => 'pending']],
+            [['status' => 'rejected']],
+            [['status' => 'completed']],
+            [['is_active' => false]],
+        ];
+    }
+
+    public function test_member_with_only_nonactive_memberships_has_no_package_selected(): void
+    {
+        $membership = $this->membership(['status' => 'completed']);
+
+        $page = $this->page($membership)
+            ->assertSet('selectedMembershipId', null)
+            ->assertSee('Tidak ada membership PT');
+
+        $this->assertCount(0, $page->get('memberships'));
+    }
+
     public function test_daily_navigation_and_date_picker_keep_the_week_in_sync(): void
     {
         $page = $this->page($this->membership())
