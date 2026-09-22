@@ -379,7 +379,7 @@ new #[Layout('layouts::member')] class extends Component
             @endif
         </div>
 
-            <p class="text-sm text-body">Booking hanya untuk besok, {{ today(config('app.timezone'))->addDay()->locale('id')->isoFormat('dddd, D MMMM YYYY') }}. Setiap sesi berlangsung 60 menit.</p>
+            <p class="text-sm text-body">Booking tersedia untuk hari ini dan besok, selama sesi belum dimulai. Setiap sesi berlangsung 60 menit.</p>
             <p class="text-sm text-body">{{ $this->unavailableReason ?? 'Booking baru menunggu persetujuan coach/admin.' }}</p>
         </div>
         <div class="p-4 border-t border-default-medium flex flex-col md:flex-row items-center justify-between gap-4">

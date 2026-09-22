@@ -319,14 +319,14 @@ class MemberPtScheduleTest extends TestCase
         $this->page($this->membership(['pt_id' => null]))->assertSee('Coach belum ditentukan');
     }
 
-    public function test_only_tomorrow_has_bookable_slots(): void
+    public function test_only_today_and_tomorrow_have_bookable_slots(): void
     {
         $membership = $this->membership();
-        $page = $this->page($membership)->assertSee('Booking hanya untuk besok');
+        $page = $this->page($membership)->assertSee('Booking tersedia untuk hari ini dan besok');
         $calendar = $page->get('calendar');
         foreach ($calendar as $day) {
             foreach ($day['slots'] as $slot) {
-                if ($day['date'] === '2026-09-22') {
+                if (in_array($day['date'], ['2026-09-21', '2026-09-22'], true)) {
                     $this->assertNull($slot['reason']);
                 } else {
                     $this->assertNotNull($slot['reason']);
@@ -334,25 +334,40 @@ class MemberPtScheduleTest extends TestCase
             }
         }
 
-        foreach (['2026-09-21', '2026-09-23'] as $date) {
+        foreach (['2026-09-23', '2026-09-24'] as $date) {
             $page->call('openBookingModal', $date, '12:00')->assertHasErrors('booking')->assertSet('showBookingModal', false);
             try {
                 $this->submit($membership, '12:00', $date);
-                $this->fail('Booking outside tomorrow was accepted.');
+                $this->fail('Booking beyond tomorrow was accepted.');
             } catch (ValidationException $exception) {
-                $this->assertSame('Booking hanya bisa dibuat untuk besok.', $exception->errors()['booking'][0]);
+                $this->assertSame('Booking hanya bisa dibuat untuk hari ini atau besok.', $exception->errors()['booking'][0]);
             }
         }
         $this->assertDatabaseCount('pt_bookings', 0);
     }
 
-    public function test_tomorrow_is_rechecked_after_midnight_when_confirmation_was_open(): void
+    public function test_tomorrow_confirmation_still_works_after_midnight(): void
     {
         $this->travelTo(now()->setTime(23, 59));
         $page = $this->page($this->membership())->call('openBookingModal', '2026-09-22', '07:00');
         $this->travelTo(now()->addMinute());
-        $page->call('book')->assertHasErrors('booking')->assertSet('showBookingModal', false);
-        $this->assertDatabaseCount('pt_bookings', 0);
+        $page->call('book')->assertHasNoErrors()->assertSet('showBookingModal', false);
+        $this->assertDatabaseCount('pt_bookings', 1);
+    }
+
+    public function test_today_booking_succeeds_before_start_and_is_rejected_at_start(): void
+    {
+        $membership = $this->membership();
+        $page = $this->page($membership)->call('openBookingModal', '2026-09-21', '07:00');
+        $page->call('book')->assertHasNoErrors();
+        $this->assertDatabaseHas('pt_bookings', ['membership_id' => $membership->id, 'booking_date' => '2026-09-21', 'status' => 'pending']);
+
+        $page->call('openBookingModal', '2026-09-21', '08:00');
+        $this->travelTo(now()->setTime(8, 0));
+        $page->call('book')->assertHasErrors('booking');
+        $this->assertDatabaseCount('pt_bookings', 1);
+        $this->expectException(ValidationException::class);
+        $this->submit($membership, '08:00', '2026-09-21');
     }
 
     public function test_tomorrow_booking_works_across_a_month_boundary(): void
@@ -448,6 +463,48 @@ class MemberPtScheduleTest extends TestCase
         app(CancelMemberPtBooking::class)->execute($membership->user, $booking->id, 'Alasan lain untuk duplikat');
         $this->assertSame('Tidak bisa datang', $booking->fresh()->cancellation_reason);
         $this->assertTrue($firstRequestedAt->equalTo($booking->fresh()->cancellation_requested_at));
+    }
+
+    #[DataProvider('cancellationCutoffs')]
+    public function test_cancellation_enforces_three_hour_cutoff(string $status, string $time, bool $allowed): void
+    {
+        $membership = $this->membership();
+        $booking = $this->booking($membership, ['status' => $status]);
+        $this->travelTo(now()->setDate(2026, 9, 22)->setTimeFromTimeString($time));
+        $page = $this->page($membership)->call('openDetailModal', $booking->id);
+
+        if ($allowed) {
+            $page->call('openCancelModal', $booking->id)->set('cancelReason', 'Tidak bisa datang')
+                ->call('cancelBooking')->assertHasNoErrors();
+            $this->assertSame($status === 'pending' ? 'cancelled' : 'approved', $booking->fresh()->status);
+            $this->assertSame($status === 'approved', $booking->fresh()->isCancellationPending());
+        } else {
+            $page->assertSee('Pembatalan tidak tersedia mulai 3 jam sebelum jadwal sesi.')
+                ->call('openCancelModal', $booking->id)->assertHasErrors('cancelReason');
+            $this->expectException(ValidationException::class);
+            app(CancelMemberPtBooking::class)->execute($membership->user, $booking->id, 'Tidak bisa datang');
+        }
+    }
+
+    public static function cancellationCutoffs(): array
+    {
+        return [
+            ['pending', '03:59:59', true], ['approved', '03:59:59', true],
+            ['pending', '04:00:00', false], ['approved', '04:00:00', false],
+            ['pending', '04:00:01', false], ['approved', '04:00:01', false],
+        ];
+    }
+
+    public function test_cancellation_rechecks_cutoff_after_modal_was_opened(): void
+    {
+        $membership = $this->membership();
+        $booking = $this->booking($membership, ['status' => 'pending']);
+        $this->travelTo(now()->setDate(2026, 9, 22)->setTime(3, 59, 59));
+        $page = $this->page($membership)->call('openCancelModal', $booking->id);
+        $this->travel(1)->seconds();
+        $page->set('cancelReason', 'Tidak bisa datang')->call('cancelBooking')->assertHasErrors('cancelReason');
+        $this->assertSame('pending', $booking->fresh()->status);
+        $this->assertNull($booking->fresh()->cancelled_at);
     }
 
     public function test_cancellation_rechecks_attendance_after_modal_was_opened(): void

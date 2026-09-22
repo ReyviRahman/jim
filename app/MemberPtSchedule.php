@@ -44,7 +44,7 @@ class MemberPtSchedule
     {
         return match (true) {
             $start->lte(now()) => 'Waktu sesi sudah lewat.',
-            ! $start->isSameDay(today(config('app.timezone'))->addDay()) => 'Booking hanya bisa dibuat untuk besok.',
+            ! $start->isSameDay(today(config('app.timezone'))) && ! $start->isSameDay(today(config('app.timezone'))->addDay()) => 'Booking hanya bisa dibuat untuk hari ini atau besok.',
             $membership->start_date !== null && $start->toDateString() < $membership->start_date->toDateString() => 'Paket PT belum dimulai pada tanggal ini.',
             $membership->pt_end_date !== null && $start->toDateString() > $membership->pt_end_date->toDateString() => 'Tanggal sesi melewati masa berlaku paket PT.',
             default => null,
@@ -68,6 +68,7 @@ class MemberPtSchedule
             $booking->isCancellationPending() => 'Permintaan pembatalan sedang diproses.',
             $booking->attendance !== 'not_yet' => 'Booking yang sudah diabsen tidak dapat dibatalkan.',
             $booking->booking_date->copy()->setTimeFrom($booking->booking_time)->lte(now()) => 'Sesi yang sudah dimulai tidak dapat dibatalkan.',
+            $booking->booking_date->copy()->setTimeFrom($booking->booking_time)->lte(now()->addHours(3)) => 'Pembatalan tidak tersedia mulai 3 jam sebelum jadwal sesi.',
             default => null,
         };
     }
