@@ -393,7 +393,7 @@ new #[Layout('layouts::member')] class extends Component
             <p class="mt-3 text-sm text-gray-300">Coach: {{ $this->membership->personalTrainer?->name ?? 'Belum ditentukan' }}</p>
         @endif
         <p class="mt-3 text-xs leading-6 text-gray-400">Booking tersedia mulai hari ini sampai 7 hari ke depan, selama sesi belum dimulai. Maksimal 1 booking pending atau approved per hari. Setiap sesi berlangsung 60 menit.</p>
-        <p class="mt-2 text-xs leading-6 text-yellow-200">{{ $this->unavailableReason ?? 'Booking baru menunggu persetujuan coach/admin.' }}</p>
+        <p class="mt-2 text-xs leading-6 text-yellow-200">{{ $this->unavailableReason ?? 'Booking baru menunggu persetujuan Head Coach.' }}</p>
     </section>
 
     <nav class="space-y-3" aria-label="Navigasi jadwal">
