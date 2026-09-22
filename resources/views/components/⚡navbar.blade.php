@@ -25,8 +25,14 @@ new class extends Component {
     <div class="max-w-7xl w-full flex flex-wrap items-center mx-auto p-4">
         
         <a href="/" class="flex items-center space-x-3 rtl:space-x-reverse">
-            <img src="{{ asset('icon.png') }}" class="h-7" alt="FRANS GYM Logo" />
-            <span class="self-center text-xl text-brand font-semibold whitespace-nowrap">FRANS GYM</span>
+            <img src="{{ asset('icon.png') }}" class="size-10 shrink-0 object-contain" alt="FRANS GYM Logo" />
+            <span class="flex flex-col gap-0.5 whitespace-nowrap text-brand">
+                <span class="text-xl font-semibold leading-5">FRANS GYM</span>
+                <span class="flex flex-col text-[8px] font-medium uppercase leading-[9px] tracking-[0.25em] text-white">
+                    <span>NEVER BACK DOWN</span>
+                    <span>STAY DEDICATED</span>
+                </span>
+            </span>
         </a>
         
         <div class="flex items-center md:order-2 space-x-3 md:space-x-0 rtl:space-x-reverse ms-auto md:ms-6">

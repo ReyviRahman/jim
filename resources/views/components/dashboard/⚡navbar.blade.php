@@ -70,9 +70,15 @@ new class extends Component {
                         <path stroke="currentColor" stroke-linecap="round" stroke-width="2" d="M5 7h14M5 12h14M5 17h10"/>
                     </svg>
                 </button>
-                <a href="/" class="flex ms-2 md:me-24" wire:navigate>
-                    <img src="{{ asset('icon.png') }}" class="h-6 me-3" alt="FRANS GYM Logo" />
-                    <span class="self-center text-lg font-semibold whitespace-nowrap text-brand">FRANS GYM</span>
+                <a href="/" class="flex items-center ms-2 md:me-24" wire:navigate>
+                    <img src="{{ asset('icon.png') }}" class="size-10 shrink-0 object-contain me-3" alt="FRANS GYM Logo" />
+                    <span class="flex flex-col gap-0.5 whitespace-nowrap text-brand">
+                        <span class="text-lg font-semibold leading-5">FRANS GYM</span>
+                        <span class="flex flex-col text-[8px] font-medium uppercase leading-[9px] tracking-[0.25em] text-white">
+                            <span>NEVER BACK DOWN</span>
+                            <span>STAY DEDICATED</span>
+                        </span>
+                    </span>
                 </a>
             </div>
             <div class="flex items-center">

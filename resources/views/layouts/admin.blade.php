@@ -15,7 +15,7 @@
     <body>
         <livewire:dashboard.navbar />
         <aside id="top-bar-sidebar" class="fixed top-0 left-0 z-40 w-64 h-full -translate-x-full transition-transform duration-300 ease-in-out" aria-label="Sidebar" aria-hidden="true">
-        <div class="h-full py-4 overflow-y-auto bg-[#34342F] border-e border-default">
+        <div class="flex h-full flex-col py-4 overflow-y-auto bg-[#34342F] border-e border-default [&>*]:shrink-0">
             <a href="https://flowbite.com/" class="flex items-center ps-2.5 mb-5">
                 <img src="https://flowbite.com/docs/images/logo.svg" class="h-6 me-3" alt="Flowbite Logo" />
                 <span class="self-center text-lg text-heading font-semibold whitespace-nowrap">Flowbite</span>
@@ -329,6 +329,7 @@
                 </li>
             </ul>
             @endif
+            <x-sidebar-motto class="mx-3" />
         </div>
         </aside>
 
