@@ -437,6 +437,30 @@ new #[Layout('layouts::admin')] class extends Component
             @endif
         </h5>
         <p class="text-sm text-body mt-1">Paket: {{ $membership->ptPackage->name ?? '-' }}</p>
+        @php
+            $statusColor = match($membership->status) {
+                'active' => 'bg-green-100 text-green-800',
+                'pending' => 'bg-yellow-100 text-yellow-800',
+                'expired', 'rejected' => 'bg-red-100 text-red-800',
+                'cancelled' => 'bg-gray-100 text-gray-800',
+                default => 'bg-blue-100 text-blue-800',
+            };
+            $statusLabel = match($membership->status) {
+                'active' => 'Aktif',
+                'pending' => 'Menunggu',
+                'completed' => 'Selesai',
+                'expired' => 'Kadaluarsa',
+                'cancelled' => 'Dibatalkan',
+                'rejected' => 'Ditolak',
+                default => ucfirst($membership->status ?? '-'),
+            };
+        @endphp
+        <div class="mt-2 flex items-center gap-2 text-sm text-body">
+            <span>Status Membership:</span>
+            <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium {{ $statusColor }}">
+                {{ $statusLabel }}
+            </span>
+        </div>
     </div>
 
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
