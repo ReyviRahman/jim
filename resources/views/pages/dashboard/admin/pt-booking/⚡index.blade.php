@@ -39,7 +39,10 @@ new #[Layout('layouts::admin')] class extends Component
     private function membershipQuery(): Builder
     {
         return Membership::query()->where('status', 'active')
-            ->where('type', 'pt')->whereNull('pt_id')->whereNull('pt_end_date');
+            ->where('type', 'pt')
+            ->where(function (Builder $query): void {
+                $query->whereNull('pt_id')->orWhereNull('pt_end_date');
+            });
     }
 
     public function updatedSearch(): void
@@ -156,7 +159,7 @@ new #[Layout('layouts::admin')] class extends Component
         <div class="flex items-center flex-column flex-wrap md:flex-row space-y-4 md:space-y-0 p-4">
             <div>
                 <h5 class="text-xl font-semibold text-heading">PT Onboarding</h5>
-                <p class="text-sm text-body mt-1">Paket PT yang belum memiliki coach dan tanggal akhir PT.</p>
+                <p class="text-sm text-body mt-1">Paket PT yang belum memiliki coach atau tanggal akhir PT.</p>
             </div>
             
             <div class="relative ms-auto">
@@ -280,7 +283,7 @@ new #[Layout('layouts::admin')] class extends Component
                 @empty
                     <tr>
                         <td colspan="8" class="px-6 py-8 text-center text-body">
-                            Tidak ada paket PT yang belum memiliki coach dan tanggal akhir PT.
+                            Tidak ada paket PT yang belum memiliki coach atau tanggal akhir PT.
                         </td>
                     </tr>
                 @endforelse

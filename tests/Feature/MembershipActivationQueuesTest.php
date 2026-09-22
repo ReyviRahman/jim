@@ -37,11 +37,35 @@ class MembershipActivationQueuesTest extends TestCase
             $this->membership('membership', ['status' => $status]);
             $this->membership('pt', ['status' => $status]);
         }
-        foreach ([[$coach->id, null], [null, '2026-10-01'], [$coach->id, '2026-10-01']] as [$coachId, $date]) {
-            $this->membership('pt', ['pt_id' => $coachId, 'pt_end_date' => $date]);
-        }
+        $withoutEndDate = $this->membership('pt', ['pt_id' => $coach->id]);
+        $withoutCoach = $this->membership('pt', ['pt_end_date' => '2026-10-01']);
+        $this->membership('pt', ['pt_id' => $coach->id, 'pt_end_date' => '2026-10-01']);
         $this->assertSame([$gym->id], Livewire::test($this->queueComponent('membership'))->get('memberships')->pluck('id')->all());
-        $this->assertSame([$withPackage->id, $activePt->id, $pt->id], Livewire::test($this->queueComponent('pt'))->get('memberships')->pluck('id')->all());
+        $this->assertSame([$withoutCoach->id, $withoutEndDate->id, $withPackage->id, $activePt->id, $pt->id], Livewire::test($this->queueComponent('pt'))->get('memberships')->pluck('id')->all());
+    }
+
+    public function test_pt_with_only_coach_or_end_date_can_be_activated(): void
+    {
+        $coach = User::factory()->create(['role' => 'pt', 'is_active' => true]);
+
+        foreach ([['pt_id' => $coach->id], ['pt_end_date' => '2026-10-21']] as $attributes) {
+            $membership = $this->membership('pt', $attributes);
+
+            $page = Livewire::test($this->queueComponent('pt'))
+                ->call('openModal', $membership->id)
+                ->assertSet('showModal', true)
+                ->set('selectedCoachId', $coach->id)
+                ->set('startDate', '2026-09-21')
+                ->set('endDate', '2026-10-21')
+                ->call('aktivatekan')
+                ->assertHasNoErrors()
+                ->assertSet('showModal', false);
+
+            $membership->refresh();
+            $this->assertSame($coach->id, $membership->pt_id);
+            $this->assertSame('2026-10-21', $membership->pt_end_date->toDateString());
+            $this->assertSame(0, $page->get('memberships')->total());
+        }
     }
 
     #[DataProvider('types')]
@@ -115,10 +139,7 @@ class MembershipActivationQueuesTest extends TestCase
     public function test_stale_records_cannot_be_overwritten(string $type): void
     {
         $coach = User::factory()->create(['role' => 'pt', 'is_active' => true]);
-        foreach (['status', 'type', 'delete', 'eligibility', 'coach'] as $change) {
-            if ($type === 'membership' && $change === 'coach') {
-                continue;
-            }
+        foreach (['status', 'type', 'delete', 'eligibility'] as $change) {
             $membership = $this->membership($type);
             $page = Livewire::test($this->queueComponent($type))->call('openModal', $membership->id)
                 ->set('startDate', '2026-09-21')->set('endDate', '2026-10-21');
@@ -129,8 +150,7 @@ class MembershipActivationQueuesTest extends TestCase
                 'status' => $membership->update(['status' => 'rejected']),
                 'type' => $membership->update(['type' => 'visit']),
                 'delete' => $membership->delete(),
-                'coach' => $membership->update(['pt_id' => $coach->id]),
-                'eligibility' => $membership->update($type === 'pt' ? ['pt_end_date' => '2027-01-01'] : ['is_active' => true]),
+                'eligibility' => $membership->update($type === 'pt' ? ['pt_id' => $coach->id, 'pt_end_date' => '2027-01-01'] : ['is_active' => true]),
             };
             $before = $membership->fresh()?->getAttributes();
             $page->call('aktivatekan')->assertHasErrors('membership');
