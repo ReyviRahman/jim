@@ -181,6 +181,8 @@ new #[Layout('layouts::member')] class extends Component
 
         for ($day = 0; $day < 7; $day++) {
             $date = $start->copy()->addDays($day);
+            $dailyLimitReason = $schedule->dailyBookings(Auth::user(), $date->toDateString())->exists()
+                ? 'Sudah ada booking pending atau approved pada tanggal ini. Maksimal 1 booking per hari.' : null;
             $dailyBookings = $bookings->filter(fn (PtBooking $booking): bool => $booking->booking_date->isSameDay($date));
             $slots = [];
 
@@ -203,7 +205,7 @@ new #[Layout('layouts::member')] class extends Component
                         'id' => $booking->id,
                         'status' => $booking->isCancellationPending() ? 'Pending Cancel' : ucfirst($booking->status),
                     ])->values()->all(),
-                    'reason' => $this->unavailableReason ?? ($membership ? $schedule->dateUnavailableReason($membership, $slotStart) : null),
+                    'reason' => $this->unavailableReason ?? ($membership ? $schedule->dateUnavailableReason($membership, $slotStart) : null) ?? $dailyLimitReason,
                 ];
             }
 
@@ -251,6 +253,12 @@ new #[Layout('layouts::member')] class extends Component
 
         if ($reason !== null) {
             $this->addError('booking', $reason);
+
+            return;
+        }
+
+        if (app(MemberPtSchedule::class)->dailyBookings(Auth::user(), $date)->exists()) {
+            $this->addError('booking', 'Sudah ada booking pending atau approved pada tanggal ini. Maksimal 1 booking per hari.');
 
             return;
         }
@@ -379,7 +387,7 @@ new #[Layout('layouts::member')] class extends Component
             @endif
         </div>
 
-            <p class="text-sm text-body">Booking tersedia untuk hari ini dan besok, selama sesi belum dimulai. Setiap sesi berlangsung 60 menit.</p>
+            <p class="text-sm text-body">Booking tersedia mulai hari ini sampai 7 hari ke depan, selama sesi belum dimulai. Maksimal 1 booking pending atau approved per hari. Setiap sesi berlangsung 60 menit.</p>
             <p class="text-sm text-body">{{ $this->unavailableReason ?? 'Booking baru menunggu persetujuan coach/admin.' }}</p>
         </div>
         <div class="p-4 border-t border-default-medium flex flex-col md:flex-row items-center justify-between gap-4">

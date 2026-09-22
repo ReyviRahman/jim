@@ -28,6 +28,7 @@ class CreateMemberPtBooking
         ])->validate();
 
         return DB::transaction(function () use ($member, $membershipId, $date, $time): PtBooking {
+            User::query()->whereKey($member->id)->lockForUpdate()->firstOrFail();
             $membership = $this->schedule->memberships($member)->lockForUpdate()->find($membershipId);
             abort_unless($membership, 403);
 
@@ -40,6 +41,10 @@ class CreateMemberPtBooking
 
             if ($reason !== null) {
                 throw ValidationException::withMessages(['booking' => $reason]);
+            }
+
+            if ($this->schedule->dailyBookings($member, $date)->lockForUpdate()->first(['id'])) {
+                throw ValidationException::withMessages(['booking' => 'Sudah ada booking pending atau approved pada tanggal ini. Maksimal 1 booking per hari.']);
             }
 
             if ($this->schedule->overlappingBookings($coach->id, $start)->lockForUpdate()->first(['id'])) {

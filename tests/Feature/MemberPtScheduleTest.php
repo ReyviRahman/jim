@@ -220,7 +220,7 @@ class MemberPtScheduleTest extends TestCase
             }
         }
         $this->assertModelExists($this->submit($membership, '09:00'));
-        $this->assertModelExists($this->submit($membership, '10:00'));
+        $this->assertModelExists($this->submit($this->membership(['pt_id' => $membership->pt_id]), '10:00'));
     }
 
     public function test_slot_taken_after_confirmation_opens_is_rejected_and_refreshed(): void
@@ -281,7 +281,7 @@ class MemberPtScheduleTest extends TestCase
         $this->booking($membership, ['booking_time' => '11:00:00', 'status' => 'cancelled']);
         $this->booking($membership, ['booking_time' => '12:00:00', 'is_free' => true]);
         $this->booking($membership, ['booking_time' => '13:00:00', 'attendance' => 'attended']);
-        $this->assertModelExists($this->submit($membership));
+        $this->assertModelExists($this->submit($membership, '07:00', '2026-09-23'));
         $this->expectException(ValidationException::class);
         $this->submit($membership, '08:00');
     }
@@ -296,7 +296,7 @@ class MemberPtScheduleTest extends TestCase
         $page = $this->page($membership);
         $this->assertNull($page->get('unavailableReason'));
         $this->assertTrue($page->get('calendar')[1]['slots'][3]['occupied']);
-        $page->call('openBookingModal', '2026-09-22', '07:00')
+        $page->call('openBookingModal', '2026-09-23', '07:00')
             ->assertSet('showBookingModal', true)->call('book')->assertHasNoErrors();
 
         $this->assertDatabaseCount('pt_bookings', 5);
@@ -319,31 +319,56 @@ class MemberPtScheduleTest extends TestCase
         $this->page($this->membership(['pt_id' => null]))->assertSee('Coach belum ditentukan');
     }
 
-    public function test_only_today_and_tomorrow_have_bookable_slots(): void
+    public function test_booking_window_includes_today_through_seven_days_ahead(): void
     {
         $membership = $this->membership();
-        $page = $this->page($membership)->assertSee('Booking tersedia untuk hari ini dan besok');
+        $page = $this->page($membership)->assertSee('Booking tersedia mulai hari ini sampai 7 hari ke depan');
         $calendar = $page->get('calendar');
         foreach ($calendar as $day) {
             foreach ($day['slots'] as $slot) {
-                if (in_array($day['date'], ['2026-09-21', '2026-09-22'], true)) {
-                    $this->assertNull($slot['reason']);
-                } else {
-                    $this->assertNotNull($slot['reason']);
-                }
+                $this->assertNull($slot['reason']);
             }
         }
 
-        foreach (['2026-09-23', '2026-09-24'] as $date) {
+        foreach (['2026-09-29', '2026-09-30'] as $date) {
             $page->call('openBookingModal', $date, '12:00')->assertHasErrors('booking')->assertSet('showBookingModal', false);
             try {
                 $this->submit($membership, '12:00', $date);
-                $this->fail('Booking beyond tomorrow was accepted.');
+                $this->fail('Booking beyond seven days was accepted.');
             } catch (ValidationException $exception) {
-                $this->assertSame('Booking hanya bisa dibuat untuk hari ini atau besok.', $exception->errors()['booking'][0]);
+                $this->assertSame('Booking hanya bisa dibuat mulai hari ini sampai 7 hari ke depan.', $exception->errors()['booking'][0]);
             }
         }
         $this->assertDatabaseCount('pt_bookings', 0);
+        $this->assertModelExists($this->submit($membership, '22:00', '2026-09-28'));
+    }
+
+    #[DataProvider('dailyLimitStatuses')]
+    public function test_daily_limit_applies_across_memberships_and_coaches(string $status): void
+    {
+        $membership = $this->membership();
+        $otherPackage = $this->membership(['user_id' => $membership->user_id]);
+        $this->booking($otherPackage, ['status' => $status]);
+        $page = $this->page($membership);
+        $this->assertNotNull($page->get('calendar')[1]['slots'][1]['reason']);
+        $page->call('openBookingModal', '2026-09-22', '08:00')->assertHasErrors('booking');
+        $this->assertModelExists($this->submit($membership, '08:00', '2026-09-23'));
+        $this->expectException(ValidationException::class);
+        $this->submit($membership, '08:00');
+    }
+
+    public static function dailyLimitStatuses(): array
+    {
+        return [['pending'], ['approved']];
+    }
+
+    public function test_daily_limit_is_rechecked_when_confirmation_is_stale(): void
+    {
+        $membership = $this->membership();
+        $page = $this->page($membership)->call('openBookingModal', '2026-09-22', '08:00');
+        $this->submit($membership, '07:00');
+        $page->call('book')->assertHasErrors('booking');
+        $this->assertDatabaseCount('pt_bookings', 1);
     }
 
     public function test_tomorrow_confirmation_still_works_after_midnight(): void

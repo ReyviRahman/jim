@@ -44,11 +44,18 @@ class MemberPtSchedule
     {
         return match (true) {
             $start->lte(now()) => 'Waktu sesi sudah lewat.',
-            ! $start->isSameDay(today(config('app.timezone'))) && ! $start->isSameDay(today(config('app.timezone'))->addDay()) => 'Booking hanya bisa dibuat untuk hari ini atau besok.',
+            $start->toDateString() > today(config('app.timezone'))->addDays(7)->toDateString() => 'Booking hanya bisa dibuat mulai hari ini sampai 7 hari ke depan.',
             $membership->start_date !== null && $start->toDateString() < $membership->start_date->toDateString() => 'Paket PT belum dimulai pada tanggal ini.',
             $membership->pt_end_date !== null && $start->toDateString() > $membership->pt_end_date->toDateString() => 'Tanggal sesi melewati masa berlaku paket PT.',
             default => null,
         };
+    }
+
+    /** @return Builder<PtBooking> */
+    public function dailyBookings(User $member, string $date): Builder
+    {
+        return PtBooking::query()->whereIn('membership_id', $this->memberships($member)->select('id'))
+            ->whereDate('booking_date', $date)->whereIn('status', ['pending', 'approved']);
     }
 
     /** @return Builder<PtBooking> */
