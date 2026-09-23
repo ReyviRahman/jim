@@ -3,6 +3,8 @@
 namespace App\Livewire\Pages\Dashboard\Admin\Beverages;
 
 use App\Models\BeverageSale;
+use App\Actions\SettleBeverageDebt;
+use App\Livewire\Concerns\DeletesBeverageSales;
 use Livewire\Component;
 use Livewire\Attributes\Layout;
 use Livewire\WithPagination;
@@ -10,6 +12,7 @@ use Livewire\WithPagination;
 new #[Layout('layouts::admin')] class extends Component
 {
     use WithPagination;
+    use DeletesBeverageSales;
 
     public $searchProduct = '';
     public $start_date = '';
@@ -64,31 +67,16 @@ new #[Layout('layouts::admin')] class extends Component
 
     public function confirmLunas()
     {
+        $this->resetValidation();
         if (!$this->selectedHutangId || !$this->selectedKeteranganBayar) {
             return;
         }
 
-        $originalSale = BeverageSale::find($this->selectedHutangId);
-        if (!$originalSale) {
+        $settled = app(SettleBeverageDebt::class)->execute((int) $this->selectedHutangId, $this->selectedKeteranganBayar);
+        if (! $settled) {
+            session()->flash('error', 'Hutang sudah dilunasi atau tidak tersedia.');
             return;
         }
-
-        BeverageSale::create([
-            'beverage_id' => $originalSale->beverage_id,
-            'parent_beverage_sale_id' => $originalSale->id,
-            'nama_produk' => $originalSale->nama_produk,
-            'nama_staff' => $originalSale->nama_staff,
-            'waktu_transaksi' => now(),
-            'shift' => $originalSale->shift,
-            'jumlah_beli' => $originalSale->jumlah_beli,
-            'harga_satuan' => $originalSale->harga_satuan,
-            'total_harga' => $originalSale->total_harga,
-            'keterangan_bayar' => $this->selectedKeteranganBayar,
-            'nama_penghutang' => $originalSale->nama_penghutang,
-            'is_lunas' => true,
-        ]);
-
-        $originalSale->update(['is_lunas' => true]);
 
         $this->showConfirmModal = false;
         $this->selectedHutangId = null;
@@ -97,24 +85,9 @@ new #[Layout('layouts::admin')] class extends Component
         session()->flash('success', 'Hutang berhasil dilunasi.');
     }
 
-    public function deleteHutang($id)
+    public function deleteHutang(int $id): void
     {
-        $sale = BeverageSale::find($id);
-        if (!$sale) {
-            session()->flash('error', 'Data hutang tidak ditemukan.');
-            return;
-        }
-
-        $beverage = \App\Models\Beverage::find($sale->beverage_id);
-        if ($beverage) {
-            $beverage->update([
-                'stok_sekarang' => $beverage->stok_sekarang + $sale->jumlah_beli,
-            ]);
-        }
-
-        $sale->delete();
-
-        session()->flash('success', 'Data hutang berhasil dihapus. Stok minuman dikembalikan.');
+        $this->confirmDelete($id);
     }
 
     public function with(): array
@@ -125,6 +98,9 @@ new #[Layout('layouts::admin')] class extends Component
 ?>
 
 <div x-data="{ showConfirmModal: false }">
+    @if (session()->has('error'))
+        <p role="alert" class="p-4 mb-4 text-red-800 bg-red-50 rounded-md">{{ session('error') }}</p>
+    @endif
     <div class="flex sm:flex-row flex-col justify-between items-center mb-6">
         <h5 class="text-xl font-semibold text-heading">Daftar Pelanggan Berhutang</h5>
         <a href="{{ route('admin.beverages.pos') }}"
@@ -187,7 +163,7 @@ new #[Layout('layouts::admin')] class extends Component
                                     Bayar Hutang
                                 </button>
                                 @if(auth()->check() && auth()->user()->role === 'admin')
-                                    <button type="button" wire:click="deleteHutang({{ $sale->id }})" wire:confirm="Apakah Anda yakin ingin menghapus hutang ini? Stok minuman akan dikembalikan."
+                                    <button type="button" wire:click="deleteHutang({{ $sale->id }})"
                                         class="px-3 py-1 bg-red-500 hover:bg-red-600 text-white text-xs font-semibold rounded-md transition-colors ml-2">
                                         Hapus
                                     </button>
@@ -238,6 +214,7 @@ new #[Layout('layouts::admin')] class extends Component
                                 <option value="deposit_hutang_cash">Pelunasan Hutang (Cash)</option>
                                 <option value="deposit_hutang_qris">Pelunasan Hutang (QRIS)</option>
                             </select>
+                            @error('method') <p role="alert" class="text-red-600">{{ $message }}</p> @enderror
                         </div>
                         <div class="flex flex-col gap-2">
                             <button type="button" wire:click="confirmLunas" @click="showConfirmModal = false"
@@ -254,4 +231,7 @@ new #[Layout('layouts::admin')] class extends Component
             </div>
         </div>
     </div>
+    @if ($showDeleteModal)
+        <x-beverage-sale-delete-modal :preview="$saleDeletePreview" :changes="$this->saleSnapshotChanges" :notice="$saleDeleteNotice" />
+    @endif
 </div>

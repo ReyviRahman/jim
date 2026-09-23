@@ -105,38 +105,41 @@ new #[Layout('layouts::admin')] class extends Component
 
     public function processSale()
     {
-        if (empty($this->selectedProducts)) {
-            session()->flash('error', 'Pilih produk terlebih dahulu.');
+        return \Illuminate\Support\Facades\DB::transaction(function () {
+            Beverage::query()->whereKey(collect($this->selectedProducts)->pluck('beverage_id')->unique())->orderBy('id')->lockForUpdate()->get();
+            if (empty($this->selectedProducts)) {
+                session()->flash('error', 'Pilih produk terlebih dahulu.');
+                return redirect(request()->header('Referer'));
+            }
+
+            $now = now();
+
+            foreach ($this->selectedProducts as $item) {
+                BeverageSale::create([
+                    'beverage_id' => $item['beverage_id'],
+                    'nama_staff' => $this->nama_staff,
+                    'waktu_transaksi' => $now,
+                    'shift' => auth()->user()->beverageShiftSnapshot(),
+                    'jumlah_beli' => $item['jumlah_beli'],
+                    'harga_satuan' => $item['harga_satuan'],
+                    'total_harga' => $item['harga_satuan'] * $item['jumlah_beli'],
+                    'keterangan_bayar' => $this->keterangan_bayar,
+                ]);
+
+                $beverage = Beverage::query()->lockForUpdate()->find($item['beverage_id']);
+                $beverage->update([
+                    'stok_sekarang' => $beverage->stok_sekarang - $item['jumlah_beli'],
+                ]);
+            }
+
+            session()->flash('success', 'Transaksi berhasil disimpan! Total: Rp ' . number_format($this->total, 0, ',', '.'));
+
+            $this->selectedProducts = [];
+            $this->shift = auth()->user()->assignedShift?->name ?? 'pagi';
+            $this->keterangan_bayar = 'cash';
+
             return redirect(request()->header('Referer'));
-        }
-
-        $now = now();
-
-        foreach ($this->selectedProducts as $item) {
-            BeverageSale::create([
-                'beverage_id' => $item['beverage_id'],
-                'nama_staff' => $this->nama_staff,
-                'waktu_transaksi' => $now,
-                'shift' => auth()->user()->beverageShiftSnapshot(),
-                'jumlah_beli' => $item['jumlah_beli'],
-                'harga_satuan' => $item['harga_satuan'],
-                'total_harga' => $item['harga_satuan'] * $item['jumlah_beli'],
-                'keterangan_bayar' => $this->keterangan_bayar,
-            ]);
-
-            $beverage = Beverage::find($item['beverage_id']);
-            $beverage->update([
-                'stok_sekarang' => $beverage->stok_sekarang - $item['jumlah_beli'],
-            ]);
-        }
-
-        session()->flash('success', 'Transaksi berhasil disimpan! Total: Rp ' . number_format($this->total, 0, ',', '.'));
-
-        $this->selectedProducts = [];
-        $this->shift = auth()->user()->assignedShift?->name ?? 'pagi';
-        $this->keterangan_bayar = 'cash';
-
-        return redirect(request()->header('Referer'));
+        }, 3);
     }
 
     public function openExpenseModal()

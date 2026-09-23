@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Models\Beverage;
 use App\Models\BeverageStokSnapshot;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class SyncBeverageStock extends Command
@@ -19,7 +20,7 @@ class SyncBeverageStock extends Command
     {
         $type = $this->argument('type');
         $dryRun = $this->option('dry-run');
-        
+
         // Mengambil waktu saat ini (tanggal & waktu lengkap)
         $now = now();
         $today = $now->toDateString(); // Format: YYYY-MM-DD
@@ -37,7 +38,7 @@ class SyncBeverageStock extends Command
         $this->info("Memulai sinkronisasi stok minuman... (Waktu: {$timestamp}, Tipe: {$type})");
         Log::info("[SyncBeverageStock] Memulai sync {$type} pada {$timestamp}");
 
-        $beverages = Beverage::query()->get();
+        $beverages = Beverage::query()->select('id')->get();
 
         if ($beverages->isEmpty()) {
             $this->warn('Tidak ada produk minuman yang ditemukan.');
@@ -50,23 +51,29 @@ class SyncBeverageStock extends Command
         foreach ($beverages as $beverage) {
             foreach ($types as $t) {
                 if (! $dryRun) {
-                    BeverageStokSnapshot::updateOrCreate(
-                        [
-                            'beverage_id' => $beverage->id,
-                            'tanggal' => $today,
-                            'tipe' => $t,
-                        ],
-                        [
-                            'jumlah' => $beverage->stok_sekarang,
-                            // Opsional: Buka komentar di bawah jika kamu punya kolom khusus untuk mencatat waktu eksekusi
-                            // 'waktu_eksekusi' => $timestamp, 
-                        ]
-                    );
+                    DB::transaction(function () use ($beverage, $today, $t): void {
+                        $locked = Beverage::query()->lockForUpdate()->find($beverage->id);
+                        if (! $locked) {
+                            return;
+                        }
+                        BeverageStokSnapshot::updateOrCreate(
+                            [
+                                'beverage_id' => $beverage->id,
+                                'tanggal' => $today,
+                                'tipe' => $t,
+                            ],
+                            [
+                                'jumlah' => $locked->stok_sekarang,
+                                // Opsional: Buka komentar di bawah jika kamu punya kolom khusus untuk mencatat waktu eksekusi
+                                // 'waktu_eksekusi' => $timestamp,
+                            ]
+                        );
+                    }, 3);
                 }
 
                 $count++;
                 $actionText = $dryRun ? '[DRY-RUN] Would create/update' : 'Created/Updated';
-                Log::info("[SyncBeverageStock] {$actionText} snapshot #{$beverage->id} (tipe: {$t}, jumlah: {$beverage->stok_sekarang}, timestamp: {$timestamp})");
+                Log::info("[SyncBeverageStock] {$actionText} snapshot #{$beverage->id} (tipe: {$t}, timestamp: {$timestamp})");
             }
         }
 

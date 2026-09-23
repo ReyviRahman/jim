@@ -11,6 +11,9 @@ class BeverageInvoiceItem extends Model
     use HasFactory;
 
     protected $fillable = [
+        'beverage_id',
+        'total_pcs',
+
         'beverage_invoice_id',
         'nama_barang',
         'qty',
@@ -22,11 +25,17 @@ class BeverageInvoiceItem extends Model
     protected function casts(): array
     {
         return [
+            'total_pcs' => 'integer',
             'qty' => 'integer',
             'harga_perdus' => 'integer',
             'biaya_ppn' => 'integer',
             'total' => 'integer',
         ];
+    }
+
+    public function beverage(): BelongsTo
+    {
+        return $this->belongsTo(Beverage::class)->withTrashed();
     }
 
     public function invoice(): BelongsTo

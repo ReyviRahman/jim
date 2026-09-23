@@ -11,6 +11,9 @@ class BeverageInvoice extends Model
     use HasFactory;
 
     protected $fillable = [
+        'image_path',
+        'stock_posted_at',
+
         'no_faktur',
         'tanggal_order',
         'tanggal_menerima',
@@ -22,6 +25,7 @@ class BeverageInvoice extends Model
     protected function casts(): array
     {
         return [
+            'stock_posted_at' => 'datetime',
             'tanggal_order' => 'date',
             'tanggal_menerima' => 'date',
         ];

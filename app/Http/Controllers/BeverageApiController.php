@@ -47,108 +47,110 @@ class BeverageApiController extends Controller
 
     public function processSale(Request $request)
     {
-        $selectedProducts = json_decode($request->selected_products, true);
+        return DB::transaction(function () use ($request) {
+            $selectedProducts = json_decode($request->selected_products, true);
 
-        if (empty($selectedProducts)) {
-            Session::flash('error', 'Pilih produk terlebih dahulu.');
-
-            return redirect()->back();
-        }
-
-        if ($request->keterangan_bayar === 'hutang' && empty($request->nama_penghutang)) {
-            Session::flash('error', 'Nama penghutang harus diisi untuk transaksi hutang.');
-
-            return redirect()->back();
-        }
-
-        $keteranganBayar = $request->keterangan_bayar;
-        $total = collect($selectedProducts)->sum(fn ($item) => $item['harga_satuan'] * $item['jumlah_beli']);
-
-        if ($keteranganBayar === 'cash') {
-            $cashReceived = (int) str_replace('.', '', $request->cash_received);
-            if ($cashReceived < $total) {
-                Session::flash('error', 'Nominal cash yang diterima harus lebih besar atau sama dengan total belanja.');
+            if (empty($selectedProducts)) {
+                Session::flash('error', 'Pilih produk terlebih dahulu.');
 
                 return redirect()->back();
             }
 
-            if ($request->save_change_as_deposit && empty($request->deposit_customer_name)) {
-                Session::flash('error', 'Nama pelanggan harus diisi jika kembalian disimpan sebagai deposit.');
-
-                return redirect()->back();
-            }
-        }
-
-        $deposit = null;
-        $depositUsed = 0;
-        $remainingTotal = 0;
-        $paymentMethodForProducts = $keteranganBayar;
-        $namaPenghutangForProducts = null;
-
-        if ($keteranganBayar === 'deposit') {
-            if (empty($request->selected_deposit_id)) {
-                Session::flash('error', 'Pilih deposit yang akan digunakan.');
+            if ($request->keterangan_bayar === 'hutang' && empty($request->nama_penghutang)) {
+                Session::flash('error', 'Nama penghutang harus diisi untuk transaksi hutang.');
 
                 return redirect()->back();
             }
 
-            $deposit = DepositBeverage::where('id', $request->selected_deposit_id)
-                ->where('is_used', false)
-                ->where('sisa_nominal', '>', 0)
-                ->first();
+            $keteranganBayar = $request->keterangan_bayar;
+            $total = collect($selectedProducts)->sum(fn ($item) => $item['harga_satuan'] * $item['jumlah_beli']);
 
-            if (! $deposit) {
-                Session::flash('error', 'Deposit tidak ditemukan atau sudah digunakan.');
-
-                return redirect()->back();
-            }
-
-            $depositUsed = min($deposit->sisa_nominal, $total);
-            $remainingTotal = $total - $depositUsed;
-
-            if ($remainingTotal > 0) {
-                if (empty($request->secondary_payment_method)) {
-                    Session::flash('error', 'Pilih metode pembayaran untuk sisa total bayar.');
+            if ($keteranganBayar === 'cash') {
+                $cashReceived = (int) str_replace('.', '', $request->cash_received);
+                if ($cashReceived < $total) {
+                    Session::flash('error', 'Nominal cash yang diterima harus lebih besar atau sama dengan total belanja.');
 
                     return redirect()->back();
                 }
 
-                $paymentMethodForProducts = $request->secondary_payment_method;
+                if ($request->save_change_as_deposit && empty($request->deposit_customer_name)) {
+                    Session::flash('error', 'Nama pelanggan harus diisi jika kembalian disimpan sebagai deposit.');
 
-                if ($paymentMethodForProducts === 'cash') {
-                    $secondaryCashReceived = (int) str_replace('.', '', $request->secondary_cash_received);
-                    if ($secondaryCashReceived < $remainingTotal) {
-                        Session::flash('error', 'Nominal cash untuk sisa pembayaran harus lebih besar atau sama dengan Rp '.number_format($remainingTotal, 0, ',', '.').'.');
-
-                        return redirect()->back();
-                    }
-                }
-
-                if ($paymentMethodForProducts === 'hutang') {
-                    if (empty($request->secondary_nama_penghutang)) {
-                        Session::flash('error', 'Nama penghutang harus diisi untuk sisa pembayaran hutang.');
-
-                        return redirect()->back();
-                    }
-                    $namaPenghutangForProducts = $request->secondary_nama_penghutang;
+                    return redirect()->back();
                 }
             }
-        }
 
-        $namaStaff = $request->nama_staff;
-        $shift = $request->user()->beverageShiftSnapshot();
-        $tanggal = $request->tanggal ? Carbon::parse($request->tanggal)->setTimezone('Asia/Jakarta') : now()->setTimezone('Asia/Jakarta');
-        $isHutang = $keteranganBayar === 'hutang';
-        $isSplitHutang = $keteranganBayar === 'deposit' && $paymentMethodForProducts === 'hutang';
-        $isLunas = ! $isHutang && ! $isSplitHutang;
+            Beverage::query()->whereKey(collect($selectedProducts)->pluck('beverage_id')->unique())->orderBy('id')->lockForUpdate()->get();
 
-        if ($isHutang) {
-            $namaPenghutangForProducts = $request->nama_penghutang;
-        } elseif ($keteranganBayar === 'deposit' && ! $isSplitHutang && $deposit) {
-            $namaPenghutangForProducts = $deposit->nama_pelanggan;
-        }
+            $deposit = null;
+            $depositUsed = 0;
+            $remainingTotal = 0;
+            $paymentMethodForProducts = $keteranganBayar;
+            $namaPenghutangForProducts = null;
 
-        DB::transaction(function () use ($selectedProducts, $namaStaff, $shift, $tanggal, $keteranganBayar, $paymentMethodForProducts, $namaPenghutangForProducts, $isLunas, $total, $remainingTotal, $depositUsed, $request, $deposit) {
+            if ($keteranganBayar === 'deposit') {
+                if (empty($request->selected_deposit_id)) {
+                    Session::flash('error', 'Pilih deposit yang akan digunakan.');
+
+                    return redirect()->back();
+                }
+
+                $deposit = DepositBeverage::query()->lockForUpdate()->where('id', $request->selected_deposit_id)
+                    ->where('is_used', false)
+                    ->where('sisa_nominal', '>', 0)
+                    ->first();
+
+                if (! $deposit) {
+                    Session::flash('error', 'Deposit tidak ditemukan atau sudah digunakan.');
+
+                    return redirect()->back();
+                }
+
+                $depositUsed = min($deposit->sisa_nominal, $total);
+                $remainingTotal = $total - $depositUsed;
+
+                if ($remainingTotal > 0) {
+                    if (empty($request->secondary_payment_method)) {
+                        Session::flash('error', 'Pilih metode pembayaran untuk sisa total bayar.');
+
+                        return redirect()->back();
+                    }
+
+                    $paymentMethodForProducts = $request->secondary_payment_method;
+
+                    if ($paymentMethodForProducts === 'cash') {
+                        $secondaryCashReceived = (int) str_replace('.', '', $request->secondary_cash_received);
+                        if ($secondaryCashReceived < $remainingTotal) {
+                            Session::flash('error', 'Nominal cash untuk sisa pembayaran harus lebih besar atau sama dengan Rp '.number_format($remainingTotal, 0, ',', '.').'.');
+
+                            return redirect()->back();
+                        }
+                    }
+
+                    if ($paymentMethodForProducts === 'hutang') {
+                        if (empty($request->secondary_nama_penghutang)) {
+                            Session::flash('error', 'Nama penghutang harus diisi untuk sisa pembayaran hutang.');
+
+                            return redirect()->back();
+                        }
+                        $namaPenghutangForProducts = $request->secondary_nama_penghutang;
+                    }
+                }
+            }
+
+            $namaStaff = $request->nama_staff;
+            $shift = $request->user()->beverageShiftSnapshot();
+            $tanggal = $request->tanggal ? Carbon::parse($request->tanggal)->setTimezone('Asia/Jakarta') : now()->setTimezone('Asia/Jakarta');
+            $isHutang = $keteranganBayar === 'hutang';
+            $isSplitHutang = $keteranganBayar === 'deposit' && $paymentMethodForProducts === 'hutang';
+            $isLunas = ! $isHutang && ! $isSplitHutang;
+
+            if ($isHutang) {
+                $namaPenghutangForProducts = $request->nama_penghutang;
+            } elseif ($keteranganBayar === 'deposit' && ! $isSplitHutang && $deposit) {
+                $namaPenghutangForProducts = $deposit->nama_pelanggan;
+            }
+
             $firstSale = null;
             $isSplitDeposit = $keteranganBayar === 'deposit' && $depositUsed > 0 && $remainingTotal > 0;
             $allocatedDeposit = 0;
@@ -192,7 +194,7 @@ class BeverageApiController extends Controller
                     $firstSale = $sale;
                 }
 
-                $beverage = Beverage::find($item['beverage_id']);
+                $beverage = Beverage::query()->lockForUpdate()->find($item['beverage_id']);
                 $beverage->update([
                     'stok_sekarang' => $beverage->stok_sekarang - $item['jumlah_beli'],
                 ]);
@@ -245,10 +247,9 @@ class BeverageApiController extends Controller
                     'is_used' => $remaining <= 0,
                 ]);
             }
-        });
+            Session::flash('success', 'Transaksi berhasil disimpan! Total: Rp '.number_format($total, 0, ',', '.'));
 
-        Session::flash('success', 'Transaksi berhasil disimpan! Total: Rp '.number_format($total, 0, ',', '.'));
-
-        return redirect()->back();
+            return redirect()->back();
+        }, 3);
     }
 }

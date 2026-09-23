@@ -56,43 +56,45 @@ new #[Layout('layouts::admin')] class extends Component
 
     public function saveStokAwal($id)
     {
-        $beverage = Beverage::withTrashed()->find($id);
-        if (!$beverage) {
-            session()->flash('error', 'Produk tidak ditemukan.');
-            return;
-        }
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($id) {
+            $beverage = Beverage::withTrashed()->lockForUpdate()->find($id);
+            if (!$beverage) {
+                session()->flash('error', 'Produk tidak ditemukan.');
+                return;
+            }
 
-        $validated = $this->validate([
-            'editingStokAwalValue' => 'required|integer|min:0',
-        ]);
+            $validated = $this->validate([
+                'editingStokAwalValue' => 'required|integer|min:0',
+            ]);
 
-        $snapshot = BeverageStokSnapshot::where('beverage_id', $id)
-            ->where('tipe', 'init')
-            ->when($this->start_date, fn($q) => $q->whereDate('tanggal', $this->start_date))
-            ->first();
+            $snapshot = BeverageStokSnapshot::where('beverage_id', $id)
+                ->where('tipe', 'init')
+                ->when($this->start_date, fn($q) => $q->whereDate('tanggal', $this->start_date))
+                ->first();
 
-        $stokAwalLama = $snapshot ? $snapshot->jumlah : 0;
-        $selisih = $this->editingStokAwalValue - $stokAwalLama;
+            $stokAwalLama = $snapshot ? $snapshot->jumlah : 0;
+            $selisih = $this->editingStokAwalValue - $stokAwalLama;
 
-        $stokSekarangBaru = $beverage->stok_sekarang + $selisih;
-        if ($stokSekarangBaru < 0) {
-            session()->flash('error', 'Stok tidak boleh negatif. Stok sekarang: ' . $beverage->stok_sekarang);
-            return;
-        }
+            $stokSekarangBaru = $beverage->stok_sekarang + $selisih;
+            if ($stokSekarangBaru < 0) {
+                session()->flash('error', 'Stok tidak boleh negatif. Stok sekarang: ' . $beverage->stok_sekarang);
+                return;
+            }
 
-        BeverageStokSnapshot::updateOrCreate(
-            ['beverage_id' => $id, 'tanggal' => $this->start_date, 'tipe' => 'init'],
-            ['jumlah' => $this->editingStokAwalValue]
-        );
+            BeverageStokSnapshot::updateOrCreate(
+                ['beverage_id' => $id, 'tanggal' => $this->start_date, 'tipe' => 'init'],
+                ['jumlah' => $this->editingStokAwalValue]
+            );
 
-        $beverage->update([
-            'stok_sekarang' => $stokSekarangBaru,
-        ]);
+            $beverage->update([
+                'stok_sekarang' => $stokSekarangBaru,
+            ]);
 
-        $this->editingStokAwalId = null;
-        $this->editingStokAwalValue = 0;
+            $this->editingStokAwalId = null;
+            $this->editingStokAwalValue = 0;
 
-        session()->flash('success', 'Stok awal berhasil diperbarui. Stok sekarang disinkronkan.');
+            session()->flash('success', 'Stok awal berhasil diperbarui. Stok sekarang disinkronkan.');
+        }, 3);
     }
 
     public function cancelEditStokAwal()
@@ -189,34 +191,38 @@ new #[Layout('layouts::admin')] class extends Component
 
     public function syncStokAwal($id)
     {
-        $beverage = Beverage::find($id);
-        if (!$beverage) {
-            session()->flash('error', 'Produk tidak ditemukan.');
-            return;
-        }
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($id) {
+            $beverage = Beverage::query()->lockForUpdate()->find($id);
+            if (!$beverage) {
+                session()->flash('error', 'Produk tidak ditemukan.');
+                return;
+            }
 
-        BeverageStokSnapshot::updateOrCreate(
-            ['beverage_id' => $id, 'tanggal' => $this->start_date, 'tipe' => 'init'],
-            ['jumlah' => $beverage->stok_sekarang]
-        );
+            BeverageStokSnapshot::updateOrCreate(
+                ['beverage_id' => $id, 'tanggal' => $this->start_date, 'tipe' => 'init'],
+                ['jumlah' => $beverage->stok_sekarang]
+            );
 
-        session()->flash('success', 'Stok awal berhasil disinkronkan.');
+            session()->flash('success', 'Stok awal berhasil disinkronkan.');
+        }, 3);
     }
 
     public function syncStokAkhir($id)
     {
-        $beverage = Beverage::find($id);
-        if (!$beverage) {
-            session()->flash('error', 'Produk tidak ditemukan.');
-            return;
-        }
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($id) {
+            $beverage = Beverage::query()->lockForUpdate()->find($id);
+            if (!$beverage) {
+                session()->flash('error', 'Produk tidak ditemukan.');
+                return;
+            }
 
-        BeverageStokSnapshot::updateOrCreate(
-            ['beverage_id' => $id, 'tanggal' => $this->start_date, 'tipe' => 'last'],
-            ['jumlah' => $beverage->stok_sekarang]
-        );
+            BeverageStokSnapshot::updateOrCreate(
+                ['beverage_id' => $id, 'tanggal' => $this->start_date, 'tipe' => 'last'],
+                ['jumlah' => $beverage->stok_sekarang]
+            );
 
-        session()->flash('success', 'Stok akhir berhasil disinkronkan.');
+            session()->flash('success', 'Stok akhir berhasil disinkronkan.');
+        }, 3);
     }
 
     public function exportExcel()

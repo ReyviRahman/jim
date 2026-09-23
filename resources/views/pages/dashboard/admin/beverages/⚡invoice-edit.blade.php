@@ -3,13 +3,25 @@
 namespace App\Livewire\Pages\Dashboard\Admin\Beverages;
 
 use App\Models\BeverageInvoice;
-use App\Models\BeverageInvoiceItem;
+use App\Actions\SaveBeverageInvoice;
+use App\Models\Beverage;
+use Livewire\WithFileUploads;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 use Livewire\Attributes\Layout;
 
 new #[Layout('layouts::admin')] class extends Component
 {
+    #[Locked]
     public $invoiceId;
+
+    #[Locked]
+    public bool $stockLinked = false;
+    use WithFileUploads;
+
+    #[\Livewire\Attributes\Validate('nullable|image|mimes:jpg,jpeg,png,webp|extensions:jpg,jpeg,png,webp|max:10240')]
+    public $image;
+
     public $no_faktur = '';
     public $tanggal_order = '';
     public $tanggal_menerima = '';
@@ -20,9 +32,11 @@ new #[Layout('layouts::admin')] class extends Component
 
     public function mount($invoice)
     {
+        abort_unless(auth()->user()?->role === 'admin', 403);
         $this->invoiceId = $invoice;
         $inv = BeverageInvoice::with('items')->findOrFail($invoice);
 
+        $this->stockLinked = $inv->stock_posted_at !== null;
         $this->no_faktur = $inv->no_faktur;
         $this->tanggal_order = $inv->tanggal_order->format('Y-m-d');
         $this->tanggal_menerima = $inv->tanggal_menerima?->format('Y-m-d') ?? '';
@@ -32,8 +46,11 @@ new #[Layout('layouts::admin')] class extends Component
 
         foreach ($inv->items as $item) {
             $this->items[] = [
+            'key' => (string) \Illuminate\Support\Str::uuid(),
                 'id' => $item->id,
                 'nama_barang' => $item->nama_barang,
+                'beverage_id' => $item->beverage_id,
+                'total_pcs' => $item->total_pcs,
                 'qty' => $item->qty,
                 'harga_perdus' => $item->harga_perdus,
                 'biaya_ppn' => $item->biaya_ppn,
@@ -44,9 +61,13 @@ new #[Layout('layouts::admin')] class extends Component
 
     public function addItem()
     {
+        abort_if($this->stockLinked, 403);
         $this->items[] = [
+            'key' => (string) \Illuminate\Support\Str::uuid(),
             'id' => null,
             'nama_barang' => '',
+            'beverage_id' => '',
+            'total_pcs' => '',
             'qty' => '',
             'harga_perdus' => '',
             'biaya_ppn' => '',
@@ -56,6 +77,7 @@ new #[Layout('layouts::admin')] class extends Component
 
     public function removeItem($index)
     {
+        abort_if($this->stockLinked, 403);
         if (count($this->items) > 1) {
             unset($this->items[$index]);
             $this->items = array_values($this->items);
@@ -77,56 +99,13 @@ new #[Layout('layouts::admin')] class extends Component
 
     public function update()
     {
-        $this->validate([
-            'no_faktur' => 'required|unique:beverage_invoices,no_faktur,' . $this->invoiceId,
-            'tanggal_order' => 'required|date',
-            'status' => 'required|in:pending,lunas',
-            'metode_pembayaran' => 'required|in:cash,tf_bca,qris,hutang',
-            'items' => 'required|array|min:1',
-            'items.*.nama_barang' => 'required',
-            'items.*.qty' => 'required|integer|min:1',
-            'items.*.harga_perdus' => 'required|integer|min:0',
-        ]);
-
-        $invoice = BeverageInvoice::findOrFail($this->invoiceId);
-
-        $invoice->update([
-            'no_faktur' => $this->no_faktur,
-            'tanggal_order' => $this->tanggal_order,
-            'tanggal_menerima' => $this->tanggal_menerima ?: null,
-            'diterima_oleh' => $this->diterima_oleh ?: null,
-            'status' => $this->status,
-            'metode_pembayaran' => $this->metode_pembayaran,
-        ]);
-
-        $existingItemIds = collect($this->items)->where('id', '!=', null)->pluck('id')->toArray();
-        $invoice->items()->whereNotIn('id', $existingItemIds)->delete();
-
-        foreach ($this->items as $item) {
-            if (!empty($item['nama_barang'])) {
-                if ($item['id']) {
-                    $invoiceItem = BeverageInvoiceItem::find($item['id']);
-                    if ($invoiceItem) {
-                        $invoiceItem->update([
-                            'nama_barang' => $item['nama_barang'],
-                            'qty' => intval($item['qty']),
-                            'harga_perdus' => intval($item['harga_perdus']),
-                            'biaya_ppn' => intval($item['biaya_ppn'] ?? 0),
-                            'total' => intval($item['total']),
-                        ]);
-                    }
-                } else {
-                    BeverageInvoiceItem::create([
-                        'beverage_invoice_id' => $invoice->id,
-                        'nama_barang' => $item['nama_barang'],
-                        'qty' => intval($item['qty']),
-                        'harga_perdus' => intval($item['harga_perdus']),
-                        'biaya_ppn' => intval($item['biaya_ppn'] ?? 0),
-                        'total' => intval($item['total']),
-                    ]);
-                }
-            }
-        }
+        $this->resetValidation();
+        app(SaveBeverageInvoice::class)->execute([
+            'no_faktur' => $this->no_faktur, 'tanggal_order' => $this->tanggal_order,
+            'tanggal_menerima' => $this->tanggal_menerima, 'diterima_oleh' => $this->diterima_oleh,
+            'status' => $this->status, 'metode_pembayaran' => $this->metode_pembayaran,
+            'items' => $this->items,
+        ], $this->image, (int) $this->invoiceId);
 
         session()->flash('success', 'Invoice berhasil diperbarui.');
 
@@ -135,7 +114,10 @@ new #[Layout('layouts::admin')] class extends Component
 
     public function with(): array
     {
-        return [];
+        return [
+            'invoice' => BeverageInvoice::findOrFail($this->invoiceId),
+            'products' => $this->stockLinked ? collect() : Beverage::withTrashed()->orderBy('nama_produk')->get(['id', 'nama_produk', 'deleted_at']),
+        ];
     }
 };
 ?>
@@ -151,6 +133,16 @@ new #[Layout('layouts::admin')] class extends Component
         </div>
     @endif
 
+    @if ($errors->any())
+        <div role="alert" class="p-4 mb-4 text-sm text-red-800 rounded-lg bg-red-50">
+            @foreach ($errors->all() as $error) <p>{{ $error }}</p> @endforeach
+        </div>
+    @endif
+    <p class="mb-4 text-sm text-body">{{ $stockLinked ? 'Produk, total pcs, dan tanggal menerima dikunci karena sudah masuk stok.' : 'Invoice arsip: pengisian total pcs hanya melengkapi informasi pembelian dan tidak mengubah stok.' }}</p>
+    @if (! $stockLinked)
+        <p class="mb-4 text-sm text-body">Master produk digunakan untuk ringkasan stok di Excel. Memilih produk tidak mengubah nama barang historis atau menambah stok.</p>
+    @endif
+    <x-beverage-invoice-photo :invoice="$invoice" :image="$image" />
     <form wire:submit.prevent="update" class="bg-neutral-primary-soft shadow-xs rounded-md border border-default p-6">
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
             <div>
@@ -170,7 +162,7 @@ new #[Layout('layouts::admin')] class extends Component
 
             <div>
                 <label for="tanggal_menerima" class="block mb-2.5 text-sm font-medium text-heading">Tanggal Menerima</label>
-                <input type="date" id="tanggal_menerima" wire:model="tanggal_menerima"
+                <input type="date" id="tanggal_menerima" wire:model="tanggal_menerima" @disabled($stockLinked)
                     class="block w-full px-3 py-2.5 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs">
             </div>
 
@@ -205,7 +197,7 @@ new #[Layout('layouts::admin')] class extends Component
         <div class="mb-4">
             <div class="flex items-center justify-between mb-3">
                 <h6 class="text-lg font-semibold text-heading">Daftar Barang</h6>
-                <button type="button" wire:click="addItem"
+                <button type="button" wire:click="addItem" @disabled($stockLinked)
                     class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-md transition-colors">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
                     Tambah Barang
@@ -217,7 +209,8 @@ new #[Layout('layouts::admin')] class extends Component
                     <thead class="text-sm text-body bg-neutral-secondary-medium border-b border-default-medium">
                         <tr>
                             <th scope="col" class="px-4 py-3 font-medium w-48">Nama Barang</th>
-                            <th scope="col" class="px-4 py-3 font-medium text-center w-24">Qty</th>
+                            <th scope="col" class="px-4 py-3 font-medium text-center w-24">Qty Dus</th>
+                            <th scope="col" class="px-4 py-3 font-medium text-center">Total Pcs</th>
                             <th scope="col" class="px-4 py-3 font-medium text-right w-32">Harga Perdus</th>
                             <th scope="col" class="px-4 py-3 font-medium text-right w-32">Biaya PPN</th>
                             <th scope="col" class="px-4 py-3 font-medium text-right w-36">Total</th>
@@ -226,12 +219,21 @@ new #[Layout('layouts::admin')] class extends Component
                     </thead>
                     <tbody>
                         @foreach ($items as $index => $item)
-                            <tr class="border-b border-default hover:bg-neutral-secondary-medium">
+                            <tr wire:key="invoice-item-{{ $item['id'] ?? $item['key'] ?? $index }}" class="border-b border-default hover:bg-neutral-secondary-medium">
                                 <td class="px-4 py-2">
-                                    <input type="text"
-                                        wire:model.live="items.{{ $index }}.nama_barang"
-                                        class="block w-full px-3 py-2 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs placeholder:text-body"
-                                        placeholder="Nama barang">
+                                    @if ($stockLinked)
+                                        {{ $item['nama_barang'] }}
+                                    @else
+                                        <input type="text" wire:model="items.{{ $index }}.nama_barang" class="block w-full px-3 py-2 border rounded-base">
+                                        <label for="master-product-{{ $index }}" class="block text-sm">Master Produk</label>
+                                        <select id="master-product-{{ $index }}" wire:model="items.{{ $index }}.beverage_id" class="block w-full px-3 py-2 border rounded-base">
+                                            <option value="">Belum dipetakan</option>
+                                            @foreach ($products as $product)
+                                                <option value="{{ $product->id }}">{{ $product->nama_produk }}{{ $product->trashed() ? ' (Nonaktif)' : '' }}</option>
+                                            @endforeach
+                                        </select>
+                                        @error('items.' . $index . '.beverage_id') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
+                                    @endif
                                 </td>
                                 <td class="px-4 py-2">
                                     <input type="text" inputmode="numeric" pattern="[0-9]*"
@@ -239,6 +241,17 @@ new #[Layout('layouts::admin')] class extends Component
                                         wire:keyup="recalculateTotal({{ $index }})"
                                         class="block w-full px-2 py-2 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs text-center"
                                         placeholder="0">
+                                </td>
+                                <td class="px-4 py-2 text-center">
+                                    @if ($stockLinked)
+                                        {{ $item['total_pcs'] }}
+                                    @else
+                                        <input type="number" min="1" step="1" aria-label="Total pcs {{ $item['nama_barang'] }}"
+                                            wire:model="items.{{ $index }}.total_pcs"
+                                            class="block w-full px-2 py-2 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs text-center"
+                                            placeholder="Opsional">
+                                        @error('items.' . $index . '.total_pcs') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
+                                    @endif
                                 </td>
                                 <td class="px-4 py-2">
                                     <div x-data="{
@@ -284,7 +297,7 @@ new #[Layout('layouts::admin')] class extends Component
                                     Rp {{ number_format($item['total'], 0, ',', '.') }}
                                 </td>
                                 <td class="px-4 py-2 text-center">
-                                    @if (count($items) > 1)
+                                    @if (! $stockLinked && count($items) > 1)
                                         <button type="button" wire:click="removeItem({{ $index }})" class="text-red-500 hover:text-red-700">
                                             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
                                         </button>
@@ -295,7 +308,7 @@ new #[Layout('layouts::admin')] class extends Component
                     </tbody>
                     <tfoot class="bg-neutral-secondary-medium border-t-2 border-default">
                         <tr>
-                            <td colspan="4" class="px-4 py-3 text-right font-bold text-heading">GRAND TOTAL:</td>
+                            <td colspan="5" class="px-4 py-3 text-right font-bold text-heading">GRAND TOTAL:</td>
                             <td class="px-4 py-3 text-right font-bold text-emerald-600">Rp {{ number_format($this->grandTotal, 0, ',', '.') }}</td>
                             <td></td>
                         </tr>
@@ -308,7 +321,7 @@ new #[Layout('layouts::admin')] class extends Component
             <a href="{{ route('admin.beverages.invoice') }}" wire:navigate class="inline-flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium text-body bg-neutral-secondary-medium border border-default-medium rounded-md hover:bg-neutral-secondary-strong transition-colors">
                 Batal
             </a>
-            <button type="submit" class="px-6 py-2.5 text-white bg-brand hover:bg-brand-strong rounded-md font-medium text-sm focus:outline-none">
+            <button type="submit" wire:loading.attr="disabled" class="px-6 py-2.5 text-white bg-brand hover:bg-brand-strong rounded-md font-medium text-sm focus:outline-none">
                 Simpan Perubahan
             </button>
         </div>

@@ -5,7 +5,7 @@ namespace App\Livewire\Pages\Dashboard\Admin\Beverages;
 use App\Exports\BeverageSaleExport;
 use App\Exports\BeverageSaleExportDetail;
 use App\Models\BeverageSale;
-use App\Models\DepositBeverage;
+use App\Livewire\Concerns\DeletesBeverageSales;
 use App\Models\Shift;
 use Illuminate\Support\Collection;
 use Livewire\Component;
@@ -17,15 +17,13 @@ use Maatwebsite\Excel\Facades\Excel;
 new #[Layout('layouts::admin')] class extends Component
 {
     use WithPagination;
+    use DeletesBeverageSales;
 
     public $searchProduct = '';
     public $filterTime = 'today';
     public $dateStart;
     public $dateEnd;
     public $shift = '';
-    public $showDeleteModal = false;
-    public $selectedSaleId = null;
-    public $selectedSale = null;
 
     /** @return Collection<string, string> */
     #[Computed]
@@ -197,72 +195,6 @@ new #[Layout('layouts::admin')] class extends Component
         );
     }
 
-    public function confirmDelete($id)
-    {
-        $this->selectedSaleId = $id;
-        $this->selectedSale = BeverageSale::with(['depositBeverage', 'parentBeverageSale', 'changeDeposit'])->find($id);
-        $this->showDeleteModal = true;
-    }
-
-    public function deleteSale()
-    {
-        $sale = BeverageSale::with(['depositBeverage', 'parentBeverageSale'])->find($this->selectedSaleId);
-        if (!$sale) {
-            $this->closeDeleteModal();
-            return;
-        }
-
-        if ($sale->keterangan_bayar === 'cash') {
-            $changeDeposit = DepositBeverage::where('beverage_sale_id', $sale->id)->first();
-
-            if ($changeDeposit) {
-                if ($changeDeposit->is_used || $changeDeposit->sisa_nominal !== $changeDeposit->nominal) {
-                    session()->flash('error', 'Tidak dapat menghapus transaksi karena deposit kembaliannya sudah digunakan.');
-                    $this->closeDeleteModal();
-
-                    return;
-                }
-
-                $changeDeposit->delete();
-            }
-        }
-
-        $stockAffecting = !in_array($sale->keterangan_bayar, ['deposit_hutang_cash', 'deposit_hutang_qris', 'pengeluaran_umum']);
-
-        if ($stockAffecting && $sale->beverage) {
-            $beverage = $sale->beverage;
-            $beverage->update([
-                'stok_sekarang' => $beverage->stok_sekarang + $sale->jumlah_beli,
-            ]);
-        }
-
-        if ($sale->depositBeverage && $sale->deposit_amount > 0) {
-            $deposit = $sale->depositBeverage;
-            $deposit->update([
-                'sisa_nominal' => $deposit->sisa_nominal + $sale->deposit_amount,
-                'is_used' => false,
-            ]);
-        }
-
-        if ($sale->parentBeverageSale && in_array($sale->keterangan_bayar, ['deposit_hutang_cash', 'deposit_hutang_qris'])) {
-            $sale->parentBeverageSale->update(['is_lunas' => false]);
-        }
-
-        $sale->delete();
-
-        $message = $stockAffecting ? 'Data penjualan berhasil dihapus. Stok minuman dikembalikan.' : 'Data penjualan berhasil dihapus.';
-        session()->flash('success', $message);
-
-        $this->closeDeleteModal();
-    }
-
-    public function closeDeleteModal()
-    {
-        $this->showDeleteModal = false;
-        $this->selectedSaleId = null;
-        $this->selectedSale = null;
-    }
-
     public function with(): array
     {
         return [];
@@ -274,6 +206,13 @@ new #[Layout('layouts::admin')] class extends Component
     <div class="flex sm:flex-row flex-col justify-between items-center mb-6">
         <h5 class="text-xl font-semibold text-heading">Riwayat Penjualan Minuman</h5>
     </div>
+
+    @if (session()->has('success'))
+        <p role="status" class="p-4 mb-4 text-green-800 bg-green-50 rounded-md">{{ session('success') }}</p>
+    @endif
+    @if (session()->has('error'))
+        <p role="alert" class="p-4 mb-4 text-red-800 bg-red-50 rounded-md">{{ session('error') }}</p>
+    @endif
 
     <div class="bg-neutral-primary-soft shadow-xs rounded-md border border-default">
         <div class="p-4 border-b border-default-medium">
@@ -534,59 +473,7 @@ new #[Layout('layouts::admin')] class extends Component
         </div>
     </div>
 
-    @if(auth()->check() && auth()->user()->role === 'admin')
-        @if ($showDeleteModal)
-            <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" wire:click.self="closeDeleteModal">
-                <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 p-6">
-                    <div class="flex items-center justify-between mb-4">
-                        <h5 class="text-lg font-semibold text-heading">Konfirmasi Hapus</h5>
-                        <button type="button" wire:click="closeDeleteModal" class="text-gray-400 hover:text-gray-600">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
-                        </button>
-                    </div>
-                    <p class="text-body mb-4">Apakah Anda yakin ingin menghapus data penjualan ini? Stok minuman akan dikembalikan.</p>
-
-                    @if($selectedSale && $selectedSale->depositBeverage && $selectedSale->deposit_amount > 0)
-                        <div class="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-md text-sm text-amber-800">
-                            <p class="font-semibold mb-1">Transaksi ini menggunakan deposit:</p>
-                            <p>Pelanggan: {{ $selectedSale->depositBeverage->nama_pelanggan }}</p>
-                            <p>Deposit akan dikembalikan: Rp {{ number_format($selectedSale->deposit_amount, 0, ',', '.') }}</p>
-                        </div>
-                    @endif
-
-                    @if($selectedSale && $selectedSale->parentBeverageSale && in_array($selectedSale->keterangan_bayar, ['deposit_hutang_cash', 'deposit_hutang_qris']))
-                        <div class="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md text-sm text-yellow-800">
-                            <p class="font-semibold mb-1">Transaksi ini adalah pelunasan hutang:</p>
-                            <p>Penghutang: {{ $selectedSale->parentBeverageSale->nama_penghutang }}</p>
-                            <p>Hutang asli akan kembali menjadi belum lunas setelah dihapus.</p>
-                        </div>
-                    @endif
-
-                    @if($selectedSale && $selectedSale->changeDeposit)
-                        <div class="mb-4 p-3 bg-cyan-50 border border-cyan-200 rounded-md text-sm text-cyan-800">
-                            <p class="font-semibold mb-1">Transaksi ini menghasilkan deposit kembalian:</p>
-                            <p>Pelanggan: {{ $selectedSale->changeDeposit->nama_pelanggan }}</p>
-                            <p>Nominal: Rp {{ number_format($selectedSale->changeDeposit->nominal, 0, ',', '.') }}</p>
-                            @if($selectedSale->changeDeposit->is_used || $selectedSale->changeDeposit->sisa_nominal !== $selectedSale->changeDeposit->nominal)
-                                <p class="font-semibold text-red-600 mt-1">Deposit sudah digunakan, transaksi tidak dapat dihapus.</p>
-                            @else
-                                <p>Deposit akan ikut dihapus.</p>
-                            @endif
-                        </div>
-                    @endif
-
-                    <div class="flex items-center justify-end gap-3">
-                        <button type="button" wire:click="closeDeleteModal" class="px-4 py-2 text-sm font-medium text-body bg-neutral-secondary-medium border border-default-medium rounded-md hover:bg-neutral-secondary-strong transition-colors">
-                            Batal
-                        </button>
-                        <button type="button" wire:click="deleteSale"
-                            @if($selectedSale && $selectedSale->changeDeposit && ($selectedSale->changeDeposit->is_used || $selectedSale->changeDeposit->sisa_nominal !== $selectedSale->changeDeposit->nominal)) disabled @endif
-                            class="px-4 py-2.5 text-white bg-red-600 hover:bg-red-700 rounded-md font-medium text-sm focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed">
-                            Hapus
-                        </button>
-                    </div>
-                </div>
-            </div>
-        @endif
+    @if ($showDeleteModal)
+        <x-beverage-sale-delete-modal :preview="$saleDeletePreview" :changes="$this->saleSnapshotChanges" :notice="$saleDeleteNotice" />
     @endif
 </div>

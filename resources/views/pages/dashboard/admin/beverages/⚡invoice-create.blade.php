@@ -3,12 +3,20 @@
 namespace App\Livewire\Pages\Dashboard\Admin\Beverages;
 
 use App\Models\BeverageInvoice;
-use App\Models\BeverageInvoiceItem;
+use App\Actions\SaveBeverageInvoice;
+use App\Models\Beverage;
+use Livewire\WithFileUploads;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 use Livewire\Attributes\Layout;
 
 new #[Layout('layouts::admin')] class extends Component
 {
+    use WithFileUploads;
+
+    #[\Livewire\Attributes\Validate('nullable|image|mimes:jpg,jpeg,png,webp|extensions:jpg,jpeg,png,webp|max:10240')]
+    public $image;
+
     public $no_faktur = '';
     public $tanggal_order = '';
     public $tanggal_menerima = '';
@@ -19,14 +27,19 @@ new #[Layout('layouts::admin')] class extends Component
 
     public function mount()
     {
-        $this->tanggal_order = date('Y-m-d');
+        abort_unless(in_array(auth()->user()?->role, ['admin', 'kasir_gym', 'kasir_minum'], true), 403);
+        $this->tanggal_order = now('Asia/Jakarta')->toDateString();
+        $this->tanggal_menerima = $this->tanggal_order;
         $this->addItem();
     }
 
     public function addItem()
     {
         $this->items[] = [
+            'key' => (string) \Illuminate\Support\Str::uuid(),
             'nama_barang' => '',
+            'beverage_id' => '',
+            'total_pcs' => '',
             'qty' => '',
             'harga_perdus' => '',
             'biaya_ppn' => '',
@@ -57,38 +70,12 @@ new #[Layout('layouts::admin')] class extends Component
 
     public function store()
     {
-        $this->validate([
-            'no_faktur' => 'required|unique:beverage_invoices,no_faktur',
-            'tanggal_order' => 'required|date',
-            'status' => 'required|in:pending,lunas',
-            'metode_pembayaran' => 'required|in:cash,tf_bca,qris,hutang',
-            'items' => 'required|array|min:1',
-            'items.*.nama_barang' => 'required',
-            'items.*.qty' => 'required|integer|min:1',
-            'items.*.harga_perdus' => 'required|integer|min:0',
-        ]);
-
-        $invoice = BeverageInvoice::create([
-            'no_faktur' => $this->no_faktur,
-            'tanggal_order' => $this->tanggal_order,
-            'tanggal_menerima' => $this->tanggal_menerima ?: null,
-            'diterima_oleh' => $this->diterima_oleh ?: null,
-            'status' => $this->status,
-            'metode_pembayaran' => $this->metode_pembayaran,
-        ]);
-
-        foreach ($this->items as $item) {
-            if (!empty($item['nama_barang'])) {
-                BeverageInvoiceItem::create([
-                    'beverage_invoice_id' => $invoice->id,
-                    'nama_barang' => $item['nama_barang'],
-                    'qty' => intval($item['qty']),
-                    'harga_perdus' => intval($item['harga_perdus']),
-                    'biaya_ppn' => intval($item['biaya_ppn'] ?? 0),
-                    'total' => intval($item['total']),
-                ]);
-            }
-        }
+        app(SaveBeverageInvoice::class)->execute([
+            'no_faktur' => $this->no_faktur, 'tanggal_order' => $this->tanggal_order,
+            'tanggal_menerima' => $this->tanggal_menerima, 'diterima_oleh' => $this->diterima_oleh,
+            'status' => $this->status, 'metode_pembayaran' => $this->metode_pembayaran,
+            'items' => $this->items,
+        ], $this->image);
 
         session()->flash('success', 'Invoice berhasil dibuat.');
 
@@ -97,7 +84,7 @@ new #[Layout('layouts::admin')] class extends Component
 
     public function with(): array
     {
-        return [];
+        return ['products' => Beverage::query()->orderBy('nama_produk')->get(), 'invoice' => null];
     }
 };
 ?>
@@ -113,6 +100,12 @@ new #[Layout('layouts::admin')] class extends Component
         </div>
     @endif
 
+    @if ($errors->any())
+        <div role="alert" class="p-4 mb-4 text-sm text-red-800 rounded-lg bg-red-50">
+            @foreach ($errors->all() as $error) <p>{{ $error }}</p> @endforeach
+        </div>
+    @endif
+    <x-beverage-invoice-photo :invoice="$invoice" :image="$image" />
     <form wire:submit.prevent="store" class="bg-neutral-primary-soft shadow-xs rounded-md border border-default p-6">
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
             <div>
@@ -179,7 +172,8 @@ new #[Layout('layouts::admin')] class extends Component
                     <thead class="text-sm text-body bg-neutral-secondary-medium border-b border-default-medium">
                         <tr>
                             <th scope="col" class="px-4 py-3 font-medium w-48">Nama Barang</th>
-                            <th scope="col" class="px-4 py-3 font-medium text-center w-24">Qty</th>
+                            <th scope="col" class="px-4 py-3 font-medium text-center w-24">Qty Dus</th>
+                            <th scope="col" class="px-4 py-3 font-medium text-center">Total Pcs</th>
                             <th scope="col" class="px-4 py-3 font-medium text-right w-32">Harga Perdus</th>
                             <th scope="col" class="px-4 py-3 font-medium text-right w-32">Biaya PPN</th>
                             <th scope="col" class="px-4 py-3 font-medium text-right w-36">Total</th>
@@ -188,12 +182,14 @@ new #[Layout('layouts::admin')] class extends Component
                     </thead>
                     <tbody>
                         @foreach ($items as $index => $item)
-                            <tr class="border-b border-default hover:bg-neutral-secondary-medium">
+                            <tr wire:key="invoice-item-{{ $item['id'] ?? $item['key'] ?? $index }}" class="border-b border-default hover:bg-neutral-secondary-medium">
                                 <td class="px-4 py-2">
-                                    <input type="text"
-                                        wire:model.live="items.{{ $index }}.nama_barang"
-                                        class="block w-full px-3 py-2 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs placeholder:text-body"
-                                        placeholder="Nama barang">
+                                    <select wire:model="items.{{ $index }}.beverage_id" class="block w-full px-3 py-2 bg-neutral-secondary-medium border border-default-medium rounded-base">
+                                        <option value="">Pilih produk</option>
+                                        @foreach ($products as $product)
+                                            <option value="{{ $product->id }}">{{ $product->nama_produk }}</option>
+                                        @endforeach
+                                    </select>
                                 </td>
                                 <td class="px-4 py-2">
                                     <input type="text" inputmode="numeric" pattern="[0-9]*"
@@ -202,6 +198,7 @@ new #[Layout('layouts::admin')] class extends Component
                                         class="block w-full px-2 py-2 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs text-center"
                                         placeholder="0">
                                 </td>
+                                <td class="px-4 py-2 text-center"><input type="number" min="1" wire:model="items.{{ $index }}.total_pcs" class="block w-full px-2 py-2 border rounded-base text-center"></td>
                                 <td class="px-4 py-2">
                                     <div x-data="{
                                         value: @entangle('items.' . $index . '.harga_perdus'),
@@ -257,7 +254,7 @@ new #[Layout('layouts::admin')] class extends Component
                     </tbody>
                     <tfoot class="bg-neutral-secondary-medium border-t-2 border-default">
                         <tr>
-                            <td colspan="4" class="px-4 py-3 text-right font-bold text-heading">GRAND TOTAL:</td>
+                            <td colspan="5" class="px-4 py-3 text-right font-bold text-heading">GRAND TOTAL:</td>
                             <td class="px-4 py-3 text-right font-bold text-emerald-600">Rp {{ number_format($this->grandTotal, 0, ',', '.') }}</td>
                             <td></td>
                         </tr>
@@ -270,7 +267,7 @@ new #[Layout('layouts::admin')] class extends Component
             <a href="{{ route('admin.beverages.invoice') }}" wire:navigate class="inline-flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium text-body bg-neutral-secondary-medium border border-default-medium rounded-md hover:bg-neutral-secondary-strong transition-colors">
                 Batal
             </a>
-            <button type="submit" class="px-6 py-2.5 text-white bg-brand hover:bg-brand-strong rounded-md font-medium text-sm focus:outline-none">
+            <button type="submit" wire:loading.attr="disabled" class="px-6 py-2.5 text-white bg-brand hover:bg-brand-strong rounded-md font-medium text-sm focus:outline-none">
                 Simpan Invoice
             </button>
         </div>
