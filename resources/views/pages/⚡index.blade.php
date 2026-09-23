@@ -52,7 +52,7 @@ new #[Layout('layouts::empty')] #[Title('FRANS GYM | Pusat Kebugaran Terbaik di 
             }
         }"
         x-init="initObserver()"
-        class="bg-[#34342F] fixed w-full z-20 top-0 start-0 border-b border-gray-800 transition-all duration-300">
+        class="bg-black fixed w-full z-20 top-0 start-0 border-b border-gray-800 transition-all duration-300">
         
         <div class="max-w-7xl w-full flex flex-wrap items-center mx-auto p-4">
             
@@ -63,12 +63,12 @@ new #[Layout('layouts::empty')] #[Title('FRANS GYM | Pusat Kebugaran Terbaik di 
             
             <div class="flex items-center md:order-2 space-x-3 md:space-x-0 rtl:space-x-reverse ms-auto md:ms-6">
                 @auth
-                    <button type="button" class="flex text-sm bg-[#34342F] rounded-full md:me-3 focus:ring-4 focus:ring-brand" id="user-menu-button" aria-expanded="false" data-dropdown-toggle="user-dropdown" data-dropdown-placement="bottom">
+                    <button type="button" class="flex text-sm bg-black rounded-full md:me-3 focus:ring-4 focus:ring-brand" id="user-menu-button" aria-expanded="false" data-dropdown-toggle="user-dropdown" data-dropdown-placement="bottom">
                         <span class="sr-only">Open user menu</span>
                         <img class="w-8 h-8 rounded-full object-cover" src="{{ asset('storage/' . Auth::user()->photo) }}" alt="{{ Auth::user()->name }}">
                     </button>
                     
-                    <div class="z-50 hidden bg-[#34342F] border border-default-medium rounded-base shadow-lg w-44" id="user-dropdown">
+                    <div class="z-50 hidden bg-black border border-default-medium rounded-base shadow-lg w-44" id="user-dropdown">
                         <div class="px-4 py-3 text-sm border-b border-default">
                             <span class="block text-brand font-medium">{{ Auth::user()->name }}</span>
                             <span class="block text-white truncate">{{ Auth::user()->email }}</span>
@@ -99,38 +99,38 @@ new #[Layout('layouts::empty')] #[Title('FRANS GYM | Pusat Kebugaran Terbaik di 
             </div>
             
             <div class="items-center justify-between hidden w-full md:flex md:w-auto md:order-1 md:ms-auto" id="navbar-user">
-                <ul class="font-medium flex flex-col p-4 md:p-0 mt-4 border border-default rounded-base bg-white md:flex-row md:space-x-8 rtl:space-x-reverse md:mt-0 md:border-0 md:bg-[#34342F]">
+                <ul class="font-medium flex flex-col p-4 md:p-0 mt-4 border border-default rounded-base bg-white md:flex-row md:space-x-8 rtl:space-x-reverse md:mt-0 md:border-0 md:bg-black">
                     <li>
                         <a href="#beranda"
-                            :class="activeSection === 'beranda' ? 'text-brand md:text-brand font-bold' : 'text-[#34342F] md:text-white'"
+                            :class="activeSection === 'beranda' ? 'text-brand md:text-brand font-bold' : 'text-white'"
                             class="block py-2 px-3 rounded md:p-0 hover:bg-neutral-tertiary md:hover:bg-transparent md:hover:text-brand transition-colors">
                             Beranda
                         </a>
                     </li>
                     <li>
                         <a href="#tentang"
-                            :class="activeSection === 'tentang' ? 'text-brand md:text-brand font-bold' : 'text-[#34342F] md:text-white'"
+                            :class="activeSection === 'tentang' ? 'text-brand md:text-brand font-bold' : 'text-white'"
                             class="block py-2 px-3 rounded md:p-0 hover:bg-neutral-tertiary md:hover:bg-transparent md:hover:text-brand transition-colors">
                             Tentang Kami
                         </a>
                     </li>
                     <li>
                         <a href="#fasilitas"
-                            :class="activeSection === 'fasilitas' ? 'text-brand md:text-brand font-bold' : 'text-[#34342F] md:text-white'"
+                            :class="activeSection === 'fasilitas' ? 'text-brand md:text-brand font-bold' : 'text-white'"
                             class="block py-2 px-3 rounded md:p-0 hover:bg-neutral-tertiary md:hover:bg-transparent md:hover:text-brand transition-colors">
                             Fasilitas
                         </a>
                     </li>
                     <li>
                         <a href="#pelatih"
-                            :class="activeSection === 'pelatih' ? 'text-brand md:text-brand font-bold' : 'text-[#34342F] md:text-white'"
+                            :class="activeSection === 'pelatih' ? 'text-brand md:text-brand font-bold' : 'text-white'"
                             class="block py-2 px-3 rounded md:p-0 hover:bg-neutral-tertiary md:hover:bg-transparent md:hover:text-brand transition-colors">
                             Tim Pelatih
                         </a>
                     </li>
                     <li>
                         <a href="#pencapaian"
-                            :class="activeSection === 'pencapaian' ? 'text-brand md:text-brand font-bold' : 'text-[#34342F] md:text-white'"
+                            :class="activeSection === 'pencapaian' ? 'text-brand md:text-brand font-bold' : 'text-white'"
                             class="block py-2 px-3 rounded md:p-0 hover:bg-neutral-tertiary md:hover:bg-transparent md:hover:text-brand transition-colors">
                             Pencapaian
                         </a>
@@ -139,13 +139,13 @@ new #[Layout('layouts::empty')] #[Title('FRANS GYM | Pusat Kebugaran Terbaik di 
                     @guest
                         <li>
                             <a href="/pendaftaran/member" wire:navigate
-                                class="block py-2 px-3 rounded md:p-0 md:border-0 text-[#34342F] md:text-white md:hover:text-brand hover:bg-neutral-tertiary md:hover:bg-transparent transition-colors">
+                                class="block py-2 px-3 rounded md:p-0 md:border-0 text-white md:hover:text-brand hover:bg-neutral-tertiary md:hover:bg-transparent transition-colors">
                                 Daftar
                             </a>
                         </li>
                         <li>
                             <a href="{{ route('login') }}" wire:navigate
-                                class="block py-2 px-3 rounded md:p-0 md:border-0 text-[#34342F] md:text-white hover:bg-neutral-tertiary md:hover:bg-transparent md:hover:text-brand transition-colors">
+                                class="block py-2 px-3 rounded md:p-0 md:border-0 text-white hover:bg-neutral-tertiary md:hover:bg-transparent md:hover:text-brand transition-colors">
                                 Login
                             </a>
                         </li>

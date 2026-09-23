@@ -21,7 +21,7 @@ new class extends Component {
 };
 ?>
 
-<nav class="bg-[#34342F] fixed w-full z-20 top-0 start-0  ">
+<nav class="bg-black fixed w-full z-20 top-0 start-0  ">
     <div class="max-w-7xl w-full flex flex-wrap items-center mx-auto p-4">
         
         <a href="/" class="flex items-center space-x-3 rtl:space-x-reverse">
@@ -38,7 +38,7 @@ new class extends Component {
         <div class="flex items-center md:order-2 space-x-3 md:space-x-0 rtl:space-x-reverse ms-auto md:ms-6">
             @auth
                 <button type="button"
-                    class="flex text-sm bg-[#34342F] rounded-full md:me-3 focus:ring-4 focus:ring-brand"
+                    class="flex text-sm bg-black rounded-full md:me-3 focus:ring-4 focus:ring-brand"
                     id="user-menu-button" aria-expanded="false" data-dropdown-toggle="user-dropdown"
                     data-dropdown-placement="bottom">
                     <span class="sr-only">Open user menu</span>
@@ -49,7 +49,7 @@ new class extends Component {
                     @endif
                 </button>
                 
-                <div class="z-50 hidden bg-[#34342F] border border-default-medium rounded-base shadow-lg w-44" id="user-dropdown">
+                <div class="z-50 hidden bg-black border border-default-medium rounded-base shadow-lg w-44" id="user-dropdown">
                     <div class="px-4 py-3 text-sm border-b border-default">
                         <span class="block text-brand font-medium">{{ Auth::user()->name }}</span>
                         <span class="block text-white truncate">{{ Auth::user()->email }}</span>
@@ -88,10 +88,10 @@ new class extends Component {
         </div>
         
         <div class="items-center justify-between hidden w-full md:flex md:w-auto md:order-1 md:ms-auto" id="navbar-user">
-            <ul class="font-medium flex flex-col p-4 md:p-0 mt-4 border border-default rounded-base bg-neutral-secondary-soft md:flex-row md:space-x-8 rtl:space-x-reverse md:mt-0 md:border-0 md:bg-[#34342F]">
+            <ul class="font-medium flex flex-col p-4 md:p-0 mt-4 border border-default rounded-base bg-black md:flex-row md:space-x-8 rtl:space-x-reverse md:mt-0 md:border-0 md:bg-black">
                 <li>
                     <a href="/"
-                        class="block py-2 px-3 rounded md:p-0 {{ request()->is('/') ? 'bg-brand text-white md:bg-transparent md:text-fg-brand' : 'text-[#34342F] sm:text-white hover:bg-neutral-tertiary md:hover:bg-transparent' }}"
+                        class="block py-2 px-3 rounded md:p-0 {{ request()->is('/') ? 'bg-brand text-black md:bg-transparent md:text-fg-brand' : 'text-white hover:bg-neutral-tertiary md:hover:bg-transparent' }}"
                         wire:navigate>
                         Beranda
                     </a>
@@ -99,13 +99,13 @@ new class extends Component {
                 @guest
                     <li>
                         <a href="/pendaftaran/member" wire:navigate
-                            class="block py-2 px-3 rounded md:p-0 md:border-0 {{ request()->is('pendaftaran/member*') ? 'bg-brand text-white md:bg-transparent md:text-fg-brand' : 'text-[#34342F] sm:text-white hover:bg-neutral-tertiary md:hover:bg-transparent md:hover:text-fg-brand' }}">
+                            class="block py-2 px-3 rounded md:p-0 md:border-0 {{ request()->is('pendaftaran/member*') ? 'bg-brand text-black md:bg-transparent md:text-fg-brand' : 'text-white hover:bg-neutral-tertiary md:hover:bg-transparent md:hover:text-fg-brand' }}">
                             Daftar
                         </a>
                     </li>
                     <li>
                         <a href="{{ route('login') }}" wire:navigate
-                            class="block py-2 px-3 rounded md:p-0 md:border-0 {{ request()->routeIs('login') ? 'bg-brand text-white md:bg-transparent md:text-fg-brand' : 'text-[#34342F] sm:text-white hover:bg-neutral-tertiary md:hover:bg-transparent md:hover:text-fg-brand' }}">
+                            class="block py-2 px-3 rounded md:p-0 md:border-0 {{ request()->routeIs('login') ? 'bg-brand text-black md:bg-transparent md:text-fg-brand' : 'text-white hover:bg-neutral-tertiary md:hover:bg-transparent md:hover:text-fg-brand' }}">
                             Login
                         </a>
                     </li>

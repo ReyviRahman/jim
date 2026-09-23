@@ -12,41 +12,36 @@
 
         @livewireStyles
     </head>
-    <body>
+    <body @class(['member-pt-page' => request()->routeIs('pt.booking-jadwal.*')])>
         <livewire:dashboard.navbar />
         <aside id="top-bar-sidebar" class="fixed top-0 left-0 z-40 w-64 h-full -translate-x-full transition-transform duration-300 ease-in-out" aria-label="Sidebar" aria-hidden="true">
-        <div class="flex h-full flex-col px-3 py-4 overflow-y-auto bg-[#34342F] border-e border-default [&>*]:shrink-0">
-            <a href="https://flowbite.com/" class="flex items-center ps-2.5 mb-5">
-                <img src="https://flowbite.com/docs/images/logo.svg" class="h-6 me-3" alt="Flowbite Logo" />
-                <span class="self-center text-lg text-heading font-semibold whitespace-nowrap">Flowbite</span>
-            </a>
-            <ul class="space-y-2 font-medium">
+        <div class="gym-sidebar flex h-full flex-col overflow-y-auto [&>*]:shrink-0">
+            <x-sidebar-brand />
+            <x-sidebar-category>PERSONAL TRAINING</x-sidebar-category>
+            <ul class="gym-sidebar-menu">
                 <li>
-                    <a href="{{ route('pt.absensi') }}" wire:navigate class="{{ request()->routeIs('pt.absensi') ? 'text-[#34342F] bg-brand' : 'text-white' }} flex items-center px-2 py-1.5 rounded-md hover:bg-brand hover:text-[#34342F] group">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="currentColor" d="M13 21v-2h2v2zm-2-2v-5h2v5zm8-3v-4h2v4zm-2-4v-2h2v2zM5 14v-2h2v2zm-2-2v-2h2v2zm9-7V3h2v2zM4.5 7.5h3v-3h-3zM3 9V3h6v6zm1.5 10.5h3v-3h-3zM3 21v-6h6v6zM16.5 7.5h3v-3h-3zM15 9V3h6v6zm2 12v-3h-2v-2h4v3h2v2zm-4-7v-2h4v2zm-4 0v-2H7v-2h6v2h-2v2zm1-5V5h2v2h2v2zM5.25 6.75v-1.5h1.5v1.5zm0 12v-1.5h1.5v1.5zm12-12v-1.5h1.5v1.5z"/></svg>
-                    <span class="ms-3">Absensi</span>
-                    </a>
+                    <x-sidebar-item :href="route('pt.absensi')" :active="request()->routeIs('pt.absensi')" title="Absensi" description="Scan QR / check-in gym">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="currentColor" d="M13 21v-2h2v2zm-2-2v-5h2v5zm8-3v-4h2v4zm-2-4v-2h2v2zM5 14v-2h2v2zm-2-2v-2h2v2zm9-7V3h2v2zM4.5 7.5h3v-3h-3zM3 9V3h6v6zm1.5 10.5h3v-3h-3zM3 21v-6h6v6zM16.5 7.5h3v-3h-3zM15 9V3h6v6zm2 12v-3h-2v-2h4v3h2v2zm-4-7v-2h4v2zm-4 0v-2H7v-2h6v2h-2v2zm1-5V5h2v2h2v2zM5.25 6.75v-1.5h1.5v1.5zm0 12v-1.5h1.5v1.5zm12-12v-1.5h1.5v1.5z"/></svg>
+                        </x-sidebar-item>
                 </li>
                 <li>
-                    <a href="{{ route('pt.kehadiran.index') }}" wire:navigate class="{{ request()->routeIs('pt.kehadiran.*') ? 'text-[#34342F] bg-brand' : 'text-white' }} flex items-center px-2 py-1.5 rounded-md hover:bg-brand hover:text-[#34342F] group">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2 12h1m3-4H4a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2m0-9v10a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1H7a1 1 0 0 0-1 1m3 5h6m0-5v10a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1h-1a1 1 0 0 0-1 1m3 1h2a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1h-2m4-4h-1"/></svg>
-                    <span class="ms-3">Kehadiran</span>
-                    </a>
+                    <x-sidebar-item :href="route('pt.kehadiran.index')" :active="request()->routeIs('pt.kehadiran.*')" title="Kehadiran" description="Riwayat kehadiran Anda">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2 12h1m3-4H4a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2m0-9v10a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1H7a1 1 0 0 0-1 1m3 5h6m0-5v10a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1h-1a1 1 0 0 0-1 1m3 1h2a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1h-2m4-4h-1"/></svg>
+                        </x-sidebar-item>
                 </li>
                 <li>
-                    <a href="{{ route('pt.booking-jadwal.index') }}" wire:navigate class="{{ request()->routeIs('pt.booking-jadwal.index') ? 'text-[#34342F] bg-brand' : 'text-white' }} flex items-center px-2 py-1.5 rounded-md hover:bg-brand hover:text-[#34342F] group">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-                    <span class="ms-3">PT Schedule</span>
-                    </a>
+                    <x-sidebar-item :href="route('pt.booking-jadwal.index')" :active="request()->routeIs('pt.booking-jadwal.index')" title="PT Schedule" description="Jadwal sesi PT">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                        </x-sidebar-item>
                 </li>
             </ul>
             <x-sidebar-motto />
         </div>
         </aside>
 
-        <div id="dashboard-content" class="p-4 sm:ml-64 mt-14 transition-[margin] duration-300 ease-in-out">
+        <div id="dashboard-content" @class(['sm:ml-64 mt-14 transition-[margin] duration-300 ease-in-out', 'sm:p-6' => request()->routeIs('pt.booking-jadwal.*'), 'p-4' => ! request()->routeIs('pt.booking-jadwal.*')])>
             <x-impersonation-banner />
-            <div class="p-4 border-1 border-default rounded-md">
+            <div @class(['p-4 border-1 border-default rounded-md' => ! request()->routeIs('pt.booking-jadwal.*')])>
                 {{ $slot }}
             </div>
         </div>

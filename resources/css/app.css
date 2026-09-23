@@ -2,6 +2,7 @@
 @import 'tailwindcss';
 @import './member-attendance.css';
 @import './member-check-in.css';
+@import './sidebar.css';
 @import "flowbite/src/themes/default";
 @plugin "flowbite/plugin";
 @source "../../node_modules/flowbite";
@@ -43,7 +44,6 @@
     color-scheme: dark;
 }
 
-.member-pt-page > nav,
 .member-pt-page > aside > div {
     background: #080c0e;
     border-color: rgb(255 255 255 / 12%);

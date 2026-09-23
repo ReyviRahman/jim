@@ -1,0 +1,98 @@
+#top-bar-sidebar .gym-sidebar {
+    padding: 20px 10px 16px;
+    color: #f5f5f5;
+    background: radial-gradient(ellipse at 100% 65%, rgb(255 237 0 / 7%), transparent 45%), radial-gradient(ellipse at 0 0, rgb(255 237 0 / 8%), transparent 25%), #090a09;
+    border-right: 1px solid rgb(255 237 0 / 18%);
+    scrollbar-width: thin;
+    scrollbar-color: #454535 #090a09;
+    overscroll-behavior: contain;
+}
+
+.gym-sidebar .gym-sidebar-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 4px 12px 24px;
+    font-size: 17px;
+    font-weight: 800;
+    letter-spacing: .03em;
+}
+
+.gym-sidebar-brand img { object-fit: contain; }
+.gym-sidebar-brand small {
+    display: block;
+    margin-top: 3px;
+    color: #a6a69c;
+    font-size: 8px;
+    font-weight: 500;
+    letter-spacing: .19em;
+}
+
+.gym-sidebar .gym-sidebar-menu { display: grid; gap: 3px; }
+.gym-sidebar .gym-sidebar-category {
+    margin: 18px 12px 9px;
+    padding-top: 13px;
+    border-top: 1px solid rgb(255 255 255 / 22%);
+    color: #e5e5df;
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1.6;
+    letter-spacing: .24em;
+}
+
+.gym-sidebar .gym-sidebar-item {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    min-height: 59px;
+    padding: 10px 11px;
+    border-radius: 9px;
+    color: #f4f4f4;
+    text-decoration: none;
+    transition: background-color 150ms, color 150ms;
+}
+
+.gym-sidebar-item .gym-sidebar-icon { flex: 0 0 24px; }
+.gym-sidebar-icon svg { width: 24px; height: 24px; }
+.gym-sidebar-item .gym-sidebar-copy { flex: 1; min-width: 0; }
+.gym-sidebar-item .gym-sidebar-title {
+    display: block;
+    font-size: 13px;
+    font-weight: 650;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+}
+.gym-sidebar-item .gym-sidebar-description {
+    display: block;
+    margin-top: 3px;
+    color: #a7a7a3;
+    font-size: 10px;
+    font-weight: 400;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+}
+.gym-sidebar-item .gym-sidebar-chevron { width: 13px; height: 16px; flex-shrink: 0; color: #92928b; }
+.gym-sidebar .gym-sidebar-item:hover { background: rgb(255 255 255 / 7%); }
+.gym-sidebar .gym-sidebar-item.is-active { background: #ffed00; color: #0a0b08; }
+.gym-sidebar .gym-sidebar-item.is-active :is(.gym-sidebar-description, .gym-sidebar-chevron) { color: #303018; }
+.gym-sidebar .gym-sidebar-item:focus-visible { outline: 2px solid #ffed00; outline-offset: 2px; }
+
+.gym-sidebar .gym-sidebar-motto { margin-top: auto; padding: 22px 3px 5px; }
+.gym-sidebar-motto .gym-sidebar-motto-card {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    border: 1px solid rgb(255 237 0 / 45%);
+    border-radius: 12px;
+    background: #0b0d09;
+    min-height: 104px;
+    padding: 22px 12px;
+}
+.gym-sidebar-motto-card img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: .5; z-index: -2; }
+.gym-sidebar-motto-card::before { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, #090b08 15%, rgb(9 11 8 / 75%) 55%, transparent); z-index: -1; }
+.gym-sidebar-motto-card p { color: #ffed00; font-size: 10px; font-weight: 700; letter-spacing: .19em; }
+.gym-sidebar-motto-card span { display: block; margin-top: 7px; font-size: 8px; line-height: 1.7; letter-spacing: .3em; color: #e2e2db; }
+
+@media (prefers-reduced-motion: reduce) {
+    .gym-sidebar .gym-sidebar-item { transition: none; }
+}

@@ -60,7 +60,7 @@ new class extends Component {
 };
 ?>
 
-<nav class="fixed top-0 z-50 w-full bg-[#34342F] border-b border-default">
+<nav class="fixed top-0 z-50 w-full bg-black border-b border-default">
     <div class="px-3 py-3 lg:px-5 lg:pl-3">
         <div class="flex items-center justify-between">
             <div class="flex items-center justify-start rtl:justify-end">
@@ -86,7 +86,7 @@ new class extends Component {
                     <div class="sm:ms-4 ms-auto flex items-center md:order-2 space-x-3 md:space-x-0 rtl:space-x-reverse">
                         @if(array_key_exists(Auth::user()->role, \App\Models\Shift::ROLE_LABELS))
                             <button type="button" wire:click="openShiftModal"
-                                class="inline-flex items-center gap-1.5 me-2 sm:me-3 px-2 sm:px-3 py-1.5 text-sm font-medium text-brand bg-[#34342F] border border-default-medium rounded-md hover:bg-neutral-tertiary-medium focus:ring-4 focus:ring-brand focus:outline-none">
+                                class="inline-flex items-center gap-1.5 me-2 sm:me-3 px-2 sm:px-3 py-1.5 text-sm font-medium text-brand bg-black border border-default-medium rounded-md hover:bg-neutral-tertiary-medium focus:ring-4 focus:ring-brand focus:outline-none">
                                 <svg class="w-4 h-4" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                     <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/>
                                 </svg>
@@ -100,7 +100,7 @@ new class extends Component {
                             </button>
                         @endif
                         <button type="button"
-                            class="flex text-sm bg-[#34342F] rounded-full md:me-0 focus:ring-4 focus:ring-brand"
+                            class="flex text-sm bg-black rounded-full md:me-0 focus:ring-4 focus:ring-brand"
                             id="user-menu-button" aria-expanded="false" data-dropdown-toggle="user-dropdown"
                             data-dropdown-placement="bottom">
                             <span class="sr-only">Open user menu</span>
@@ -110,7 +110,7 @@ new class extends Component {
                                 <img class="w-8 h-8 rounded-full object-cover" src="https://ui-avatars.com/api/?name={{ urlencode(Auth::user()->name) }}&background=random" alt="{{ Auth::user()->name }}">
                             @endif
                         </button>
-                        <div class="z-50 hidden bg-[#34342F] border border-default-medium rounded-base shadow-lg w-44"
+                        <div class="z-50 hidden bg-black border border-default-medium rounded-base shadow-lg w-44"
                             id="user-dropdown">
                             <div class="px-4 py-3 text-sm border-b border-default">
                                 <span class="block text-brand font-medium">{{ Auth::user()->name }}</span>
