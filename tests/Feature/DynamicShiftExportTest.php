@@ -7,6 +7,7 @@ use App\Exports\BeverageSaleExportDetail;
 use App\Exports\BeverageStockCombinedSheet;
 use App\Exports\PenjualanExport;
 use App\Models\Beverage;
+use App\Models\BeverageRestock;
 use App\Models\BeverageSale;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Maatwebsite\Excel\Concerns\WithEvents;
@@ -76,6 +77,58 @@ class DynamicShiftExportTest extends TestCase
 
         $this->assertStringContainsString('SEMUA SHIFT', $all->getCell('A1')->getValue());
         $this->assertStringContainsString('ADMIN ALL -', $named->getCell('A1')->getValue());
+    }
+
+    public function test_detail_stock_accounts_for_operational_use_without_inflating_sales(): void
+    {
+        $beverage = Beverage::factory()->create(['nama_produk' => 'Crystalin 600 ml', 'stok_sekarang' => 16, 'harga_jual' => 5000]);
+        BeverageRestock::create(['beverage_id' => $beverage->id, 'tanggal' => '2026-09-01', 'jumlah_tambah' => 886, 'tipe' => 'restock']);
+
+        foreach (['cash' => 854, 'operasional' => 25, 'deposit_hutang_cash' => 46, 'deposit_hutang_qris' => 3, 'pengeluaran_umum' => 2] as $method => $quantity) {
+            BeverageSale::create([
+                'beverage_id' => $beverage->id,
+                'nama_produk' => $beverage->nama_produk,
+                'nama_staff' => 'Kasir',
+                'waktu_transaksi' => '2026-09-01 12:00:00',
+                'shift' => 'pagi',
+                'jumlah_beli' => $quantity,
+                'harga_satuan' => 5000,
+                'total_harga' => $quantity * 5000,
+                'keterangan_bayar' => $method,
+            ]);
+        }
+
+        foreach (['2026-08-31', '2026-10-01'] as $date) {
+            BeverageSale::create([
+                'beverage_id' => $beverage->id,
+                'nama_produk' => $beverage->nama_produk,
+                'nama_staff' => 'Kasir',
+                'waktu_transaksi' => $date.' 12:00:00',
+                'shift' => 'pagi',
+                'jumlah_beli' => 10,
+                'harga_satuan' => 5000,
+                'total_harga' => 50000,
+                'keterangan_bayar' => 'operasional',
+            ]);
+        }
+
+        foreach (['2026-09-30', null] as $endDate) {
+            $sheet = $this->render(new BeverageSaleExportDetail('', '2026-09-01', $endDate));
+            foreach ($sheet->toArray(null, true, false) as $row) {
+                if ($row[0] === 'Crystalin 600 ml') {
+                    $this->assertEquals(9, $row[3]);
+                    $this->assertEquals(886, $row[4]);
+                    $this->assertEquals(895, $row[5]);
+                    $this->assertEquals(854, $row[6]);
+                    $this->assertEquals(4270000, $row[7]);
+                    $this->assertEquals(16, $row[8]);
+                    $this->assertEquals(25, $row[9]);
+
+                    continue 2;
+                }
+            }
+            $this->fail('Stock detail row was not exported.');
+        }
     }
 
     private function render(WithEvents $export): Worksheet

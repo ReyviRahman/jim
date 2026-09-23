@@ -188,7 +188,7 @@ class BeverageSaleExportDetail implements FromQuery, ShouldAutoSize, WithEvents,
                     ->orderBy('nama_produk')
                     ->get();
 
-                $headers = ['Produk', 'Harga Modal', 'Harga Jual', 'Stok Awal', 'Ditambah', 'Jumlah Stok', 'Terjual', 'Jumlah Jual', 'Stok Akhir'];
+                $headers = ['Produk', 'Harga Modal', 'Harga Jual', 'Stok Awal', 'Ditambah', 'Jumlah Stok', 'Terjual', 'Jumlah Jual', 'Stok Akhir', 'Operasional'];
 
                 foreach ($headers as $index => $header) {
                     $col = $index + 1;
@@ -198,8 +198,7 @@ class BeverageSaleExportDetail implements FromQuery, ShouldAutoSize, WithEvents,
 
                 $currentRow = $stockDataStartRow;
                 foreach ($beverages as $beverage) {
-                    $terjual = BeverageSale::where('beverage_id', $beverage->id)
-                        ->whereNotIn('keterangan_bayar', ['deposit_hutang_cash', 'deposit_hutang_qris', 'operasional', 'pengeluaran_umum'])
+                    $stockSales = BeverageSale::where('beverage_id', $beverage->id)
                         ->when($this->start_date, function ($query) {
                             if (! empty($this->end_date)) {
                                 $query->whereDate('waktu_transaksi', '>=', $this->start_date)
@@ -207,7 +206,13 @@ class BeverageSaleExportDetail implements FromQuery, ShouldAutoSize, WithEvents,
                             } else {
                                 $query->whereDate('waktu_transaksi', $this->start_date);
                             }
-                        })
+                        });
+
+                    $terjual = (clone $stockSales)
+                        ->whereNotIn('keterangan_bayar', ['deposit_hutang_cash', 'deposit_hutang_qris', 'operasional', 'pengeluaran_umum'])
+                        ->sum('jumlah_beli');
+                    $operasional = (clone $stockSales)
+                        ->where('keterangan_bayar', 'operasional')
                         ->sum('jumlah_beli');
 
                     $ditambah = BeverageRestock::where('beverage_id', $beverage->id)
@@ -222,7 +227,7 @@ class BeverageSaleExportDetail implements FromQuery, ShouldAutoSize, WithEvents,
                         ->sum('jumlah_tambah');
 
                     $stokAkhir = $beverage->stok_sekarang;
-                    $jumlahStok = $stokAkhir + $terjual;
+                    $jumlahStok = $stokAkhir + $terjual + $operasional;
                     $stokAwal = $jumlahStok - $ditambah;
                     $jumlahJual = $terjual * $beverage->harga_jual;
 
@@ -235,13 +240,14 @@ class BeverageSaleExportDetail implements FromQuery, ShouldAutoSize, WithEvents,
                     $sheet->setCellValue('G'.$currentRow, $terjual);
                     $sheet->setCellValue('H'.$currentRow, $jumlahJual);
                     $sheet->setCellValue('I'.$currentRow, $stokAkhir);
+                    $sheet->setCellValue('J'.$currentRow, $operasional);
 
                     $currentRow++;
                 }
 
                 $lastDataRow = $currentRow - 1;
 
-                $sheet->getStyle("A{$stockHeaderRow}:I{$stockHeaderRow}")->applyFromArray([
+                $sheet->getStyle("A{$stockHeaderRow}:J{$stockHeaderRow}")->applyFromArray([
                     'font' => ['bold' => true, 'color' => ['argb' => 'FF000000']],
                     'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FF22C55E']],
                     'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
@@ -249,14 +255,14 @@ class BeverageSaleExportDetail implements FromQuery, ShouldAutoSize, WithEvents,
                 ]);
 
                 if ($lastDataRow >= $stockDataStartRow) {
-                    $sheet->getStyle("A{$stockDataStartRow}:I{$lastDataRow}")->applyFromArray([
+                    $sheet->getStyle("A{$stockDataStartRow}:J{$lastDataRow}")->applyFromArray([
                         'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
                         'font' => ['color' => ['argb' => 'FF000000']],
                     ]);
 
                     for ($row = $stockDataStartRow; $row <= $lastDataRow; $row++) {
                         if ($row % 2 === 0) {
-                            $sheet->getStyle("A{$row}:I{$row}")->applyFromArray([
+                            $sheet->getStyle("A{$row}:J{$row}")->applyFromArray([
                                 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFF9FAFB']],
                             ]);
                         }
