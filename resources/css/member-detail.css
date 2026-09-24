@@ -1,0 +1,123 @@
+.member-detail-layout { background: #090a08; }
+.member-detail-layout #dashboard-content { padding: 22px; }
+.member-detail-layout #dashboard-content > div { padding: 0; border: 0; }
+.member-detail { max-width: 1200px; margin-inline: auto; padding: 14px 20px; border: 1px solid #ded13c; border-radius: 15px; background: linear-gradient(120deg, #0d0e0b, #070808 60%, #151207); color: #f5f5f5; color-scheme: dark; box-shadow: inset 0 0 0 2px #ffe60006, 0 10px 35px #0007; }
+.member-detail-header { display: flex; align-items: center; gap: 23px; margin-bottom: 13px; }
+.member-detail-header h1 { font-size: 25px; font-weight: 750; line-height: 1.25; }
+.member-detail-back { display: grid; place-items: center; width: 43px; height: 43px; flex-shrink: 0; border: 1px solid #76671b; border-radius: 50%; color: #ffed00; background: radial-gradient(ellipse at top, #66521750, #0e0f0a); }
+.member-detail-back svg { width: 28px; height: 28px; }
+.member-detail-button { display: inline-flex; align-items: center; justify-content: center; gap: 11px; min-height: 42px; border-radius: 8px; padding: 10px 17px; background: #ffed00; color: #080a08; font-size: 14px; font-weight: 750; box-shadow: 0 0 15px #ffed001c; }
+.member-detail-button svg { width: 22px; height: 22px; flex-shrink: 0; }
+.member-detail-header > .member-detail-button { margin-left: auto; }
+.member-detail-panel { border: 1px solid #655923; border-radius: 12px; background: linear-gradient(115deg, #0a0c0c 40%, #221d0b60); box-shadow: inset 0 0 0 2px #ffed0003; }
+.member-detail-profile { display: flex; align-items: center; gap: 34px; padding: 18px 20px 18px 34px; margin-bottom: 13px; }
+.member-detail-photo { position: relative; display: grid; place-items: center; width: 124px; height: 124px; border: 3px solid #ffed00; border-radius: 50%; flex-shrink: 0; overflow: hidden; background: radial-gradient(circle at top, #71641b, #15150b); box-shadow: 0 0 20px #ffed0025; }
+.member-detail-photo > span { font-size: 48px; font-weight: 750; color: #ffed00; }
+.member-detail-photo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.member-detail-identity { flex: 1; min-width: 0; }
+.member-detail-identity h2 { font-size: 28px; font-weight: 750; line-height: 1.25; overflow-wrap: anywhere; }
+.member-detail-identity > p { margin-block: 4px 10px; font-size: 19px; color: #b7b8b5; overflow-wrap: anywhere; }
+.member-detail-status { display: inline-flex; align-items: center; gap: 10px; padding: 5px 13px; border: 1px solid #675b1d; border-radius: 30px; background: #30280d99; color: #eee16b; font-size: 13px; font-weight: 600; }
+.member-detail-status i { width: 12px; height: 12px; border-radius: 50%; background: #d45b4b; }
+.member-detail-status.is-active i { background: #30c567; }
+.member-detail-number { display: flex; align-items: center; gap: 21px; width: 268px; padding: 18px 16px; border: 1px solid #5c5020; border-radius: 12px; background: #30290e60; }
+.member-detail-number-icon { display: grid; place-items: center; flex-shrink: 0; width: 64px; height: 64px; border: 1px solid #bca12b; border-radius: 50%; color: #ffed00; }
+.member-detail-number-icon svg { width: 32px; height: 32px; }
+.member-detail-number p, .member-detail-label { color: #bfc0bd; font-size: 15px; line-height: 1.4; }
+.member-detail-number strong { display: block; margin-top: 4px; font-size: 27px; line-height: 1.2; }
+.member-detail-membership { display: grid; gap: 10px; }
+.member-detail-membership + .member-detail-membership { margin-top: 25px; padding-top: 18px; border-top: 1px solid #796b24; }
+.member-detail-summary { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; }
+.member-detail-feature { display: flex; align-items: flex-start; gap: 30px; padding: 20px 26px; min-height: 153px; }
+.member-detail-feature > div { min-width: 0; }
+.member-detail-icon { display: grid; place-items: center; flex-shrink: 0; width: 74px; height: 74px; border: 1px solid #998329; border-radius: 11px; color: #ffe82b; background: radial-gradient(ellipse at top left, #6b571b88, #231e05 80%); box-shadow: inset 0 0 12px #ffe50010; }
+.member-detail-icon svg { width: 36px; height: 36px; }
+.member-detail-feature h3 { margin-top: 4px; font-size: 20px; font-weight: 700; }
+.member-detail-package-name { margin-top: 4px; color: #f9e531; font-size: 20px; font-weight: 700; overflow-wrap: anywhere; }
+.member-detail-discount { display: flex; align-items: center; flex-wrap: wrap; gap: 20px; margin-block: 3px 5px; }
+.member-detail-discount del { color: #a7a9a5; font-size: 20px; }
+.member-detail-discount > span { border-radius: 9px; padding: 3px 11px; background: #ffed00; color: #0c0c08; font-size: 18px; font-weight: 800; box-shadow: 0 0 12px #ffed0020; }
+.member-detail-discount-amount { color: #f7de32; font-size: 16px; }
+.member-detail-total { display: block; margin-top: 8px; font-size: 21px; font-weight: 700; }
+.member-detail-monthly { display: flex; align-items: center; gap: 25px; padding: 11px 24px; border-color: #e8d826; background: linear-gradient(110deg, #70600d66, #201b07 60%, #67550899); }
+.member-detail-monthly .member-detail-icon { width: 67px; height: 63px; border-radius: 7px; }
+.member-detail-monthly h3 { margin-bottom: 4px; font-size: 22px; font-weight: 700; }
+.member-detail-monthly-price { display: flex; align-items: center; gap: 24px; min-width: 33%; margin-left: auto; padding-left: 37px; border-left: 1px solid #8c8561; }
+.member-detail-monthly-price > svg { width: 36px; height: 36px; flex-shrink: 0; color: #ffed00; }
+.member-detail-monthly-price strong { font-size: 20px; font-weight: 500; }
+.member-detail-monthly-price p { color: #c9c7bc; font-size: 15px; }
+.member-detail-dates { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 18px; padding: 9px 24px; }
+.member-detail-row-label { display: flex; align-items: center; gap: 28px; color: #c1c2bd; }
+.member-detail-dates .member-detail-icon { width: 68px; height: 61px; border-radius: 8px; }
+.member-detail-date { display: flex; flex: 1; align-items: center; justify-content: center; gap: 23px; }
+.member-detail-date + .member-detail-date { border-left: 1px solid #55564e; }
+.member-detail-date > svg { width: 33px; height: 33px; flex-shrink: 0; color: #ffed00; }
+.member-detail-date p, .member-detail-followups p { color: #b8bab5; font-size: 13px; }
+.member-detail-date strong, .member-detail-followups strong { display: block; margin-top: 3px; font-size: 16px; font-weight: 650; }
+.member-detail-followups { display: grid; grid-template-columns: 1fr 1fr; padding: 8px 24px; }
+.member-detail-followups > div { display: flex; align-items: center; gap: 24px; min-width: 0; }
+.member-detail-followups > div + div { border-left: 1px solid #55564e; padding-left: 27px; }
+.member-detail-followups .member-detail-icon, .member-detail-invoice .member-detail-icon { width: 66px; height: 51px; border-radius: 8px; }
+.member-detail-followups strong { overflow-wrap: anywhere; }
+.member-detail-invoice { display: flex; align-items: center; gap: 25px; padding: 9px 14px 9px 24px; color: #c7c7c1; }
+.member-detail-invoice > a { margin-left: auto; }
+.member-detail-extra { margin-top: 6px; color: #bcbdb5; font-size: 12px; }
+.member-detail-extra summary { cursor: pointer; padding: 7px 2px; }
+.member-detail-extra p { padding-block: 3px; }
+.member-detail-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-block: 10px; }
+.member-detail-actions :is(a, button) { border: 1px solid #76671b; border-radius: 6px; padding: 7px 12px; color: #ffed00; cursor: pointer; }
+.member-detail-actions button { color: #ff8e84; border-color: #8a4234; }
+.member-detail-package-heading { display: flex; align-items: center; justify-content: space-between; font-size: 13px; color: #d2c55a; }
+.member-detail-empty, .member-detail-notice { padding: 24px; }
+.member-detail :is(a, button, summary):focus-visible { outline: 2px solid #ffed00; outline-offset: 4px; }
+.member-detail-button:hover { background: #fff56b; }
+@media (max-width: 1100px) {
+    .member-detail-profile { gap: 22px; padding-left: 20px; }
+    .member-detail-number { width: auto; min-width: 200px; }
+    .member-detail-feature { gap: 20px; padding: 20px; }
+    .member-detail-monthly-price { padding-left: 22px; }
+}
+@media (max-width: 767px) {
+    .member-detail-layout #dashboard-content { padding: 12px; }
+    .member-detail { padding: 12px; }
+    .member-detail-header { gap: 12px; }
+    .member-detail-header h1 { font-size: 21px; }
+    .member-detail-profile { flex-wrap: wrap; gap: 16px; padding: 16px; }
+    .member-detail-photo { width: 90px; height: 90px; }
+    .member-detail-identity h2 { font-size: 22px; }
+    .member-detail-identity > p { font-size: 14px; }
+    .member-detail-number { width: 100%; padding: 10px; }
+    .member-detail-number-icon { width: 40px; height: 40px; }
+    .member-detail-number strong { font-size: 21px; }
+    .member-detail-summary { grid-template-columns: 1fr; }
+    .member-detail-feature { min-height: auto; }
+    .member-detail-monthly { flex-wrap: wrap; gap: 15px; padding: 14px; }
+    .member-detail-monthly > div:not(.member-detail-monthly-price) { flex: 1; }
+    .member-detail-monthly-price { width: 100%; margin: 0; padding: 12px 0 0; border-left: 0; border-top: 1px solid #8c8561; }
+    .member-detail-dates { justify-content: flex-start; padding: 14px; }
+    .member-detail-row-label { width: 100%; gap: 18px; }
+    .member-detail-date { justify-content: flex-start; gap: 10px; }
+    .member-detail-date + .member-detail-date { padding-left: 15px; }
+    .member-detail-followups { grid-template-columns: 1fr; gap: 12px; padding: 12px 14px; }
+    .member-detail-followups > div + div { border-left: 0; border-top: 1px solid #55564e; padding: 12px 0 0; }
+    .member-detail-invoice { gap: 15px; padding: 12px; }
+}
+@media (max-width: 420px) {
+    .member-detail-header { gap: 9px; }
+    .member-detail-header h1 { font-size: 17px; }
+    .member-detail-back { width: 32px; height: 32px; }
+    .member-detail-button { gap: 6px; padding: 8px 10px; font-size: 11px; }
+    .member-detail-button svg { width: 18px; height: 18px; }
+    .member-detail-photo { width: 68px; height: 68px; }
+    .member-detail-identity h2 { font-size: 18px; }
+    .member-detail-identity > p { font-size: 12px; }
+    .member-detail-feature { gap: 15px; padding: 15px; }
+    .member-detail-icon { width: 55px; height: 55px; }
+    .member-detail-feature h3, .member-detail-package-name { font-size: 17px; }
+    .member-detail-discount { gap: 10px; }
+    .member-detail-discount del { font-size: 17px; }
+    .member-detail-monthly h3 { font-size: 19px; }
+    .member-detail-label { font-size: 13px; }
+    .member-detail-date strong { font-size: 13px; }
+    .member-detail-date > svg { width: 24px; height: 24px; }
+}

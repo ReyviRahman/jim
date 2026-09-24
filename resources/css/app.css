@@ -8,6 +8,7 @@
 @import './pt-booking.css';
 @import './coach-directory.css';
 @import './pt-installments.css';
+@import './member-detail.css';
 @import "flowbite/src/themes/default";
 @plugin "flowbite/plugin";
 @source "../../node_modules/flowbite";
