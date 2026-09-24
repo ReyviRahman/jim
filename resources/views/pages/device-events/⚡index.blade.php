@@ -177,7 +177,16 @@ new #[Layout('layouts::empty')] class extends Component
                                     {{ $event->device_code }}
                                 </td>
                                 <td class="px-4 py-3 text-sm text-gray-700">
-                                    {{ $event->event_type ?? '-' }}
+                                    @if ($event->major_event_type !== null || $event->sub_event_type !== null)
+                                        <div class="font-medium">
+                                            {{ $event->event_type_label ?? 'Unknown event ('.($event->major_event_type ?? '?').'/'.($event->sub_event_type ?? '?').')' }}
+                                        </div>
+                                        <div class="text-xs text-gray-500">
+                                            {{ $event->event_type ?? '-' }} · {{ $event->major_event_type ?? '?' }}/{{ $event->sub_event_type ?? '?' }}
+                                        </div>
+                                    @else
+                                        {{ $event->event_type ?? '-' }}
+                                    @endif
                                 </td>
                                 <td class="px-4 py-3 text-sm text-gray-700">
                                     {{ $event->employee_no ?? '-' }}

@@ -14,6 +14,9 @@ class DeviceEvent extends Model
         'device_code',
         'source_ip',
         'event_type',
+        'major_event_type',
+        'sub_event_type',
+        'event_type_label',
         'employee_no',
         'is_found',
         'is_member',
@@ -34,6 +37,8 @@ class DeviceEvent extends Model
     protected function casts(): array
     {
         return [
+            'major_event_type' => 'integer',
+            'sub_event_type' => 'integer',
             'is_found' => 'boolean',
             'is_member' => 'boolean',
             'is_karyawan' => 'boolean',

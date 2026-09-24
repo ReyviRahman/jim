@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\HikvisionAttendanceService;
+use App\HikvisionEventType;
 use App\HikvisionWebhookPayloadParser;
 use App\Models\DeviceEvent;
 use App\Models\Membership;
@@ -115,6 +116,9 @@ class DeviceEventController extends Controller
     {
         $data = [
             'event_type' => null,
+            'major_event_type' => null,
+            'sub_event_type' => null,
+            'event_type_label' => null,
             'employee_no' => null,
             'name' => null,
             'card_no' => null,
@@ -154,6 +158,9 @@ class DeviceEventController extends Controller
         }
 
         $data['event_type'] = $event['eventType'] ?? $event['event_type'] ?? null;
+        $data['major_event_type'] = HikvisionEventType::normalizeCode($event['majorEventType'] ?? null);
+        $data['sub_event_type'] = HikvisionEventType::normalizeCode($event['subEventType'] ?? null);
+        $data['event_type_label'] = HikvisionEventType::label($data['major_event_type'], $data['sub_event_type']);
         $employeeNo = $event['employeeNoString']
             ?? $event['employeeNo']
             ?? $event['employeeId']
@@ -265,6 +272,9 @@ class DeviceEventController extends Controller
             'device_code' => $device,
             'source_ip' => $sourceIp,
             'event_type' => $eventData['event_type'],
+            'major_event_type' => $eventData['major_event_type'],
+            'sub_event_type' => $eventData['sub_event_type'],
+            'event_type_label' => $eventData['event_type_label'],
             'employee_no' => $eventData['employee_no'],
             'is_found' => $user !== null,
             'is_karyawan' => $user === null ? null : $user->role !== 'member',

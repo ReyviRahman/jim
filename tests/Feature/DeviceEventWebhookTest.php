@@ -20,6 +20,50 @@ class DeviceEventWebhookTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_event_type_codes_are_normalized_and_labels_require_a_known_pair(): void
+    {
+        $cases = [
+            [5, 75, 5, 75, 'Authenticated via Face'],
+            ['5', '76', 5, 76, 'Face Authentication Failed'],
+            [5, 38, 5, 38, 'Authenticated via Fingerprint'],
+            [5, 39, 5, 39, 'Fingerprint Authentication Failed'],
+            [5, 999, 5, 999, null],
+            [1, 75, 1, 75, null],
+            [0, 0, 0, 0, null],
+            [null, null, null, null, null],
+            [[], true, null, null, null],
+            ['invalid', 75.5, null, null, null],
+            [-1, '2147483648', null, null, null],
+            [5, [], 5, null, null],
+        ];
+
+        foreach ($cases as $index => [$major, $sub, $expectedMajor, $expectedSub, $label]) {
+            $payload = $this->attendancePayloadForEmployeeNumber('EVENT-'.$index, 'Event test');
+            $payload['AccessControllerEvent']['majorEventType'] = $major;
+            $payload['AccessControllerEvent']['subEventType'] = $sub;
+            $this->postJson('/api/absensi', $payload)->assertOk();
+            $this->postJson('/api/absensi', $payload)->assertOk();
+
+            $event = DeviceEvent::where('employee_no', 'EVENT-'.$index)->sole();
+            $this->assertSame($expectedMajor, $event->major_event_type);
+            $this->assertSame($expectedSub, $event->sub_event_type);
+            $this->assertSame($label, $event->event_type_label);
+            $this->assertSame('AccessControllerEvent', $event->event_type);
+        }
+
+        $this->assertDatabaseCount('device_events', count($cases));
+    }
+
+    public function test_event_type_details_do_not_allow_events_without_employee_numbers(): void
+    {
+        $this->postJson('/api/absensi', [
+            'eventType' => 'AccessControllerEvent',
+            'AccessControllerEvent' => ['majorEventType' => 5, 'subEventType' => 75],
+        ])->assertOk();
+
+        $this->assertDatabaseCount('device_events', 0);
+    }
+
     public function test_employee_snapshot_uses_the_resolved_user_role_and_survives_duplicates(): void
     {
         foreach (['member', 'admin', 'pt', 'kasir_gym', 'sales', 'kasir_minum'] as $role) {
@@ -122,6 +166,8 @@ class DeviceEventWebhookTest extends TestCase
     <ActivePost>
         <eventType>AccessControllerEvent</eventType>
         <employeeNoString>EMP001</employeeNoString>
+        <majorEventType>5</majorEventType>
+        <subEventType>75</subEventType>
         <name>John Doe</name>
         <cardNo>1234567890</cardNo>
         <doorNo>1</doorNo>
@@ -142,6 +188,9 @@ XML;
         $this->assertDatabaseHas('device_events', [
             'device_code' => 'HQ-BIO-01',
             'employee_no' => 'EMP001',
+            'major_event_type' => 5,
+            'sub_event_type' => 75,
+            'event_type_label' => 'Authenticated via Face',
             'is_karyawan' => null,
             'is_member' => null,
             'name' => 'John Doe',
@@ -661,6 +710,8 @@ XML;
             'dateTime' => '2026-09-01T16:39:34+07:00',
             'AccessControllerEvent' => [
                 'name' => 'Multipart Device User',
+                'majorEventType' => 5,
+                'subEventType' => 38,
                 'employeeNoString' => '1501',
                 'cardNo' => '1234567890',
                 'doorNo' => 1,
@@ -700,6 +751,9 @@ XML;
             'event_type' => 'AccessControllerEvent',
             'employee_no' => '1501',
             'name' => 'Multipart Device User',
+            'major_event_type' => 5,
+            'sub_event_type' => 38,
+            'event_type_label' => 'Authenticated via Fingerprint',
             'card_no' => '1234567890',
             'door_no' => '1',
             'swipe_result' => 'success',
@@ -766,6 +820,9 @@ XML;
         $this->assertTrue($event->is_found);
         $this->assertSame('AccessControllerEvent', $event->event_type);
         $this->assertSame('fingerprint', $event->verify_mode);
+        $this->assertNull($event->major_event_type);
+        $this->assertNull($event->sub_event_type);
+        $this->assertNull($event->event_type_label);
         $this->assertNull($event->attendance_status);
         $this->assertNull($event->accessed_at);
         $this->assertDatabaseHas('attendances', [
@@ -1367,12 +1424,17 @@ XML;
         };
         $this->app->instance(HikvisionAttendanceService::class, $failingAttendanceService);
         $payload = $this->attendancePayload($member, 'checkIn', '2026-09-01T10:00:00+07:00');
+        $payload['AccessControllerEvent']['majorEventType'] = 5;
+        $payload['AccessControllerEvent']['subEventType'] = 75;
 
         $this->postJson('/api/absensi', $payload)->assertOk();
 
         $failedEvent = DeviceEvent::query()->sole();
 
         $this->assertSame('failed', $failedEvent->status);
+        $this->assertSame(5, $failedEvent->major_event_type);
+        $this->assertSame(75, $failedEvent->sub_event_type);
+        $this->assertSame('Authenticated via Face', $failedEvent->event_type_label);
         $this->assertSame('Attendance processing failed.', $failedEvent->error_message);
         $this->assertDatabaseCount('attendances', 0);
         $this->assertSame('not_yet', $booking->fresh()->attendance);
@@ -1384,6 +1446,7 @@ XML;
         $processedEvent = $failedEvent->fresh();
 
         $this->assertSame('received', $processedEvent->status);
+        $this->assertSame('Authenticated via Face', $processedEvent->event_type_label);
         $this->assertNull($processedEvent->error_message);
         $this->assertDatabaseCount('device_events', 1);
         $this->assertDatabaseCount('attendances', 1);

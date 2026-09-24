@@ -19,6 +19,35 @@ class DeviceEventMonitoringTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_monitoring_displays_event_labels_unknown_codes_and_legacy_categories(): void
+    {
+        foreach ([
+            [5, 75, 'Authenticated via Face', 'AccessControllerEvent'],
+            [5, 999, null, 'AccessControllerEvent'],
+            [0, 0, null, 'AccessControllerEvent'],
+            [5, null, null, 'AccessControllerEvent'],
+            [null, null, null, 'LegacyEvent'],
+        ] as [$major, $sub, $label, $category]) {
+            DeviceEvent::create([
+                'device_code' => 'EVENT-TYPES',
+                'event_type' => $category,
+                'major_event_type' => $major,
+                'sub_event_type' => $sub,
+                'event_type_label' => $label,
+                'payload' => '',
+            ]);
+        }
+
+        Livewire::test('pages::device-events')
+            ->assertSee('Authenticated via Face')
+            ->assertSee('AccessControllerEvent')
+            ->assertSee('5/75')
+            ->assertSee('Unknown event (5/999)')
+            ->assertSee('Unknown event (0/0)')
+            ->assertSee('Unknown event (5/?)')
+            ->assertSee('LegacyEvent');
+    }
+
     public function test_employee_filter_defaults_to_false_and_distinguishes_null(): void
     {
         foreach (['Employee row' => true, 'Member row' => false, 'Unknown row' => null] as $name => $value) {
