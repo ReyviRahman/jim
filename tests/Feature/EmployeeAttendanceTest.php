@@ -23,6 +23,51 @@ class EmployeeAttendanceTest extends TestCase
         Shift::query()->delete();
     }
 
+    public function test_only_successful_fingerprint_events_can_create_or_update_employee_attendance(): void
+    {
+        $user = $this->employee();
+        $rejected = [
+            ['majorEventType' => 5, 'subEventType' => 75],
+            ['majorEventType' => 5, 'subEventType' => 76],
+            ['majorEventType' => 5, 'subEventType' => 39],
+            ['majorEventType' => 5, 'subEventType' => 999],
+            ['majorEventType' => 1, 'subEventType' => 38],
+            ['majorEventType' => 'invalid', 'subEventType' => []],
+            [],
+            ['majorEventType' => 5, 'subEventType' => 38, 'swipeResult' => 'failed'],
+            ['majorEventType' => 5, 'subEventType' => 38, 'currentVerifyMode' => 'invalid'],
+        ];
+
+        foreach ([false, true] as $hasAttendance) {
+            $this->travelTo(Carbon::parse('2026-09-10 08:00:00', 'Asia/Jakarta'));
+            if ($hasAttendance) {
+                $this->postJson('/api/absensi', $this->payload($user, '2026-09-10T08:00:00+07:00'))->assertOk();
+            }
+
+            $before = AttendanceEmployee::query()->first()?->getAttributes();
+            $this->travelTo(Carbon::parse('2026-09-10 12:00:00', 'Asia/Jakarta'));
+
+            foreach ($rejected as $index => $codes) {
+                $payload = $this->payload($user, sprintf('2026-09-10T%02d:%02d:00+07:00', $hasAttendance ? 12 : 7, $index));
+                unset($payload['AccessControllerEvent']['majorEventType'], $payload['AccessControllerEvent']['subEventType']);
+                $payload['AccessControllerEvent'] = array_replace($payload['AccessControllerEvent'], [
+                    'currentVerifyMode' => 'fingerprint',
+                    'event_type_label' => 'Authenticated via Fingerprint',
+                ], $codes);
+
+                $this->postJson('/api/absensi', $payload)->assertOk();
+                $this->postJson('/api/absensi', $payload)->assertOk();
+                $this->assertSame($before, AttendanceEmployee::query()->first()?->getAttributes());
+            }
+        }
+
+        $this->assertDatabaseCount('device_events', 19);
+        $this->assertSame(0, DeviceEvent::where('status', 'failed')->count());
+        $this->assertDatabaseCount('attendances', 0);
+        $this->postJson('/api/absensi', $this->payload($user, '2026-09-10T16:00:00+07:00'))->assertOk();
+        $this->assertSame('12:00:00', AttendanceEmployee::query()->sole()->check_out_time->format('H:i:s'));
+    }
+
     public function test_single_role_shift_records_actual_time_and_snapshot(): void
     {
         foreach (['08:00:00', '12:00:00', '16:00:00'] as $time) {
@@ -319,6 +364,6 @@ class EmployeeAttendanceTest extends TestCase
     /** @return array<string, mixed> */
     private function payload(User $user, string $time): array
     {
-        return ['eventType' => 'AccessControllerEvent', 'dateTime' => $time, 'AccessControllerEvent' => ['employeeNoString' => (string) $user->id, 'name' => 'Nama Perangkat', 'attendanceStatus' => 'checkIn', 'currentVerifyMode' => 'cardOrFaceOrFp']];
+        return ['eventType' => 'AccessControllerEvent', 'dateTime' => $time, 'AccessControllerEvent' => ['employeeNoString' => (string) $user->id, 'name' => 'Nama Perangkat', 'attendanceStatus' => 'checkIn', 'currentVerifyMode' => 'cardOrFaceOrFp', 'majorEventType' => 5, 'subEventType' => 38]];
     }
 }

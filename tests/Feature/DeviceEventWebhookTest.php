@@ -1580,12 +1580,19 @@ XML;
      */
     private function attendancePayload(User $user, string $status, string $dateTime): array
     {
-        return $this->attendancePayloadForEmployeeNumber(
+        $payload = $this->attendancePayloadForEmployeeNumber(
             (string) $user->id,
             $user->name,
             $status,
             $dateTime,
         );
+
+        if ($user->role !== 'member') {
+            $payload['AccessControllerEvent']['majorEventType'] = 5;
+            $payload['AccessControllerEvent']['subEventType'] = 38;
+        }
+
+        return $payload;
     }
 
     /**

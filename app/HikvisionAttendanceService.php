@@ -24,6 +24,10 @@ class HikvisionAttendanceService
             ->firstOrFail();
 
         if ($user->role !== 'member') {
+            if ($deviceEvent->major_event_type !== 5 || $deviceEvent->sub_event_type !== 38) {
+                return false;
+            }
+
             try {
                 return $this->employeeAttendanceService->record($user, $receivedAt, $deviceEvent)->wasRecentlyCreated;
             } catch (ValidationException) {

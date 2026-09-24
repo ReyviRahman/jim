@@ -22,6 +22,8 @@ class EmployeeAttendanceScheduledTest extends TestCase
         $row = $this->schedule($employee, '2026-10-01');
         $payload = ['eventType' => 'AccessControllerEvent', 'dateTime' => '2030-01-01T08:00:00+07:00', 'AccessControllerEvent' => ['employeeNoString' => (string) $employee->id, 'name' => 'Nama Perangkat', 'attendanceStatus' => 'checkIn', 'currentVerifyMode' => 'cardOrFaceOrFp']];
         $this->travelTo(Carbon::parse('2026-10-01 07:00:00', 'Asia/Jakarta'));
+        $payload['AccessControllerEvent']['majorEventType'] = 5;
+        $payload['AccessControllerEvent']['subEventType'] = 38;
         $this->postJson('/api/absensi', $payload)->assertOk();
         $this->assertSame('07:00:00', $row->fresh()->check_in_time->format('H:i:s'));
         $this->assertSame(DeviceEvent::query()->sole()->id, $row->fresh()->device_event_id);
@@ -44,6 +46,8 @@ class EmployeeAttendanceScheduledTest extends TestCase
         $shift = Shift::factory()->create(['role' => 'pt', 'name' => 'Siang', 'start_time' => '14:00:00', 'end_time' => '22:00:00']);
         $payload = ['eventType' => 'AccessControllerEvent', 'dateTime' => '2030-01-01T08:00:00+07:00', 'AccessControllerEvent' => ['employeeNoString' => (string) $employee->id, 'name' => 'Nama Perangkat', 'attendanceStatus' => 'checkIn', 'currentVerifyMode' => 'cardOrFaceOrFp']];
         $this->travelTo(Carbon::parse('2026-10-01 13:00:00', 'Asia/Jakarta'));
+        $payload['AccessControllerEvent']['majorEventType'] = 5;
+        $payload['AccessControllerEvent']['subEventType'] = 38;
         $this->postJson('/api/absensi', $payload)->assertOk();
         $row->refresh();
         $this->assertSame('13:00:00', $row->check_in_time->format('H:i:s'));
