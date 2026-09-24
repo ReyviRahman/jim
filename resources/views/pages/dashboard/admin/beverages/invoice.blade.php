@@ -105,7 +105,7 @@ new #[Layout('layouts::admin')] class extends Component
         if (! $this->deleteId || ($this->deletePreview['legacy'] ?? true)) {
             return null;
         }
-        abort_unless(auth()->user()?->role === 'admin', 403);
+        abort_unless(in_array(auth()->user()?->role, ['admin', 'kasir_gym'], true), 403);
 
         return app(BeverageStockImpact::class)
             ->snapshots(array_column($this->deletePreview['products'], 'id'), $this->deletePreview['date'])
@@ -249,7 +249,7 @@ new #[Layout('layouts::admin')] class extends Component
                                             </span>
                                         </td>
                                         <td class="px-4 py-3 text-center" rowspan="{{ $itemCount }}">
-                                            @if(auth()->check() && auth()->user()->role === 'admin')
+                                            @if(in_array(auth()->user()?->role, ['admin', 'kasir_gym'], true))
                                                 <div class="flex items-center justify-center gap-1">
                                                     <a href="{{ route('admin.beverages.invoice.edit', $invoice->id) }}" wire:navigate
                                                         class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100">
@@ -291,7 +291,7 @@ new #[Layout('layouts::admin')] class extends Component
                                     </span>
                                 </td>
                                 <td class="px-4 py-3 text-center">
-                                    @if(auth()->check() && auth()->user()->role === 'admin')
+                                    @if(in_array(auth()->user()?->role, ['admin', 'kasir_gym'], true))
                                         <div class="flex items-center justify-center gap-1">
                                             <a href="{{ route('admin.beverages.invoice.edit', $invoice->id) }}" wire:navigate
                                                 class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100">
@@ -327,7 +327,7 @@ new #[Layout('layouts::admin')] class extends Component
         </div>
     </div>
 
-    @if(auth()->check() && auth()->user()->role === 'admin')
+    @if(in_array(auth()->user()?->role, ['admin', 'kasir_gym'], true))
         @if ($showDeleteModal)
             <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" wire:click.self="cancelDelete">
                 <div class="bg-white rounded-lg shadow-xl w-full max-w-3xl mx-4 p-6 max-h-[90vh] overflow-y-auto">

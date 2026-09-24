@@ -32,7 +32,7 @@ new #[Layout('layouts::admin')] class extends Component
 
     public function mount($invoice)
     {
-        abort_unless(auth()->user()?->role === 'admin', 403);
+        abort_unless(in_array(auth()->user()?->role, ['admin', 'kasir_gym'], true), 403);
         $this->invoiceId = $invoice;
         $inv = BeverageInvoice::with('items')->findOrFail($invoice);
 
@@ -44,12 +44,17 @@ new #[Layout('layouts::admin')] class extends Component
         $this->status = $inv->status;
         $this->metode_pembayaran = $inv->metode_pembayaran;
 
+        $productNames = ! $this->stockLinked && $inv->items->contains('beverage_id', null)
+            ? Beverage::orderBy('id')->pluck('nama_produk', 'id')
+                ->map(fn (string $name): string => $this->normalizeProductName($name))->all()
+            : [];
+
         foreach ($inv->items as $item) {
             $this->items[] = [
             'key' => (string) \Illuminate\Support\Str::uuid(),
                 'id' => $item->id,
                 'nama_barang' => $item->nama_barang,
-                'beverage_id' => $item->beverage_id,
+                'beverage_id' => $item->beverage_id ?? $this->closestProductId($item->nama_barang, $productNames),
                 'total_pcs' => $item->total_pcs,
                 'qty' => $item->qty,
                 'harga_perdus' => $item->harga_perdus,
@@ -57,6 +62,38 @@ new #[Layout('layouts::admin')] class extends Component
                 'total' => $item->total,
             ];
         }
+    }
+
+    private function normalizeProductName(string $name): string
+    {
+        return preg_replace('/[^a-z0-9]/', '', strtolower(\Illuminate\Support\Str::ascii($name)));
+    }
+
+    /** @param array<int, string> $productNames */
+    private function closestProductId(string $name, array $productNames): ?int
+    {
+        $name = $this->normalizeProductName($name);
+        if ($name === '') {
+            return null;
+        }
+
+        $bestScore = 0;
+        $bestId = null;
+        foreach ($productNames as $id => $productName) {
+            similar_text($name, $productName, $score);
+            if ($score < 60) {
+                continue;
+            }
+
+            if ($score > $bestScore) {
+                $bestScore = $score;
+                $bestId = $id;
+            } elseif ($score === $bestScore) {
+                $bestId = null;
+            }
+        }
+
+        return $bestId;
     }
 
     public function addItem()
@@ -140,7 +177,7 @@ new #[Layout('layouts::admin')] class extends Component
     @endif
     <p class="mb-4 text-sm text-body">{{ $stockLinked ? 'Produk, total pcs, dan tanggal menerima dikunci karena sudah masuk stok.' : 'Invoice arsip: pengisian total pcs hanya melengkapi informasi pembelian dan tidak mengubah stok.' }}</p>
     @if (! $stockLinked)
-        <p class="mb-4 text-sm text-body">Master produk digunakan untuk ringkasan stok di Excel. Memilih produk tidak mengubah nama barang historis atau menambah stok.</p>
+        <p class="mb-4 text-sm text-body">Master produk digunakan untuk ringkasan stok di Excel. Item yang belum dipetakan otomatis memilih produk aktif dengan nama paling mirip. Periksa pilihan sebelum menyimpan. Memilih produk tidak mengubah nama barang historis atau menambah stok.</p>
     @endif
     <x-beverage-invoice-photo :invoice="$invoice" :image="$image" />
     <form wire:submit.prevent="update" class="bg-neutral-primary-soft shadow-xs rounded-md border border-default p-6">

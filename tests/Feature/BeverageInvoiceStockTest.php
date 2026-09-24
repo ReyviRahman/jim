@@ -17,6 +17,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Livewire\Livewire;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 
 class BeverageInvoiceStockTest extends TestCase
@@ -55,6 +56,60 @@ class BeverageInvoiceStockTest extends TestCase
             $this->assertArrayHasKey('no_faktur', $exception->errors());
         }
         $this->assertSame(124, $product->refresh()->stok_sekarang);
+    }
+
+    public function test_gym_cashier_can_create_read_update_and_delete_invoice(): void
+    {
+        $this->actingAs(User::factory()->create(['role' => 'kasir_gym']));
+        $product = $this->product();
+        $invoice = app(SaveBeverageInvoice::class)->execute($this->data($product));
+
+        $this->get(route('admin.beverages.invoice'))->assertOk();
+        $this->get(route('admin.beverages.invoice.edit', $invoice))->assertOk();
+        Livewire::test('pages::dashboard.admin.beverages.invoice-edit', ['invoice' => $invoice->id])
+            ->set('status', 'lunas')->call('update')->assertHasNoErrors();
+        $this->assertSame('lunas', $invoice->refresh()->status);
+        $this->assertSame(112, $product->refresh()->stok_sekarang);
+
+        Livewire::test('pages::dashboard.admin.beverages.invoice')
+            ->set('startDate', '2026-09-20')->set('endDate', '2026-09-23')
+            ->assertSee(route('admin.beverages.invoice.edit', $invoice))
+            ->call('confirmDelete', $invoice->id)->assertSet('showDeleteModal', true)
+            ->call('deleteInvoice')->assertHasNoErrors()->assertSet('showDeleteModal', false);
+        $this->assertModelMissing($invoice);
+        $this->assertSame(100, $product->refresh()->stok_sekarang);
+    }
+
+    public function test_other_roles_cannot_update_or_delete_invoice_at_action_level(): void
+    {
+        $product = $this->product();
+        $data = $this->data($product);
+        $invoice = app(SaveBeverageInvoice::class)->execute($data);
+        $preview = app(CancelBeverageInvoice::class)->preview($invoice->id);
+
+        foreach (['kasir_minum', 'member', null] as $role) {
+            if ($role === null) {
+                auth()->logout();
+            } else {
+                $this->actingAs(User::factory()->create(['role' => $role]));
+            }
+
+            foreach ([
+                fn () => app(SaveBeverageInvoice::class)->execute($data, null, $invoice->id),
+                fn () => app(CancelBeverageInvoice::class)->preview($invoice->id),
+                fn () => app(CancelBeverageInvoice::class)->execute($invoice->id, $preview['fingerprint']),
+            ] as $action) {
+                try {
+                    $action();
+                    $this->fail('Unauthorized invoice changes must be rejected.');
+                } catch (HttpException $exception) {
+                    $this->assertSame(403, $exception->getStatusCode());
+                }
+            }
+        }
+
+        $this->assertModelExists($invoice);
+        $this->assertSame(112, $product->refresh()->stok_sekarang);
     }
 
     public function test_livewire_create_and_locked_edit_render_and_recalculate_totals(): void

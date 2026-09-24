@@ -62,6 +62,67 @@ class BeverageInvoiceExportTest extends TestCase
         $this->assertSame($snapshots, BeverageStokSnapshot::all()->toArray());
     }
 
+    public function test_unmapped_archive_items_select_the_closest_active_product_without_persisting(): void
+    {
+        $product = Beverage::factory()->create(['nama_produk' => 'Crystalin 600 ml', 'stok_sekarang' => 50]);
+        Beverage::factory()->create(['nama_produk' => 'CRYSTALIN RUANG STUDIO']);
+        $inactive = Beverage::factory()->create(['nama_produk' => 'crystalin']);
+        $inactive->delete();
+        $invoice = $this->invoice(null, '2026-09-20');
+        $invoice->items()->sole()->update(['nama_barang' => 'crystalin']);
+
+        $page = Livewire::test('pages::dashboard.admin.beverages.invoice-edit', ['invoice' => $invoice->id])
+            ->assertSet('items.0.beverage_id', $product->id);
+        $this->assertNull($invoice->items()->sole()->beverage_id);
+        $page->set('items.0.beverage_id', '')->set('diterima_oleh', 'Admin')
+            ->assertSet('items.0.beverage_id', '');
+        $page->set('items.0.beverage_id', $product->id)->call('update')->assertHasNoErrors();
+        $this->assertSame($product->id, $invoice->items()->sole()->beverage_id);
+        $this->assertSame('crystalin', $invoice->items()->sole()->nama_barang);
+        $this->assertSame(50, $product->refresh()->stok_sekarang);
+        $this->assertDatabaseCount('beverage_restocks', 0);
+        $this->assertNull($invoice->refresh()->stock_posted_at);
+    }
+
+    public function test_product_suggestions_normalize_names_handle_typos_and_preserve_existing_mapping(): void
+    {
+        $product = Beverage::factory()->create(['nama_produk' => 'Crystalin 600 ml']);
+        Beverage::factory()->create(['nama_produk' => 'Crystalin 1500 ml']);
+        $invoice = $this->invoice(null, '2026-09-20');
+        foreach (['  CRYSTALIN 600-ML  ', 'Crystlain 600 ml'] as $name) {
+            $invoice->items()->sole()->update(['nama_barang' => $name]);
+            Livewire::test('pages::dashboard.admin.beverages.invoice-edit', ['invoice' => $invoice->id])
+                ->assertSet('items.0.beverage_id', $product->id);
+        }
+        $mapped = Beverage::factory()->create(['nama_produk' => 'Pilihan manual']);
+        $mapped->delete();
+        $invoice->items()->sole()->update(['beverage_id' => $mapped->id]);
+        Livewire::test('pages::dashboard.admin.beverages.invoice-edit', ['invoice' => $invoice->id])
+            ->assertSet('items.0.beverage_id', $mapped->id);
+    }
+
+    public function test_product_suggestions_leave_missing_weak_ambiguous_and_stock_linked_matches_unchanged(): void
+    {
+        $invoice = $this->invoice(null, '2026-09-20');
+        $invoice->items()->sole()->update(['nama_barang' => 'Crystalin']);
+        Livewire::test('pages::dashboard.admin.beverages.invoice-edit', ['invoice' => $invoice->id])
+            ->assertSet('items.0.beverage_id', null);
+        $product = Beverage::factory()->create(['nama_produk' => 'Crystalin']);
+        foreach (['', '---', 'Roti tawar'] as $name) {
+            $invoice->items()->sole()->update(['nama_barang' => $name]);
+            Livewire::test('pages::dashboard.admin.beverages.invoice-edit', ['invoice' => $invoice->id])
+                ->assertSet('items.0.beverage_id', null);
+        }
+        $invoice->items()->sole()->update(['nama_barang' => 'Crystalin']);
+        $duplicate = Beverage::factory()->create(['nama_produk' => $product->nama_produk]);
+        Livewire::test('pages::dashboard.admin.beverages.invoice-edit', ['invoice' => $invoice->id])
+            ->assertSet('items.0.beverage_id', null);
+        $duplicate->delete();
+        $invoice->update(['stock_posted_at' => now()]);
+        Livewire::test('pages::dashboard.admin.beverages.invoice-edit', ['invoice' => $invoice->id])
+            ->assertSet('items.0.beverage_id', null);
+    }
+
     public function test_xlsx_groups_products_and_uses_stock_movements_without_counting_archive_pcs(): void
     {
         $product = Beverage::factory()->create(['nama_produk' => 'Produk A', 'stok_sekarang' => 100]);

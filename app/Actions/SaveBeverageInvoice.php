@@ -20,7 +20,7 @@ final class SaveBeverageInvoice
     /** @param array<string, mixed> $data */
     public function execute(array $data, ?UploadedFile $image = null, ?int $id = null): BeverageInvoice
     {
-        abort_unless(auth()->check() && ($id ? auth()->user()->role === 'admin' : in_array(auth()->user()->role, ['admin', 'kasir_gym', 'kasir_minum'], true)), 403);
+        abort_unless(in_array(auth()->user()?->role, $id ? ['admin', 'kasir_gym'] : ['admin', 'kasir_gym', 'kasir_minum'], true), 403);
         Validator::make(['image' => $image], ['image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'extensions:jpg,jpeg,png,webp', 'max:10240']])->validate();
         $newPath = null;
         $oldPath = null;

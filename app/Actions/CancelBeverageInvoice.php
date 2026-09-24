@@ -14,7 +14,7 @@ final class CancelBeverageInvoice
     /** @return array<string, mixed> */
     public function preview(int $id): array
     {
-        abort_unless(auth()->user()?->role === 'admin', 403);
+        abort_unless(in_array(auth()->user()?->role, ['admin', 'kasir_gym'], true), 403);
 
         return DB::transaction(function () use ($id): array {
             $invoice = BeverageInvoice::query()->lockForUpdate()->findOrFail($id);
@@ -41,7 +41,7 @@ final class CancelBeverageInvoice
      */
     public function execute(int $id, string $fingerprint): ?array
     {
-        abort_unless(auth()->user()?->role === 'admin', 403);
+        abort_unless(in_array(auth()->user()?->role, ['admin', 'kasir_gym'], true), 403);
         $image = null;
         $result = DB::transaction(function () use ($id, $fingerprint, &$image): ?array {
             $invoice = BeverageInvoice::query()->lockForUpdate()->find($id);
