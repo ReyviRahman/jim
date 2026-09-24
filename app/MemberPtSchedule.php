@@ -74,8 +74,6 @@ class MemberPtSchedule
             ! in_array($booking->status, ['pending', 'approved'], true) => 'Booking ini tidak dapat dibatalkan.',
             $booking->isCancellationPending() => 'Permintaan pembatalan sedang diproses.',
             $booking->attendance !== 'not_yet' => 'Booking yang sudah diabsen tidak dapat dibatalkan.',
-            $booking->booking_date->copy()->setTimeFrom($booking->booking_time)->lte(now()) => 'Sesi yang sudah dimulai tidak dapat dibatalkan.',
-            $booking->booking_date->copy()->setTimeFrom($booking->booking_time)->lte(now()->addHours(3)) => 'Pembatalan tidak tersedia mulai 3 jam sebelum jadwal sesi.',
             default => null,
         };
     }

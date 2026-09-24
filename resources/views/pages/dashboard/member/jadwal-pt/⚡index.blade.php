@@ -22,7 +22,6 @@ new #[Layout('layouts::member')] class extends Component
     public string $weekStart = '';
     public string $dateFrom = '';
     public string $dayView = 'today';
-    public string $statusFilter = '';
     public string $studioType = '';
 
     public bool $showBookingModal = false;
@@ -77,7 +76,6 @@ new #[Layout('layouts::member')] class extends Component
         $this->closeBookingModal();
         $this->closeDetailModal();
         $this->closeCancelModal();
-        $this->statusFilter = '';
     }
 
     public function getWeekStart(): Carbon
@@ -238,12 +236,6 @@ new #[Layout('layouts::member')] class extends Component
         $start = $this->getWeekStart();
         $query = $this->ownBookings()->with('pt')->where('membership_id', $this->selectedMembershipId)
             ->whereBetween('booking_date', [$start->toDateString(), $start->copy()->addDays(6)->toDateString()]);
-
-        if ($this->statusFilter === 'pending_cancel') {
-            $query->where('status', 'approved')->whereNotNull('cancellation_requested_at');
-        } elseif ($this->statusFilter !== '') {
-            $query->where('status', $this->statusFilter);
-        }
 
         return $query->orderBy('booking_date')->orderBy('booking_time')->get();
     }
@@ -434,17 +426,6 @@ new #[Layout('layouts::member')] class extends Component
     <section class="mt-6 rounded-md border border-white/15 bg-[#121719] p-4 shadow-xs" aria-label="Riwayat booking sendiri">
         <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
             <h2 class="font-semibold text-white">Booking paket saya minggu ini</h2>
-            <div>
-                <label for="pt-history-status" class="sr-only">Filter status riwayat</label>
-                <select id="pt-history-status" wire:model.live="statusFilter" class="pt-schedule-control">
-                    <option value="">Semua Status</option>
-                    <option value="pending">Pending</option>
-                    <option value="approved">Approved</option>
-                    <option value="cancelled">Cancelled</option>
-                    <option value="rejected">Rejected</option>
-                    <option value="pending_cancel">Pending Cancel</option>
-                </select>
-            </div>
         </div>
         <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             @forelse($this->history as $booking)

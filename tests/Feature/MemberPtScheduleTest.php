@@ -8,6 +8,7 @@ use App\Models\Membership;
 use App\Models\PtBooking;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
 use Livewire\Features\SupportTesting\Testable;
 use Livewire\Livewire;
@@ -185,14 +186,14 @@ class MemberPtScheduleTest extends TestCase
         $page->call('openDetailModal', $booking->id)->assertSee($membership->user->name);
     }
 
-    public function test_other_members_booking_is_private_even_when_history_is_filtered(): void
+    public function test_other_members_booking_is_private_in_calendar_and_history(): void
     {
         $membership = $this->membership();
         $other = $this->membership(['pt_id' => $membership->pt_id]);
         $other->user->update(['name' => 'Private Other Member']);
         $booking = $this->booking($other, ['notes' => 'Private session note']);
         $page = $this->page($membership)->assertSee('Dibooking member lain')->assertDontSee('Private Other Member')->assertDontSee('Private session note');
-        $page->set('statusFilter', 'cancelled')->assertSee('Dibooking member lain');
+        $this->assertCount(0, $page->get('history'));
         $this->assertSame([], $page->get('calendar')[1]['slots'][0]['ownBookings']);
         $snapshot = json_encode($page->snapshot);
         $this->assertStringNotContainsString('Private Other Member', $snapshot);
@@ -544,7 +545,7 @@ class MemberPtScheduleTest extends TestCase
     }
 
     #[DataProvider('nonCancellableBookings')]
-    public function test_started_attended_or_rejected_bookings_cannot_be_cancelled(array $attributes): void
+    public function test_attended_or_rejected_bookings_cannot_be_cancelled(array $attributes): void
     {
         $membership = $this->membership();
         $booking = $this->booking($membership, $attributes);
@@ -555,7 +556,7 @@ class MemberPtScheduleTest extends TestCase
 
     public static function nonCancellableBookings(): array
     {
-        return [[['attendance' => 'attended']], [['attendance' => 'noshow']], [['status' => 'rejected']], [['booking_date' => '2026-09-21', 'booking_time' => '06:00:00']]];
+        return [[['attendance' => 'attended']], [['attendance' => 'noshow']], [['status' => 'rejected']]];
     }
 
     public function test_cancellation_reason_is_required_and_repeated_request_preserves_original_record(): void
@@ -572,46 +573,42 @@ class MemberPtScheduleTest extends TestCase
         $this->assertTrue($firstRequestedAt->equalTo($booking->fresh()->cancellation_requested_at));
     }
 
-    #[DataProvider('cancellationCutoffs')]
-    public function test_cancellation_enforces_three_hour_cutoff(string $status, string $time, bool $allowed): void
+    #[DataProvider('cancellationTimes')]
+    public function test_cancellation_is_allowed_regardless_of_session_time(string $status, string $time): void
     {
         $membership = $this->membership();
         $booking = $this->booking($membership, ['status' => $status]);
-        $this->travelTo(now()->setDate(2026, 9, 22)->setTimeFromTimeString($time));
+        $this->travelTo(Carbon::parse($time));
         $page = $this->page($membership)->call('openDetailModal', $booking->id);
 
-        if ($allowed) {
-            $page->call('openCancelModal', $booking->id)->set('cancelReason', 'Tidak bisa datang')
-                ->call('cancelBooking')->assertHasNoErrors();
-            $this->assertSame($status === 'pending' ? 'cancelled' : 'approved', $booking->fresh()->status);
-            $this->assertSame($status === 'approved', $booking->fresh()->isCancellationPending());
-        } else {
-            $page->assertSee('Pembatalan tidak tersedia mulai 3 jam sebelum jadwal sesi.')
-                ->call('openCancelModal', $booking->id)->assertHasErrors('cancelReason');
-            $this->expectException(ValidationException::class);
-            app(CancelMemberPtBooking::class)->execute($membership->user, $booking->id, 'Tidak bisa datang');
-        }
+        $page->call('openCancelModal', $booking->id)->set('cancelReason', 'Tidak bisa datang')
+            ->call('cancelBooking')->assertHasNoErrors();
+        $this->assertSame($status === 'pending' ? 'cancelled' : 'approved', $booking->fresh()->status);
+        $this->assertSame($status === 'approved', $booking->fresh()->isCancellationPending());
     }
 
-    public static function cancellationCutoffs(): array
+    public static function cancellationTimes(): array
     {
         return [
-            ['pending', '03:59:59', true], ['approved', '03:59:59', true],
-            ['pending', '04:00:00', false], ['approved', '04:00:00', false],
-            ['pending', '04:00:01', false], ['approved', '04:00:01', false],
+            ['pending', '2026-09-22 03:59:59'], ['approved', '2026-09-22 03:59:59'],
+            ['pending', '2026-09-22 04:00:00'], ['approved', '2026-09-22 04:00:00'],
+            ['pending', '2026-09-22 06:59:59'], ['approved', '2026-09-22 06:59:59'],
+            ['pending', '2026-09-22 07:00:00'], ['approved', '2026-09-22 07:00:00'],
+            ['pending', '2026-09-22 08:30:00'], ['approved', '2026-09-22 08:30:00'],
+            ['pending', '2026-09-23 12:00:00'], ['approved', '2026-09-23 12:00:00'],
         ];
     }
 
-    public function test_cancellation_rechecks_cutoff_after_modal_was_opened(): void
+    public function test_cancellation_remains_available_when_session_starts_after_modal_was_opened(): void
     {
         $membership = $this->membership();
         $booking = $this->booking($membership, ['status' => 'pending']);
-        $this->travelTo(now()->setDate(2026, 9, 22)->setTime(3, 59, 59));
+        $this->travelTo(now()->setDate(2026, 9, 22)->setTime(6, 59, 59));
         $page = $this->page($membership)->call('openCancelModal', $booking->id);
         $this->travel(1)->seconds();
-        $page->set('cancelReason', 'Tidak bisa datang')->call('cancelBooking')->assertHasErrors('cancelReason');
-        $this->assertSame('pending', $booking->fresh()->status);
-        $this->assertNull($booking->fresh()->cancelled_at);
+        $page->set('cancelReason', 'Tidak bisa datang')->call('cancelBooking')->assertHasNoErrors();
+        $this->assertSame('cancelled', $booking->fresh()->status);
+        $this->assertNotNull($booking->fresh()->cancelled_at);
     }
 
     public function test_cancellation_rechecks_attendance_after_modal_was_opened(): void
