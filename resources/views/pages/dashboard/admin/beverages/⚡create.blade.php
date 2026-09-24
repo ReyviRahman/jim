@@ -26,19 +26,20 @@ new #[Layout('layouts::admin')] class extends Component
     {
         $this->validate();
 
-        $beverage = Beverage::create([
-            'nama_produk' => $this->nama_produk,
-            'harga_modal' => $this->harga_modal,
-            'harga_jual' => $this->harga_jual,
-            'stok_sekarang' => $this->stok_awal ?: 0,
-        ]);
-
-        if ($this->stok_awal > 0) {
-            BeverageStokSnapshot::updateOrCreate(
-                ['beverage_id' => $beverage->id, 'tanggal' => date('Y-m-d'), 'tipe' => 'init'],
-                ['jumlah' => $this->stok_awal]
-            );
-        }
+        \Illuminate\Support\Facades\DB::transaction(function (): void {
+            $beverage = Beverage::create([
+                'nama_produk' => $this->nama_produk,
+                'harga_modal' => $this->harga_modal,
+                'harga_jual' => $this->harga_jual,
+                'stok_sekarang' => $this->stok_awal ?: 0,
+            ]);
+            BeverageStokSnapshot::create([
+                'beverage_id' => $beverage->id,
+                'tanggal' => now('Asia/Jakarta')->toDateString(),
+                'tipe' => 'init',
+                'jumlah' => $this->stok_awal ?: 0,
+            ]);
+        });
 
         session()->flash('success', 'Minuman berhasil ditambahkan.');
 

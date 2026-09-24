@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\MembershipInvoiceController;
 use App\Http\Controllers\Admin\MembershipTransactionInvoiceController;
 use App\Http\Controllers\Admin\SesiPtSlipController;
 use App\Http\Controllers\BeverageApiController;
+use App\Http\Controllers\BeverageInvoiceImageController;
 use App\Http\Controllers\ImpersonationController;
 use App\Http\Controllers\MembershipInvoiceVerificationController;
 use App\Http\Controllers\MembershipTransactionInvoiceVerificationController;
@@ -286,6 +287,8 @@ Route::middleware('auth')->group(function () {
 
         Route::livewire('/beverages/invoice/create', 'pages::dashboard.admin.beverages.invoice-create')
             ->name('admin.beverages.invoice.create');
+
+        Route::get('/beverages/invoice/{invoice}/image', BeverageInvoiceImageController::class)->name('admin.beverages.invoice.image');
 
         Route::livewire('/beverages/invoice/{invoice}/edit', 'pages::dashboard.admin.beverages.invoice-edit')
             ->name('admin.beverages.invoice.edit');

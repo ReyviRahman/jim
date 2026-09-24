@@ -3,13 +3,22 @@
 namespace App\Livewire\Pages\Dashboard\Admin\Beverages;
 
 use App\Models\BeverageInvoice;
-use App\Models\BeverageInvoiceItem;
+use App\Actions\CancelBeverageInvoice;
+use App\Actions\BeverageStockImpact;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 use Livewire\Attributes\Layout;
 
 new #[Layout('layouts::admin')] class extends Component
 {
+    #[Locked]
     public $deleteId = null;
+
+    #[Locked]
+    public array $deletePreview = [];
+
+    public int $impactPage = 1;
+    public string $deleteNotice = '';
     public $showDeleteModal = false;
     public $startDate = '';
     public $endDate = '';
@@ -52,6 +61,9 @@ new #[Layout('layouts::admin')] class extends Component
 
     public function confirmDelete($id)
     {
+        $this->deletePreview = app(CancelBeverageInvoice::class)->preview((int) $id);
+        $this->impactPage = 1;
+        $this->deleteNotice = '';
         $this->deleteId = $id;
         $this->showDeleteModal = true;
     }
@@ -60,20 +72,45 @@ new #[Layout('layouts::admin')] class extends Component
     {
         $this->deleteId = null;
         $this->showDeleteModal = false;
+        $this->deletePreview = [];
+        $this->deleteNotice = '';
     }
 
-    public function deleteInvoice()
+    public function deleteInvoice(): void
     {
-        if (!$this->deleteId) return;
-
-        $invoice = BeverageInvoice::find($this->deleteId);
-        if ($invoice) {
-            $invoice->items()->delete();
-            $invoice->delete();
-            session()->flash('success', 'Invoice berhasil dihapus.');
+        if (! $this->deleteId) {
+            return;
         }
-
+        $updated = app(CancelBeverageInvoice::class)->execute((int) $this->deleteId, $this->deletePreview['fingerprint'] ?? '');
+        if ($updated !== null) {
+            $this->deletePreview = $updated;
+            $this->impactPage = 1;
+            $this->deleteNotice = 'Data berubah atau belum dapat dikoreksi. Periksa kembali dampaknya sebelum konfirmasi.';
+            return;
+        }
+        $message = ($this->deletePreview['legacy'] ?? true)
+            ? 'Invoice arsip dihapus tanpa perubahan stok.'
+            : 'Invoice dihapus. Stok '.count($this->deletePreview['products']).' produk dikoreksi dari '.$this->deletePreview['date'].' sampai '.$this->deletePreview['through'].'.';
+        session()->flash('success', $message);
         $this->cancelDelete();
+    }
+
+    public function changeImpactPage(int $direction): void
+    {
+        $this->impactPage = max(1, $this->impactPage + ($direction > 0 ? 1 : -1));
+    }
+
+    public function getSnapshotChangesProperty()
+    {
+        if (! $this->deleteId || ($this->deletePreview['legacy'] ?? true)) {
+            return null;
+        }
+        abort_unless(in_array(auth()->user()?->role, ['admin', 'kasir_gym'], true), 403);
+
+        return app(BeverageStockImpact::class)
+            ->snapshots(array_column($this->deletePreview['products'], 'id'), $this->deletePreview['date'])
+            ->orderBy('tanggal')->orderBy('beverage_id')->orderBy('tipe')
+            ->paginate(10, ['*'], 'impactPage', $this->impactPage);
     }
 
     public function exportExcel()
@@ -141,7 +178,8 @@ new #[Layout('layouts::admin')] class extends Component
                         <th scope="col" class="px-4 py-3 font-medium">Diterima Oleh</th>
                         <th scope="col" class="px-4 py-3 font-medium">No Faktur</th>
                         <th scope="col" class="px-4 py-3 font-medium">Nama Barang</th>
-                        <th scope="col" class="px-4 py-3 font-medium text-center">Qty</th>
+                        <th scope="col" class="px-4 py-3 font-medium text-center">Qty Dus</th>
+                        <th scope="col" class="px-4 py-3 font-medium text-center">Total Pcs</th>
                         <th scope="col" class="px-4 py-3 font-medium text-right">Harga Perdus</th>
                         <th scope="col" class="px-4 py-3 font-medium text-right">Biaya PPN</th>
                         <th scope="col" class="px-4 py-3 font-medium text-right">Total</th>
@@ -181,11 +219,17 @@ new #[Layout('layouts::admin')] class extends Component
                                         <td class="px-4 py-3" rowspan="{{ $itemCount }}">{{ $invoice->tanggal_order->format('d M Y') }}</td>
                                         <td class="px-4 py-3" rowspan="{{ $itemCount }}">{{ $invoice->tanggal_menerima?->format('d M Y') ?? '-' }}</td>
                                         <td class="px-4 py-3" rowspan="{{ $itemCount }}">{{ $invoice->diterima_oleh ?? '-' }}</td>
-                                        <td class="px-4 py-3 font-semibold" rowspan="{{ $itemCount }}">{{ $invoice->no_faktur }}</td>
+                                        <td class="px-4 py-3 font-semibold" rowspan="{{ $itemCount }}">{{ $invoice->no_faktur }}
+                                            @if (! $invoice->stock_posted_at) <p class="text-xs">Arsip — tidak terhubung stok</p> @endif
+                                            @if ($invoice->image_path)
+                                                <a href="{{ route('admin.beverages.invoice.image', $invoice) }}" target="_blank" rel="noopener noreferrer" class="text-blue-700 underline">Lihat foto</a>
+                                            @endif
+                                        </td>
                                     @endif
 
                                     <td class="px-4 py-3">{{ $item->nama_barang }}</td>
                                     <td class="px-4 py-3 text-center">{{ $item->qty }}</td>
+                                    <td class="px-4 py-3 text-center">{{ $item->total_pcs ?? '—' }}</td>
                                     <td class="px-4 py-3 text-right">Rp {{ number_format($item->harga_perdus, 0, ',', '.') }}</td>
                                     <td class="px-4 py-3 text-right">Rp {{ number_format($item->biaya_ppn, 0, ',', '.') }}</td>
                                     <td class="px-4 py-3 text-right">Rp {{ number_format($item->total, 0, ',', '.') }}</td>
@@ -205,7 +249,7 @@ new #[Layout('layouts::admin')] class extends Component
                                             </span>
                                         </td>
                                         <td class="px-4 py-3 text-center" rowspan="{{ $itemCount }}">
-                                            @if(auth()->check() && auth()->user()->role === 'admin')
+                                            @if(in_array(auth()->user()?->role, ['admin', 'kasir_gym'], true))
                                                 <div class="flex items-center justify-center gap-1">
                                                     <a href="{{ route('admin.beverages.invoice.edit', $invoice->id) }}" wire:navigate
                                                         class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100">
@@ -228,8 +272,13 @@ new #[Layout('layouts::admin')] class extends Component
                                 <td class="px-4 py-3">{{ $invoice->tanggal_order->format('d M Y') }}</td>
                                 <td class="px-4 py-3">{{ $invoice->tanggal_menerima?->format('d M Y') ?? '-' }}</td>
                                 <td class="px-4 py-3">{{ $invoice->diterima_oleh ?? '-' }}</td>
-                                <td class="px-4 py-3 font-semibold">{{ $invoice->no_faktur }}</td>
-                                <td class="px-4 py-3 text-center text-gray-500" colspan="5">Belum ada item</td>
+                                <td class="px-4 py-3 font-semibold">{{ $invoice->no_faktur }}
+                                            @if (! $invoice->stock_posted_at) <p class="text-xs">Arsip — tidak terhubung stok</p> @endif
+                                            @if ($invoice->image_path)
+                                                <a href="{{ route('admin.beverages.invoice.image', $invoice) }}" target="_blank" rel="noopener noreferrer" class="text-blue-700 underline">Lihat foto</a>
+                                            @endif
+                                        </td>
+                                <td class="px-4 py-3 text-center text-gray-500" colspan="6">Belum ada item</td>
                                 <td class="px-4 py-3 text-right font-semibold text-emerald-600">Rp 0</td>
                                 <td class="px-4 py-3 text-center">
                                     <span class="px-2 py-1 rounded-full text-xs font-semibold {{ $statusBadge }}">
@@ -242,7 +291,7 @@ new #[Layout('layouts::admin')] class extends Component
                                     </span>
                                 </td>
                                 <td class="px-4 py-3 text-center">
-                                    @if(auth()->check() && auth()->user()->role === 'admin')
+                                    @if(in_array(auth()->user()?->role, ['admin', 'kasir_gym'], true))
                                         <div class="flex items-center justify-center gap-1">
                                             <a href="{{ route('admin.beverages.invoice.edit', $invoice->id) }}" wire:navigate
                                                 class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100">
@@ -261,14 +310,14 @@ new #[Layout('layouts::admin')] class extends Component
                         @endif
                     @empty
                         <tr>
-                            <td colspan="13" class="px-4 py-8 text-center text-gray-500">Belum ada invoice.</td>
+                            <td colspan="14" class="px-4 py-8 text-center text-gray-500">Belum ada invoice.</td>
                         </tr>
                     @endforelse
                 </tbody>
                 @if($this->invoices->isNotEmpty())
                 <tfoot class="bg-neutral-secondary-medium border-t-2 border-default">
                     <tr>
-                        <td colspan="9" class="px-4 py-3 text-right font-bold text-heading">GRAND TOTAL:</td>
+                        <td colspan="10" class="px-4 py-3 text-right font-bold text-heading">GRAND TOTAL:</td>
                         <td class="px-4 py-3 text-right font-bold text-emerald-600">Rp {{ number_format($this->totalSemua, 0, ',', '.') }}</td>
                         <td colspan="3"></td>
                     </tr>
@@ -278,22 +327,49 @@ new #[Layout('layouts::admin')] class extends Component
         </div>
     </div>
 
-    @if(auth()->check() && auth()->user()->role === 'admin')
+    @if(in_array(auth()->user()?->role, ['admin', 'kasir_gym'], true))
         @if ($showDeleteModal)
             <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" wire:click.self="cancelDelete">
-                <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 p-6">
+                <div class="bg-white rounded-lg shadow-xl w-full max-w-3xl mx-4 p-6 max-h-[90vh] overflow-y-auto">
                     <div class="flex items-center justify-between mb-4">
                         <h5 class="text-lg font-semibold text-heading">Konfirmasi Hapus</h5>
                         <button type="button" wire:click="cancelDelete" class="text-gray-400 hover:text-gray-600">
                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
                         </button>
                     </div>
-                    <p class="text-body mb-6">Apakah Anda yakin ingin menghapus invoice ini? Semua item terkait ikut terhapus.</p>
+                    <p class="text-body mb-4">Invoice {{ $deletePreview['invoice'] ?? '' }} akan dihapus beserta itemnya.</p>
+                    @if ($deleteNotice) <p role="alert" class="mb-4 text-red-600">{{ $deleteNotice }}</p> @endif
+                    @if ($deletePreview['legacy'] ?? true)
+                        <p class="mb-4">Arsip — tidak terhubung stok. Tidak ada perubahan stok.</p>
+                    @else
+                        <p class="mb-4">Tanggal menerima {{ $deletePreview['date'] }}. Stok akhir hari itu dan stok awal/akhir setelahnya sampai {{ $deletePreview['through'] }} dikoreksi otomatis. Stok sebelumnya tidak berubah.</p>
+                        @foreach ($deletePreview['products'] as $product)
+                            <p wire:key="impact-product-{{ $product['id'] }}" class="mb-2">{{ $product['name'] }}: kurangi {{ $product['pcs'] }} pcs. Saldo sekarang {{ $product['before'] }} → {{ $product['after'] }}.</p>
+                        @endforeach
+                        @if ($deletePreview['error_count'])
+                            <div role="alert" class="mb-4 text-red-600">
+                                <p>Pembatalan ditahan: {{ $deletePreview['error_count'] }} masalah ditemukan. Periksa data stok terlebih dahulu.</p>
+                                @foreach ($deletePreview['errors'] as $error) <p>{{ $error }}</p> @endforeach
+                                @if ($deletePreview['error_count'] > 20) <p>Menampilkan 20 masalah pertama.</p> @endif
+                            </div>
+                        @endif
+                        @php $changes = $this->snapshotChanges; $productsById = collect($deletePreview['products'])->keyBy('id'); @endphp
+                        @if ($changes)
+                            <p class="mt-4">Rincian snapshot, halaman {{ $changes->currentPage() }} dari {{ $changes->lastPage() }}</p>
+                            @foreach ($changes as $change)
+                                <p wire:key="snapshot-{{ $change->id }}" class="text-sm">{{ $change->tanggal->format('d/m/Y') }} · {{ $productsById[$change->beverage_id]['name'] }} · {{ $change->tipe === 'init' ? 'Awal' : 'Akhir' }}: {{ $change->jumlah }} → {{ $change->jumlah - $productsById[$change->beverage_id]['pcs'] }}</p>
+                            @endforeach
+                            <div class="flex gap-4 my-4">
+                                <button type="button" wire:click="changeImpactPage(-1)" @disabled($changes->onFirstPage())>Sebelumnya</button>
+                                <button type="button" wire:click="changeImpactPage(1)" @disabled(! $changes->hasMorePages())>Berikutnya</button>
+                            </div>
+                        @endif
+                    @endif
                     <div class="flex items-center justify-end gap-3">
                         <button type="button" wire:click="cancelDelete" class="px-4 py-2 text-sm font-medium text-body bg-neutral-secondary-medium border border-default-medium rounded-md hover:bg-neutral-secondary-strong transition-colors">
                             Batal
                         </button>
-                        <button type="button" wire:click="deleteInvoice" class="px-4 py-2.5 text-white bg-red-600 hover:bg-red-700 rounded-md font-medium text-sm focus:outline-none">
+                        <button type="button" wire:click="deleteInvoice" wire:loading.attr="disabled" @disabled(($deletePreview['error_count'] ?? 0) > 0) class="px-4 py-2.5 text-white bg-red-600 hover:bg-red-700 rounded-md font-medium text-sm focus:outline-none">
                             Hapus
                         </button>
                     </div>

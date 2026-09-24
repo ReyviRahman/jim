@@ -52,58 +52,68 @@ new #[Layout('layouts::admin')] class extends Component
 
     public function store()
     {
-        $this->validate([
-            'beverage_id' => 'required',
-            'jumlah_tambah' => 'required|integer|min:1',
-        ]);
+        return \Illuminate\Support\Facades\DB::transaction(function () {
+            $this->validate([
+                'beverage_id' => 'required',
+                'jumlah_tambah' => 'required|integer|min:1',
+            ]);
 
-        $beverage = Beverage::find($this->beverage_id);
-        if (!$beverage) {
-            session()->flash('error', 'Produk tidak ditemukan.');
-            return;
-        }
+            $beverage = Beverage::query()->lockForUpdate()->find($this->beverage_id);
+            if (!$beverage) {
+                session()->flash('error', 'Produk tidak ditemukan.');
+                return;
+            }
 
-        $newStokSekarang = $beverage->stok_sekarang + $this->jumlah_tambah;
+            $newStokSekarang = $beverage->stok_sekarang + $this->jumlah_tambah;
 
-        BeverageRestock::create([
-            'beverage_id' => $this->beverage_id,
-            'tanggal' => $this->tanggal,
-            'jumlah_tambah' => $this->jumlah_tambah,
-            'tipe' => 'restock',
-            'keterangan' => $this->keterangan,
-        ]);
+            BeverageRestock::create([
+                'beverage_id' => $this->beverage_id,
+                'tanggal' => $this->tanggal,
+                'jumlah_tambah' => $this->jumlah_tambah,
+                'tipe' => 'restock',
+                'keterangan' => $this->keterangan,
+            ]);
 
-        $beverage->update([
-            'stok_sekarang' => $newStokSekarang,
-        ]);
+            $beverage->update([
+                'stok_sekarang' => $newStokSekarang,
+            ]);
 
-        session()->flash('success', 'Stok berhasil ditambahkan.');
+            session()->flash('success', 'Stok berhasil ditambahkan.');
 
-        $this->reset(['beverage_id', 'jumlah_tambah', 'keterangan', 'selectedBeverage']);
-        $this->tanggal = date('Y-m-d');
+            $this->reset(['beverage_id', 'jumlah_tambah', 'keterangan', 'selectedBeverage']);
+            $this->tanggal = date('Y-m-d');
+        }, 3);
     }
 
     public function executeDelete()
     {
-        if (!$this->deleteId) return;
+        return \Illuminate\Support\Facades\DB::transaction(function () {
+            if (!$this->deleteId) return;
 
-        $restock = BeverageRestock::find($this->deleteId);
-        if ($restock) {
-            $beverage = Beverage::find($restock->beverage_id);
-            if ($beverage) {
-                $beverage->update([
-                    'stok_sekarang' => $beverage->stok_sekarang - $restock->jumlah_tambah,
-                ]);
+            $restock = BeverageRestock::query()->lockForUpdate()->find($this->deleteId);
+            if ($restock?->beverage_invoice_item_id) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['stock' => 'Stok ini berasal dari invoice. Gunakan halaman invoice untuk membatalkannya.']);
             }
-            $restock->forceDelete();
-            session()->flash('success', 'Data restock berhasil dihapus permanen.');
-        }
-        $this->deleteId = null;
+            if ($restock) {
+                $beverage = Beverage::query()->lockForUpdate()->find($restock->beverage_id);
+                if ($beverage) {
+                    $beverage->update([
+                        'stok_sekarang' => $beverage->stok_sekarang - $restock->jumlah_tambah,
+                    ]);
+                }
+                $restock->forceDelete();
+                session()->flash('success', 'Data restock berhasil dihapus permanen.');
+            }
+            $this->deleteId = null;
+        }, 3);
     }
 
     public function edit($id)
     {
         $restock = BeverageRestock::find($id);
+        if ($restock?->beverage_invoice_item_id) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['stock' => 'Stok ini berasal dari invoice. Gunakan halaman invoice untuk membatalkannya.']);
+        }
         if ($restock) {
             $this->editingId = $id;
             $this->edit_tanggal = $restock->tanggal->format('Y-m-d');
@@ -132,35 +142,40 @@ new #[Layout('layouts::admin')] class extends Component
 
     public function update()
     {
-        $this->validate([
-            'editingId' => 'required',
-            'edit_jumlah_tambah' => 'required|integer|min:1',
-        ]);
-
-        $restock = BeverageRestock::find($this->editingId);
-        if (!$restock) {
-            session()->flash('error', 'Data restock tidak ditemukan.');
-            return;
-        }
-
-        $selisih = $this->edit_jumlah_tambah - $restock->jumlah_tambah;
-
-        $restock->update([
-            'tanggal' => $this->edit_tanggal,
-            'jumlah_tambah' => $this->edit_jumlah_tambah,
-            'keterangan' => $this->edit_keterangan,
-        ]);
-
-        $beverage = Beverage::find($restock->beverage_id);
-        if ($beverage) {
-            $beverage->update([
-                'stok_sekarang' => $beverage->stok_sekarang + $selisih,
+        return \Illuminate\Support\Facades\DB::transaction(function () {
+            $this->validate([
+                'editingId' => 'required',
+                'edit_jumlah_tambah' => 'required|integer|min:1',
             ]);
-        }
 
-        session()->flash('success', 'Data restock berhasil diperbarui.');
+            $restock = BeverageRestock::query()->lockForUpdate()->find($this->editingId);
+            if ($restock?->beverage_invoice_item_id) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['stock' => 'Stok ini berasal dari invoice. Gunakan halaman invoice untuk membatalkannya.']);
+            }
+            if (!$restock) {
+                session()->flash('error', 'Data restock tidak ditemukan.');
+                return;
+            }
 
-        $this->cancelEdit();
+            $selisih = $this->edit_jumlah_tambah - $restock->jumlah_tambah;
+
+            $restock->update([
+                'tanggal' => $this->edit_tanggal,
+                'jumlah_tambah' => $this->edit_jumlah_tambah,
+                'keterangan' => $this->edit_keterangan,
+            ]);
+
+            $beverage = Beverage::query()->lockForUpdate()->find($restock->beverage_id);
+            if ($beverage) {
+                $beverage->update([
+                    'stok_sekarang' => $beverage->stok_sekarang + $selisih,
+                ]);
+            }
+
+            session()->flash('success', 'Data restock berhasil diperbarui.');
+
+            $this->cancelEdit();
+        }, 3);
     }
 
     public function getProductsProperty()
@@ -176,7 +191,7 @@ new #[Layout('layouts::admin')] class extends Component
 
     public function getRestocksProperty()
     {
-        return BeverageRestock::with(['beverage' => function ($query) {
+        return BeverageRestock::with(['invoiceItem.invoice', 'beverage' => function ($query) {
             $query->withTrashed();
         }])
         ->where('tipe', 'restock')
@@ -198,6 +213,7 @@ new #[Layout('layouts::admin')] class extends Component
 ?>
 
 <div>
+    @error('stock') <p role="alert" class="text-red-600">{{ $message }}</p> @enderror
     <div class="flex sm:flex-row flex-col justify-between items-center mb-6">
         <h5 class="text-xl font-semibold text-heading">Tambah Stok Minuman</h5>
     </div>
@@ -326,7 +342,9 @@ new #[Layout('layouts::admin')] class extends Component
                                     <td class="px-4 py-3">
                                         <input type="date" wire:model.live="edit_tanggal" class="block w-full px-2 py-1 bg-white border border-default-medium text-heading text-xs rounded-base">
                                     </td>
-                                    <td class="px-4 py-3">{{ $restock->beverage->nama_produk ?? '-' }}</td>
+                                    <td class="px-4 py-3">{{ $restock->beverage->nama_produk ?? '-' }} @if ($restock->invoiceItem)
+                                    <span class="text-sm">Invoice {{ $restock->invoiceItem->invoice->no_faktur }} — kelola melalui halaman invoice</span>
+                                @endif</td>
                                     <td class="px-4 py-3">
                                         <input type="text" inputmode="numeric" pattern="[0-9]*" wire:model.live="edit_jumlah_tambah" class="block w-20 px-2 py-1 bg-white border border-default-medium text-heading text-xs rounded-base text-center">
                                     </td>
@@ -362,11 +380,11 @@ new #[Layout('layouts::admin')] class extends Component
                                             </div>
                                         @else
                                             <div class="flex items-center justify-center gap-1">
-                                                <button type="button" wire:click="edit({{ $restock->id }})" class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100">
+                                                <button type="button" wire:click="edit({{ $restock->id }})" @disabled($restock->beverage_invoice_item_id) class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100">
                                                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
                                                     Edit
                                                 </button>
-                                                <button type="button" wire:click="confirmDelete({{ $restock->id }})" class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-red-700 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 focus:ring-2 focus:ring-red-300 transition-colors">
+                                                <button type="button" wire:click="confirmDelete({{ $restock->id }})" @disabled($restock->beverage_invoice_item_id) class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-red-700 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 focus:ring-2 focus:ring-red-300 transition-colors">
                                                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
                                                     Hapus
                                                 </button>

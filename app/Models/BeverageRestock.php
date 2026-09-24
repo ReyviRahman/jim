@@ -11,6 +11,8 @@ class BeverageRestock extends Model
     use HasFactory;
 
     protected $fillable = [
+        'beverage_invoice_item_id',
+
         'beverage_id',
         'tanggal',
         'jumlah_tambah',
@@ -24,6 +26,11 @@ class BeverageRestock extends Model
             'tanggal' => 'date',
             'jumlah_tambah' => 'integer',
         ];
+    }
+
+    public function invoiceItem(): BelongsTo
+    {
+        return $this->belongsTo(BeverageInvoiceItem::class, 'beverage_invoice_item_id');
     }
 
     public function beverage(): BelongsTo
