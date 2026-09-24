@@ -3,6 +3,9 @@
 @import './member-attendance.css';
 @import './member-check-in.css';
 @import './sidebar.css';
+@import './pt-expired.css';
+@import './pt-running.css';
+@import './pt-booking.css';
 @import "flowbite/src/themes/default";
 @plugin "flowbite/plugin";
 @source "../../node_modules/flowbite";

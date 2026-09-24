@@ -1,0 +1,197 @@
+.pt-booking-page {
+    --color-heading: #f4f4f5;
+    --color-body: #b9bdc1;
+    --color-neutral-primary-soft: #151719;
+    --color-neutral-secondary-medium: #232628;
+    --color-neutral-secondary-strong: #323639;
+    --color-default: #35383b;
+    --color-default-medium: #45494d;
+    --color-brand-strong: #e4d600;
+    position: relative;
+    isolation: isolate;
+    min-height: calc(100svh - 3.5rem);
+    padding: 56px 44px 32px;
+    background: #0a0c0d;
+    color: #f4f4f5;
+    color-scheme: dark;
+}
+
+.pt-booking-background {
+    position: absolute;
+    inset: 0;
+    z-index: -2;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    opacity: 0.7;
+}
+
+.pt-booking-page::before {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: linear-gradient(90deg, rgb(0 0 0 / 60%), transparent), linear-gradient(180deg, rgb(0 0 0 / 10%), rgb(0 0 0 / 60%) 45%, rgb(0 0 0 / 10%));
+    content: '';
+}
+
+.pt-booking-content {
+    display: flex;
+    flex-direction: column;
+    max-width: 1100px;
+    min-height: calc(100svh - 9rem);
+    margin-inline: auto;
+}
+
+.pt-booking-eyebrow {
+    margin-bottom: 8px;
+    color: #fff000;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+}
+
+.pt-booking-header h1 {
+    font-size: clamp(36px, 8.5vw, 56px);
+    font-weight: 800;
+    line-height: 1.12;
+    letter-spacing: -0.035em;
+    text-transform: uppercase;
+}
+
+.pt-booking-header h1 span { color: #fff000; }
+
+.pt-booking-description {
+    max-width: 390px;
+    margin-top: 8px;
+    color: #c3c4c8;
+    font-size: 18px;
+    line-height: 1.4;
+}
+
+.pt-booking-search {
+    position: relative;
+    margin-block: 32px 26px;
+}
+
+.pt-booking-search svg {
+    position: absolute;
+    top: 50%;
+    left: 20px;
+    width: 24px;
+    height: 24px;
+    transform: translateY(-50%);
+    pointer-events: none;
+}
+
+.pt-booking-search input {
+    width: 100%;
+    min-height: 58px;
+    padding: 14px 20px 14px 60px;
+    border: 1px solid #e4d949;
+    border-radius: 18px;
+    background: rgb(29 31 31 / 94%);
+    color: #f4f4f5;
+    font-size: 18px;
+}
+
+.pt-booking-search input::placeholder { color: #aaadb0; }
+
+.pt-booking-page :is(a, button, input, select):focus-visible {
+    outline: 2px solid #fff000;
+    outline-offset: 3px;
+}
+
+.pt-booking-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    max-width: 680px;
+    min-height: 426px;
+    margin-inline: auto;
+    padding: 52px 34px 42px;
+    border: 1px solid #383c3f;
+    border-radius: 18px;
+    background: linear-gradient(135deg, rgb(23 24 25 / 98%), rgb(9 11 12 / 98%));
+    box-shadow: 0 18px 45px rgb(0 0 0 / 35%);
+    text-align: center;
+}
+
+.pt-booking-empty-icon { width: 98px; height: 94px; margin-bottom: 20px; }
+.pt-booking-empty h2 { font-size: 23px; font-weight: 700; line-height: 1.3; letter-spacing: -0.025em; }
+.pt-booking-empty-description { max-width: 330px; margin-top: 8px; color: #c3c4c8; font-size: 18px; line-height: 1.45; }
+
+.pt-booking-cta {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    width: 100%;
+    max-width: 375px;
+    min-height: 56px;
+    margin-top: 26px;
+    padding: 12px 20px;
+    border-radius: 999px;
+    background: #fff000;
+    color: #0b0c0d;
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 1.35;
+}
+
+.pt-booking-cta:hover { background: #e4d600; }
+.pt-booking-cta svg { width: 24px; height: 24px; flex: none; }
+.pt-booking-empty-caption { max-width: 365px; margin-top: 16px; color: #a6a9af; font-size: 16px; line-height: 1.5; }
+
+.pt-booking-data {
+    overflow: hidden;
+    border: 1px solid #383c3f;
+    border-radius: 18px;
+    background: #151719;
+}
+
+.pt-booking-data :is(.text-gray-500, .text-gray-400) { color: #afb4bd; }
+.pt-booking-data .text-gray-700 { color: #e2e5ea; }
+.pt-booking-data table[data-responsive-table] tbody:not(.hidden) { background: transparent; }
+.pt-booking-data table[data-responsive-table] tbody > tr:not(.hidden) { border-color: #35383b; background: #151719; }
+.pt-booking-data table[data-responsive-table] tbody > tr:not(.hidden) > td:not(.hidden) { border-bottom-color: #303438; }
+.pt-booking-data table[data-responsive-table] td::before { color: #afb4bd; }
+.pt-booking-data .text-indigo-600 { color: #b1baff; }
+.pt-booking-data .text-emerald-600 { color: #6ee7b7; }
+.pt-booking-modal { border: 1px solid #535039; background: #151719; }
+.pt-booking-footer { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-top: auto; padding-top: 110px; }
+.pt-booking-motto p { color: #fff000; font-size: 12px; font-weight: 700; line-height: 1.4; letter-spacing: 0.3em; text-transform: uppercase; }
+.pt-booking-motto span { display: block; margin-top: 8px; color: #c9cbd1; font-size: 9px; font-weight: 500; line-height: 1.5; letter-spacing: 0.35em; text-transform: uppercase; }
+.pt-booking-signature { position: relative; padding-bottom: 12px; color: #eee54c; font-family: 'Segoe Print', 'Bradley Hand', cursive; font-size: 25px; font-style: italic; line-height: 1.35; text-align: right; transform: rotate(-10deg); }
+.pt-booking-signature::after { position: absolute; right: 0; bottom: 0; width: 70%; height: 2px; border-radius: 100%; background: #eee54c; content: ''; }
+
+@media (width < 640px) {
+    .pt-booking-data { background: transparent; border: 0; }
+}
+
+@media (width < 480px) {
+    .pt-booking-page { padding: 38px 22px 28px; }
+    .pt-booking-eyebrow { font-size: 10px; letter-spacing: 0.28em; }
+    .pt-booking-description { font-size: 15px; }
+    .pt-booking-search { margin-block: 28px 22px; }
+    .pt-booking-search input { min-height: 54px; padding-left: 54px; font-size: 15px; border-radius: 16px; }
+    .pt-booking-search svg { left: 18px; width: 22px; height: 22px; }
+    .pt-booking-empty { min-height: 374px; padding: 36px 20px; border-radius: 16px; }
+    .pt-booking-empty-icon { width: 82px; height: 80px; }
+    .pt-booking-empty h2 { font-size: 20px; }
+    .pt-booking-empty-description { font-size: 15px; }
+    .pt-booking-cta { min-height: 52px; gap: 10px; padding-inline: 14px; font-size: 16px; }
+    .pt-booking-empty-caption { font-size: 13px; }
+    .pt-booking-footer { gap: 16px; padding-top: 100px; }
+    .pt-booking-motto p { max-width: 135px; font-size: 9px; letter-spacing: 0.2em; }
+    .pt-booking-motto span { font-size: 7px; letter-spacing: 0.25em; }
+    .pt-booking-signature { font-size: 19px; }
+}
+
+@media (width < 360px) {
+    .pt-booking-page { padding-inline: 16px; }
+    .pt-booking-signature { font-size: 16px; }
+    .pt-booking-cta { font-size: 14px; }
+}

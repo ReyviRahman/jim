@@ -143,7 +143,9 @@ new #[Layout('layouts::admin')] class extends Component
 };
 ?>
 
-<div>
+<div class="pt-booking-page">
+    <img src="{{ asset('member-attendance-gym-v2.png') }}" alt="" class="pt-booking-background" aria-hidden="true">
+    <div class="pt-booking-content">
     @if (session()->has('error'))
         <div class="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded text-sm">
             {{ session('error') }}
@@ -155,24 +157,40 @@ new #[Layout('layouts::admin')] class extends Component
         </div>
     @endif
 
-    <div class="relative overflow-hidden bg-neutral-primary-soft shadow-xs rounded-base border border-default">
-        <div class="flex items-center flex-column flex-wrap md:flex-row space-y-4 md:space-y-0 p-4">
-            <div>
-                <h5 class="text-xl font-semibold text-heading">PT Onboarding</h5>
-                <p class="text-sm text-body mt-1">Paket PT yang belum memiliki coach atau tanggal akhir PT.</p>
-            </div>
-            
-            <div class="relative ms-auto">
-                <div class="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
-                    <svg class="w-4 h-4 text-body" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
-                        <path stroke="currentColor" stroke-linecap="round" stroke-width="2" d="m21 21-3.5-3.5M17 10a7 7 0 1 1-14 0 7 7 0 0 1 14 0Z"/>
-                    </svg>
-                </div>
-                <input type="text" id="table-search" wire:model.live="search" 
-                    class="block w-full max-w-96 ps-9 pe-3 py-2 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs placeholder:text-body" 
-                    placeholder="Cari nama atau email...">
-            </div>
-        </div>
+    <header class="pt-booking-header">
+        <p class="pt-booking-eyebrow">Personal Training</p>
+        <h1>PT <span>Booking</span></h1>
+        <p class="pt-booking-description">Paket PT yang belum memiliki coach<br class="hidden sm:block"> atau tanggal akhir PT.</p>
+    </header>
+
+    <div class="pt-booking-search">
+        <label for="table-search" class="sr-only">Cari nama atau email</label>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="7.5" /><path d="m16 16 5 5" /></svg>
+        <input type="search" id="table-search" wire:model.live.debounce.300ms="search" placeholder="Cari nama atau email..." autocomplete="off">
+    </div>
+
+    @if ($this->memberships->isEmpty())
+        <section class="pt-booking-empty" aria-labelledby="pt-booking-empty-title" role="status">
+            <svg class="pt-booking-empty-icon" viewBox="0 0 104 100" fill="none" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M56 87H17a8 8 0 0 1-8-8V24a8 8 0 0 1 8-8h56a8 8 0 0 1 8 8v16M24 7v20M65 7v20M9 34h72" stroke="#b9bdc1" stroke-width="6" />
+                <path d="M28 51h.1M46 51h.1M28 68h.1" stroke="#b9bdc1" stroke-width="6" />
+                <circle cx="80" cy="72" r="19" stroke="#fff000" stroke-width="5" />
+                <path d="M80 61v12l7 5" stroke="#fff000" stroke-width="4" />
+            </svg>
+            <h2 id="pt-booking-empty-title">{{ $search !== '' ? 'Paket PT tidak ditemukan' : 'Tidak ada paket PT' }}</h2>
+            <p class="pt-booking-empty-description">{{ $search !== '' ? 'Tidak ada paket PT yang cocok dengan pencarian. Coba nama atau email lain.' : 'yang belum memiliki coach atau tanggal akhir PT.' }}</p>
+            @if ($search !== '')
+                <button type="button" wire:click="$set('search', '')" class="pt-booking-cta">Hapus pencarian</button>
+            @else
+                <a href="{{ route('admin.akun.member.index') }}" wire:navigate class="pt-booking-cta">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 4v16M4 12h16" /></svg>
+                    Booking PT Sekarang
+                </a>
+                <p class="pt-booking-empty-caption">Mulai perjalanan fitness kamu bersama<br class="hidden sm:block"> coach profesional di FRANSGYM.</p>
+            @endif
+        </section>
+    @else
+    <div class="pt-booking-data">
 
         <table data-responsive-table data-responsive-breakpoint="xl" class="table-fixed w-full text-sm text-left rtl:text-right text-body">
             <thead class="text-sm text-body bg-neutral-secondary-medium border-b border-default-medium">
@@ -197,11 +215,12 @@ new #[Layout('layouts::admin')] class extends Component
 
                         <td class="px-6 py-4 font-medium text-heading">
                             <div class="flex items-center gap-2">
-                                @if($membership->user->photo)
-                                    <img class="w-8 h-8 rounded-full object-cover" src="{{ asset('storage/' . $membership->user->photo) }}" alt="{{ $membership->user->name }}">
-                                @else
-                                    <img class="w-8 h-8 rounded-full object-cover" src="https://ui-avatars.com/api/?name={{ urlencode($membership->user->name) }}&background=random" alt="{{ $membership->user->name }}">
-                                @endif
+                                <span class="relative grid size-9 shrink-0 place-items-center overflow-hidden rounded-full bg-white/10 text-brand" aria-hidden="true">
+                                    {{ \Illuminate\Support\Str::of($membership->user->name)->substr(0, 1)->upper() }}
+                                    @if ($membership->user->photo)
+                                        <img src="{{ asset('storage/'.$membership->user->photo) }}" alt="" class="absolute inset-0 size-full object-cover" x-data="{ failed: false }" x-show="!failed" x-init="failed = $el.complete && $el.naturalWidth === 0" x-on:error="failed = true">
+                                    @endif
+                                </span>
                                 <div class="flex flex-col">
                                     <span class="font-semibold">{{ $membership->user->name }}</span>
                                     <span class="text-xs text-gray-500">{{ $membership->user->email }}</span>
@@ -275,7 +294,7 @@ new #[Layout('layouts::admin')] class extends Component
 
                         <td class="px-6 py-4 text-center">
                             <button type="button" wire:click="openModal({{ $membership->id }})"
-                                class="inline-flex items-center gap-1 px-3 py-2 text-sm font-medium text-white bg-brand hover:bg-brand-strong rounded-md focus:ring-2 focus:ring-brand-medium transition-colors">
+                                class="inline-flex items-center gap-1 px-3 py-2 text-sm font-semibold text-black bg-brand hover:bg-brand-strong rounded-md focus:ring-2 focus:ring-brand-medium transition-colors">
                                 Aktivasi PT
                             </button>
                         </td>
@@ -294,11 +313,18 @@ new #[Layout('layouts::admin')] class extends Component
             {{ $this->memberships->links('components.custom-pagination') }}
         </div>
     </div>
+    @endif
+
+    <footer class="pt-booking-footer">
+        <div class="pt-booking-motto"><p>More than a gym</p><span>A stronger<br>you everyday</span></div>
+        <p class="pt-booking-signature">Never Back Down<br><span>Stay Dedicated</span></p>
+    </footer>
+    </div>
 
 
     @if ($showModal && $selectedMembershipId)
         <div class="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="activation-title">
-            <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div class="pt-booking-modal rounded-2xl shadow-xl max-w-md w-full mx-4">
                 <div class="p-6 border-b border-default-medium">
                     <h3 id="activation-title" class="text-lg font-semibold text-heading">Aktivasi PT</h3>
                 </div>
@@ -341,7 +367,7 @@ new #[Layout('layouts::admin')] class extends Component
                         <button type="button" wire:click="closeModal"
                             class="px-4 py-2 text-heading bg-neutral-secondary-medium border border-default-medium rounded-md hover:bg-neutral-secondary-strong font-medium text-sm">Batal</button>
                         <button type="submit" wire:loading.attr="disabled" wire:target="aktivatekan"
-                            class="px-4 py-2 text-white bg-brand hover:bg-brand-strong rounded-md font-medium text-sm">Aktivasi PT</button>
+                            class="px-4 py-2 text-black bg-brand hover:bg-brand-strong rounded-md font-semibold text-sm disabled:opacity-50">Aktivasi PT</button>
                     </div>
                 </form>
             </div>
