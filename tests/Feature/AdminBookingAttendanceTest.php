@@ -14,6 +14,76 @@ class AdminBookingAttendanceTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_editing_attended_booking_to_free_refunds_once_and_can_charge_it_again(): void
+    {
+        $membership = $this->createMembership(['remaining_sessions' => 1]);
+        $booking = $this->createBookingForMembership($membership);
+        $page = Livewire::actingAs($this->createUser(['role' => 'admin']))
+            ->test('pages::dashboard.admin.booking-jadwal.index')
+            ->call('markAsAttended', $booking->id);
+        $this->assertSame(0, $membership->fresh()->remaining_sessions);
+        $this->assertSame('completed', $membership->fresh()->status);
+
+        $page->call('openChangeCoachModal', $booking->id)
+            ->set('newIsFree', true)->call('saveChangeCoach')->assertHasNoErrors();
+        $this->assertSame(1, $membership->fresh()->remaining_sessions);
+        $this->assertSame('active', $membership->fresh()->status);
+        $this->assertTrue($booking->fresh()->is_free);
+
+        $page->call('openChangeCoachModal', $booking->id)->call('saveChangeCoach')->assertHasNoErrors();
+        $this->assertSame(1, $membership->fresh()->remaining_sessions);
+
+        $page->call('openChangeCoachModal', $booking->id)
+            ->set('newIsFree', false)->call('saveChangeCoach')->assertHasNoErrors();
+        $this->assertSame(0, $membership->fresh()->remaining_sessions);
+        $this->assertSame('completed', $membership->fresh()->status);
+        $this->assertFalse($booking->fresh()->is_free);
+
+        $page->call('openChangeCoachModal', $booking->id)->call('saveChangeCoach')->assertHasNoErrors();
+        $this->assertSame(0, $membership->fresh()->remaining_sessions);
+    }
+
+    public function test_editing_unattended_booking_does_not_change_session_balance(): void
+    {
+        $booking = $this->createBooking();
+        $page = Livewire::actingAs($this->createUser(['role' => 'admin']))
+            ->test('pages::dashboard.admin.booking-jadwal.index')
+            ->call('openChangeCoachModal', $booking->id)
+            ->set('newIsFree', true)->call('saveChangeCoach')->assertHasNoErrors();
+        $this->assertSame(10, $booking->membership->fresh()->remaining_sessions);
+        $page->call('openChangeCoachModal', $booking->id)
+            ->set('newIsFree', false)->call('saveChangeCoach')->assertHasNoErrors();
+        $this->assertSame(10, $booking->membership->fresh()->remaining_sessions);
+    }
+
+    public function test_attended_free_booking_cannot_be_charged_when_no_sessions_remain(): void
+    {
+        $membership = $this->createMembership(['remaining_sessions' => 0, 'status' => 'completed']);
+        $booking = $this->createBookingForMembership($membership, ['attendance' => 'attended', 'is_free' => true]);
+        Livewire::actingAs($this->createUser(['role' => 'admin']))
+            ->test('pages::dashboard.admin.booking-jadwal.index')
+            ->call('openChangeCoachModal', $booking->id)
+            ->set('newIsFree', false)->call('saveChangeCoach')->assertHasErrors('newIsFree');
+        $this->assertSame(0, $membership->fresh()->remaining_sessions);
+        $this->assertTrue($booking->fresh()->is_free);
+    }
+
+    public function test_refunding_an_expired_membership_does_not_reactivate_it(): void
+    {
+        $membership = $this->createMembership([
+            'remaining_sessions' => 0,
+            'status' => 'completed',
+            'pt_end_date' => today()->subDay(),
+        ]);
+        $booking = $this->createBookingForMembership($membership, ['attendance' => 'attended']);
+        Livewire::actingAs($this->createUser(['role' => 'admin']))
+            ->test('pages::dashboard.admin.booking-jadwal.index')
+            ->call('openChangeCoachModal', $booking->id)
+            ->set('newIsFree', true)->call('saveChangeCoach')->assertHasNoErrors();
+        $this->assertSame(1, $membership->fresh()->remaining_sessions);
+        $this->assertSame('completed', $membership->fresh()->status);
+    }
+
     public function test_admin_can_mark_an_approved_booking_as_attended(): void
     {
         $admin = $this->createUser(['role' => 'admin']);

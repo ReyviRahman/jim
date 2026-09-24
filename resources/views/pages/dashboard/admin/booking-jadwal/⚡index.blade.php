@@ -1023,6 +1023,24 @@ new #[Layout('layouts::admin')] class extends Component
                     throw \Illuminate\Validation\ValidationException::withMessages(['editStudioType' => $exception->errors()['studioType']]);
                 }
             }
+            $isFree = (bool) $this->newIsFree;
+            if ($booking->isAttended() && $booking->is_free !== $isFree) {
+                $membership = Membership::query()->lockForUpdate()->findOrFail($booking->membership_id);
+                if (! $isFree && $membership->remaining_sessions <= 0) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'newIsFree' => 'Sisa sesi sudah habis. Booking Hadir tidak dapat diubah menjadi sesi berbayar.',
+                    ]);
+                }
+
+                $membership->remaining_sessions += $isFree ? 1 : -1;
+                if ($membership->remaining_sessions === 0) {
+                    $membership->status = 'completed';
+                } elseif ($membership->status === 'completed' && ($membership->pt_end_date === null || $membership->pt_end_date->gte(today()))) {
+                    $membership->status = 'active';
+                }
+                $membership->save();
+            }
+
             $booking->update([
                 'pt_id' => $this->newCoachId,
                 'is_free' => $this->newIsFree,
@@ -1654,7 +1672,8 @@ new #[Layout('layouts::admin')] class extends Component
                                 class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500">
                             <span class="text-sm font-medium text-gray-700">Sesi Gratis</span>
                         </label>
-                        <p class="text-xs text-gray-500 mt-1">Centang Sesi Gratis.</p>
+                        <p class="text-xs text-gray-500 mt-1">Untuk booking Hadir, perubahan Sesi Gratis akan menyesuaikan sisa sesi membership.</p>
+                        @error('newIsFree') <span class="text-sm text-red-600">{{ $message }}</span> @enderror
                     </div>
 
                     <div class="flex gap-3 pt-2">
