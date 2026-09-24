@@ -20,6 +20,7 @@
                     <button type="button" wire:key="booking-{{ $day['date'] }}-{{ $slot['time'] }}-{{ $booking['id'] }}" wire:click="openDetailModal({{ $booking['id'] }})" class="mb-2 block w-full rounded-lg border border-white/15 bg-white/5 p-2 text-left text-xs hover:border-brand">
                         <span class="block font-semibold text-white">Booking Saya</span>
                         <span class="mt-1 block break-words text-gray-300">{{ $coach }}</span>
+                        <span class="block text-gray-300">{{ $booking['studio'] }}</span>
                         <span @class(['mt-2 inline-block rounded px-1.5 py-1 text-[10px] font-semibold', 'bg-emerald-950 text-emerald-200' => $booking['status'] === 'Approved', 'bg-amber-950 text-amber-200' => in_array($booking['status'], ['Pending', 'Pending Cancel']), 'bg-red-950 text-red-200' => $booking['status'] === 'Rejected', 'bg-slate-800 text-gray-300' => $booking['status'] === 'Cancelled'])>{{ $booking['status'] }}</span>
                     </button>
                 @endforeach

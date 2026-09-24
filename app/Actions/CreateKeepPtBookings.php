@@ -4,9 +4,9 @@ namespace App\Actions;
 
 use App\Models\Membership;
 use App\Models\PtBooking;
+use App\PtStudioBooking;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
-use Illuminate\Support\Facades\DB;
 
 class CreateKeepPtBookings
 {
@@ -30,8 +30,9 @@ class CreateKeepPtBookings
         CarbonInterface $weekStart,
         array $dayTimes,
         string $status,
+        string $studioType,
     ): array {
-        return DB::transaction(function () use ($membershipId, $ptId, $weekStart, $dayTimes, $status): array {
+        return app(PtStudioBooking::class)->transaction($studioType, function () use ($membershipId, $ptId, $weekStart, $dayTimes, $status, $studioType): array {
             $membership = Membership::query()
                 ->lockForUpdate()
                 ->find($membershipId);
@@ -96,7 +97,10 @@ class CreateKeepPtBookings
                         continue;
                     }
 
+                    app(PtStudioBooking::class)->validate($membership, $studioType, $candidate);
+
                     PtBooking::create([
+                        'studio_type' => $studioType,
                         'membership_id' => $membership->id,
                         'member_id' => $membership->user_id,
                         'pt_id' => $ptId,
@@ -120,7 +124,7 @@ class CreateKeepPtBookings
             }
 
             return $this->result($createdCount, $capacity, $stopReason);
-        }, attempts: 3);
+        });
     }
 
     private function bookingKey(string $date, string $time): string

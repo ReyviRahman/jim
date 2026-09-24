@@ -163,7 +163,7 @@ class MemberPtScheduleTest extends TestCase
         $membership = $this->membership();
         $this->page($membership)->call('openBookingModal', '2026-09-22', '07:00')
             ->assertSet('showBookingModal', true)->assertSee('Konfirmasi booking PT')
-            ->call('book')->assertHasNoErrors()->assertSet('showBookingModal', false)
+            ->set('studioType', 'regular')->call('book')->assertHasNoErrors()->assertSet('showBookingModal', false)
             ->assertSee('Booking Saya')->assertSee('Pending');
         $this->assertDatabaseHas('pt_bookings', [
             'membership_id' => $membership->id, 'member_id' => $membership->user_id,
@@ -179,7 +179,7 @@ class MemberPtScheduleTest extends TestCase
         $member = User::factory()->create(['role' => 'member']);
         $membership->members()->attach($member);
         $page = Livewire::actingAs($member)->test('pages::dashboard.member.jadwal-pt.index');
-        $page->call('openBookingModal', '2026-09-22', '07:00')->call('book')->assertHasNoErrors();
+        $page->call('openBookingModal', '2026-09-22', '07:00')->set('studioType', 'regular')->call('book')->assertHasNoErrors();
         $booking = PtBooking::sole();
         $this->assertSame($membership->user_id, $booking->member_id);
         $page->call('openDetailModal', $booking->id)->assertSee($membership->user->name);
@@ -212,7 +212,7 @@ class MemberPtScheduleTest extends TestCase
         $membership = $this->membership();
         $foreign = $this->membership();
         $this->expectException(HttpException::class);
-        app(CreateMemberPtBooking::class)->execute($membership->user, $foreign->id, '2026-09-22', '07:00');
+        app(CreateMemberPtBooking::class)->execute($membership->user, $foreign->id, '2026-09-22', '07:00', 'regular');
     }
 
     #[DataProvider('blockingStatuses')]
@@ -252,7 +252,7 @@ class MemberPtScheduleTest extends TestCase
         $page = $this->page($membership);
         $slot = $page->get('calendar')[1]['slots'][0];
 
-        $this->assertSame([['id' => $booking->id, 'status' => ucfirst($status)]], $slot['ownBookings']);
+        $this->assertSame([['id' => $booking->id, 'studio' => '—', 'status' => ucfirst($status)]], $slot['ownBookings']);
         $this->assertFalse($slot['occupied']);
         $this->assertFalse($slot['otherBooked']);
         $page->call('openDetailModal', $booking->id)->assertSet('selectedBookingId', $booking->id);
@@ -267,7 +267,7 @@ class MemberPtScheduleTest extends TestCase
         $page = $this->page($membership)->assertSee('Dibooking member lain');
         $slot = $page->get('calendar')[1]['slots'][0];
 
-        $this->assertSame([['id' => $booking->id, 'status' => 'Cancelled']], $slot['ownBookings']);
+        $this->assertSame([['id' => $booking->id, 'studio' => '—', 'status' => 'Cancelled']], $slot['ownBookings']);
         $this->assertTrue($slot['occupied']);
         $this->assertTrue($slot['otherBooked']);
     }
@@ -310,7 +310,7 @@ class MemberPtScheduleTest extends TestCase
         $membership = $this->membership();
         $page = $this->page($membership)->call('openBookingModal', '2026-09-22', '07:00');
         $this->booking($this->membership(['pt_id' => $membership->pt_id]));
-        $page->call('book')->assertHasErrors('booking')->assertSet('showBookingModal', false)->assertSee('Dibooking member lain');
+        $page->set('studioType', 'regular')->call('book')->assertHasErrors('booking')->assertSet('showBookingModal', false)->assertSee('Dibooking member lain');
         $this->assertDatabaseCount('pt_bookings', 1);
     }
 
@@ -379,7 +379,7 @@ class MemberPtScheduleTest extends TestCase
         $this->assertNull($page->get('unavailableReason'));
         $this->assertTrue($page->get('calendar')[1]['slots'][3]['occupied']);
         $page->call('openBookingModal', '2026-09-23', '07:00')
-            ->assertSet('showBookingModal', true)->call('book')->assertHasNoErrors();
+            ->assertSet('showBookingModal', true)->set('studioType', 'regular')->call('book')->assertHasNoErrors();
 
         $this->assertDatabaseCount('pt_bookings', 5);
         $this->assertSame(1, $membership->fresh()->remaining_sessions);
@@ -449,7 +449,7 @@ class MemberPtScheduleTest extends TestCase
         $membership = $this->membership();
         $page = $this->page($membership)->call('openBookingModal', '2026-09-22', '08:00');
         $this->submit($membership, '07:00');
-        $page->call('book')->assertHasErrors('booking');
+        $page->set('studioType', 'regular')->call('book')->assertHasErrors('booking');
         $this->assertDatabaseCount('pt_bookings', 1);
     }
 
@@ -458,7 +458,7 @@ class MemberPtScheduleTest extends TestCase
         $this->travelTo(now()->setTime(23, 59));
         $page = $this->page($this->membership())->call('openBookingModal', '2026-09-22', '07:00');
         $this->travelTo(now()->addMinute());
-        $page->call('book')->assertHasNoErrors()->assertSet('showBookingModal', false);
+        $page->set('studioType', 'regular')->call('book')->assertHasNoErrors()->assertSet('showBookingModal', false);
         $this->assertDatabaseCount('pt_bookings', 1);
     }
 
@@ -466,12 +466,12 @@ class MemberPtScheduleTest extends TestCase
     {
         $membership = $this->membership();
         $page = $this->page($membership)->call('openBookingModal', '2026-09-21', '07:00');
-        $page->call('book')->assertHasNoErrors();
+        $page->set('studioType', 'regular')->call('book')->assertHasNoErrors();
         $this->assertDatabaseHas('pt_bookings', ['membership_id' => $membership->id, 'booking_date' => '2026-09-21', 'status' => 'pending']);
 
         $page->call('openBookingModal', '2026-09-21', '08:00');
         $this->travelTo(now()->setTime(8, 0));
-        $page->call('book')->assertHasErrors('booking');
+        $page->set('studioType', 'regular')->call('book')->assertHasErrors('booking');
         $this->assertDatabaseCount('pt_bookings', 1);
         $this->expectException(ValidationException::class);
         $this->submit($membership, '08:00', '2026-09-21');
@@ -647,7 +647,7 @@ class MemberPtScheduleTest extends TestCase
 
     private function submit(Membership $membership, string $time = '07:00', string $date = '2026-09-22'): PtBooking
     {
-        return app(CreateMemberPtBooking::class)->execute($membership->user, $membership->id, $date, $time);
+        return app(CreateMemberPtBooking::class)->execute($membership->user, $membership->id, $date, $time, 'regular');
     }
 
     /** @param array<string, mixed> $attributes */

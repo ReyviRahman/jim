@@ -23,6 +23,8 @@ new #[Layout('layouts::member')] class extends Component
     public string $dateFrom = '';
     public string $dayView = 'today';
     public string $statusFilter = '';
+    public string $studioType = '';
+
     public bool $showBookingModal = false;
     public bool $showDetailModal = false;
     public bool $showCancelModal = false;
@@ -69,6 +71,7 @@ new #[Layout('layouts::member')] class extends Component
 
     public function updatedSelectedMembershipId(): void
     {
+        $this->studioType = '';
         unset($this->membership);
         $this->membership;
         $this->closeBookingModal();
@@ -175,7 +178,7 @@ new #[Layout('layouts::member')] class extends Component
                                 ->whereIn('status', ['cancelled', 'rejected']);
                         });
                 })
-                ->get(['id', 'membership_id', 'booking_date', 'booking_time', 'status', 'cancellation_requested_at'])
+                ->get(['id', 'membership_id', 'booking_date', 'booking_time', 'studio_type', 'status', 'cancellation_requested_at'])
             : collect();
         $schedule = app(MemberPtSchedule::class);
         $days = [];
@@ -204,6 +207,7 @@ new #[Layout('layouts::member')] class extends Component
                     'otherBooked' => $active->contains(fn (PtBooking $booking): bool => ! in_array($booking->membership_id, $ownedIds, true)),
                     'ownBookings' => $own->map(fn (PtBooking $booking): array => [
                         'id' => $booking->id,
+                        'studio' => $booking->studioLabel(),
                         'status' => $booking->isCancellationPending() ? 'Pending Cancel' : ucfirst($booking->status),
                     ])->values()->all(),
                     'reason' => $this->unavailableReason ?? ($membership ? $schedule->dateUnavailableReason($membership, $slotStart) : null) ?? $dailyLimitReason,
@@ -247,6 +251,7 @@ new #[Layout('layouts::member')] class extends Component
     public function openBookingModal(string $date, string $time): void
     {
         $this->resetErrorBag();
+        $this->studioType = '';
         $this->bookingDate = $date;
         $this->bookingTime = $time;
         $this->validate([
@@ -281,9 +286,9 @@ new #[Layout('layouts::member')] class extends Component
     public function book(CreateMemberPtBooking $createBooking): void
     {
         try {
-            $createBooking->execute(Auth::user(), $this->selectedMembershipId ?? 0, $this->bookingDate, $this->bookingTime);
+            $createBooking->execute(Auth::user(), $this->selectedMembershipId ?? 0, $this->bookingDate, $this->bookingTime, $this->studioType);
         } catch (ValidationException $exception) {
-            $this->showBookingModal = false;
+            $this->showBookingModal = isset($exception->errors()['studioType']);
             throw $exception;
         } finally {
             unset($this->memberships, $this->membership, $this->calendar, $this->history, $this->unavailableReason);
@@ -296,6 +301,7 @@ new #[Layout('layouts::member')] class extends Component
     public function closeBookingModal(): void
     {
         $this->showBookingModal = false;
+        $this->studioType = '';
         $this->bookingDate = '';
         $this->bookingTime = '';
         $this->resetErrorBag();
@@ -444,7 +450,7 @@ new #[Layout('layouts::member')] class extends Component
             @forelse($this->history as $booking)
                 <button type="button" wire:key="history-{{ $booking->id }}" wire:click="openDetailModal({{ $booking->id }})" class="rounded-md border border-white/15 p-3 text-left text-sm hover:bg-[#1d2427]">
                     <span class="block font-medium text-white">{{ $booking->booking_date->locale('id')->isoFormat('dddd, D MMM') }} · {{ $booking->booking_time->format('H:i') }} - {{ $booking->booking_time->copy()->addHour()->format('H:i') }}</span>
-                    <span class="mt-1 block text-gray-300">{{ $booking->pt?->name ?? '-' }} · {{ $booking->isCancellationPending() ? 'Pending Cancel' : ucfirst($booking->status) }}</span>
+                    <span class="mt-1 block text-gray-300">{{ $booking->pt?->name ?? '-' }} · {{ $booking->studioLabel() }} · {{ $booking->isCancellationPending() ? 'Pending Cancel' : ucfirst($booking->status) }}</span>
                 </button>
             @empty
                 <p class="text-sm text-gray-300">Tidak ada booking sesuai filter pada minggu ini.</p>
@@ -461,6 +467,18 @@ new #[Layout('layouts::member')] class extends Component
                     <div><dt class="text-gray-300">Coach</dt><dd>{{ $this->membership->personalTrainer?->name }}</dd></div>
                     <div><dt class="text-gray-300">Tanggal dan jam</dt><dd>{{ Carbon::parse($bookingDate)->locale('id')->isoFormat('dddd, D MMM YYYY') }} · {{ $bookingTime }} - {{ Carbon::parse($bookingTime)->addHour()->format('H:i') }}</dd></div>
                 </dl>
+                <div class="my-4 text-sm text-white">
+                    <label for="studioType" class="block mb-1">Studio *</label>
+                    <select id="studioType" wire:model="studioType" required class="w-full rounded-md border border-white/15 bg-[#1d2427] px-3 py-2 text-white">
+                        <option value="">Pilih studio</option>
+                        <option value="private_studio" @disabled(! $this->membership->hasNormalPrice())>Private Studio</option>
+                        <option value="regular">Regular</option>
+                    </select>
+                    @if(! $this->membership->hasNormalPrice())
+                        <p class="mt-1 text-gray-300">Private Studio hanya tersedia untuk membership Harga Normal.</p>
+                    @endif
+                    @error('studioType') <p class="mt-1 text-red-400">{{ $message }}</p> @enderror
+                </div>
                 <p class="text-sm text-gray-300">Satu sesi akan dipesan dan menunggu persetujuan coach/admin.</p>
                 <div class="mt-5 flex justify-end gap-2">
                     <button type="button" wire:click="closeBookingModal" class="rounded-md border border-white/15 px-4 py-2 text-sm text-white">Batal</button>
@@ -514,6 +532,10 @@ new #[Layout('layouts::member')] class extends Component
                         <div>
                             <span class="text-gray-300">Coach</span>
                             <div class="font-medium text-white">{{ $booking->pt?->name ?? '-' }}</div>
+                        </div>
+                        <div>
+                            <span class="text-gray-300">Studio</span>
+                            <div class="font-medium text-white">{{ $booking->studioLabel() }}</div>
                         </div>
                         <div>
                             <span class="text-gray-300">Paket</span>

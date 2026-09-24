@@ -6,6 +6,7 @@ use App\Actions\CreateKeepPtBookings;
 use App\Models\Membership;
 use App\Models\PtBooking;
 use App\Models\User;
+use App\PtStudioBooking;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -22,6 +23,8 @@ new #[Layout('layouts::admin')] class extends Component
     private const WHATSAPP_RECIPIENT = '6282373996912';
 
     public $search = '';
+
+    public string $studioType = '';
 
     public $statusFilter = '';
 
@@ -77,6 +80,8 @@ new #[Layout('layouts::admin')] class extends Component
     public $insertIsFree = false;
 
     public $showChangeCoachModal = false;
+
+    public string $editStudioType = '';
 
     public $changeCoachBookingId = null;
 
@@ -621,8 +626,15 @@ new #[Layout('layouts::admin')] class extends Component
         $this->setSelectedDate(now());
     }
 
+    #[Computed]
+    public function canChoosePrivateStudio(): bool
+    {
+        return $this->insertMembershipId && Membership::find($this->insertMembershipId)?->hasNormalPrice();
+    }
+
     public function updatedInsertMembershipId()
     {
+        $this->studioType = '';
         $this->resetErrorBag();
     }
 
@@ -647,6 +659,7 @@ new #[Layout('layouts::admin')] class extends Component
         $this->insertTime = str_pad((string) $hour, 2, '0', STR_PAD_LEFT).':00:00';
         $this->insertWeekStart = $this->getWeekStart()->toDateString();
         $this->insertMembershipId = null;
+        $this->studioType = '';
         $this->insertMembershipSearch = '';
         $this->insertType = 'fleksibel';
         $this->insertSelectedDays = [];
@@ -663,6 +676,7 @@ new #[Layout('layouts::admin')] class extends Component
     {
         $this->showInsertModal = false;
         $this->insertMembershipId = null;
+        $this->studioType = '';
         $this->insertMembershipSearch = '';
         $this->insertType = 'fleksibel';
         $this->insertDate = '';
@@ -751,6 +765,7 @@ new #[Layout('layouts::admin')] class extends Component
     public function selectMembership($id)
     {
         $this->insertMembershipId = $id;
+        $this->studioType = '';
         $this->insertMembershipSearch = '';
 
         $membership = Membership::find($id);
@@ -787,6 +802,7 @@ new #[Layout('layouts::admin')] class extends Component
     public function saveInsertBooking(CreateKeepPtBookings $createKeepPtBookings)
     {
         $rules = [
+            'studioType' => ['required', Rule::in(['private_studio', 'regular'])],
             'insertMembershipId' => ['required', 'integer', Rule::exists((new Membership)->getTable(), 'id')],
             'insertPtId' => ['required', 'integer', Rule::exists((new User)->getTable(), 'id')],
             'insertType' => ['required', Rule::in(['fleksibel', 'keep'])],
@@ -810,6 +826,8 @@ new #[Layout('layouts::admin')] class extends Component
         }
 
         $validated = $this->validate($rules, [
+            'studioType.required' => 'Pilih Private Studio atau Regular.',
+            'studioType.in' => 'Pilihan studio tidak valid.',
             'insertMembershipId.required' => 'Pilih membership terlebih dahulu.',
             'insertMembershipId.exists' => 'Membership tidak valid.',
             'insertPtId.required' => 'Pilih coach terlebih dahulu.',
@@ -849,6 +867,7 @@ new #[Layout('layouts::admin')] class extends Component
                 weekStart: Carbon::parse($validated['insertWeekStart']),
                 dayTimes: $dayTimes,
                 status: $status,
+                studioType: $this->studioType,
             );
 
             if ($result['created_count'] === 0) {
@@ -880,7 +899,7 @@ new #[Layout('layouts::admin')] class extends Component
             return;
         }
 
-        $result = DB::transaction(function () use ($validated, $status): string {
+        $result = app(PtStudioBooking::class)->transaction($this->studioType, function () use ($validated, $status): string {
             $membership = Membership::query()
                 ->lockForUpdate()
                 ->find($validated['insertMembershipId']);
@@ -902,7 +921,10 @@ new #[Layout('layouts::admin')] class extends Component
                 }
             }
 
+            app(PtStudioBooking::class)->validate($membership, $validated['studioType'], Carbon::parse($validated['insertDate'].' '.$validated['insertTime']));
+
             PtBooking::create([
+                'studio_type' => $validated['studioType'],
                 'membership_id' => $membership->id,
                 'member_id' => $membership->user_id,
                 'pt_id' => $validated['insertPtId'],
@@ -915,7 +937,7 @@ new #[Layout('layouts::admin')] class extends Component
             ]);
 
             return 'created';
-        }, attempts: 3);
+        });
 
         if ($result !== 'created') {
             if ($result === 'no_capacity') {
@@ -946,6 +968,7 @@ new #[Layout('layouts::admin')] class extends Component
         $this->changeCoachBookingId = $bookingId;
         $this->newCoachId = $booking->pt_id ?? '';
         $this->newIsFree = $booking->is_free ?? false;
+        $this->editStudioType = $booking->studio_type ?? '';
         $this->resetErrorBag();
         $this->showChangeCoachModal = true;
     }
@@ -955,6 +978,7 @@ new #[Layout('layouts::admin')] class extends Component
         $this->showChangeCoachModal = false;
         $this->changeCoachBookingId = null;
         $this->newCoachId = '';
+        $this->editStudioType = '';
         $this->newIsFree = false;
     }
 
@@ -975,16 +999,39 @@ new #[Layout('layouts::admin')] class extends Component
             return;
         }
 
-        $oldCoachName = $booking->pt?->name ?? '-';
-        $newCoach = User::find($this->newCoachId);
-
-        $booking->update([
-            'pt_id' => $this->newCoachId,
-            'is_free' => $this->newIsFree,
-        ]);
+        app(PtStudioBooking::class)->transaction('private_studio', function (): void {
+            $booking = PtBooking::query()->lockForUpdate()->findOrFail($this->changeCoachBookingId);
+            abort_unless(in_array($booking->status, ['pending', 'approved'], true), 403);
+            $this->validate([
+                'editStudioType' => [$booking->studio_type === null ? 'nullable' : 'required', Rule::in(['private_studio', 'regular'])],
+                'newIsFree' => ['boolean'],
+            ], [
+                'editStudioType.required' => 'Pilih Private Studio atau Regular.',
+                'editStudioType.in' => 'Pilihan studio tidak valid.',
+            ]);
+            $studioType = $this->editStudioType === '' ? null : $this->editStudioType;
+            if ($studioType !== null && $studioType !== $booking->studio_type) {
+                $membership = Membership::query()->lockForUpdate()->findOrFail($booking->membership_id);
+                try {
+                    app(PtStudioBooking::class)->validate(
+                        $membership,
+                        $studioType,
+                        $booking->booking_date->copy()->setTimeFrom($booking->booking_time),
+                        $booking->id,
+                    );
+                } catch (\Illuminate\Validation\ValidationException $exception) {
+                    throw \Illuminate\Validation\ValidationException::withMessages(['editStudioType' => $exception->errors()['studioType']]);
+                }
+            }
+            $booking->update([
+                'pt_id' => $this->newCoachId,
+                'is_free' => $this->newIsFree,
+                'studio_type' => $studioType,
+            ]);
+        });
 
         $this->closeChangeCoachModal();
-        session()->flash('success', 'Booking berhasil diperbarui. Coach: '.$oldCoachName.' → '.$newCoach?->name.'.');
+        session()->flash('success', 'Booking berhasil diperbarui.');
     }
 }; ?>
 
@@ -1174,6 +1221,7 @@ new #[Layout('layouts::admin')] class extends Component
                                                         </div>
                                                     @endforeach
                                                 @endif
+                                                <div>{{ $booking->studioLabel() }}</div>
                                                 <div data-booking-card-name="coach" class="mt-0.5 w-full min-w-0 max-w-full whitespace-normal wrap-anywhere text-body">{{ Str::of($booking->pt?->name ?? '-')->squish()->before(' ') }}</div>
                                                 <div class="mt-1 flex min-w-0 max-w-full flex-wrap items-center gap-1">
                                                     @if($booking->isCancellationPending())
@@ -1356,6 +1404,10 @@ new #[Layout('layouts::admin')] class extends Component
                         <div>
                             <span class="text-body">Waktu</span>
                             <div class="font-medium text-heading">{{ $booking->booking_time->format('H:i') }}</div>
+                        </div>
+                        <div>
+                            <span class="text-body">Studio</span>
+                            <div class="font-medium text-heading">{{ $booking->studioLabel() }}</div>
                         </div>
                         <div>
                             <span class="text-body">Status</span>
@@ -1541,7 +1593,7 @@ new #[Layout('layouts::admin')] class extends Component
                 </div>
 
                 @php
-                    $changeBooking = \App\Models\PtBooking::with(['member', 'pt'])->find($changeCoachBookingId);
+                    $changeBooking = \App\Models\PtBooking::with(['member', 'pt', 'membership'])->find($changeCoachBookingId);
                 @endphp
 
                 @if($changeBooking)
@@ -1566,6 +1618,22 @@ new #[Layout('layouts::admin')] class extends Component
                 @endif
 
                 <form wire:submit.prevent="saveChangeCoach" class="space-y-4">
+                    <div>
+                        <label for="editStudioType" class="block text-sm font-medium text-gray-700 mb-1">Studio</label>
+                        <select id="editStudioType" wire:model="editStudioType" class="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-sm">
+                            @if($changeBooking?->studio_type === null)
+                                <option value="">Belum dipilih (data lama)</option>
+                            @endif
+                            <option value="private_studio" @disabled(! $changeBooking?->membership?->hasNormalPrice() && $changeBooking?->studio_type !== 'private_studio')>Private Studio</option>
+                            <option value="regular">Regular</option>
+                        </select>
+                        @if(! $changeBooking?->membership?->hasNormalPrice())
+                            <p class="text-sm text-gray-500">Private Studio hanya tersedia untuk membership Harga Normal.</p>
+                        @endif
+                        @error('editStudioType') <span class="text-sm text-red-600">{{ $message }}</span> @enderror
+                        @error('studioType') <span class="text-sm text-red-600">{{ $message }}</span> @enderror
+                    </div>
+
                     <div>
                         <label for="newCoachId" class="block text-sm font-medium text-gray-700 mb-1">
                             Coach <span class="text-red-500">*</span>
@@ -1675,6 +1743,19 @@ new #[Layout('layouts::admin')] class extends Component
                             @endforeach
                         </select>
                         @error('insertPtId') <span class="text-sm text-red-600">{{ $message }}</span> @enderror
+                    </div>
+
+                    <div>
+                        <label for="studioType" class="block text-sm font-medium text-gray-700 mb-1">Studio *</label>
+                        <select id="studioType" wire:model="studioType" required class="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-sm">
+                            <option value="">Pilih studio</option>
+                            <option value="private_studio" @disabled(! $this->canChoosePrivateStudio)>Private Studio</option>
+                            <option value="regular">Regular</option>
+                        </select>
+                        @if(! $this->canChoosePrivateStudio)
+                            <p class="text-sm text-gray-500">Private Studio hanya tersedia untuk membership Harga Normal.</p>
+                        @endif
+                        @error('studioType') <span class="text-sm text-red-600">{{ $message }}</span> @enderror
                     </div>
 
                     <div>

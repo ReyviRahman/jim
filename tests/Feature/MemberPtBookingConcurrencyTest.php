@@ -60,7 +60,7 @@ class MemberPtBookingConcurrencyTest extends TestCase
         });
         try {
             $app->make(\App\Actions\CreateMemberPtBooking::class)->execute(
-                \App\Models\User::findOrFail((int) $argv[1]), (int) $argv[2], $argv[3], '07:00',
+                \App\Models\User::findOrFail((int) $argv[1]), (int) $argv[2], $argv[3], '07:00', 'regular',
             );
             echo "created\n";
         } catch (\Illuminate\Validation\ValidationException $exception) {

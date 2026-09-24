@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 class PtBooking extends Model
 {
     protected $fillable = [
+        'studio_type',
         'membership_id',
         'member_id',
         'pt_id',
@@ -37,6 +38,15 @@ class PtBooking extends Model
         'is_free' => 'boolean',
         'is_paid' => 'boolean',
     ];
+
+    public function studioLabel(): string
+    {
+        return match ($this->studio_type) {
+            'private_studio' => 'Private Studio',
+            'regular' => 'Regular',
+            default => '—',
+        };
+    }
 
     public function membership(): BelongsTo
     {

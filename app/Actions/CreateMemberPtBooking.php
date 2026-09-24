@@ -5,8 +5,8 @@ namespace App\Actions;
 use App\MemberPtSchedule;
 use App\Models\PtBooking;
 use App\Models\User;
+use App\PtStudioBooking;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -15,7 +15,7 @@ class CreateMemberPtBooking
 {
     public function __construct(private MemberPtSchedule $schedule) {}
 
-    public function execute(User $member, int $membershipId, string $date, string $time): PtBooking
+    public function execute(User $member, int $membershipId, string $date, string $time, string $studioType): PtBooking
     {
         abort_unless($member->role === 'member', 403);
 
@@ -27,7 +27,7 @@ class CreateMemberPtBooking
             'bookingTime.*' => 'Pilih slot setiap jam mulai 07:00 sampai 22:00.',
         ])->validate();
 
-        return DB::transaction(function () use ($member, $membershipId, $date, $time): PtBooking {
+        return app(PtStudioBooking::class)->transaction($studioType, function () use ($member, $membershipId, $date, $time, $studioType): PtBooking {
             User::query()->whereKey($member->id)->lockForUpdate()->firstOrFail();
             $membership = $this->schedule->memberships($member)->lockForUpdate()->find($membershipId);
             abort_unless($membership, 403);
@@ -51,7 +51,10 @@ class CreateMemberPtBooking
                 throw ValidationException::withMessages(['booking' => 'Slot ini sudah terbooking. Silakan pilih jam lain.']);
             }
 
+            app(PtStudioBooking::class)->validate($membership, $studioType, $start);
+
             return PtBooking::create([
+                'studio_type' => $studioType,
                 'membership_id' => $membership->id,
                 'member_id' => $membership->user_id,
                 'pt_id' => $coach->id,
@@ -62,6 +65,6 @@ class CreateMemberPtBooking
                 'attendance' => 'not_yet',
                 'is_free' => false,
             ]);
-        }, attempts: 3);
+        });
     }
 }

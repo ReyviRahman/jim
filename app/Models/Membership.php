@@ -198,6 +198,11 @@ class Membership extends Model
             ->where('pt_end_date', '<', $today->toDateString());
     }
 
+    public function hasNormalPrice(): bool
+    {
+        return (float) $this->normal_price > 0 && (float) $this->price_paid >= (float) $this->normal_price;
+    }
+
     public function getPriceLabel(): ?array
     {
         $pricePaid = (float) $this->price_paid;
@@ -209,7 +214,7 @@ class Membership extends Model
         $effectiveNetPrice = $netPrice > 0 ? $netPrice : null;
         $effectiveUnrecommendedPrice = $unrecommendedPrice > 0 ? $unrecommendedPrice : null;
 
-        if ($effectiveNormalPrice !== null && $pricePaid >= $effectiveNormalPrice) {
+        if ($this->hasNormalPrice()) {
             return ['label' => 'Harga Normal', 'color' => 'bg-blue-100 text-blue-800'];
         }
 

@@ -84,7 +84,7 @@ class AdminBookingAttendanceTest extends TestCase
             ->set('insertPtId', $headCoachMembership->pt_id)
             ->set('insertDate', today()->toDateString())
             ->set('insertTime', '11:00:00')
-            ->call('saveInsertBooking');
+            ->set('studioType', 'regular')->call('saveInsertBooking');
 
         $this->assertSame(
             'approved',
@@ -102,7 +102,7 @@ class AdminBookingAttendanceTest extends TestCase
             ->set('insertPtId', $legacyMembership->pt_id)
             ->set('insertDate', today()->toDateString())
             ->set('insertTime', '12:00:00')
-            ->call('saveInsertBooking');
+            ->set('studioType', 'regular')->call('saveInsertBooking');
 
         $this->assertSame(
             'pending',
@@ -123,7 +123,7 @@ class AdminBookingAttendanceTest extends TestCase
             ->set('insertDate', '2026-09-10')
             ->set('insertTime', '11:30:00')
             ->set('insertIsFree', true)
-            ->call('saveInsertBooking')
+            ->set('studioType', 'regular')->call('saveInsertBooking')
             ->assertSee('Booking berhasil ditambahkan.');
 
         $booking = PtBooking::whereBelongsTo($membership)->sole();
@@ -147,13 +147,13 @@ class AdminBookingAttendanceTest extends TestCase
             ->set('insertMembershipId', $membership->id)
             ->set('insertPtId', $membership->pt_id)
             ->set('insertType', 'keep')
-            ->call('saveInsertBooking')
+            ->set('studioType', 'regular')->call('saveInsertBooking')
             ->assertHasErrors('insertSelectedDays');
 
         $component
             ->set('insertSelectedDays', ['senin', 'selasa'])
             ->set('insertDayTimes', ['senin' => '09:00'])
-            ->call('saveInsertBooking')
+            ->set('studioType', 'regular')->call('saveInsertBooking')
             ->assertHasErrors('insertDayTimes.selasa');
 
         $this->assertSame(0, PtBooking::whereBelongsTo($membership)->count());
@@ -180,7 +180,7 @@ class AdminBookingAttendanceTest extends TestCase
                 'senin' => '09:00',
                 'selasa' => '10:00',
             ])
-            ->call('saveInsertBooking')
+            ->set('studioType', 'regular')->call('saveInsertBooking')
             ->assertSee('5 booking Keep berhasil ditambahkan.');
 
         $bookings = PtBooking::whereBelongsTo($membership)
@@ -229,7 +229,7 @@ class AdminBookingAttendanceTest extends TestCase
                 'selasa' => '09:00',
                 'rabu' => '09:00',
             ])
-            ->call('saveInsertBooking')
+            ->set('studioType', 'regular')->call('saveInsertBooking')
             ->assertSee('10 booking Keep berhasil ditambahkan.');
 
         $this->assertSame([
@@ -274,7 +274,7 @@ class AdminBookingAttendanceTest extends TestCase
                 'selasa' => '09:00',
                 'rabu' => '09:00',
             ])
-            ->call('saveInsertBooking')
+            ->set('studioType', 'regular')->call('saveInsertBooking')
             ->assertSee('2 booking Keep berhasil ditambahkan sampai masa PT berakhir.');
 
         $this->assertSame([
@@ -305,7 +305,7 @@ class AdminBookingAttendanceTest extends TestCase
             ->set('insertType', 'keep')
             ->set('insertSelectedDays', ['senin'])
             ->set('insertDayTimes', ['senin' => '09:00'])
-            ->call('saveInsertBooking')
+            ->set('studioType', 'regular')->call('saveInsertBooking')
             ->assertHasErrors('insertBooking')
             ->assertSet('showInsertModal', true);
 
@@ -358,7 +358,7 @@ class AdminBookingAttendanceTest extends TestCase
                 'senin' => '09:00',
                 'selasa' => '10:00',
             ])
-            ->call('saveInsertBooking')
+            ->set('studioType', 'regular')->call('saveInsertBooking')
             ->assertSee('3 booking Keep berhasil ditambahkan.');
 
         $keepBookings = PtBooking::whereBelongsTo($membership)
@@ -396,12 +396,12 @@ class AdminBookingAttendanceTest extends TestCase
             ->set('insertSelectedDays', ['senin'])
             ->set('insertDayTimes', ['senin' => '09:00'])
             ->set('insertIsFree', true)
-            ->call('saveInsertBooking')
+            ->set('studioType', 'regular')->call('saveInsertBooking')
             ->assertHasErrors('insertIsFree');
 
         $component
             ->set('insertIsFree', false)
-            ->call('saveInsertBooking')
+            ->set('studioType', 'regular')->call('saveInsertBooking')
             ->assertSee('3 booking Keep berhasil ditambahkan.')
             ->assertSet('showInsertModal', false)
             ->assertSet('insertSelectedDays', [])
@@ -414,7 +414,7 @@ class AdminBookingAttendanceTest extends TestCase
             ->set('insertType', 'keep')
             ->set('insertSelectedDays', ['senin'])
             ->set('insertDayTimes', ['senin' => '09:00'])
-            ->call('saveInsertBooking')
+            ->set('studioType', 'regular')->call('saveInsertBooking')
             ->assertHasNoErrors('insertBooking')
             ->assertSet('showInsertModal', true)
             ->assertSet('showInsertErrorModal', true)
@@ -439,7 +439,7 @@ class AdminBookingAttendanceTest extends TestCase
             ->set('insertType', 'fleksibel')
             ->set('insertDate', '2026-08-25')
             ->set('insertTime', '14:00:00')
-            ->call('saveInsertBooking')
+            ->set('studioType', 'regular')->call('saveInsertBooking')
             ->assertHasNoErrors('insertBooking')
             ->assertSet('showInsertModal', true)
             ->assertSet('showInsertErrorModal', true)
