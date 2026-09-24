@@ -6,6 +6,8 @@
 @import './pt-expired.css';
 @import './pt-running.css';
 @import './pt-booking.css';
+@import './coach-directory.css';
+@import './pt-installments.css';
 @import "flowbite/src/themes/default";
 @plugin "flowbite/plugin";
 @source "../../node_modules/flowbite";

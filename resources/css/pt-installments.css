@@ -1,0 +1,84 @@
+.pt-installments-layout { background: #090b0b; }
+.pt-installments-layout #dashboard-content { padding: 0; }
+.pt-installments-layout #dashboard-content > div { padding: 0; border: 0; }
+
+.pt-installments {
+    --color-heading: #f4f4f5;
+    --color-body: #bcc0c6;
+    --color-neutral-primary-soft: #151719;
+    --color-neutral-secondary-medium: #232628;
+    --color-default: #35383b;
+    --color-default-medium: #45494d;
+    min-height: calc(100svh - 56px);
+    padding: 34px 36px 40px;
+    color: #f5f5f5;
+    color-scheme: dark;
+    background: linear-gradient(100deg, rgb(0 0 0 / 68%), rgb(0 0 0 / 53%)), url('../../public/member-attendance-gym-v2.png') center / cover;
+}
+
+.pt-installments-content { max-width: 900px; margin-inline: auto; }
+.pt-installments-header { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding-inline: 7px; }
+.pt-installments-eyebrow { margin-bottom: 5px; color: #f3e969; font-size: 12px; font-weight: 700; letter-spacing: .28em; text-transform: uppercase; }
+.pt-installments-header h1 { font-size: clamp(32px, 7.6vw, 48px); font-weight: 800; line-height: 1.1; letter-spacing: -.035em; text-transform: uppercase; }
+.pt-installments-header h1 span { margin-left: .12em; color: #ffed00; }
+.pt-installments-description { margin-top: 7px; color: #c4c6ce; font-size: 17px; line-height: 1.4; }
+.pt-installments-signature { position: relative; flex-shrink: 0; padding: 0 0 15px; color: #eee; font-family: 'Segoe Print', 'Bradley Hand', cursive; font-size: 23px; font-style: italic; line-height: 1.45; text-align: center; transform: rotate(-12deg); }
+.pt-installments-signature::after { position: absolute; right: 12%; bottom: 0; width: 75%; height: 5px; border-radius: 100%; background: #ffed00; content: ''; transform: rotate(-5deg); }
+.pt-installments-search { position: relative; margin: 16px 2px 12px; }
+.pt-installments-search svg { position: absolute; top: 50%; left: 18px; width: 24px; height: 24px; transform: translateY(-50%); pointer-events: none; }
+.pt-installments-search input { width: 100%; min-height: 51px; border: 1px solid #b7ac52; border-radius: 14px; padding: 12px 18px 12px 61px; background: rgb(27 28 29 / 94%); color: #f5f5f5; font-size: 16px; }
+.pt-installments-search input::placeholder { color: #a3a6af; }
+.pt-installments-list { display: grid; gap: 15px; }
+.pt-installment-card { padding: 13px 17px 16px; border: 1px solid #393b3b; border-radius: 20px; background: linear-gradient(120deg, rgb(16 18 19 / 98%), rgb(11 13 14 / 96%)); box-shadow: 0 8px 20px #0007, inset 0 0 0 2px #ffffff02; }
+.pt-installment-card-header { display: flex; align-items: center; gap: 19px; }
+.pt-installment-avatar { display: grid; flex-shrink: 0; place-items: center; width: 54px; height: 52px; border-radius: 9px; background: #ffed00; color: #090b0b; font-size: 23px; font-weight: 800; }
+.pt-installment-member { display: flex; flex: 1; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; }
+.pt-installment-member h2 { font-size: 18px; font-weight: 800; line-height: 1.35; text-transform: uppercase; overflow-wrap: anywhere; }
+.pt-installment-member svg { flex-shrink: 0; width: 20px; height: 20px; }
+.pt-installment-menu { position: relative; }
+.pt-installment-menu summary { display: grid; place-items: center; width: 35px; min-height: 44px; cursor: pointer; list-style: none; letter-spacing: 2px; }
+.pt-installment-menu summary::-webkit-details-marker { display: none; }
+.pt-installment-menu a { position: absolute; top: 43px; right: 0; z-index: 10; width: 160px; border: 1px solid #45494d; border-radius: 9px; padding: 12px; background: #202223; font-size: 13px; }
+.pt-installment-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); align-items: center; gap: 15px; min-height: 34px; border-top: 1px solid #292b2d; padding: 6px 7px 6px 14px; color: #c4c6ce; font-size: 14px; line-height: 1.3; }
+.pt-installment-row dt { display: flex; align-items: center; gap: 28px; }
+.pt-installment-row dt svg { flex-shrink: 0; width: 20px; height: 20px; color: #eee; }
+.pt-installment-row dd { text-align: right; overflow-wrap: anywhere; }
+.pt-installment-package { min-height: 51px; align-items: start; padding-block: 9px; }
+.pt-installment-amount { color: #f5f5f5; font-weight: 700; font-variant-numeric: tabular-nums; }
+.pt-installment-paid { color: #79cd87; }
+.pt-installment-due { color: #f14c49; }
+.pt-installment-pay { display: flex; position: relative; align-items: center; justify-content: center; min-height: 48px; margin-top: 5px; border-radius: 14px; padding: 10px 40px; background: #ffed00; color: #090b0b; font-size: 17px; font-weight: 800; }
+.pt-installment-pay > span { display: flex; align-items: center; justify-content: center; gap: 18px; }
+.pt-installment-pay svg { width: 24px; height: 24px; flex-shrink: 0; }
+.pt-installment-pay > svg { position: absolute; right: 15px; }
+.pt-installment-pay:hover { background: #fff44d; }
+.pt-installment-member:hover, .pt-installment-menu a:hover { color: #ffed00; }
+.pt-installments :is(a, input, button, summary):focus-visible { outline: 2px solid #ffed00; outline-offset: 4px; }
+.pt-installments-empty { border: 1px solid #393b3b; border-radius: 20px; padding: 40px 20px; background: #101213; color: #c4c6ce; text-align: center; }
+.pt-installments-pagination { margin-top: 20px; }
+@media (max-width: 639px) {
+    .pt-installments { padding: 27px 36px 32px; }
+    .pt-installments-signature { font-size: 21px; }
+}
+@media (max-width: 480px) {
+    .pt-installments { padding: 25px 16px; }
+    .pt-installments-header { gap: 10px; padding-inline: 3px; }
+    .pt-installments-header h1 { font-size: 34px; }
+    .pt-installments-eyebrow { font-size: 9px; letter-spacing: .24em; }
+    .pt-installments-description { font-size: 13px; }
+    .pt-installments-signature { font-size: 15px; }
+    .pt-installment-card { padding-inline: 12px; }
+    .pt-installment-card-header { gap: 12px; }
+    .pt-installment-avatar { width: 44px; height: 46px; font-size: 20px; }
+    .pt-installment-member h2 { font-size: 15px; }
+    .pt-installment-menu summary { width: 26px; }
+    .pt-installment-row { gap: 8px; padding-inline: 7px 2px; font-size: 12px; }
+    .pt-installment-row dt { gap: 18px; }
+    .pt-installment-pay { font-size: 15px; }
+}
+@media (max-width: 359px) {
+    .pt-installments-header { align-items: flex-start; }
+    .pt-installments-signature { font-size: 12px; }
+    .pt-installments-header h1 { font-size: 29px; }
+    .pt-installment-row dt { gap: 10px; }
+}

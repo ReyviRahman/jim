@@ -211,8 +211,8 @@ class ResponsiveTableLayoutTest extends TestCase
         sort($discoveredViews);
 
         $this->assertSame($expectedViews, $discoveredViews);
-        $this->assertCount(37, $discoveredViews);
-        $this->assertSame(49, $discoveredTableCount);
+        $this->assertCount(35, $discoveredViews);
+        $this->assertSame(47, $discoveredTableCount);
     }
 
     /**
@@ -237,7 +237,6 @@ class ResponsiveTableLayoutTest extends TestCase
             'dashboard/admin/beverages/⚡pos.blade.php',
             'dashboard/admin/beverages/⚡restock.blade.php',
             'dashboard/admin/booking-jadwal/⚡index.blade.php',
-            'dashboard/admin/cicilan/⚡index.blade.php',
             'dashboard/admin/jadwal-pt/⚡index.blade.php',
             'dashboard/admin/membership/⚡gabung.blade.php',
             'dashboard/admin/membership/⚡non-member.blade.php',
@@ -252,7 +251,6 @@ class ResponsiveTableLayoutTest extends TestCase
             'dashboard/admin/riwayat/⚡detail.blade.php',
             'dashboard/admin/riwayat/⚡index.blade.php',
             'dashboard/admin/sesi-pt/⚡detail.blade.php',
-            'dashboard/admin/sesi-pt/⚡index.blade.php',
             'dashboard/admin/sesi-pt/⚡membership-detail.blade.php',
             'dashboard/member/kehadiran/⚡index.blade.php',
             'dashboard/member/jadwal-pt/⚡index.blade.php',
