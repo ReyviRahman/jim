@@ -92,46 +92,46 @@ new #[Layout('layouts::empty')] #[Title('FRANS GYM | Pusat Kebugaran Terbaik di 
                     </div>
                 @endauth
 
-                <button data-collapse-toggle="navbar-user" type="button" class="inline-flex items-center p-2 w-10 h-10 justify-center text-sm text-brand rounded-base md:hidden hover:bg-neutral-secondary-soft hover:text-heading focus:outline-none focus:ring-2 focus:ring-neutral-tertiary" aria-controls="navbar-user" aria-expanded="false">
+                <button data-collapse-toggle="navbar-user" type="button" class="inline-flex items-center p-2 w-10 h-10 justify-center text-sm text-brand rounded-base md:hidden hover:bg-gray-800 hover:text-brand focus:outline-none focus:ring-2 focus:ring-brand" aria-controls="navbar-user" aria-expanded="false">
                     <span class="sr-only">Open main menu</span>
                     <svg class="w-6 h-6" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" stroke-linecap="round" stroke-width="2" d="M5 7h14M5 12h14M5 17h14" /></svg>
                 </button>
             </div>
             
             <div class="items-center justify-between hidden w-full md:flex md:w-auto md:order-1 md:ms-auto" id="navbar-user">
-                <ul class="font-medium flex flex-col p-4 md:p-0 mt-4 border border-default rounded-base bg-white md:flex-row md:space-x-8 rtl:space-x-reverse md:mt-0 md:border-0 md:bg-black">
+                <ul class="font-medium flex flex-col p-4 md:p-0 mt-4 border border-gray-800 rounded-base bg-black md:flex-row md:space-x-8 rtl:space-x-reverse md:mt-0 md:border-0">
                     <li>
                         <a href="#beranda"
                             :class="activeSection === 'beranda' ? 'text-brand md:text-brand font-bold' : 'text-white'"
-                            class="block py-2 px-3 rounded md:p-0 hover:bg-neutral-tertiary md:hover:bg-transparent md:hover:text-brand transition-colors">
+                            class="block py-2 px-3 rounded md:p-0 hover:bg-gray-800 md:hover:bg-transparent md:hover:text-brand transition-colors">
                             Beranda
                         </a>
                     </li>
                     <li>
                         <a href="#tentang"
                             :class="activeSection === 'tentang' ? 'text-brand md:text-brand font-bold' : 'text-white'"
-                            class="block py-2 px-3 rounded md:p-0 hover:bg-neutral-tertiary md:hover:bg-transparent md:hover:text-brand transition-colors">
+                            class="block py-2 px-3 rounded md:p-0 hover:bg-gray-800 md:hover:bg-transparent md:hover:text-brand transition-colors">
                             Tentang Kami
                         </a>
                     </li>
                     <li>
                         <a href="#fasilitas"
                             :class="activeSection === 'fasilitas' ? 'text-brand md:text-brand font-bold' : 'text-white'"
-                            class="block py-2 px-3 rounded md:p-0 hover:bg-neutral-tertiary md:hover:bg-transparent md:hover:text-brand transition-colors">
+                            class="block py-2 px-3 rounded md:p-0 hover:bg-gray-800 md:hover:bg-transparent md:hover:text-brand transition-colors">
                             Fasilitas
                         </a>
                     </li>
                     <li>
                         <a href="#pelatih"
                             :class="activeSection === 'pelatih' ? 'text-brand md:text-brand font-bold' : 'text-white'"
-                            class="block py-2 px-3 rounded md:p-0 hover:bg-neutral-tertiary md:hover:bg-transparent md:hover:text-brand transition-colors">
+                            class="block py-2 px-3 rounded md:p-0 hover:bg-gray-800 md:hover:bg-transparent md:hover:text-brand transition-colors">
                             Tim Pelatih
                         </a>
                     </li>
                     <li>
                         <a href="#pencapaian"
                             :class="activeSection === 'pencapaian' ? 'text-brand md:text-brand font-bold' : 'text-white'"
-                            class="block py-2 px-3 rounded md:p-0 hover:bg-neutral-tertiary md:hover:bg-transparent md:hover:text-brand transition-colors">
+                            class="block py-2 px-3 rounded md:p-0 hover:bg-gray-800 md:hover:bg-transparent md:hover:text-brand transition-colors">
                             Pencapaian
                         </a>
                     </li>
@@ -139,13 +139,13 @@ new #[Layout('layouts::empty')] #[Title('FRANS GYM | Pusat Kebugaran Terbaik di 
                     @guest
                         <li>
                             <a href="/pendaftaran/member" wire:navigate
-                                class="block py-2 px-3 rounded md:p-0 md:border-0 text-white md:hover:text-brand hover:bg-neutral-tertiary md:hover:bg-transparent transition-colors">
+                                class="block py-2 px-3 rounded md:p-0 md:border-0 text-white md:hover:text-brand hover:bg-gray-800 md:hover:bg-transparent transition-colors">
                                 Daftar
                             </a>
                         </li>
                         <li>
                             <a href="{{ route('login') }}" wire:navigate
-                                class="block py-2 px-3 rounded md:p-0 md:border-0 text-white hover:bg-neutral-tertiary md:hover:bg-transparent md:hover:text-brand transition-colors">
+                                class="block py-2 px-3 rounded md:p-0 md:border-0 text-white hover:bg-gray-800 md:hover:bg-transparent md:hover:text-brand transition-colors">
                                 Login
                             </a>
                         </li>
