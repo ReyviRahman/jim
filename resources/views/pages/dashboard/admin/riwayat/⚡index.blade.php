@@ -224,9 +224,11 @@ new #[Layout('layouts::admin')] class extends Component
 ?>
 
 <div>
-    <div class="mb-6">
-        <livewire:dashboard.membership-operational-approvals />
-    </div>
+    @if (in_array(auth()->user()?->role, \App\Actions\MembershipOperationalApproval::ROLES, true))
+        <div class="mb-6">
+            <livewire:dashboard.membership-operational-approvals />
+        </div>
+    @endif
 
     <div class="flex sm:flex-row flex-col justify-between items-center mb-6">
         <h5 class="text-xl font-semibold text-heading">Data Riwayat Membership</h5>

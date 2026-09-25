@@ -6,7 +6,6 @@ use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Locked;
@@ -16,10 +15,6 @@ new #[Layout('layouts::admin')] class extends Component
 {
     public string $search = '';
 
-    public string $dateStart = '';
-
-    public string $dateEnd = '';
-
     #[Locked]
     public string $periodStart = '';
 
@@ -28,48 +23,20 @@ new #[Layout('layouts::admin')] class extends Component
 
     public function mount(): void
     {
-        $this->resetPeriod();
-    }
-
-    public function resetPeriod(): void
-    {
-        $month = CarbonImmutable::today(config('app.timezone'))->startOfMonth();
-        $this->dateStart = $month->subMonth()->day(16)->toDateString();
-        $this->dateEnd = $month->day(15)->toDateString();
-        $this->applyPeriod();
-    }
-
-    public function applyPeriod(): void
-    {
-        $this->validate([
-            'dateStart' => ['required', 'date_format:Y-m-d'],
-            'dateEnd' => ['required', 'date_format:Y-m-d', 'after_or_equal:dateStart'],
-        ], [
-            'dateStart.required' => 'Pilih tanggal mulai.',
-            'dateStart.date_format' => 'Tanggal mulai tidak valid.',
-            'dateEnd.required' => 'Pilih tanggal akhir.',
-            'dateEnd.date_format' => 'Tanggal akhir tidak valid.',
-            'dateEnd.after_or_equal' => 'Tanggal akhir harus sama atau setelah tanggal mulai.',
-        ]);
-
-        $this->periodStart = $this->dateStart;
-        $this->periodEnd = $this->dateEnd;
-        unset($this->ptUsers);
+        $today = CarbonImmutable::today(config('app.timezone'));
+        $month = $today->startOfMonth();
+        $startMonth = $today->day >= 16 ? $month : $month->subMonth();
+        $this->periodStart = $startMonth->day(16)->toDateString();
+        $this->periodEnd = $startMonth->addMonth()->day(15)->toDateString();
     }
 
     #[Computed]
     public function ptUsers(): Collection
     {
-        $inPeriod = fn (Builder $query) => $query
-            ->whereNotNull('pt_package_id')
-            ->whereIn('status', ['active', 'completed'])
-            ->whereDate('start_date', '<=', $this->periodEnd)
-            ->whereDate('pt_end_date', '>=', $this->periodStart);
-
         return User::where('role', 'pt')
             ->where('is_active', true)
             ->when($this->search, fn (Builder $query) => $query->where('name', 'like', '%'.$this->search.'%'))
-            ->with(['ptMemberships' => fn (HasMany $query) => $query->where($inPeriod)->with('members:id')])
+            ->withCount(['ptMemberships as active_packages_count' => fn (Builder $query) => $query->runningPt()])
             ->withCount(['ptBookingsAsPt as total_sessions' => fn (Builder $query) => $query
                 ->where('status', 'approved')
                 ->where('attendance', 'attended')
@@ -103,25 +70,10 @@ new #[Layout('layouts::admin')] class extends Component
                 <a href="{{ route('admin.akun.trainer.create') }}" wire:navigate class="coach-directory-add" aria-label="Tambah coach"><x-coach-icon name="add" /> Coach</a>
             @endif
         </div>
-        <form wire:submit="applyPeriod" class="coach-directory-period">
-            <div class="coach-directory-period-fields">
-                <div>
-                    <label for="coach-date-start">Tanggal mulai</label>
-                    <input id="coach-date-start" type="date" wire:model="dateStart" required>
-                    @error('dateStart') <p role="alert" class="coach-directory-period-error">{{ $message }}</p> @enderror
-                </div>
-                <div>
-                    <label for="coach-date-end">Tanggal akhir</label>
-                    <input id="coach-date-end" type="date" wire:model="dateEnd" required>
-                    @error('dateEnd') <p role="alert" class="coach-directory-period-error">{{ $message }}</p> @enderror
-                </div>
-                <button type="submit" class="coach-directory-add" wire:loading.attr="disabled" wire:target="applyPeriod,resetPeriod">Terapkan</button>
-                <button type="button" class="coach-directory-period-reset" wire:click="resetPeriod" wire:loading.attr="disabled" wire:target="applyPeriod,resetPeriod">Periode bulan ini</button>
-            </div>
+        <div class="coach-directory-period">
             <p aria-live="polite">Periode: <strong>{{ \Carbon\CarbonImmutable::parse($periodStart)->locale('id')->translatedFormat('d F Y') }} – {{ \Carbon\CarbonImmutable::parse($periodEnd)->locale('id')->translatedFormat('d F Y') }}</strong></p>
-            <p>Member Aktif: member unik dengan masa aktif paket PT yang bersinggungan dengan periode ini. Total Sesi: booking Hadir dalam periode ini, tidak termasuk sesi gratis.</p>
-        </form>
-        <div class="coach-directory-list" wire:loading.class="opacity-60" wire:target="search,applyPeriod,resetPeriod">
+        </div>
+        <div class="coach-directory-list" wire:loading.class="opacity-60" wire:target="search">
             @forelse ($this->ptUsers as $pt)
                 <article class="coach-directory-card" wire:key="pt-{{ $pt->id }}">
                     <div class="coach-directory-photo">
@@ -148,7 +100,7 @@ new #[Layout('layouts::admin')] class extends Component
                         <div class="coach-directory-contact"><x-coach-icon name="mail" /><span>{{ $pt->email ?: 'Email belum diisi' }}</span></div>
                         <div class="coach-directory-contact"><x-coach-icon name="phone" /><span>{{ $pt->phone ?: 'Telepon belum diisi' }}</span></div>
                         <div class="coach-directory-card-footer">
-                            <div class="coach-directory-stat"><x-coach-icon name="users" /><div><strong>{{ $pt->ptMemberships->flatMap->members->unique('id')->count() }}</strong><span>Member Aktif</span></div></div>
+                            <div class="coach-directory-stat"><x-coach-icon name="users" /><div><strong>{{ $pt->active_packages_count }}</strong><span>Member Aktif</span></div></div>
                             <div class="coach-directory-stat"><x-coach-icon name="calendar" /><div><strong>{{ (int) $pt->total_sessions }}</strong><span>Total Sesi</span></div></div>
                             <a href="{{ route('admin.sesi-pt.detail', $pt) }}" wire:navigate class="coach-directory-detail" aria-label="Detail {{ $pt->name }}"><x-coach-icon name="eye" />Detail</a>
                         </div>

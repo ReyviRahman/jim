@@ -5,7 +5,9 @@ namespace Tests\Feature;
 use App\Models\GymPackage;
 use App\Models\Membership;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Livewire\Features\SupportLockedProperties\CannotUpdateLockedPropertyException;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -19,19 +21,22 @@ class PtBerjalanTest extends TestCase
         $this->actingAs(User::factory()->create(['role' => 'admin']));
     }
 
-    public function test_coach_list_counts_packages_and_includes_active_empty_and_inactive_assigned_coaches(): void
+    public function test_coach_list_counts_members_and_includes_active_empty_and_inactive_assigned_coaches(): void
     {
         $coach = $this->coach('Coach A');
         $empty = $this->coach('Coach B');
         $inactive = $this->coach('Coach C', false);
         $hidden = $this->coach('Coach D', false);
         $first = $this->membership($coach);
+        $first->members()->attach($first->user_id);
         $this->membership($coach, ['user_id' => $first->user_id, 'remaining_sessions' => 0, 'pt_end_date' => today()->subMonth()]);
         $this->membership($coach, ['status' => 'pending']);
         $this->membership($coach, ['is_active' => false]);
         $this->membership($coach, ['pt_package_id' => null]);
-        $this->membership($inactive);
+        $assigned = $this->membership($inactive);
+        $assigned->members()->attach($assigned->user_id);
         $unassigned = $this->membership(null);
+        $unassigned->members()->attach($unassigned->user_id);
         $page = Livewire::test('pages::dashboard.admin.pt-berjalan')
             ->assertSee('Belum ada coach')->assertSee('Nonaktif')->assertDontSee($hidden->name);
         $coaches = $page->get('coaches')->getCollection()->keyBy('id');
@@ -205,6 +210,91 @@ class PtBerjalanTest extends TestCase
         $membership->update(['start_date' => null, 'pt_end_date' => null]);
         $page->call('openDetailModal', $membership->id)->assertSee('—')
             ->assertDontSee('14 Jul 2026')->assertDontSee('14 Oct 2026');
+    }
+
+    public function test_read_only_period_matches_the_coach_directory(): void
+    {
+        foreach (['2026-09-01', '2026-09-15', '2026-09-16', '2026-09-30', '2026-12-31', '2027-01-01', '2028-02-29'] as $today) {
+            $this->travelTo(Carbon::parse($today));
+            $directory = Livewire::test('pages::dashboard.admin.sesi-pt.index');
+            $start = $directory->get('periodStart');
+            $end = $directory->get('periodEnd');
+
+            Livewire::test('pages::dashboard.admin.pt-berjalan')
+                ->assertSee('Periode:')
+                ->assertDontSeeHtml('type="date"')
+                ->assertDontSee('Terapkan')->assertDontSee('Periode bulan ini')
+                ->assertSet('periodStart', $start)->assertSet('periodEnd', $end);
+        }
+        $this->travelBack();
+    }
+
+    public function test_both_directories_count_running_packages_like_coach_details_regardless_of_period(): void
+    {
+        $this->travelTo(Carbon::parse('2026-09-25'));
+        $coach = $this->coach('Coach Period');
+        $members = User::factory()->count(3)->create(['role' => 'member']);
+
+        foreach ([$coach, null] as $assignedCoach) {
+            foreach ([
+                ['start_date' => '2026-08-01', 'pt_end_date' => '2026-09-16'],
+                ['start_date' => '2026-10-15', 'pt_end_date' => '2026-11-01'],
+                ['remaining_sessions' => 0],
+            ] as $attributes) {
+                $this->membership($assignedCoach, $attributes)->members()->attach($members->take(2)->modelKeys());
+            }
+
+            foreach ([
+                ['pt_end_date' => '2026-09-15'],
+                ['start_date' => '2026-10-16'],
+                ['status' => 'pending'],
+                ['status' => 'rejected'],
+                ['status' => 'completed'],
+                ['is_active' => false],
+                ['pt_package_id' => null],
+                ['start_date' => null],
+                ['pt_end_date' => null],
+            ] as $attributes) {
+                $this->membership($assignedCoach, $attributes)->members()->attach($members[2]->id);
+            }
+            $this->membership($assignedCoach);
+        }
+
+        $page = Livewire::test('pages::dashboard.admin.pt-berjalan');
+        $directory = Livewire::test('pages::dashboard.admin.sesi-pt.index');
+        $details = Livewire::test('pages::dashboard.admin.pt-berjalan.coach', ['coach' => $coach->id]);
+        $unassigned = Livewire::test('pages::dashboard.admin.pt-berjalan.coach');
+        $this->assertSame(8, $details->get('packageCount'));
+        $this->assertSame(8, $details->get('memberships')->total());
+        $this->assertSame($details->get('packageCount'), $page->get('coaches')->firstWhere('id', $coach->id)->active_packages_count);
+        $this->assertSame($details->get('packageCount'), $directory->get('ptUsers')->firstWhere('id', $coach->id)->active_packages_count);
+        $this->assertSame(8, $unassigned->get('packageCount'));
+        $this->assertSame($unassigned->get('packageCount'), $page->get('unassignedCount'));
+
+        $this->travelTo(Carbon::parse('2027-01-01'));
+        $page = Livewire::test('pages::dashboard.admin.pt-berjalan');
+        $directory = Livewire::test('pages::dashboard.admin.sesi-pt.index');
+        $this->assertSame(8, $page->get('coaches')->firstWhere('id', $coach->id)->active_packages_count);
+        $this->assertSame(8, $directory->get('ptUsers')->firstWhere('id', $coach->id)->active_packages_count);
+        $this->assertSame(8, $page->get('unassignedCount'));
+        $this->travelBack();
+    }
+
+    public function test_period_is_preserved_during_pagination_and_search_and_cannot_be_changed_by_the_client(): void
+    {
+        $this->travelTo(Carbon::parse('2026-09-25'));
+        User::factory()->count(13)->create(['role' => 'pt', 'is_active' => true]);
+        $page = Livewire::test('pages::dashboard.admin.pt-berjalan')->call('setPage', 2);
+        $this->assertSame(2, $page->get('coaches')->currentPage());
+
+        $page->assertSet('periodStart', '2026-09-16')->assertSet('periodEnd', '2026-10-15')
+            ->set('search', 'Coach')
+            ->assertSet('periodStart', '2026-09-16')->assertSet('periodEnd', '2026-10-15');
+        $this->assertSame(1, $page->get('coaches')->currentPage());
+        $this->travelBack();
+
+        $this->expectException(CannotUpdateLockedPropertyException::class);
+        $page->set('periodEnd', '2027-01-01');
     }
 
     private function coach(string $name, bool $active = true): User

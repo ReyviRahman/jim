@@ -72,8 +72,17 @@ class HeadCoachAccessTest extends TestCase
             ->assertDontSeeHtml('href="'.route('admin.penjualan.index').'"')
             ->assertDontSeeHtml('href="'.route('admin.pengeluaran.index').'"');
 
-        $this->get(route('admin.riwayat.index'))->assertOk();
+        $this->get(route('admin.riwayat.index'))
+            ->assertOk()->assertSee('Data Riwayat Membership')->assertDontSee('Approval Membership');
+        $this->get(route('admin.riwayat.index', ['approval' => 'pending']))->assertOk();
         $this->get(route('admin.riwayat.detail', $member))->assertOk()->assertSee($member->name);
+
+        Livewire::test('pages::dashboard.admin.riwayat.index')
+            ->assertOk()->assertDontSeeLivewire('dashboard.membership-operational-approvals')
+            ->set('search', $member->name)->assertOk()
+            ->call('setFilterTime', 'month')->assertOk();
+
+        Livewire::test('dashboard.membership-operational-approvals')->assertForbidden();
     }
 
     public function test_admin_and_gym_cashier_keep_membership_history_navigation(): void
@@ -84,6 +93,7 @@ class HeadCoachAccessTest extends TestCase
             $this->actingAs($user)->get(route('admin.riwayat.index'))
                 ->assertOk()
                 ->assertSee('Riwayat Member')
+                ->assertSee('Approval Membership')
                 ->assertSeeHtml('href="'.route('admin.riwayat.index').'"')
                 ->assertSeeHtml('href="'.route('admin.penjualan.index').'"')
                 ->assertSeeHtml('href="'.route('admin.pengeluaran.index').'"');

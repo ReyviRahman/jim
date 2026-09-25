@@ -2,6 +2,7 @@
 
 use App\Models\Membership;
 use App\Models\User;
+use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Livewire\Attributes\Computed;
@@ -17,11 +18,29 @@ new #[Layout('layouts::admin')] class extends Component
     public string $search = '';
 
     #[Locked]
+    public string $periodStart = '';
+
+    #[Locked]
+    public string $periodEnd = '';
+
+    #[Locked]
     public bool $expired = false;
 
     public function mount(bool $expired = false): void
     {
         $this->expired = $expired;
+        if (! $this->expired) {
+            $this->initializePeriod();
+        }
+    }
+
+    private function initializePeriod(): void
+    {
+        $today = CarbonImmutable::today(config('app.timezone'));
+        $month = $today->startOfMonth();
+        $startMonth = $today->day >= 16 ? $month : $month->subMonth();
+        $this->periodStart = $startMonth->day(16)->toDateString();
+        $this->periodEnd = $startMonth->addMonth()->day(15)->toDateString();
     }
 
     private function filterPackages(Builder $query): Builder

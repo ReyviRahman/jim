@@ -8,6 +8,7 @@ use App\Models\PtBooking;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Livewire\Features\SupportLockedProperties\CannotUpdateLockedPropertyException;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -43,25 +44,35 @@ class CoachDirectoryTest extends TestCase
             ->assertSee('Belum ada data personal trainer.');
     }
 
-    public function test_default_period_uses_previous_month_sixteenth_through_current_month_fifteenth(): void
+    public function test_default_period_switches_on_the_sixteenth(): void
     {
         $this->actingAs(User::factory()->create(['role' => 'admin']));
 
-        foreach (['2026-09-01', '2026-09-15', '2026-09-25', '2026-09-30'] as $today) {
+        foreach ([
+            ['2026-09-01', '2026-08-16', '2026-09-15'],
+            ['2026-09-15', '2026-08-16', '2026-09-15'],
+            ['2026-09-16', '2026-09-16', '2026-10-15'],
+            ['2026-09-25', '2026-09-16', '2026-10-15'],
+            ['2026-09-30', '2026-09-16', '2026-10-15'],
+            ['2026-12-16', '2026-12-16', '2027-01-15'],
+            ['2027-01-15', '2026-12-16', '2027-01-15'],
+            ['2027-01-31', '2027-01-16', '2027-02-15'],
+            ['2028-02-29', '2028-02-16', '2028-03-15'],
+        ] as [$today, $start, $end]) {
             $this->travelTo(Carbon::parse($today));
             Livewire::test('pages::dashboard.admin.sesi-pt.index')
-                ->assertSet('periodStart', '2026-08-16')->assertSet('periodEnd', '2026-09-15');
+                ->assertSee('Periode:')
+                ->assertDontSeeHtml('type="date"')
+                ->assertDontSee('Terapkan')->assertDontSee('Periode bulan ini')
+                ->assertSet('periodStart', $start)->assertSet('periodEnd', $end);
         }
 
-        $this->travelTo(Carbon::parse('2027-01-31'));
-        Livewire::test('pages::dashboard.admin.sesi-pt.index')
-            ->assertSet('periodStart', '2026-12-16')->assertSet('periodEnd', '2027-01-15');
         $this->travelBack();
     }
 
-    public function test_period_counts_unique_members_from_overlapping_packages_and_only_attended_bookings(): void
+    public function test_member_count_follows_running_packages_while_period_filters_attended_sessions(): void
     {
-        $this->travelTo(Carbon::parse('2026-09-25'));
+        $this->travelTo(Carbon::parse('2026-09-15'));
         $this->actingAs(User::factory()->create(['role' => 'admin']));
         $coach = User::factory()->create(['role' => 'pt', 'is_active' => true]);
         $members = User::factory()->count(2)->create(['role' => 'member']);
@@ -88,6 +99,8 @@ class CoachDirectoryTest extends TestCase
         $create(['start_date' => '2026-09-16']);
         $create(['status' => 'pending']);
         $create(['status' => 'rejected']);
+        $create(['status' => 'completed']);
+        $create(['is_active' => false]);
         $create(['pt_package_id' => null]);
         $create(['pt_end_date' => null]);
         $create(['start_date' => null]);
@@ -115,32 +128,33 @@ class CoachDirectoryTest extends TestCase
 
         $page = Livewire::test('pages::dashboard.admin.sesi-pt.index');
         $stats = $page->get('ptUsers')->firstWhere('id', $coach->id);
-        $this->assertCount(4, $stats->ptMemberships);
-        $this->assertSame(2, $stats->ptMemberships->flatMap->members->unique('id')->count());
+        $this->assertSame(7, $stats->active_packages_count);
         $this->assertSame(3, (int) $stats->total_sessions);
         $this->assertSame(1, (int) $page->get('ptUsers')->firstWhere('id', $otherCoach->id)->total_sessions);
 
-        $page->set('dateStart', '2027-02-01')->set('dateEnd', '2027-02-28')->call('applyPeriod')->assertHasNoErrors();
+        $this->travelTo(Carbon::parse('2027-02-01'));
+        $page = Livewire::test('pages::dashboard.admin.sesi-pt.index');
         $stats = $page->get('ptUsers')->firstWhere('id', $coach->id);
-        $this->assertCount(0, $stats->ptMemberships);
+        $this->assertSame(7, $stats->active_packages_count);
         $this->assertSame(0, (int) $stats->total_sessions);
-        $page->set('search', $coach->name)->assertSee($coach->name)->call('resetPeriod')
+        $this->travelTo(Carbon::parse('2026-09-15'));
+        $page = Livewire::test('pages::dashboard.admin.sesi-pt.index');
+        $page->set('search', $coach->name)->assertSee($coach->name)
             ->assertSet('periodStart', '2026-08-16')->assertSet('periodEnd', '2026-09-15');
-        $this->assertCount(4, $page->get('ptUsers')->first()->ptMemberships);
+        $this->assertSame(7, $page->get('ptUsers')->first()->active_packages_count);
         $this->travelBack();
     }
 
-    public function test_invalid_period_keeps_the_last_applied_range_and_same_day_is_allowed(): void
+    public function test_period_is_preserved_when_searching_and_cannot_be_changed_by_the_client(): void
     {
-        $this->travelTo(Carbon::parse('2026-09-25'));
+        $this->travelTo(Carbon::parse('2026-09-15'));
         $this->actingAs(User::factory()->create(['role' => 'admin']));
         $page = Livewire::test('pages::dashboard.admin.sesi-pt.index');
-        $page->set('dateStart', '2026-09-20')->set('dateEnd', '2026-09-01')->call('applyPeriod')
-            ->assertHasErrors('dateEnd')->assertSet('periodStart', '2026-08-16')->assertSet('periodEnd', '2026-09-15');
-        $page->set('dateStart', '')->call('applyPeriod')->assertHasErrors('dateStart');
-        $page->set('dateStart', '2026-02-30')->call('applyPeriod')->assertHasErrors('dateStart');
-        $page->set('dateStart', '2026-09-01')->set('dateEnd', '2026-09-01')->call('applyPeriod')
-            ->assertHasNoErrors()->assertSet('periodStart', '2026-09-01')->assertSet('periodEnd', '2026-09-01');
+        $page->set('search', 'Coach')
+            ->assertSet('periodStart', '2026-08-16')->assertSet('periodEnd', '2026-09-15');
         $this->travelBack();
+
+        $this->expectException(CannotUpdateLockedPropertyException::class);
+        $page->set('periodStart', '2026-01-01');
     }
 }
