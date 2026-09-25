@@ -1,0 +1,62 @@
+.admin-booking-layout {
+    background: #080909;
+}
+
+.admin-booking-layout #dashboard-content > div {
+    border-color: #35383b;
+}
+
+.admin-booking-page {
+    --color-heading: #f4f4f5;
+    --color-body: #b9bdc1;
+    --color-neutral-primary-soft: #151719;
+    --color-neutral-secondary-medium: #232628;
+    --color-neutral-secondary-dark: #323639;
+    --color-default: #35383b;
+    --color-default-medium: #45494d;
+    --color-brand-strong: #e4d600;
+    min-height: calc(100svh - 7.5rem);
+    color: var(--color-heading);
+    color-scheme: dark;
+}
+
+.admin-booking-page :is(button, a, input, select, textarea):focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 3px;
+}
+
+.admin-booking-page :is(input, textarea)::placeholder {
+    color: var(--color-body);
+}
+
+.admin-booking-page :is(button, input, select):disabled {
+    cursor: not-allowed;
+}
+
+.admin-booking-page table[data-responsive-table][data-booking-schedule] tbody,
+.admin-booking-page table[data-responsive-table][data-booking-schedule] tbody > tr {
+    border-color: var(--color-default);
+    background: var(--color-neutral-primary-soft);
+}
+
+.admin-booking-page table[data-responsive-table][data-booking-schedule] tbody > tr:hover {
+    background: #1b1e20;
+}
+
+@media (max-width: 39.999rem) {
+    .admin-booking-page table[data-responsive-table][data-booking-schedule][data-day-view="today"] {
+        background: var(--color-neutral-primary-soft);
+    }
+
+    .admin-booking-page table[data-responsive-table][data-booking-schedule][data-day-view="today"] [data-booking-schedule-today-header] {
+        border-color: var(--color-default);
+        background: var(--color-neutral-secondary-medium);
+        color: var(--color-brand);
+    }
+
+    .admin-booking-page table[data-responsive-table][data-booking-schedule][data-day-view="today"] tbody:not(.hidden),
+    .admin-booking-page table[data-responsive-table][data-booking-schedule][data-day-view="today"] tbody > tr:not(.hidden) {
+        border-color: var(--color-default);
+        background: var(--color-neutral-primary-soft);
+    }
+}

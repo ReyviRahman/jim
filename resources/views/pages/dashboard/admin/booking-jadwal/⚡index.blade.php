@@ -1053,20 +1053,20 @@ new #[Layout('layouts::admin')] class extends Component
     }
 }; ?>
 
-<div>
+<div class="admin-booking-page">
     @if (session()->has('success'))
-        <div class="mb-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded text-sm">
+        <div class="mb-4 p-3 bg-green-950 border border-green-400 text-green-300 rounded text-sm">
             {{ session('success') }}
         </div>
     @endif
     @if (session()->has('error'))
-        <div class="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded text-sm">
+        <div class="mb-4 p-3 bg-red-950 border border-red-400 text-red-300 rounded text-sm">
             {{ session('error') }}
         </div>
     @endif
 
     <div class="flex sm:flex-row flex-col justify-between items-center mb-6">
-        <h5 class="text-xl font-semibold text-heading">PT Schedule</h5>
+        <h5 class="text-xl font-semibold text-brand">PT Schedule</h5>
     </div>
 
     <div x-data="bookingDayFilter" class="relative overflow-hidden bg-neutral-primary-soft shadow-xs rounded-md border border-default">
@@ -1108,7 +1108,7 @@ new #[Layout('layouts::admin')] class extends Component
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
                     Kemarin
                 </button>
-                <button wire:click="today" x-on:click="dayView = 'today'" x-show="dayView === 'today'" class="inline-flex items-center gap-1 px-3 py-2 text-sm font-medium text-white bg-brand border border-brand rounded hover:bg-brand-dark transition-colors sm:hidden">
+                <button wire:click="today" x-on:click="dayView = 'today'" x-show="dayView === 'today'" class="inline-flex items-center gap-1 px-3 py-2 text-sm font-medium text-black bg-brand border border-brand rounded hover:bg-brand-strong transition-colors sm:hidden">
                     Hari Ini
                 </button>
                 <button wire:click="nextDay" x-on:click="dayView = 'today'" x-show="dayView === 'today'" class="inline-flex items-center gap-1 px-3 py-2 text-sm font-medium text-body bg-neutral-secondary-medium border border-default-medium rounded hover:bg-neutral-secondary-dark transition-colors sm:hidden">
@@ -1119,7 +1119,7 @@ new #[Layout('layouts::admin')] class extends Component
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
                     Minggu Lalu
                 </button>
-                <button wire:click="thisWeek" x-on:click="dayView = 'all'" x-show="dayView === 'all'" class="hidden items-center gap-1 px-3 py-2 text-sm font-medium text-white bg-brand border border-brand rounded hover:bg-brand-dark transition-colors sm:inline-flex">
+                <button wire:click="thisWeek" x-on:click="dayView = 'all'" x-show="dayView === 'all'" class="hidden items-center gap-1 px-3 py-2 text-sm font-medium text-black bg-brand border border-brand rounded hover:bg-brand-strong transition-colors sm:inline-flex">
                     Minggu Ini
                 </button>
                 <button wire:click="nextWeek" x-on:click="dayView = 'all'" x-show="dayView === 'all'" class="hidden items-center gap-1 px-3 py-2 text-sm font-medium text-body bg-neutral-secondary-medium border border-default-medium rounded hover:bg-neutral-secondary-dark transition-colors sm:inline-flex">
@@ -1186,11 +1186,11 @@ new #[Layout('layouts::admin')] class extends Component
                                             <div wire:key="booking-{{ $booking->id }}"
                                                 wire:click="openDetailModal({{ $booking->id }})"
                                                 class="w-full min-w-0 max-w-full overflow-hidden cursor-pointer p-2 rounded border text-xs transition-colors
-                                                @if($booking->status === 'cancelled') bg-gray-50 border-gray-200 opacity-60
-                                                @elseif($booking->isRejected()) bg-red-50 border-red-200
-                                                @elseif($booking->isPending()) bg-orange-50 border-orange-200
-                                                @elseif($booking->isCancellationPending()) bg-yellow-50 border-yellow-200
-                                                @else bg-green-50 border-green-200
+                                                @if($booking->status === 'cancelled') bg-neutral-primary-soft border-default opacity-60
+                                                @elseif($booking->isRejected()) bg-red-950/40 border-red-800
+                                                @elseif($booking->isPending()) bg-orange-950/40 border-orange-800
+                                                @elseif($booking->isCancellationPending()) bg-yellow-950/40 border-yellow-800
+                                                @else bg-green-950/40 border-green-800
                                                 @endif">
                                                 @php
                                                     $memberWhatsAppUrl = $booking->member
@@ -1243,26 +1243,26 @@ new #[Layout('layouts::admin')] class extends Component
                                                 <div data-booking-card-name="coach" class="mt-0.5 w-full min-w-0 max-w-full whitespace-normal wrap-anywhere text-body">{{ Str::of($booking->pt?->name ?? '-')->squish()->before(' ') }}</div>
                                                 <div class="mt-1 flex min-w-0 max-w-full flex-wrap items-center gap-1">
                                                     @if($booking->isCancellationPending())
-                                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-yellow-100 text-yellow-800">Pending Cancel</span>
+                                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-yellow-950 text-yellow-300">Pending Cancel</span>
                                                     @else
                                                         <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium capitalize
-                                                            @if($booking->status === 'pending') bg-orange-100 text-orange-800
-                                                            @elseif($booking->status === 'approved') bg-green-100 text-green-800
-                                                            @elseif($booking->status === 'cancelled') bg-gray-100 text-gray-600
-                                                            @elseif($booking->status === 'rejected') bg-red-100 text-red-800
-                                                            @else bg-gray-100 text-gray-800
+                                                            @if($booking->status === 'pending') bg-orange-950 text-orange-300
+                                                            @elseif($booking->status === 'approved') bg-green-950 text-green-300
+                                                            @elseif($booking->status === 'cancelled') bg-neutral-secondary-medium text-body
+                                                            @elseif($booking->status === 'rejected') bg-red-950 text-red-300
+                                                            @else bg-neutral-secondary-medium text-heading
                                                             @endif">
                                                             {{ $booking->status }}
                                                         </span>
                                                     @endif
                                                     @if($booking->is_free)
-                                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-100 text-purple-800">Free</span>
+                                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-950 text-purple-300">Free</span>
                                                     @endif
                                                     @if($booking->status === 'approved')
                                                         <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium capitalize
-                                                            @if($booking->attendance === 'attended') bg-green-100 text-green-800
-                                                            @elseif($booking->attendance === 'noshow') bg-red-100 text-red-800
-                                                            @else bg-gray-100 text-gray-600
+                                                            @if($booking->attendance === 'attended') bg-green-950 text-green-300
+                                                            @elseif($booking->attendance === 'noshow') bg-red-950 text-red-300
+                                                            @else bg-neutral-secondary-medium text-body
                                                             @endif">
                                                             @if($booking->attendance === 'attended') Hadir
                                                             @elseif($booking->attendance === 'noshow') Hangus
@@ -1286,7 +1286,7 @@ new #[Layout('layouts::admin')] class extends Component
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="8" class="px-6 py-8 text-center text-gray-500">
+                            <td colspan="8" class="px-6 py-8 text-center text-body">
                                 Tidak ada data slot waktu.
                             </td>
                         </tr>
@@ -1298,16 +1298,16 @@ new #[Layout('layouts::admin')] class extends Component
 
     @if($showCancelModal)
         <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" wire:click.self="closeCancelModal">
-            <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 p-6" @click.stop>
+            <div class="bg-neutral-primary-soft rounded-lg shadow-xl w-full max-w-md mx-4 p-6" @click.stop>
                 <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-lg font-semibold text-gray-900">Alasan Pembatalan</h3>
-                    <button type="button" wire:click="closeCancelModal" class="text-gray-400 hover:text-gray-600">
+                    <h3 class="text-lg font-semibold text-heading">Alasan Pembatalan</h3>
+                    <button type="button" wire:click="closeCancelModal" class="text-gray-400 hover:text-heading">
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                     </button>
                 </div>
 
                 @if($errors->any())
-                    <div class="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded text-sm">
+                    <div class="mb-4 p-3 bg-red-950 border border-red-400 text-red-300 rounded text-sm">
                         <ul class="list-disc list-inside">
                             @foreach($errors->all() as $error)
                                 <li>{{ $error }}</li>
@@ -1318,18 +1318,18 @@ new #[Layout('layouts::admin')] class extends Component
 
                 <form wire:submit.prevent="cancelBooking" class="space-y-4">
                     <div>
-                        <label for="cancelReason" class="block text-sm font-medium text-gray-700 mb-1">
-                            Alasan Pembatalan <span class="text-red-500">*</span>
+                        <label for="cancelReason" class="block text-sm font-medium text-body mb-1">
+                            Alasan Pembatalan <span class="text-red-400">*</span>
                         </label>
                         <textarea id="cancelReason" wire:model="cancelReason" rows="4"
-                            class="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
+                            class="block w-full px-3 py-2 bg-neutral-primary-soft border border-default-medium rounded-md text-sm focus:ring-brand focus:border-brand"
                             placeholder="Silakan isi alasan mengapa booking ini dibatalkan..."></textarea>
-                        @error('cancelReason') <span class="text-sm text-red-600">{{ $message }}</span> @enderror
+                        @error('cancelReason') <span class="text-sm text-red-300">{{ $message }}</span> @enderror
                     </div>
 
                     <div class="flex gap-3 pt-2">
                         <button type="button" wire:click="closeCancelModal"
-                            class="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200">
+                            class="flex-1 px-4 py-2 text-sm font-medium text-body bg-neutral-secondary-medium rounded-md hover:bg-neutral-secondary-dark">
                             Batal
                         </button>
                         <button type="submit" wire:loading.attr="disabled"
@@ -1345,16 +1345,16 @@ new #[Layout('layouts::admin')] class extends Component
 
     @if($showRejectModal)
         <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" wire:click.self="closeRejectModal">
-            <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 p-6" @click.stop>
+            <div class="bg-neutral-primary-soft rounded-lg shadow-xl w-full max-w-md mx-4 p-6" @click.stop>
                 <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-lg font-semibold text-gray-900">Alasan Reject</h3>
-                    <button type="button" wire:click="closeRejectModal" class="text-gray-400 hover:text-gray-600">
+                    <h3 class="text-lg font-semibold text-heading">Alasan Reject</h3>
+                    <button type="button" wire:click="closeRejectModal" class="text-gray-400 hover:text-heading">
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                     </button>
                 </div>
 
                 @if($errors->any())
-                    <div class="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded text-sm">
+                    <div class="mb-4 p-3 bg-red-950 border border-red-400 text-red-300 rounded text-sm">
                         <ul class="list-disc list-inside">
                             @foreach($errors->all() as $error)
                                 <li>{{ $error }}</li>
@@ -1365,18 +1365,18 @@ new #[Layout('layouts::admin')] class extends Component
 
                 <form wire:submit.prevent="submitRejectBooking" class="space-y-4">
                     <div>
-                        <label for="rejectReason" class="block text-sm font-medium text-gray-700 mb-1">
-                            Alasan Reject <span class="text-red-500">*</span>
+                        <label for="rejectReason" class="block text-sm font-medium text-body mb-1">
+                            Alasan Reject <span class="text-red-400">*</span>
                         </label>
                         <textarea id="rejectReason" wire:model="rejectReason" rows="4"
-                            class="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
+                            class="block w-full px-3 py-2 bg-neutral-primary-soft border border-default-medium rounded-md text-sm focus:ring-brand focus:border-brand"
                             placeholder="Silakan isi alasan mengapa booking ini di-reject..."></textarea>
-                        @error('rejectReason') <span class="text-sm text-red-600">{{ $message }}</span> @enderror
+                        @error('rejectReason') <span class="text-sm text-red-300">{{ $message }}</span> @enderror
                     </div>
 
                     <div class="flex gap-3 pt-2">
                         <button type="button" wire:click="closeRejectModal"
-                            class="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200">
+                            class="flex-1 px-4 py-2 text-sm font-medium text-body bg-neutral-secondary-medium rounded-md hover:bg-neutral-secondary-dark">
                             Batal
                         </button>
                         <button type="submit" wire:loading.attr="disabled"
@@ -1393,10 +1393,10 @@ new #[Layout('layouts::admin')] class extends Component
     @if($showDetailModal && $this->selectedBooking)
         @php $booking = $this->selectedBooking; @endphp
         <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" wire:click.self="closeDetailModal">
-            <div class="bg-white rounded-lg shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto" @click.stop>
-                <div class="flex items-center justify-between p-4 border-b border-gray-200 sticky top-0 bg-white">
+            <div class="bg-neutral-primary-soft rounded-lg shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto" @click.stop>
+                <div class="flex items-center justify-between p-4 border-b border-default sticky top-0 bg-neutral-primary-soft">
                     <h3 class="text-lg font-semibold text-heading">Detail Booking</h3>
-                    <button wire:click="closeDetailModal" class="text-gray-400 hover:text-gray-600">
+                    <button wire:click="closeDetailModal" class="text-gray-400 hover:text-heading">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                     </button>
                 </div>
@@ -1431,14 +1431,14 @@ new #[Layout('layouts::admin')] class extends Component
                             <span class="text-body">Status</span>
                             <div class="mt-1">
                                 @if($booking->isCancellationPending())
-                                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">Pending Cancel</span>
+                                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-950 text-yellow-300">Pending Cancel</span>
                                 @else
                                     <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium capitalize
-                                        @if($booking->status === 'pending') bg-orange-100 text-orange-800
-                                        @elseif($booking->status === 'approved') bg-green-100 text-green-800
-                                        @elseif($booking->status === 'cancelled') bg-gray-100 text-gray-600
-                                        @elseif($booking->status === 'rejected') bg-red-100 text-red-800
-                                        @else bg-gray-100 text-gray-800
+                                        @if($booking->status === 'pending') bg-orange-950 text-orange-300
+                                        @elseif($booking->status === 'approved') bg-green-950 text-green-300
+                                        @elseif($booking->status === 'cancelled') bg-neutral-secondary-medium text-body
+                                        @elseif($booking->status === 'rejected') bg-red-950 text-red-300
+                                        @else bg-neutral-secondary-medium text-heading
                                         @endif">
                                         {{ $booking->status }}
                                     </span>
@@ -1450,9 +1450,9 @@ new #[Layout('layouts::admin')] class extends Component
                             <div class="mt-1">
                                 @if($booking->status === 'approved')
                                     <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium capitalize
-                                        @if($booking->attendance === 'attended') bg-green-100 text-green-800
-                                        @elseif($booking->attendance === 'noshow') bg-red-100 text-red-800
-                                        @else bg-gray-100 text-gray-600
+                                        @if($booking->attendance === 'attended') bg-green-950 text-green-300
+                                        @elseif($booking->attendance === 'noshow') bg-red-950 text-red-300
+                                        @else bg-neutral-secondary-medium text-body
                                         @endif">
                                         @if($booking->attendance === 'attended') Hadir
                                         @elseif($booking->attendance === 'noshow') Hangus
@@ -1461,7 +1461,7 @@ new #[Layout('layouts::admin')] class extends Component
                                         @endif
                                     </span>
                                 @elseif($booking->status === 'pending')
-                                    <span class="text-xs text-orange-500">Menunggu Approval</span>
+                                    <span class="text-xs text-orange-400">Menunggu Approval</span>
                                 @else
                                     <span class="text-xs text-gray-400">-</span>
                                 @endif
@@ -1470,14 +1470,14 @@ new #[Layout('layouts::admin')] class extends Component
                         <div>
                             <div class="mt-1">
                                 @if($booking->is_free)
-                                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">Free</span>
+                                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-purple-950 text-purple-300">Free</span>
                                 @endif
                             </div>
                         </div>
                     </div>
 
                     @if($booking->membership && $booking->membership->members && $booking->membership->members->count() > 1)
-                        <div class="border-t border-gray-100 pt-3">
+                        <div class="border-t border-default pt-3">
                             <span class="text-body text-sm">Member Lain</span>
                             <div class="flex flex-wrap gap-2 mt-1">
                                 @foreach($booking->membership->members->where('id', '!=', $booking->member_id) as $member)
@@ -1488,38 +1488,38 @@ new #[Layout('layouts::admin')] class extends Component
                     @endif
 
                     @if($booking->isCancellationPending())
-                        <div class="border-t border-gray-100 pt-3">
-                            <span class="text-yellow-600 font-medium text-sm">Request Pembatalan</span>
+                        <div class="border-t border-default pt-3">
+                            <span class="text-yellow-300 font-medium text-sm">Request Pembatalan</span>
                             <div class="text-xs text-body mt-1">
                                 {{ $booking->cancelledBy?->name ?? '-' }} - {{ $booking->cancellation_requested_at->locale('id')->isoFormat('D MMM YYYY HH:mm') }}
                             </div>
                             @if($booking->cancellation_reason)
-                                <div class="text-red-600 mt-1 italic text-xs">"{{ $booking->cancellation_reason }}"</div>
+                                <div class="text-red-300 mt-1 italic text-xs">"{{ $booking->cancellation_reason }}"</div>
                             @endif
                         </div>
                     @elseif($booking->status === 'cancelled' && $booking->cancelled_at)
-                        <div class="border-t border-gray-100 pt-3">
-                            <span class="text-gray-600 font-medium text-sm">Dibatalkan</span>
+                        <div class="border-t border-default pt-3">
+                            <span class="text-body font-medium text-sm">Dibatalkan</span>
                             <div class="text-xs text-body mt-1">
                                 {{ $booking->cancelledBy?->name ?? '-' }} - {{ $booking->cancelled_at->locale('id')->isoFormat('D MMM YYYY HH:mm') }}
                             </div>
                             @if($booking->cancellation_reason)
-                                <div class="text-gray-500 mt-1 italic text-xs">"{{ $booking->cancellation_reason }}"</div>
+                                <div class="text-body mt-1 italic text-xs">"{{ $booking->cancellation_reason }}"</div>
                             @endif
                         </div>
                     @elseif($booking->status === 'rejected')
-                        <div class="border-t border-gray-100 pt-3">
-                            <span class="text-red-600 font-medium text-sm">Booking Ditolak</span>
+                        <div class="border-t border-default pt-3">
+                            <span class="text-red-300 font-medium text-sm">Booking Ditolak</span>
                             <div class="text-xs text-body mt-1">
                                 {{ $booking->rejected_at?->locale('id')->isoFormat('D MMM YYYY HH:mm') ?? '-' }}
                             </div>
                             @if($booking->rejection_reason)
-                                <div class="text-red-500 mt-1 italic text-xs">"{{ $booking->rejection_reason }}"</div>
+                                <div class="text-red-400 mt-1 italic text-xs">"{{ $booking->rejection_reason }}"</div>
                             @endif
                         </div>
                     @endif
 
-                    <div class="border-t border-gray-100 pt-4 flex flex-wrap gap-2">
+                    <div class="border-t border-default pt-4 flex flex-wrap gap-2">
                         @if($booking->isCancellationPending())
                             @if($this->canManageApprovals())
                                 <button wire:click="approveCancellation({{ $booking->id }})" wire:confirm="Setujui request pembatalan ini?"
@@ -1549,7 +1549,7 @@ new #[Layout('layouts::admin')] class extends Component
                                 </button>
                             @endif
                         @elseif($booking->status === 'rejected')
-                            <span class="text-xs text-red-500">Booking ditolak</span>
+                            <span class="text-xs text-red-400">Booking ditolak</span>
                         @elseif($booking->status === 'approved')
                             @if($booking->attendance === 'not_yet')
                                 @if(Auth::user()->role === 'admin')
@@ -1566,13 +1566,13 @@ new #[Layout('layouts::admin')] class extends Component
                                     Batal
                                 </button>
                                 <button wire:click="markAsNoshow({{ $booking->id }})" wire:confirm="Tandai booking ini sebagai hangus? Sesi akan berkurang."
-                                    class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white bg-orange-500 rounded hover:bg-orange-600 transition-colors">
+                                    class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-black bg-orange-400 rounded hover:bg-orange-300 transition-colors">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
                                     Hangus
                                 </button>
                             @elseif($booking->attendance === 'noshow')
                                 <button wire:click="restoreNoshow({{ $booking->id }})" wire:confirm="Restore booking ini? Sesi akan dikembalikan."
-                                    class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white bg-blue-500 rounded hover:bg-blue-600 transition-colors">
+                                    class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-black bg-brand rounded hover:bg-brand-strong transition-colors">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
                                     Restore
                                 </button>
@@ -1581,7 +1581,7 @@ new #[Layout('layouts::admin')] class extends Component
 
                         @if(in_array($booking->status, ['approved', 'pending']))
                             <button wire:click="openChangeCoachModal({{ $booking->id }})"
-                                class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white bg-indigo-600 rounded hover:bg-indigo-700 transition-colors">
+                                class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-black bg-brand rounded hover:bg-brand-strong transition-colors">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                                 Edit
                             </button>
@@ -1602,10 +1602,10 @@ new #[Layout('layouts::admin')] class extends Component
 
     @if($showChangeCoachModal)
         <div class="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm" wire:click.self="closeChangeCoachModal">
-            <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 p-6" @click.stop>
+            <div class="bg-neutral-primary-soft rounded-lg shadow-xl w-full max-w-md mx-4 p-6" @click.stop>
                 <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-lg font-semibold text-gray-900">Edit Booking</h3>
-                    <button type="button" wire:click="closeChangeCoachModal" class="text-gray-400 hover:text-gray-600">
+                    <h3 class="text-lg font-semibold text-heading">Edit Booking</h3>
+                    <button type="button" wire:click="closeChangeCoachModal" class="text-gray-400 hover:text-heading">
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                     </button>
                 </div>
@@ -1615,30 +1615,30 @@ new #[Layout('layouts::admin')] class extends Component
                 @endphp
 
                 @if($changeBooking)
-                    <div class="mb-4 p-3 bg-gray-50 border border-gray-200 rounded-md text-sm">
+                    <div class="mb-4 p-3 bg-neutral-primary-soft border border-default rounded-md text-sm">
                         <div class="flex justify-between mb-1">
-                            <span class="text-gray-600">Member:</span>
-                            <span class="font-medium text-gray-900">{{ $changeBooking->member?->name ?? '-' }}</span>
+                            <span class="text-body">Member:</span>
+                            <span class="font-medium text-heading">{{ $changeBooking->member?->name ?? '-' }}</span>
                         </div>
                         <div class="flex justify-between mb-1">
-                            <span class="text-gray-600">Tanggal:</span>
-                            <span class="font-medium text-gray-900">{{ $changeBooking->booking_date->locale('id')->isoFormat('dddd, D MMM YYYY') }}</span>
+                            <span class="text-body">Tanggal:</span>
+                            <span class="font-medium text-heading">{{ $changeBooking->booking_date->locale('id')->isoFormat('dddd, D MMM YYYY') }}</span>
                         </div>
                         <div class="flex justify-between mb-1">
-                            <span class="text-gray-600">Waktu:</span>
-                            <span class="font-medium text-gray-900">{{ $changeBooking->booking_time->format('H:i') }}</span>
+                            <span class="text-body">Waktu:</span>
+                            <span class="font-medium text-heading">{{ $changeBooking->booking_time->format('H:i') }}</span>
                         </div>
                         <div class="flex justify-between">
-                            <span class="text-gray-600">Coach Saat Ini:</span>
-                            <span class="font-medium text-gray-900">{{ $changeBooking->pt?->name ?? '-' }}</span>
+                            <span class="text-body">Coach Saat Ini:</span>
+                            <span class="font-medium text-heading">{{ $changeBooking->pt?->name ?? '-' }}</span>
                         </div>
                     </div>
                 @endif
 
                 <form wire:submit.prevent="saveChangeCoach" class="space-y-4">
                     <div>
-                        <label for="editStudioType" class="block text-sm font-medium text-gray-700 mb-1">Akses Gym</label>
-                        <select id="editStudioType" wire:model="editStudioType" class="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-sm">
+                        <label for="editStudioType" class="block text-sm font-medium text-body mb-1">Akses Gym</label>
+                        <select id="editStudioType" wire:model="editStudioType" class="block w-full px-3 py-2 bg-neutral-primary-soft border border-default-medium rounded-md text-sm">
                             @if($changeBooking?->studio_type === null)
                                 <option value="">Belum dipilih (data lama)</option>
                             @endif
@@ -1646,43 +1646,43 @@ new #[Layout('layouts::admin')] class extends Component
                             <option value="regular">Regular</option>
                         </select>
                         @if(! $changeBooking?->membership?->hasNormalPrice())
-                            <p class="text-sm text-gray-500">Private Studio hanya tersedia untuk membership Harga Normal.</p>
+                            <p class="text-sm text-body">Private Studio hanya tersedia untuk membership Harga Normal.</p>
                         @endif
-                        @error('editStudioType') <span class="text-sm text-red-600">{{ $message }}</span> @enderror
-                        @error('studioType') <span class="text-sm text-red-600">{{ $message }}</span> @enderror
+                        @error('editStudioType') <span class="text-sm text-red-300">{{ $message }}</span> @enderror
+                        @error('studioType') <span class="text-sm text-red-300">{{ $message }}</span> @enderror
                     </div>
 
                     <div>
-                        <label for="newCoachId" class="block text-sm font-medium text-gray-700 mb-1">
-                            Coach <span class="text-red-500">*</span>
+                        <label for="newCoachId" class="block text-sm font-medium text-body mb-1">
+                            Coach <span class="text-red-400">*</span>
                         </label>
                         <select id="newCoachId" wire:model="newCoachId"
-                            class="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500">
+                            class="block w-full px-3 py-2 bg-neutral-primary-soft border border-default-medium rounded-md text-sm focus:ring-brand focus:border-brand">
                             <option value="">Pilih Coach</option>
                             @foreach($this->ptList as $pt)
                                 <option value="{{ $pt->id }}">{{ $pt->name }}</option>
                             @endforeach
                         </select>
-                        @error('newCoachId') <span class="text-sm text-red-600">{{ $message }}</span> @enderror
+                        @error('newCoachId') <span class="text-sm text-red-300">{{ $message }}</span> @enderror
                     </div>
 
                     <div>
                         <label class="flex items-center gap-2 cursor-pointer">
                             <input type="checkbox" wire:model="newIsFree" value="1"
-                                class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500">
-                            <span class="text-sm font-medium text-gray-700">Sesi Gratis</span>
+                                class="w-4 h-4 text-brand bg-neutral-secondary-medium border-default-medium rounded focus:ring-brand">
+                            <span class="text-sm font-medium text-body">Sesi Gratis</span>
                         </label>
-                        <p class="text-xs text-gray-500 mt-1">Untuk booking Hadir, perubahan Sesi Gratis akan menyesuaikan sisa sesi membership.</p>
-                        @error('newIsFree') <span class="text-sm text-red-600">{{ $message }}</span> @enderror
+                        <p class="text-xs text-body mt-1">Untuk booking Hadir, perubahan Sesi Gratis akan menyesuaikan sisa sesi membership.</p>
+                        @error('newIsFree') <span class="text-sm text-red-300">{{ $message }}</span> @enderror
                     </div>
 
                     <div class="flex gap-3 pt-2">
                         <button type="button" wire:click="closeChangeCoachModal"
-                            class="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200">
+                            class="flex-1 px-4 py-2 text-sm font-medium text-body bg-neutral-secondary-medium rounded-md hover:bg-neutral-secondary-dark">
                             Batal
                         </button>
                         <button type="submit" wire:loading.attr="disabled"
-                            class="flex-1 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:opacity-50">
+                            class="flex-1 px-4 py-2 text-sm font-medium text-black bg-brand rounded-md hover:bg-brand-strong disabled:opacity-50">
                             <span wire:loading.remove wire:target="saveChangeCoach">Simpan Perubahan</span>
                             <span wire:loading wire:target="saveChangeCoach">Menyimpan...</span>
                         </button>
@@ -1694,37 +1694,37 @@ new #[Layout('layouts::admin')] class extends Component
 
     @if($showInsertModal)
         <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" wire:click.self="closeInsertModal">
-            <div class="bg-white rounded-lg shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto mx-4 p-6" @click.stop>
+            <div class="bg-neutral-primary-soft rounded-lg shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto mx-4 p-6" @click.stop>
                 <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-lg font-semibold text-gray-900">Tambah Booking</h3>
-                    <button type="button" wire:click="closeInsertModal" class="text-gray-400 hover:text-gray-600">
+                    <h3 class="text-lg font-semibold text-heading">Tambah Booking</h3>
+                    <button type="button" wire:click="closeInsertModal" class="text-gray-400 hover:text-heading">
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                     </button>
                 </div>
 
                 @if($errors->has('insertBooking'))
-                    <div class="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded text-sm">
+                    <div class="mb-4 p-3 bg-red-950 border border-red-400 text-red-300 rounded text-sm">
                         {{ $errors->first('insertBooking') }}
                     </div>
                 @endif
 
                 <form wire:submit.prevent="saveInsertBooking" class="space-y-4">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">
-                            Membership <span class="text-red-500">*</span>
+                        <label class="block text-sm font-medium text-body mb-1">
+                            Membership <span class="text-red-400">*</span>
                         </label>
 
                         @if($insertMembershipId)
                             @php $selectedMembership = \App\Models\Membership::with(['user', 'personalTrainer'])->find($insertMembershipId); @endphp
                             @if($selectedMembership)
-                                <div class="mb-2 p-2 bg-blue-50 border border-blue-200 rounded-md text-sm text-blue-800 flex justify-between items-center">
+                                <div class="mb-2 p-2 bg-brand/10 border border-brand/30 rounded-md text-sm text-brand flex justify-between items-center">
                                     <span>{{ $selectedMembership->user?->name ?? '-' }} — {{ $selectedMembership->personalTrainer?->name ?? '-' }} (Sisa: {{ $selectedMembership->remaining_sessions }})</span>
-                                    <button type="button" wire:click="$set('insertMembershipId', null)" class="text-blue-600 hover:text-blue-800 text-xs underline">Ganti</button>
+                                    <button type="button" wire:click="$set('insertMembershipId', null)" class="text-brand hover:text-brand text-xs underline">Ganti</button>
                                 </div>
                                 @if($insertType === 'fleksibel')
                                     @php $sessionNumber = $this->getMembershipSessionNumber($insertMembershipId); @endphp
-                                    <div class="mt-1.5 text-xs text-gray-600">
-                                        Booking ini akan menjadi <span class="font-semibold text-gray-900">Sesi ke-{{ $sessionNumber }}</span>
+                                    <div class="mt-1.5 text-xs text-body">
+                                        Booking ini akan menjadi <span class="font-semibold text-heading">Sesi ke-{{ $sessionNumber }}</span>
                                     </div>
                                 @endif
                             @endif
@@ -1732,102 +1732,102 @@ new #[Layout('layouts::admin')] class extends Component
 
                         @if(!$insertMembershipId)
                             <input type="text" wire:model.live.debounce.300ms="insertMembershipSearch"
-                                class="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
+                                class="block w-full px-3 py-2 bg-neutral-primary-soft border border-default-medium rounded-md text-sm focus:ring-brand focus:border-brand"
                                 placeholder="Cari member atau coach...">
 
-                            <div class="mt-1 border border-gray-200 rounded-md max-h-48 overflow-y-auto">
+                            <div class="mt-1 border border-default rounded-md max-h-48 overflow-y-auto">
                                 @forelse($this->filteredMemberships as $membership)
                                     <div wire:click="selectMembership({{ $membership->id }})"
-                                        class="cursor-pointer px-3 py-2 text-sm hover:bg-gray-100 transition-colors border-b border-gray-100 last:border-0">
+                                        class="cursor-pointer px-3 py-2 text-sm hover:bg-neutral-secondary-dark transition-colors border-b border-default last:border-0">
                                         {{ $membership->user?->name ?? '-' }} — {{ $membership->personalTrainer?->name ?? '-' }} (Sisa: {{ $membership->remaining_sessions }})
                                     </div>
                                 @empty
-                                    <div class="px-3 py-2 text-sm text-gray-500">Tidak ada membership ditemukan.</div>
+                                    <div class="px-3 py-2 text-sm text-body">Tidak ada membership ditemukan.</div>
                                 @endforelse
                             </div>
                         @endif
 
-                        @error('insertMembershipId') <span class="text-sm text-red-600">{{ $message }}</span> @enderror
+                        @error('insertMembershipId') <span class="text-sm text-red-300">{{ $message }}</span> @enderror
                     </div>
 
                     <div>
-                        <label for="insertPtId" class="block text-sm font-medium text-gray-700 mb-1">
-                            Coach <span class="text-red-500">*</span>
+                        <label for="insertPtId" class="block text-sm font-medium text-body mb-1">
+                            Coach <span class="text-red-400">*</span>
                         </label>
                         <select id="insertPtId" wire:model.live="insertPtId"
-                            class="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500">
+                            class="block w-full px-3 py-2 bg-neutral-primary-soft border border-default-medium rounded-md text-sm focus:ring-brand focus:border-brand">
                             <option value="">Pilih Coach</option>
                             @foreach($this->ptList as $pt)
                                 <option value="{{ $pt->id }}">{{ $pt->name }}</option>
                             @endforeach
                         </select>
-                        @error('insertPtId') <span class="text-sm text-red-600">{{ $message }}</span> @enderror
+                        @error('insertPtId') <span class="text-sm text-red-300">{{ $message }}</span> @enderror
                     </div>
 
                     <div>
-                        <label for="studioType" class="block text-sm font-medium text-gray-700 mb-1">Akses Gym *</label>
-                        <select id="studioType" wire:model="studioType" required class="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-sm">
+                        <label for="studioType" class="block text-sm font-medium text-body mb-1">Akses Gym *</label>
+                        <select id="studioType" wire:model="studioType" required class="block w-full px-3 py-2 bg-neutral-primary-soft border border-default-medium rounded-md text-sm">
                             <option value="">Pilih studio</option>
                             <option value="private_studio" @disabled(! $this->canChoosePrivateStudio)>Private Studio</option>
                             <option value="regular">Regular</option>
                         </select>
                         @if(! $this->canChoosePrivateStudio)
-                            <p class="text-sm text-gray-500">Private Studio hanya tersedia untuk membership Harga Normal.</p>
+                            <p class="text-sm text-body">Private Studio hanya tersedia untuk membership Harga Normal.</p>
                         @endif
-                        @error('studioType') <span class="text-sm text-red-600">{{ $message }}</span> @enderror
+                        @error('studioType') <span class="text-sm text-red-300">{{ $message }}</span> @enderror
                     </div>
 
                     <div>
-                        <label for="insertType" class="block text-sm font-medium text-gray-700 mb-1">Tipe Booking <span class="text-red-500">*</span></label>
+                        <label for="insertType" class="block text-sm font-medium text-body mb-1">Tipe Booking <span class="text-red-400">*</span></label>
                         <select id="insertType" wire:model.live="insertType"
-                            class="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500">
+                            class="block w-full px-3 py-2 bg-neutral-primary-soft border border-default-medium rounded-md text-sm focus:ring-brand focus:border-brand">
                             <option value="fleksibel">Fleksibel</option>
                             <option value="keep">Keep</option>
                         </select>
-                        @error('insertType') <span class="text-sm text-red-600">{{ $message }}</span> @enderror
+                        @error('insertType') <span class="text-sm text-red-300">{{ $message }}</span> @enderror
                     </div>
 
                     @if($insertType === 'fleksibel')
                         <div class="grid grid-cols-2 gap-4">
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Tanggal</label>
+                                <label class="block text-sm font-medium text-body mb-1">Tanggal</label>
                                 <input type="text" readonly value="{{ \Carbon\Carbon::parse($insertDate)->locale('id')->isoFormat('dddd, D MMM YYYY') }}"
-                                    class="block w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-md text-sm text-gray-700">
-                                @error('insertDate') <span class="text-sm text-red-600">{{ $message }}</span> @enderror
+                                    class="block w-full px-3 py-2 bg-neutral-secondary-medium border border-default-medium rounded-md text-sm text-body">
+                                @error('insertDate') <span class="text-sm text-red-300">{{ $message }}</span> @enderror
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Waktu</label>
+                                <label class="block text-sm font-medium text-body mb-1">Waktu</label>
                                 <input type="text" readonly value="{{ \Carbon\Carbon::parse($insertTime)->format('H:i') }}"
-                                    class="block w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-md text-sm text-gray-700">
-                                @error('insertTime') <span class="text-sm text-red-600">{{ $message }}</span> @enderror
+                                    class="block w-full px-3 py-2 bg-neutral-secondary-medium border border-default-medium rounded-md text-sm text-body">
+                                @error('insertTime') <span class="text-sm text-red-300">{{ $message }}</span> @enderror
                             </div>
                         </div>
 
                         <div>
                             <label class="flex items-center gap-2 cursor-pointer">
                                 <input type="checkbox" wire:model="insertIsFree" value="1"
-                                    class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500">
-                                <span class="text-sm font-medium text-gray-700">Sesi Gratis</span>
+                                    class="w-4 h-4 text-brand bg-neutral-secondary-medium border-default-medium rounded focus:ring-brand">
+                                <span class="text-sm font-medium text-body">Sesi Gratis</span>
                             </label>
-                            <p class="text-xs text-gray-500 mt-1">Centang jika Sesi Gratis</p>
+                            <p class="text-xs text-body mt-1">Centang jika Sesi Gratis</p>
                         </div>
                     @else
                         <div>
                             <div class="mb-2">
-                                <span class="block text-sm font-medium text-gray-700">Pilih Hari dan Waktu <span class="text-red-500">*</span></span>
-                                <p class="text-xs text-gray-500 mt-1">Booking dibuat berulang mulai minggu yang sedang ditampilkan hingga sisa sesi habis atau masa PT berakhir.</p>
+                                <span class="block text-sm font-medium text-body">Pilih Hari dan Waktu <span class="text-red-400">*</span></span>
+                                <p class="text-xs text-body mt-1">Booking dibuat berulang mulai minggu yang sedang ditampilkan hingga sisa sesi habis atau masa PT berakhir.</p>
                             </div>
 
                             <div class="space-y-2">
                                 @foreach($this->daysOfWeek() as $day => $dayLabel)
                                     <div wire:key="insert-keep-day-{{ $day }}"
-                                        class="flex items-start gap-3 p-3 rounded-lg border transition-colors {{ in_array($day, $insertSelectedDays, true) ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-gray-50' }}">
+                                        class="flex items-start gap-3 p-3 rounded-lg border transition-colors {{ in_array($day, $insertSelectedDays, true) ? 'border-brand bg-brand/10' : 'border-default bg-neutral-primary-soft' }}">
                                         <input type="checkbox"
                                             id="insert-keep-day-{{ $day }}"
                                             wire:model.live="insertSelectedDays"
                                             value="{{ $day }}"
-                                            class="w-4 h-4 mt-2 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500">
-                                        <label for="insert-keep-day-{{ $day }}" class="w-20 mt-1.5 text-sm font-medium text-gray-700 cursor-pointer">
+                                            class="w-4 h-4 mt-2 text-brand bg-neutral-secondary-medium border-default-medium rounded focus:ring-brand">
+                                        <label for="insert-keep-day-{{ $day }}" class="w-20 mt-1.5 text-sm font-medium text-body cursor-pointer">
                                             {{ $dayLabel }}
                                         </label>
 
@@ -1836,8 +1836,8 @@ new #[Layout('layouts::admin')] class extends Component
                                                 <input type="time"
                                                     wire:model="insertDayTimes.{{ $day }}"
                                                     aria-label="Waktu {{ $dayLabel }}"
-                                                    class="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500">
-                                                @error("insertDayTimes.{$day}") <span class="text-sm text-red-600">{{ $message }}</span> @enderror
+                                                    class="block w-full px-3 py-2 bg-neutral-primary-soft border border-default-medium rounded-md text-sm focus:ring-brand focus:border-brand">
+                                                @error("insertDayTimes.{$day}") <span class="text-sm text-red-300">{{ $message }}</span> @enderror
                                             </div>
                                         @else
                                             <span class="mt-1.5 text-sm text-gray-400">Tidak dipilih</span>
@@ -1846,24 +1846,24 @@ new #[Layout('layouts::admin')] class extends Component
                                 @endforeach
                             </div>
 
-                            @error('insertSelectedDays') <span class="text-sm text-red-600">{{ $message }}</span> @enderror
-                            @error('insertDayTimes') <span class="text-sm text-red-600">{{ $message }}</span> @enderror
+                            @error('insertSelectedDays') <span class="text-sm text-red-300">{{ $message }}</span> @enderror
+                            @error('insertDayTimes') <span class="text-sm text-red-300">{{ $message }}</span> @enderror
                         </div>
 
-                        <div class="p-3 bg-blue-50 border border-blue-200 rounded-md text-sm text-blue-800">
+                        <div class="p-3 bg-brand/10 border border-brand/30 rounded-md text-sm text-brand">
                             Booking Keep selalu menggunakan kuota membership dan tidak dapat dijadikan Sesi Gratis.
                         </div>
                     @endif
 
-                    @error('insertIsFree') <span class="text-sm text-red-600">{{ $message }}</span> @enderror
+                    @error('insertIsFree') <span class="text-sm text-red-300">{{ $message }}</span> @enderror
 
                     <div class="flex gap-3 pt-2">
                         <button type="button" wire:click="closeInsertModal"
-                            class="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200">
+                            class="flex-1 px-4 py-2 text-sm font-medium text-body bg-neutral-secondary-medium rounded-md hover:bg-neutral-secondary-dark">
                             Batal
                         </button>
                         <button type="submit" wire:loading.attr="disabled"
-                            class="flex-1 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50">
+                            class="flex-1 px-4 py-2 text-sm font-medium text-black bg-brand rounded-md hover:bg-brand-strong disabled:opacity-50">
                             <span wire:loading.remove wire:target="saveInsertBooking">Simpan Booking</span>
                             <span wire:loading wire:target="saveInsertBooking">Menyimpan...</span>
                         </button>
@@ -1877,21 +1877,21 @@ new #[Layout('layouts::admin')] class extends Component
         <div class="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
             role="dialog" aria-modal="true" aria-labelledby="insert-booking-error-title"
             wire:click.self="closeInsertErrorModal">
-            <div class="w-full max-w-md rounded-lg border border-red-200 bg-white p-6 shadow-xl">
+            <div class="w-full max-w-md rounded-lg border border-red-800 bg-neutral-primary-soft p-6 shadow-xl">
                 <div class="mb-4 flex items-center gap-3">
-                    <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100">
-                        <svg class="h-6 w-6 text-red-600" xmlns="http://www.w3.org/2000/svg" fill="none"
+                    <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-950">
+                        <svg class="h-6 w-6 text-red-300" xmlns="http://www.w3.org/2000/svg" fill="none"
                             viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round"
                                 d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
                         </svg>
                     </div>
-                    <h3 id="insert-booking-error-title" class="text-lg font-semibold text-gray-900">
+                    <h3 id="insert-booking-error-title" class="text-lg font-semibold text-heading">
                         Booking Tidak Dapat Dibuat
                     </h3>
                 </div>
 
-                <p class="mb-6 text-sm text-gray-600">{{ $insertErrorMessage }}</p>
+                <p class="mb-6 text-sm text-body">{{ $insertErrorMessage }}</p>
 
                 <button type="button" wire:click="closeInsertErrorModal"
                     class="w-full rounded-md bg-red-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-red-700 focus:ring-4 focus:ring-red-200">
