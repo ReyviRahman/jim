@@ -18,6 +18,7 @@ new #[Layout('layouts::admin')] class extends Component
     public function ptUsers(): Collection
     {
         return User::where('role', 'pt')
+            ->where('is_active', true)
             ->when($this->search, fn (Builder $query) => $query->where('name', 'like', '%'.$this->search.'%'))
             ->with(['ptMemberships' => fn (HasMany $query) => $query->runningPt()->with('members:id')])
             ->withSum('ptMemberships as total_sessions', 'total_sessions')

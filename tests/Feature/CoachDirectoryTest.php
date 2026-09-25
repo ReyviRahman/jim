@@ -22,12 +22,13 @@ class CoachDirectoryTest extends TestCase
             ->assertOk()->assertSee('coach-directory-card')->assertSee('Member Aktif');
 
         Livewire::test('pages::dashboard.admin.sesi-pt.index')
-            ->assertSee('Coach Aditya')->assertSee('Coach Bintang')
-            ->assertSee('Nonaktif')->assertDontSee('Member Rahasia')
+            ->assertSee('Coach Aditya')->assertDontSee('Coach Bintang')
+            ->assertDontSee('Nonaktif')->assertDontSee('Member Rahasia')
             ->assertSee(route('admin.sesi-pt.detail', $coach), false)
             ->set('search', 'Aditya')->assertSee('Coach Aditya')->assertDontSee('Coach Bintang')
             ->set('search', 'TidakDitemukan')->assertSee('Tidak ada coach yang cocok dengan pencarian.')
-            ->set('search', '')->assertSee('Coach Bintang');
+            ->set('search', 'Bintang')->assertDontSee('Coach Bintang')->assertSee('Tidak ada coach yang cocok dengan pencarian.')
+            ->set('search', '')->assertSee('Coach Aditya')->assertDontSee('Coach Bintang');
     }
 
     public function test_directory_has_an_empty_state_without_coaches(): void

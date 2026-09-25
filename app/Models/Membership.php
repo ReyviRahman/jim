@@ -23,6 +23,8 @@ class Membership extends Model
 
     protected $fillable = [
         'operational_request_id',
+        'pt_installment_expired_at',
+        'pt_installment_expired_by',
         'user_id',
         'type',
         'pt_id',
@@ -57,6 +59,7 @@ class Membership extends Model
     ];
 
     protected $casts = [
+        'pt_installment_expired_at' => 'datetime',
         'start_date' => 'date',
         'pt_end_date' => 'date',
         'membership_end_date' => 'date',
