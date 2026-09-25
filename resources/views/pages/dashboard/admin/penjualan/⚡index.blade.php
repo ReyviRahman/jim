@@ -488,6 +488,10 @@ new #[Layout('layouts::admin')] class extends Component
 
     private function paymentStatusLabel(MembershipTransaction $transaction): string
     {
+        if ($transaction->isOperational()) {
+            return 'OPERASIONAL';
+        }
+
         if ($transaction->membership_id === null || $transaction->membership_hold_id !== null) {
             return 'LUNAS';
         }
@@ -573,6 +577,8 @@ new #[Layout('layouts::admin')] class extends Component
         $totalSystemBalance = $transfer + $debit + $qris + $cash;
         
         // Statistik Uang Berdasarkan Kategori Paket (Kanan)
+        $operational = $data->where('payment_method', 'operasional')->sum('amount');
+        $data = $data->reject(fn ($item) => $item->isOperational());
         $visitData = $data->filter(fn($item) => $item->membership && $item->membership->type === 'visit');
         $ptData = $data->filter(fn($item) => $item->membership && $item->membership->type === 'pt' && $item->membership_hold_id === null);
         $nimbangData = $data->filter(fn($item) => is_null($item->membership_id));
@@ -627,6 +633,7 @@ new #[Layout('layouts::admin')] class extends Component
             'uang_pt' => $totalUangPT,
             'uang_nimbang' => $totalUangNimbang,
             'uang_hold' => $totalUangHold,
+            'operasional' => $operational,
             'uang_total' => $totalSystemBalance, 
             'rincian_pengeluaran' => $rincianPengeluaran,
         ];
@@ -647,14 +654,16 @@ new #[Layout('layouts::admin')] class extends Component
         $cash = $transactions->where('payment_method', 'cash')->sum('amount');
         $totalSystemBalance = $transfer + $debit + $qris + $cash;
 
-        $visitData = $transactions->filter(fn($item) => $item->membership && $item->membership->type === 'visit');
-        $ptData = $transactions->filter(fn($item) => $item->membership && $item->membership->type === 'pt' && $item->membership_hold_id === null);
-        $nimbangData = $transactions->filter(fn($item) => is_null($item->membership_id));
+        $operational = $transactions->where('payment_method', 'operasional')->sum('amount');
+        $moneyTransactions = $transactions->reject(fn ($item) => $item->isOperational());
+        $visitData = $moneyTransactions->filter(fn($item) => $item->membership && $item->membership->type === 'visit');
+        $ptData = $moneyTransactions->filter(fn($item) => $item->membership && $item->membership->type === 'pt' && $item->membership_hold_id === null);
+        $nimbangData = $moneyTransactions->filter(fn($item) => is_null($item->membership_id));
         
         $uangVisit = $visitData->sum('amount');
         $uangPT = $ptData->sum('amount');
         $uangNimbang = $nimbangData->sum('amount');
-        $uangHold = $transactions->whereNotNull('membership_hold_id')->sum('amount');
+        $uangHold = $moneyTransactions->whereNotNull('membership_hold_id')->sum('amount');
         $uangMember = $totalSystemBalance - $uangVisit - $uangPT - $uangNimbang - $uangHold;
 
         // 3. Ambil data pengeluaran dengan filter yang sama persis
@@ -686,6 +695,7 @@ new #[Layout('layouts::admin')] class extends Component
             'uang_member' => $uangMember, 'uang_visit' => $uangVisit, 'uang_pt' => $uangPT,
             'uang_nimbang' => $uangNimbang,
             'uang_hold' => $uangHold,
+            'operasional' => $operational,
             'uang_total' => $totalSystemBalance,
             'rincian_pengeluaran' => $rincianPengeluaran // Rincian teks pengeluaran dilempar ke Excel
         ];
@@ -1028,7 +1038,11 @@ new #[Layout('layouts::admin')] class extends Component
                     <tr class="border-b border-gray-100">
                         <td class="px-4 py-3"></td>
                         <td class="px-4 py-3"></td>
-                        {{-- Balance Kategori Pendapatan (Sisi Kanan) --}}
+                        <td class="px-4 py-3 font-medium border-l border-gray-200">OPERASIONAL</td>
+                        <td class="px-4 py-3 text-right font-bold">Rp {{ number_format($this->summary['operasional'], 0, ',', '.') }}</td>
+                    </tr>
+                    <tr class="border-b border-gray-100">
+                        <td colspan="2"></td>
                         <td class="px-4 py-3 bg-emerald-50 text-emerald-800 font-bold uppercase tracking-wide border-l border-gray-200">BALANCE</td>
                         <td class="px-4 py-3 bg-emerald-50 text-emerald-800 text-right font-black text-lg">Rp {{ number_format($this->summary['uang_total'], 0, ',', '.') }}</td>
                     </tr>

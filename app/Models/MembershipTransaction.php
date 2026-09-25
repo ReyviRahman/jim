@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class MembershipTransaction extends Model
 {
     protected $fillable = [
+        'operational_request_id',
         'invoice_number',
         'membership_id',
         'membership_hold_id',
@@ -64,5 +65,15 @@ class MembershipTransaction extends Model
     public function hold(): BelongsTo
     {
         return $this->belongsTo(MembershipHold::class, 'membership_hold_id');
+    }
+
+    public function operationalRequest(): BelongsTo
+    {
+        return $this->belongsTo(MembershipOperationalRequest::class, 'operational_request_id');
+    }
+
+    public function isOperational(): bool
+    {
+        return $this->payment_method === 'operasional';
     }
 }

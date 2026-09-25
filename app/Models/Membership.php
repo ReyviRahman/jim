@@ -22,6 +22,7 @@ class Membership extends Model
     ];
 
     protected $fillable = [
+        'operational_request_id',
         'user_id',
         'type',
         'pt_id',
@@ -131,6 +132,16 @@ class Membership extends Model
         return $this->hasMany(MembershipTransaction::class);
     }
 
+    public function operationalRequest(): BelongsTo
+    {
+        return $this->belongsTo(MembershipOperationalRequest::class, 'operational_request_id');
+    }
+
+    public function isOperational(): bool
+    {
+        return $this->operational_request_id !== null;
+    }
+
     public function holds(): HasMany
     {
         return $this->hasMany(MembershipHold::class);
@@ -169,7 +180,7 @@ class Membership extends Model
 
     public function scopeForBonusRecipient(Builder $query, User $staffUser): Builder
     {
-        $query->where('type', '!=', 'visit');
+        $query->where('type', '!=', 'visit')->whereNull('operational_request_id');
 
         if ($staffUser->role === 'pt') {
             return $query
@@ -268,6 +279,10 @@ class Membership extends Model
 
     public function calculateNominalAkhir(): float
     {
+        if ($this->isOperational()) {
+            return 0;
+        }
+
         $nominal = $this->total_paid ?? 0;
 
         $isSameEligibleFollowUp = $this->follow_up_id !== null

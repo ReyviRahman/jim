@@ -393,7 +393,7 @@
                     <tr><td>Harga Membership</td><td>Rp {{ number_format($membership->base_price, 0, ',', '.') }}</td></tr>
                     <tr><td>Diskon</td><td>- Rp {{ number_format($membership->discount_applied, 0, ',', '.') }}</td></tr>
                     <tr class="total"><td>Total Tagihan</td><td>Rp {{ number_format($membership->price_paid, 0, ',', '.') }}</td></tr>
-                    <tr><td>Total Dibayar</td><td>Rp {{ number_format($membership->total_paid, 0, ',', '.') }}</td></tr>
+                    <tr><td>{{ $membership->isOperational() ? 'Ditanggung Operasional (bukan uang diterima)' : 'Total Dibayar' }}</td><td>Rp {{ number_format($membership->total_paid, 0, ',', '.') }}</td></tr>
                     <tr class="balance"><td>Sisa Tagihan</td><td>Rp {{ number_format($remainingBalance, 0, ',', '.') }}</td></tr>
                     @if($holdTotal > 0)
                         <tr><td>Biaya Hold PT</td><td>Rp {{ number_format($holdTotal, 0, ',', '.') }}</td></tr>

@@ -298,7 +298,7 @@
                 <tr>
                     <td class="thanks-cell">
                         <div class="thanks">Terima Kasih!</div>
-                        <div class="thanks-copy">Pembayaran Anda telah tercatat dalam sistem FRANS GYM.</div>
+                        <div class="thanks-copy">{{ $membershipTransaction->isOperational() ? 'Nilai paket ditanggung Operasional; tidak ada uang diterima.' : 'Pembayaran Anda telah tercatat dalam sistem FRANS GYM.' }}</div>
                     </td>
                     <td class="qr-cell">
                         <div class="qr-title">Scan untuk verifikasi</div>
@@ -422,7 +422,7 @@
                         <td class="amount">Rp {{ number_format($membershipTransaction->amount, 0, ',', '.') }}</td>
                     </tr>
                     <tr>
-                        <td colspan="3" class="total-label">TOTAL DIBAYAR</td>
+                        <td colspan="3" class="total-label">{{ $membershipTransaction->isOperational() ? 'DITANGGUNG OPERASIONAL' : 'TOTAL DIBAYAR' }}</td>
                         <td class="total-amount">Rp {{ number_format($membershipTransaction->amount, 0, ',', '.') }}</td>
                     </tr>
                 </tbody>

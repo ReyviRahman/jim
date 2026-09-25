@@ -41,7 +41,7 @@ class BuildMembershipInvoiceData
             'holdTotal' => $holdTotal,
             'holdPaid' => $holdPaid,
             'overallTotal' => (int) $membership->price_paid + $holdTotal,
-            'overallPaid' => (int) $membership->total_paid + $holdPaid,
+            'overallPaid' => ($membership->isOperational() ? 0 : (int) $membership->total_paid) + $holdPaid,
             'waivers' => $includeWaivers ? app(BuildMembershipWaiverData::class)->execute($membership) : [],
             'membership' => $membership,
             'members' => $members,
@@ -50,7 +50,7 @@ class BuildMembershipInvoiceData
             'paymentMethod' => $latestTransaction?->payment_method
                 ? str($latestTransaction->payment_method)->upper()->toString()
                 : '-',
-            'paymentStatusLabel' => match ($membership->payment_status) {
+            'paymentStatusLabel' => $membership->isOperational() ? 'DITANGGUNG OPERASIONAL' : match ($membership->payment_status) {
                 'paid' => 'LUNAS',
                 'partial' => 'SEBAGIAN',
                 default => 'BELUM LUNAS',

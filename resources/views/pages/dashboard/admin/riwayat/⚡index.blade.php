@@ -5,6 +5,7 @@ namespace App\Livewire\Admin;
 use Livewire\Component;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Computed; 
+use Livewire\Attributes\On;
 use Livewire\WithPagination;
 use App\Models\Membership;
 use App\Models\User;
@@ -25,6 +26,12 @@ new #[Layout('layouts::admin')] class extends Component
 
     public $sortBy = 'latest_membership_date';
     public $sortDirection = 'desc';
+
+    #[On('operational-approvals-updated')]
+    public function refreshMembershipHistory(): void
+    {
+        unset($this->users, $this->latestMemberships);
+    }
 
     public function sort($column)
     {
@@ -217,6 +224,10 @@ new #[Layout('layouts::admin')] class extends Component
 ?>
 
 <div>
+    <div class="mb-6">
+        <livewire:dashboard.membership-operational-approvals />
+    </div>
+
     <div class="flex sm:flex-row flex-col justify-between items-center mb-6">
         <h5 class="text-xl font-semibold text-heading">Data Riwayat Membership</h5>
         <div class="flex gap-2"></div>

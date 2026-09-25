@@ -45,12 +45,14 @@ new #[Layout('layouts::admin')] class extends Component
     public function approveOperational(int $id): void
     {
         app(\App\Actions\BeverageOperationalApproval::class)->approve(auth()->user(), $id);
+        $this->dispatch('operational-approvals-updated');
         session()->flash('success', 'Pengajuan disetujui dan dicatat sebagai penjualan.');
     }
 
     public function deleteOperational(int $id): void
     {
         app(\App\Actions\BeverageOperationalApproval::class)->deletePending(auth()->user(), $id);
+        $this->dispatch('operational-approvals-updated');
         unset($this->rejectionReasons[$id]);
         $this->resetPage(pageName: 'approvalPage');
         session()->flash('success', 'Pengajuan berhasil dihapus permanen.');
@@ -59,12 +61,17 @@ new #[Layout('layouts::admin')] class extends Component
     public function rejectOperational(int $id): void
     {
         app(\App\Actions\BeverageOperationalApproval::class)->reject(auth()->user(), $id, $this->rejectionReasons[$id] ?? '');
+        $this->dispatch('operational-approvals-updated');
         unset($this->rejectionReasons[$id]);
         session()->flash('success', 'Pengajuan ditolak.');
     }
 
     public function mount()
     {
+        if (request()->query('approval') === 'pending') {
+            $this->approvalStatus = 'pending';
+            $this->resetPage(pageName: 'approvalPage');
+        }
         $this->nama_staff = auth()->user()->name ?? '';
         $this->shift = auth()->user()->assignedShift?->name ?? 'pagi';
         $this->expense_date = now()->format('Y-m-d');
@@ -859,7 +866,7 @@ new #[Layout('layouts::admin')] class extends Component
         </div>
     </form>
 
-    <section class="mt-6 rounded-md border border-default bg-neutral-primary-soft p-4" aria-label="Approval Operasional">
+    <section id="operational-approvals" class="mt-6 scroll-mt-24 rounded-md border border-default bg-neutral-primary-soft p-4" aria-label="Approval Operasional">
         <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
             <h2 class="text-lg font-semibold text-heading">Approval Operasional</h2>
             <div class="flex items-center gap-2">

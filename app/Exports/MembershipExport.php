@@ -72,7 +72,8 @@ class MembershipExport implements FromQuery, WithHeadings, WithMapping
             'Paket PT',
             'Sesi Tersisa',
             'Total Sesi',
-            'Total Bayar',
+            'Nilai Paket',
+            'Penanggung Pembayaran',
             'Status',
             'Tanggal Daftar',
         ];
@@ -94,6 +95,7 @@ class MembershipExport implements FromQuery, WithHeadings, WithMapping
             $membership->remaining_sessions ?? 0,
             $membership->total_sessions ?? 0,
             $membership->price_paid,
+            $membership->isOperational() ? 'Operasional (bukan uang diterima)' : 'Member',
             $membership->status,
             $membership->created_at->format('Y-m-d H:i:s'),
         ];

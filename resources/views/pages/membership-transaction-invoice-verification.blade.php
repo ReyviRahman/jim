@@ -80,6 +80,7 @@
                         <h2 class="mb-2 font-semibold text-brand">Rincian Hold PT</h2>
                         <x-membership-hold-description :hold="$hold" />
                         <p>Nominal pada invoice ini: Rp {{ number_format($membershipTransaction->amount, 0, ',', '.') }} ({{ $paymentMethod }}).</p>
+                        @if($membershipTransaction->isOperational())<p>Nilai ditanggung Operasional; tidak ada uang diterima.</p>@endif
                     </section>
                 @endif
 

@@ -22,6 +22,12 @@ class MembershipPaymentProofTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        Storage::fake('local');
+    }
+
     public function test_package_cash_payment_succeeds_without_a_proof(): void
     {
         Storage::fake('public');
@@ -484,6 +490,8 @@ class MembershipPaymentProofTest extends TestCase
         return Livewire::withQueryParams(['users' => [$member->id]])
             ->test('pages::dashboard.admin.membership.paket')
             ->set('registration_type', 'membership')
+            ->set('pt_trial_interest', 'no')
+            ->set('waivers.'.$member->id, ['accepted' => true, 'signature' => $this->signature()])
             ->set('gym_package_id', $package->id)
             ->set('admin_id', $cashier->id)
             ->set('follow_up_id', $cashier->id)
@@ -496,6 +504,8 @@ class MembershipPaymentProofTest extends TestCase
     private function renewalForm(Membership $membership, User $cashier): Testable
     {
         return Livewire::test('pages::dashboard.admin.renew.create', ['id' => $membership->id])
+            ->set('pt_trial_interest', 'no')
+            ->set('waivers.'.$membership->user_id, ['accepted' => true, 'signature' => $this->signature()])
             ->set('admin_id', $cashier->id)
             ->set('follow_up_id', $cashier->id)
             ->set('follow_up_id_two', $cashier->id)
@@ -621,5 +631,18 @@ class MembershipPaymentProofTest extends TestCase
             'gender' => 'Perempuan',
             'phone' => fake()->unique()->numerify('08##########'),
         ]);
+    }
+
+    private function signature(): string
+    {
+        $image = imagecreatetruecolor(400, 160);
+        imagefill($image, 0, 0, imagecolorallocate($image, 255, 255, 255));
+        imageline($image, 25, 100, 360, 50, imagecolorallocate($image, 0, 0, 0));
+        ob_start();
+        imagepng($image);
+        $bytes = ob_get_clean();
+        imagedestroy($image);
+
+        return 'data:image/png;base64,'.base64_encode($bytes);
     }
 }

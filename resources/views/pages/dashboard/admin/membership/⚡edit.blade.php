@@ -456,6 +456,15 @@ new #[Layout('layouts::admin')] class extends Component
 
     public function calculateTotal()
     {
+        if ($this->membership->isOperational()) {
+            $this->base_price = $this->membership->base_price;
+            $this->discount_applied = $this->membership->discount_applied;
+            $this->admin_fee = $this->membership->admin_fee;
+            $this->price_paid = $this->membership->price_paid;
+            $this->calculated_total_sessions = $this->membership->total_sessions;
+            $this->calculateTotalPaid();
+            return;
+        }
         $hargaGym = 0;
         $diskonGym = 0;
 
@@ -579,6 +588,21 @@ new #[Layout('layouts::admin')] class extends Component
 
         $existingTransactions = $this->membership->packageTransactions()->get()->keyBy('id');
 
+        if ($this->membership->isOperational()) {
+            if ($this->registration_type !== $this->membership->type || (int) $this->gym_package_id !== (int) $this->membership->gym_package_id || (int) $this->pt_package_id !== (int) $this->membership->pt_package_id) {
+                $this->addError('registration_type', 'Jenis dan paket Operasional yang telah disetujui tidak dapat diganti.');
+                return;
+            }
+            $this->follow_up_id = null;
+            $this->follow_up_id_two = null;
+            $rules['follow_up_id'] = 'nullable';
+            $rules['follow_up_id_two'] = 'nullable';
+            $rules['payment_method'] = 'required|in:operasional';
+            $rules['payment_type'] = 'required|in:paid';
+            $rules['transactions'] = 'required|array|size:'.$existingTransactions->count();
+            $rules['transactions.*.id'] = 'required|integer|distinct';
+        }
+
         foreach ($this->transactions as $index => $transactionData) {
             $existingTransaction = $existingTransactions->get((int) ($transactionData['id'] ?? 0));
 
@@ -591,7 +615,12 @@ new #[Layout('layouts::admin')] class extends Component
             $newPaymentMethod = $transactionData['payment_method'] ?? '';
             $rules['transactions.'.$index.'.payment_method'] = 'required|in:cash,transfer,qris,debit';
 
-            if ($newPaymentMethod !== 'cash') {
+            if ($existingTransaction->isOperational()) {
+                $rules['transactions.'.$index.'.payment_method'] = 'required|in:operasional';
+                $rules['transactions.'.$index.'.amount'] = 'required|numeric|in:'.$existingTransaction->amount;
+            }
+
+            if (!in_array($newPaymentMethod, ['cash', 'operasional'], true)) {
                 $requiresNewProof = $existingTransaction->payment_method !== $newPaymentMethod;
                 $proofKey = 'transaction_payment_proofs.'.$index;
                 $rules[$proofKey] = $this->paymentProofRules($requiresNewProof);
@@ -617,6 +646,10 @@ new #[Layout('layouts::admin')] class extends Component
         $this->validate($rules, $messages);
 
         $this->calculateTotal();
+        if ($this->membership->isOperational() && (int) $this->price_paid !== (int) $this->membership->price_paid) {
+            $this->addError('price_paid', 'Nilai paket Operasional yang telah disetujui tidak dapat diubah.');
+            return;
+        }
 
         if (! $this->showPaymentWarning) {
             if ((float) $this->amount_paid < (float) $this->price_paid) {
@@ -690,7 +723,7 @@ new #[Layout('layouts::admin')] class extends Component
                 $paymentProofPath = $txn->payment_proof_path;
                 $newPaymentProof = $this->transaction_payment_proofs[$index] ?? null;
 
-                if ($txnData['payment_method'] === 'cash') {
+                if (in_array($txnData['payment_method'], ['cash', 'operasional'], true)) {
                     if ($paymentProofPath) {
                         $obsoleteProofPaths[] = $paymentProofPath;
                     }
@@ -1023,7 +1056,7 @@ new #[Layout('layouts::admin')] class extends Component
 
                                 <div>
                                     <label for="follow_up_id" class="block mb-2.5 text-sm font-medium text-heading">Admin Follow Up</label>
-                                    <select id="follow_up_id" wire:model="follow_up_id" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs">
+                                    <select id="follow_up_id" wire:model="follow_up_id" @disabled($membership->isOperational()) class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs">
                                         <option value="">-- Pilih Staff --</option>
                                         @foreach($this->followUpUsers as $staff)
                                             <option value="{{ $staff->id }}">{{ $staff->name }}</option>
@@ -1034,7 +1067,7 @@ new #[Layout('layouts::admin')] class extends Component
 
                                 <div>
                                     <label for="follow_up_id_two" class="block mb-2.5 text-sm font-medium text-heading">Sales Follow Up</label>
-                                    <select id="follow_up_id_two" wire:model="follow_up_id_two" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs">
+                                    <select id="follow_up_id_two" wire:model="follow_up_id_two" @disabled($membership->isOperational()) class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs">
                                         <option value="">-- Pilih Staff --</option>
                                         @foreach($this->followUpUsers as $staff)
                                             <option value="{{ $staff->id }}">{{ $staff->name }}</option>
@@ -1295,7 +1328,8 @@ new #[Layout('layouts::admin')] class extends Component
 
                                                     <div>
                                                         <label class="block mb-1 text-sm font-medium text-heading">Metode Pembayaran</label>
-                                                        <select wire:model.live="transactions.{{ $index }}.payment_method" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2 shadow-xs">
+                                                        <select wire:model.live="transactions.{{ $index }}.payment_method" @disabled($membership->isOperational()) class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2 shadow-xs">
+                                                            @if($membership->isOperational())<option value="operasional">Operasional</option>@endif
                                                             <option value="cash">💵 Cash / Tunai</option>
                                                             <option value="transfer">🏦 Transfer Bank</option>
                                                             <option value="qris">📱 QRIS</option>
@@ -1303,7 +1337,7 @@ new #[Layout('layouts::admin')] class extends Component
                                                         </select>
                                                     </div>
 
-                                                    @if($txn['payment_method'] !== 'cash')
+                                                    @if(!in_array($txn['payment_method'], ['cash', 'operasional'], true))
                                                         @php
                                                             $existingProofPath = $txn['payment_proof_path'] ?? null;
                                                             $proofIsRequired = ($txn['original_payment_method'] ?? null) !== $txn['payment_method'];

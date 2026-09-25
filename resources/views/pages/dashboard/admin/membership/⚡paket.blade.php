@@ -60,6 +60,9 @@ new #[Layout('layouts::admin')] class extends Component
     public $payment_type = 'paid'; // 'paid' (Lunas) atau 'partial' (Nyicil)
     public $amount_paid = 0; // Uang yang dibayar SEKARANG
     public $payment_method = 'cash';
+    public string $operational_reason = '';
+    #[\Livewire\Attributes\Locked]
+    public string $operational_submission_token = '';
     public $payment_proof;
     public $payment_date = '';
     public $transaction_type = '';
@@ -85,6 +88,15 @@ new #[Layout('layouts::admin')] class extends Component
 
     public function updatedPaymentMethod(): void
     {
+        if ($this->payment_method === 'operasional') {
+            $this->payment_type = 'paid';
+            $this->is_split_payment = false;
+            $this->follow_up_id = null;
+            $this->follow_up_id_two = null;
+            $this->reset('split_payment_proofs');
+            $this->resetValidation(['follow_up_id', 'follow_up_id_two']);
+            $this->calculateTotal();
+        }
         $this->reset('payment_proof');
         $this->resetValidation('payment_proof');
     }
@@ -113,6 +125,7 @@ new #[Layout('layouts::admin')] class extends Component
 
     public function mount()
     {
+        $this->operational_submission_token = (string) \Illuminate\Support\Str::uuid();
         $userIds = request()->query('users', []);
 
         if (empty($userIds) || !is_array($userIds)) {
@@ -290,6 +303,14 @@ new #[Layout('layouts::admin')] class extends Component
         }
 
         if ($property === 'is_active') {
+            if ($this->payment_method === 'operasional') {
+                if (!$this->is_active) {
+                    $this->start_date = null;
+                    $this->membership_end_date = null;
+                    $this->pt_end_date = null;
+                }
+                return;
+            }
             if ($this->payment_type === 'partial') {
                 $this->is_active = false;
                 session()->flash('warning', 'Status keanggotaan tidak dapat diaktifkan karena tipe pembayaran masih cicilan. Silakan lunasi terlebih dahulu.');
@@ -360,6 +381,25 @@ new #[Layout('layouts::admin')] class extends Component
         StoreCompressedPaymentProof $storeCompressedPaymentProof,
     )
     {
+        if ($this->payment_method === 'operasional') {
+            $input = collect($this->all())->only([
+                'registration_type', 'is_active', 'start_date', 'membership_end_date', 'pt_end_date',
+                'gym_package_id', 'pt_package_id', 'pt_id', 'admin_id', 'manual_discount', 'admin_fee',
+                'payment_date', 'transaction_type', 'package_name', 'notes', 'pt_trial_interest',
+                'payment_type', 'is_split_payment',
+            ])->map(fn ($value) => $value === '' ? null : $value)->all();
+            $input['user_ids'] = $this->selectedUsers->modelKeys();
+            $input['reason'] = $this->operational_reason;
+            $input['submission_token'] = $this->operational_submission_token;
+            try {
+                $approval = app(\App\Actions\MembershipOperationalApproval::class)->submit(auth()->user(), $input, $this->waivers, $this->memberPhotos);
+            } catch (\Illuminate\Validation\ValidationException $exception) {
+                $this->dispatch('membership-waiver-invalid', field: array_key_first($exception->errors()));
+                throw $exception;
+            }
+            session()->flash('success', $approval->status === 'approved' ? 'Membership Operasional disetujui dan dicatat.' : 'Pengajuan menunggu persetujuan admin. Membership belum dapat digunakan.');
+            return $this->redirectRoute('admin.riwayat.index', navigate: true);
+        }
         $this->validateRequiredMemberProfilePhotos();
         try {
             $validatedWaivers = app(StoreMembershipWaivers::class)->validate($this->selectedUsers, $this->waivers, required: true);
@@ -616,6 +656,11 @@ new #[Layout('layouts::admin')] class extends Component
 ?>
 
 <div>
+    @if($errors->any())
+        <div role="alert" class="mb-4 rounded-md bg-red-50 p-4 text-sm text-red-700">
+            @foreach($errors->all() as $error)<p>{{ $error }}</p>@endforeach
+        </div>
+    @endif
     @error('shift')<p role="alert" class="mb-4 text-sm text-red-700">{{ $message }}</p>@enderror
     {{-- Container Fixed di Pojok Kanan Atas --}}
     <div class="fixed top-4 right-4 z-50 flex flex-col gap-3 w-full max-w-sm">
@@ -883,8 +928,8 @@ new #[Layout('layouts::admin')] class extends Component
 
                                 <div>
                                     <label for="follow_up_id" class="block mb-2.5 text-sm font-medium text-heading">Admin Follow Up</label>
-                                    <select id="follow_up_id" wire:model="follow_up_id" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs">
-                                        <option value="">-- Pilih Staff --</option>
+                                    <select id="follow_up_id" wire:model="follow_up_id" @disabled($payment_method === 'operasional') class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs disabled:bg-gray-100">
+                                        <option value="">{{ $payment_method === 'operasional' ? 'Tidak berlaku untuk Operasional' : '-- Pilih Staff --' }}</option>
                                         @foreach($this->followUpUsers as $staff)
                                             <option value="{{ $staff->id }}">{{ $staff->name }}</option>
                                         @endforeach
@@ -894,8 +939,8 @@ new #[Layout('layouts::admin')] class extends Component
 
                                 <div>
                                     <label for="follow_up_id_two" class="block mb-2.5 text-sm font-medium text-heading">Sales Follow Up</label>
-                                    <select id="follow_up_id_two" wire:model="follow_up_id_two" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs">
-                                        <option value="">-- Pilih Staff --</option>
+                                    <select id="follow_up_id_two" wire:model="follow_up_id_two" @disabled($payment_method === 'operasional') class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs disabled:bg-gray-100">
+                                        <option value="">{{ $payment_method === 'operasional' ? 'Tidak berlaku untuk Operasional' : '-- Pilih Staff --' }}</option>
                                         @foreach($this->followUpUsers as $staff)
                                             <option value="{{ $staff->id }}">{{ $staff->name }}</option>
                                         @endforeach
@@ -1065,7 +1110,7 @@ new #[Layout('layouts::admin')] class extends Component
                                 <span class="text-sm font-medium">Lunas</span>
                             </label>
                             <label class="flex items-center gap-2 cursor-pointer">
-                                <input type="radio" wire:model.live="payment_type" value="partial" class="text-brand focus:ring-brand w-4 h-4">
+                                <input type="radio" wire:model.live="payment_type" value="partial" @disabled($payment_method === 'operasional') class="text-brand focus:ring-brand w-4 h-4">
                                 <span class="text-sm font-medium">Nyicil (DP)</span>
                             </label>
                         </div>
@@ -1074,7 +1119,7 @@ new #[Layout('layouts::admin')] class extends Component
 
                     {{-- Nominal Dibayar Sekarang --}}
                     <div>
-                        <label class="block mb-1 text-sm font-medium text-heading">Uang Diterima (Rp)</label>
+                        <label class="block mb-1 text-sm font-medium text-heading">{{ $payment_method === 'operasional' ? 'Ditanggung Operasional (Rp)' : 'Uang Diterima (Rp)' }}</label>
                         
                         {{-- Menggunakan Alpine.js dengan entangle.live agar real-time --}}
                         <div x-data="{ 
@@ -1121,7 +1166,7 @@ new #[Layout('layouts::admin')] class extends Component
 
                     {{-- Split Payment Toggle --}}
                     <div class="flex items-center gap-2">
-                        <input type="checkbox" id="is_split_payment" wire:model.live="is_split_payment" class="w-4 h-4 text-brand focus:ring-brand border-gray-300 rounded">
+                        <input type="checkbox" id="is_split_payment" wire:model.live="is_split_payment" @disabled($payment_method === 'operasional') class="w-4 h-4 text-brand focus:ring-brand border-gray-300 rounded">
                         <label for="is_split_payment" class="text-sm font-medium text-heading cursor-pointer">Split Payment (Pisah Metode Bayar)</label>
                     </div>
                     @error('split_payment') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
@@ -1217,6 +1262,7 @@ new #[Layout('layouts::admin')] class extends Component
                         <div>
                             <label class="block mb-1 text-sm font-medium text-heading">Metode Pembayaran</label>
                             <select wire:model.live="payment_method" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2 shadow-xs">
+                                <option value="operasional">Operasional</option>
                                 <option value="cash">💵 Cash / Tunai</option>
                                 <option value="transfer">🏦 Transfer Bank</option>
                                 <option value="qris">📱 QRIS</option>
@@ -1224,12 +1270,12 @@ new #[Layout('layouts::admin')] class extends Component
                             </select>
                             @error('payment_method') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                         </div>
-                        @if($payment_method !== 'cash')
+                        @if(!in_array($payment_method, ['cash', 'operasional'], true))
                             <x-payment-proof-upload wire:key="package-payment-proof-{{ $payment_method }}" model="payment_proof" :proof="$payment_proof" />
                         @endif
                     @endif
                     <div>
-                        <label class="block mb-1 text-sm font-medium text-heading">Tanggal Pembayaran</label>
+                        <label class="block mb-1 text-sm font-medium text-heading">{{ $payment_method === 'operasional' ? 'Tanggal Pencatatan' : 'Tanggal Pembayaran' }}</label>
                         <input type="date" wire:model="payment_date" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2 shadow-xs">
                         <p class="mt-1.5 text-xs text-brand-strong font-medium">{{ $this->getFormattedDate($payment_date) }}</p>
                         @error('payment_date') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
@@ -1256,12 +1302,21 @@ new #[Layout('layouts::admin')] class extends Component
                 </div>
                 @endif
 
-                <button 
+                @if($payment_method === 'operasional')
+                    <div class="rounded-md border border-amber-200 bg-amber-50 p-3">
+                        <label for="operational-reason" class="mb-2 block text-sm font-medium text-heading">Alasan Operasional</label>
+                        <textarea id="operational-reason" wire:model="operational_reason" maxlength="1000" rows="3" class="w-full rounded-md border border-default-medium p-2 text-sm"></textarea>
+                        @error('reason')<p class="text-sm text-red-600">{{ $message }}</p>@enderror
+                        <p class="mt-2 text-xs text-body">Operasional menanggung seluruh tagihan, tanpa cicilan, split payment, atau bonus penjualan. Tanggal paket tetap mengikuti formulir.</p>
+                        @if(auth()->user()->role !== 'admin')<p class="mt-2 text-xs text-body">Membership baru dibuat setelah admin menyetujui.</p>@endif
+                    </div>
+                @endif
+                <button
                     type="submit"
                     class="w-full text-center text-white bg-brand hover:bg-brand-strong focus:ring-4 focus:ring-brand-medium font-medium rounded-md text-sm px-4 py-3 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     wire:loading.attr="disabled"
                 >
-                    <span wire:loading.remove>Konfirmasi & Simpan Transaksi</span>
+                    <span wire:loading.remove>{{ $payment_method === 'operasional' ? (auth()->user()->role === 'admin' ? 'Simpan Operasional' : 'Ajukan Approval') : 'Konfirmasi & Simpan Transaksi' }}</span>
                     <span wire:loading>Memproses...</span>
                 </button>
             </div>

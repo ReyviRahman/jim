@@ -68,7 +68,7 @@
                 </div>
                 <div class="member-detail-panel member-detail-feature">
                     <span class="member-detail-icon"><x-member-detail-icon name="wallet" /></span>
-                    <div><p class="member-detail-label">Total Bayar</p>
+                    <div><p class="member-detail-label">{{ $membership->isOperational() ? 'Ditanggung Operasional' : 'Total Bayar' }}</p>
                         @if ($membership->discount_applied > 0)
                             <div class="member-detail-discount"><del>Rp {{ number_format($originalPrice, 0, ',', '.') }}</del><span>-{{ $discountPercent }}%</span></div>
                             <p class="member-detail-discount-amount">Diskon Rp {{ number_format($membership->discount_applied, 0, ',', '.') }}</p>

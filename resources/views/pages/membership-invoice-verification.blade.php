@@ -69,7 +69,7 @@
                     <h2 class="font-semibold text-brand">Rincian Pembayaran</h2>
                     <dl class="grid gap-3 sm:grid-cols-2">
                         <div><dt>Tagihan Paket</dt><dd>Rp {{ number_format($membership->price_paid, 0, ',', '.') }}</dd></div>
-                        <div><dt>Pembayaran Paket</dt><dd>Rp {{ number_format($membership->total_paid, 0, ',', '.') }}</dd></div>
+                        <div><dt>{{ $membership->isOperational() ? 'Ditanggung Operasional (bukan uang diterima)' : 'Pembayaran Paket' }}</dt><dd>Rp {{ number_format($membership->total_paid, 0, ',', '.') }}</dd></div>
                         <div><dt>Biaya Hold PT</dt><dd>Rp {{ number_format($holdTotal, 0, ',', '.') }}</dd></div>
                         <div><dt>Pembayaran Hold PT</dt><dd>Rp {{ number_format($holdPaid, 0, ',', '.') }}</dd></div>
                         <div><dt>Total Paket + Hold</dt><dd>Rp {{ number_format($overallTotal, 0, ',', '.') }}</dd></div>

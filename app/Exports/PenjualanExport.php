@@ -142,7 +142,7 @@ class PenjualanExport implements WithEvents
                 // 5. BARIS TOTAL TRANSAKSI
                 // ==========================================
                 // Teks "GRAND TOTAL" diletakkan di bawah "Catatan" (G), angkanya di bawah "Nominal" (H)
-                $sheet->setCellValue('G'.$row, 'GRAND TOTAL');
+                $sheet->setCellValue('G'.$row, 'TOTAL UANG MASUK');
                 $sheet->setCellValue('H'.$row, $this->summaryTotal['uang_total'] ?? 0);
 
                 $sheet->getStyle('G'.$row.':H'.$row)->applyFromArray([
@@ -183,6 +183,7 @@ class PenjualanExport implements WithEvents
                     ['PERSONAL TRAINER:', $this->summaryTotal['uang_pt'] ?? 0],
                     ['NIMBANG:', $this->summaryTotal['uang_nimbang'] ?? 0],
                     ['HOLD:', $this->summaryTotal['uang_hold'] ?? 0],
+                    ['OPERASIONAL:', $this->summaryTotal['operasional'] ?? 0],
                     ['BALANCE', $this->summaryTotal['uang_total'] ?? 0],
                     ['CATATAN PENGELUARAN', ''],
                 ];

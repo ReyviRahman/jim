@@ -49,7 +49,7 @@ class BuildMembershipTransactionInvoiceData
             'invoiceNumber' => $membershipTransaction->invoice_number,
             'invoiceDate' => $membershipTransaction->payment_date ?? $membershipTransaction->created_at,
             'paymentMethod' => str($membershipTransaction->payment_method)->upper()->toString(),
-            'paymentStatusLabel' => 'TERBAYAR',
+            'paymentStatusLabel' => $membershipTransaction->isOperational() ? 'DITANGGUNG OPERASIONAL' : 'TERBAYAR',
             'paymentStatusClass' => 'status-paid',
             'paymentProofDataUri' => $includePaymentProof
                 ? $this->paymentProofDataUri($membershipTransaction->payment_proof_path)
