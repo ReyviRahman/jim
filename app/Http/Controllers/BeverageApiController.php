@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\BeverageOperationalApproval;
 use App\Models\Beverage;
 use App\Models\BeverageSale;
 use App\Models\DepositBeverage;
@@ -47,6 +48,17 @@ class BeverageApiController extends Controller
 
     public function processSale(Request $request)
     {
+        abort_unless(in_array($request->user()->role, ['admin', 'kasir_gym', 'kasir_minum'], true), 403);
+        if ($request->keterangan_bayar === 'operasional' || ($request->keterangan_bayar === 'deposit' && $request->secondary_payment_method === 'operasional')) {
+            $input = $request->all();
+            $input['selected_products'] = json_decode($request->input('selected_products', '[]'), true);
+            $approval = app(BeverageOperationalApproval::class)->submit($request->user(), $input);
+
+            return back()->with('success', $approval->status === 'approved'
+                ? 'Transaksi Operasional disetujui dan dicatat.'
+                : 'Pengajuan #'.$approval->id.' menunggu persetujuan admin. Stok dan deposit belum berubah.');
+        }
+
         return DB::transaction(function () use ($request) {
             $selectedProducts = json_decode($request->selected_products, true);
 

@@ -239,6 +239,12 @@ table[data-responsive-table] td .inline-flex {
     flex-wrap: wrap;
 }
 
+table[data-responsive-table][data-pos-products] tbody > tr > td:not(.hidden) {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr);
+    align-items: center;
+    vertical-align: middle;
+}
+
 table[data-responsive-table] td pre {
     max-width: 100%;
     white-space: pre-wrap;

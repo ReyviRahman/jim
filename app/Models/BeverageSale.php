@@ -13,6 +13,7 @@ class BeverageSale extends Model
     use HasFactory;
 
     protected $fillable = [
+        'operational_request_id',
         'beverage_id',
         'deposit_beverage_id',
         'deposit_amount',

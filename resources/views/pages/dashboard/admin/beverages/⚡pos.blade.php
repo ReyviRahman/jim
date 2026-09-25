@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Request;
 
 new #[Layout('layouts::admin')] class extends Component
 {
+    use \Livewire\WithPagination;
     public $searchProduct = '';
     public $selectedProducts = [];
     public $shift = '';
@@ -23,6 +24,44 @@ new #[Layout('layouts::admin')] class extends Component
     public $expense_name = '';
     public $expense_amount = '';
     public $expense_date = '';
+    public string $reason = '';
+    public array $rejectionReasons = [];
+    public string $approvalStatus = 'pending';
+
+    public function updatedApprovalStatus(): void
+    {
+        $this->resetPage(pageName: 'approvalPage');
+    }
+
+    public function getOperationalRequestsProperty(): \Illuminate\Contracts\Pagination\LengthAwarePaginator
+    {
+        abort_unless(in_array(auth()->user()?->role, ['admin', 'kasir_gym', 'kasir_minum'], true), 403);
+        return \App\Models\BeverageOperationalRequest::with(['items', 'decider'])
+            ->when(auth()->user()->role !== 'admin', fn ($query) => $query->where('requested_by', auth()->id()))
+            ->where('status', in_array($this->approvalStatus, ['pending', 'approved', 'rejected'], true) ? $this->approvalStatus : 'pending')
+            ->latest('id')->paginate(10, pageName: 'approvalPage');
+    }
+
+    public function approveOperational(int $id): void
+    {
+        app(\App\Actions\BeverageOperationalApproval::class)->approve(auth()->user(), $id);
+        session()->flash('success', 'Pengajuan disetujui dan dicatat sebagai penjualan.');
+    }
+
+    public function deleteOperational(int $id): void
+    {
+        app(\App\Actions\BeverageOperationalApproval::class)->deletePending(auth()->user(), $id);
+        unset($this->rejectionReasons[$id]);
+        $this->resetPage(pageName: 'approvalPage');
+        session()->flash('success', 'Pengajuan berhasil dihapus permanen.');
+    }
+
+    public function rejectOperational(int $id): void
+    {
+        app(\App\Actions\BeverageOperationalApproval::class)->reject(auth()->user(), $id, $this->rejectionReasons[$id] ?? '');
+        unset($this->rejectionReasons[$id]);
+        session()->flash('success', 'Pengajuan ditolak.');
+    }
 
     public function mount()
     {
@@ -105,41 +144,16 @@ new #[Layout('layouts::admin')] class extends Component
 
     public function processSale()
     {
-        return \Illuminate\Support\Facades\DB::transaction(function () {
-            Beverage::query()->whereKey(collect($this->selectedProducts)->pluck('beverage_id')->unique())->orderBy('id')->lockForUpdate()->get();
-            if (empty($this->selectedProducts)) {
-                session()->flash('error', 'Pilih produk terlebih dahulu.');
-                return redirect(request()->header('Referer'));
-            }
-
-            $now = now();
-
-            foreach ($this->selectedProducts as $item) {
-                BeverageSale::create([
-                    'beverage_id' => $item['beverage_id'],
-                    'nama_staff' => $this->nama_staff,
-                    'waktu_transaksi' => $now,
-                    'shift' => auth()->user()->beverageShiftSnapshot(),
-                    'jumlah_beli' => $item['jumlah_beli'],
-                    'harga_satuan' => $item['harga_satuan'],
-                    'total_harga' => $item['harga_satuan'] * $item['jumlah_beli'],
-                    'keterangan_bayar' => $this->keterangan_bayar,
-                ]);
-
-                $beverage = Beverage::query()->lockForUpdate()->find($item['beverage_id']);
-                $beverage->update([
-                    'stok_sekarang' => $beverage->stok_sekarang - $item['jumlah_beli'],
-                ]);
-            }
-
-            session()->flash('success', 'Transaksi berhasil disimpan! Total: Rp ' . number_format($this->total, 0, ',', '.'));
-
-            $this->selectedProducts = [];
-            $this->shift = auth()->user()->assignedShift?->name ?? 'pagi';
-            $this->keterangan_bayar = 'cash';
-
-            return redirect(request()->header('Referer'));
-        }, 3);
+        $request = \Illuminate\Http\Request::create('/admin/beverages/pos/process', 'POST', [
+            'selected_products' => json_encode($this->selectedProducts),
+            'keterangan_bayar' => $this->keterangan_bayar,
+            'nama_staff' => auth()->user()->name,
+            'nama_penghutang' => $this->nama_penghutang,
+            'cash_received' => $this->cash_received,
+            'reason' => $this->reason,
+        ]);
+        $request->setUserResolver(fn () => auth()->user());
+        return app(\App\Http\Controllers\BeverageApiController::class)->processSale($request);
     }
 
     public function openExpenseModal()
@@ -188,6 +202,11 @@ new #[Layout('layouts::admin')] class extends Component
 
 <div x-data="{
     searchProduct: '',
+    operationalReason: @js(old('reason', '')),
+    submitting: false,
+    get isOperational() {
+        return this.keterangan_bayar === 'operasional' || (this.keterangan_bayar === 'deposit' && this.secondary_payment_method === 'operasional' && this.getRemainingTotal() > 0);
+    },
     selectedProducts: [],
     products: [],
     showNotFound: false,
@@ -473,10 +492,22 @@ new #[Layout('layouts::admin')] class extends Component
     },
 
     submitForm() {
+        if (this.submitting) return;
+        if (this.isOperational && !this.operationalReason.trim()) {
+            this.closeModal();
+            this.$nextTick(() => this.$refs.operationalReason.focus());
+            return;
+        }
+        this.submitting = true;
         document.getElementById('pos-form').submit();
     }
 }">
     @error('shift')<p role="alert" class="mb-4 text-sm text-red-700">{{ $message }}</p>@enderror
+    @if ($errors->any())
+        <div role="alert" class="mb-4 rounded-md bg-red-50 p-4 text-sm text-red-700">
+            @foreach ($errors->all() as $error)<p>{{ $error }}</p>@endforeach
+        </div>
+    @endif
     <div class="flex sm:flex-row flex-col justify-between items-center mb-6">
         <h5 class="text-xl font-semibold text-heading">POS Minuman</h5>
     </div>
@@ -498,8 +529,8 @@ new #[Layout('layouts::admin')] class extends Component
 
     <form id="pos-form" action="{{ route('admin.beverages.pos.process') }}" method="POST">
         @csrf
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div class="lg:col-span-2 bg-neutral-primary-soft shadow-xs rounded-md border border-default">
+        <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+            <div class="min-w-0 xl:col-span-2 bg-neutral-primary-soft shadow-xs rounded-md border border-default">
                 <div class="p-4 border-b border-default-medium">
                     <div class="flex flex-col sm:flex-row justify-between items-center gap-4">
                         <h6 class="text-lg font-semibold text-heading mb-3">Pilih Produk</h6>
@@ -550,31 +581,35 @@ new #[Layout('layouts::admin')] class extends Component
 
                 <div class="p-4">
                     <template x-if="selectedProducts.length > 0">
-                        <table data-responsive-table data-responsive-breakpoint="lg" class="table-fixed w-full text-sm text-left text-body">
+                        <table data-responsive-table data-responsive-breakpoint="lg" data-pos-products class="table-fixed w-full text-sm text-left text-body">
                             <thead class="text-sm bg-neutral-secondary-medium border-b border-default-medium">
                                 <tr>
                                     <th class="px-2 py-2 font-medium">Produk</th>
-                                    <th class="px-2 py-2 font-medium text-right">Harga</th>
-                                    <th class="px-2 py-2 font-medium text-center">Jumlah</th>
-                                    <th class="px-2 py-2 font-medium text-right">Subtotal</th>
-                                    <th class="px-2 py-2 font-medium"></th>
+                                    <th class="w-28 px-2 py-2 font-medium text-right">Harga</th>
+                                    <th class="w-32 px-2 py-2 font-medium text-center">Jumlah</th>
+                                    <th class="w-32 px-2 py-2 font-medium text-right">Subtotal</th>
+                                    <th class="w-10 px-2 py-2 font-medium"><span class="sr-only">Hapus</span></th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <template x-for="(item, index) in selectedProducts" :key="item.beverage_id">
                                     <tr class="border-b border-default">
                                         <td class="px-2 py-2 font-semibold text-heading" x-text="item.nama_produk"></td>
-                                        <td class="px-2 py-2 text-right" x-text="'Rp ' + formatNumber(item.harga_satuan)"></td>
+                                        <td class="px-2 py-2 text-right">
+                                            <span class="whitespace-nowrap tabular-nums" x-text="'Rp ' + formatNumber(item.harga_satuan)"></span>
+                                        </td>
                                         <td class="px-2 py-2 text-center">
-                                            <div class="flex items-center justify-center gap-2">
+                                            <div class="grid grid-cols-[1.75rem_minmax(2rem,auto)_1.75rem] items-center justify-center gap-2">
                                                 <button type="button" @click="updateQuantity(index, -1)" class="w-7 h-7 rounded-full bg-neutral-secondary-medium hover:bg-neutral-tertiary-medium text-heading font-bold">-</button>
                                                 <span class="w-8 text-center font-semibold" x-text="item.jumlah_beli"></span>
                                                 <button type="button" @click="updateQuantity(index, 1)" class="w-7 h-7 rounded-full bg-neutral-secondary-medium hover:bg-neutral-tertiary-medium text-heading font-bold">+</button>
                                             </div>
                                         </td>
-                                        <td class="px-2 py-2 text-right font-semibold text-heading" x-text="'Rp ' + formatNumber(item.harga_satuan * item.jumlah_beli)"></td>
+                                        <td class="px-2 py-2 text-right font-semibold text-heading">
+                                            <span class="whitespace-nowrap tabular-nums" x-text="'Rp ' + formatNumber(item.harga_satuan * item.jumlah_beli)"></span>
+                                        </td>
                                         <td class="px-2 py-2 text-center">
-                                            <button type="button" @click="removeProduct(index)" class="text-red-500 hover:text-red-700">
+                                            <button type="button" @click="removeProduct(index)" :aria-label="'Hapus ' + item.nama_produk" class="inline-grid size-7 place-items-center justify-self-end rounded text-red-500 hover:text-red-700">
                                                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
                                             </button>
                                         </td>
@@ -609,7 +644,7 @@ new #[Layout('layouts::admin')] class extends Component
 
                 <div class="mb-4">
                     <label class="block mb-2 text-sm font-medium text-heading">Tanggal</label>
-                    <input type="date" x-model="tanggal" name="tanggal"
+                    <input type="date" x-model="tanggal" name="tanggal" :disabled="isOperational"
                         class="block w-full px-3 py-2.5 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs">
                 </div>
 
@@ -810,13 +845,66 @@ new #[Layout('layouts::admin')] class extends Component
                 <input type="hidden" name="secondary_deposit_customer_name" :value="secondary_deposit_customer_name">
                 <input type="hidden" name="selected_products" :value="JSON.stringify(selectedProducts)">
 
-                <button type="button" @click="openModal()" :disabled="selectedProducts.length === 0"
+                <div x-show="isOperational" x-cloak class="mb-4 rounded-md border border-amber-200 bg-amber-50 p-3">
+                    <label for="operational-reason" class="mb-2 block text-sm font-medium text-heading">Alasan Operasional</label>
+                    <textarea id="operational-reason" x-ref="operationalReason" name="reason" x-model="operationalReason" maxlength="1000" rows="3" class="w-full rounded-md border border-default-medium p-2 text-sm"></textarea>
+                    <p class="mt-2 text-xs text-body">@if (auth()->user()->role !== 'admin') Stok, deposit, dan penjualan baru dicatat setelah admin menyetujui. @endif Tanggal pencatatan mengikuti hari pengajuan.</p>
+                </div>
+
+                <button type="button" @click="openModal()" :disabled="selectedProducts.length === 0 || (isOperational && !operationalReason.trim())"
                     class="w-full py-3 text-white bg-brand hover:bg-brand-strong rounded-md font-semibold text-sm focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed">
-                    Bayar Sekarang
+                    <span x-text="isOperational ? '{{ auth()->user()->role === 'admin' ? 'Proses Operasional' : 'Ajukan Approval' }}' : 'Bayar Sekarang'"></span>
                 </button>
             </div>
         </div>
     </form>
+
+    <section class="mt-6 rounded-md border border-default bg-neutral-primary-soft p-4" aria-label="Approval Operasional">
+        <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <h2 class="text-lg font-semibold text-heading">Approval Operasional</h2>
+            <div class="flex items-center gap-2">
+                <label for="approval-status" class="sr-only">Status approval</label>
+                <select id="approval-status" wire:model.live="approvalStatus" class="rounded-md border border-default-medium p-2 text-sm">
+                    <option value="pending">Menunggu</option><option value="approved">Disetujui</option><option value="rejected">Ditolak</option>
+                </select>
+                <button type="button" wire:click="$refresh" class="rounded-md border border-default-medium px-3 py-2 text-sm">Muat ulang</button>
+            </div>
+        </div>
+        <div class="space-y-3">
+            @forelse ($this->operationalRequests as $approval)
+                <details wire:key="operational-{{ $approval->id }}" class="rounded-md border border-default p-3">
+                    <summary class="cursor-pointer text-sm font-semibold text-heading">#{{ $approval->id }} · {{ $approval->nama_staff }} · {{ $approval->requested_at->locale('id')->translatedFormat('l, d/m/Y H:i') }} · Rp {{ number_format($approval->total, 0, ',', '.') }} · {{ ['pending' => 'Menunggu', 'approved' => 'Disetujui', 'rejected' => 'Ditolak'][$approval->status] }}</summary>
+                    <div class="mt-3 space-y-2 text-sm text-body">
+                        <p>Shift: {{ $approval->shift }}</p>
+                        <p class="whitespace-pre-wrap break-words">Alasan: {{ $approval->reason }}</p>
+                        @foreach ($approval->items as $item)
+                            <div wire:key="operational-item-{{ $item->id }}" class="flex flex-wrap justify-between gap-2 border-b border-default py-2">
+                                <span>{{ $item->nama_produk }} · {{ $item->jumlah_beli }} × Rp {{ number_format($item->harga_satuan, 0, ',', '.') }}</span>
+                                <span>Rp {{ number_format($item->harga_satuan * $item->jumlah_beli, 0, ',', '.') }}</span>
+                            </div>
+                        @endforeach
+                        <p>Deposit: Rp {{ number_format($approval->deposit_amount, 0, ',', '.') }} · Operasional: Rp {{ number_format($approval->total - $approval->deposit_amount, 0, ',', '.') }}</p>
+                        @if ($approval->decided_at)
+                            <p>{{ $approval->decider?->name }} · {{ $approval->decided_at->format('d/m/Y H:i') }}</p>
+                        @endif
+                        @if ($approval->rejection_reason)<p class="text-red-700">Alasan penolakan: {{ $approval->rejection_reason }}</p>@endif
+                        @if ($approval->status === 'pending' && (auth()->user()->role === 'admin' || $approval->requested_by === auth()->id()))
+                            <button type="button" wire:click="deleteOperational({{ $approval->id }})" wire:confirm="Hapus permanen pengajuan ini beserta rincian produknya? Tindakan ini tidak dapat dibatalkan." wire:loading.attr="disabled" class="rounded-md border border-red-600 px-4 py-2 text-red-700 disabled:opacity-50">Hapus pengajuan</button>
+                        @endif
+                        @if ($approval->status === 'pending' && auth()->user()->role === 'admin')
+                            <button type="button" wire:click="approveOperational({{ $approval->id }})" wire:confirm="Setujui pengajuan ini dan catat penjualannya?" wire:loading.attr="disabled" class="rounded-md bg-emerald-600 px-4 py-2 text-white disabled:opacity-50">Setujui</button>
+                            <label for="reject-{{ $approval->id }}" class="block">Alasan penolakan</label>
+                            <textarea id="reject-{{ $approval->id }}" wire:model="rejectionReasons.{{ $approval->id }}" maxlength="1000" rows="2" class="w-full rounded-md border border-default-medium p-2"></textarea>
+                            <button type="button" wire:click="rejectOperational({{ $approval->id }})" wire:loading.attr="disabled" class="rounded-md bg-red-600 px-4 py-2 text-white disabled:opacity-50">Tolak pengajuan</button>
+                        @endif
+                    </div>
+                </details>
+            @empty
+                <p class="text-sm text-body">Tidak ada pengajuan pada status ini.</p>
+            @endforelse
+        </div>
+        <div class="mt-4">{{ $this->operationalRequests->links() }}</div>
+    </section>
 
     <div x-show="showModal" x-on:keydown.escape.window="closeModal()"
         class="fixed inset-0 z-50 overflow-y-auto"
@@ -967,9 +1055,9 @@ new #[Layout('layouts::admin')] class extends Component
                 </div>
 
                 <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                    <button type="button" @click="submitForm()"
+                    <button type="button" @click="submitForm()" :disabled="submitting"
                         class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-brand text-base font-medium text-white hover:bg-brand-strong focus:outline-none sm:ml-3 sm:w-auto sm:text-sm">
-                        Konfirmasi Bayar
+                        <span x-text="submitting ? 'Memproses...' : (isOperational ? '{{ auth()->user()->role === 'admin' ? 'Konfirmasi Operasional' : 'Kirim Pengajuan' }}' : 'Konfirmasi Bayar')"></span>
                     </button>
                     <button type="button" @click="closeModal()"
                         class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-heading hover:bg-gray-50 focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
