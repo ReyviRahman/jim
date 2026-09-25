@@ -12,7 +12,7 @@
 
         @livewireStyles
     </head>
-    <body @class(["member-pt-page" => request()->routeIs("member.jadwal-pt.*"), "member-attendance-page" => request()->routeIs("member.kehadiran.*")]) @if(request()->routeIs('member.kehadiran.*')) style="--attendance-background: url('{{ asset('member-attendance-gym-v2.png') }}')" @endif>
+    <body @class(["member-home-page" => request()->routeIs("member.dashboard"), "member-pt-page" => request()->routeIs("member.jadwal-pt.*"), "member-attendance-page" => request()->routeIs("member.kehadiran.*")]) @if(request()->routeIs('member.kehadiran.*')) style="--attendance-background: url('{{ asset('member-attendance-gym-v2.png') }}')" @endif>
         <livewire:dashboard.navbar />
         <aside id="top-bar-sidebar" class="fixed top-0 left-0 z-40 w-64 h-full -translate-x-full transition-transform duration-300 ease-in-out" aria-label="Sidebar" aria-hidden="true">
         <div class="gym-sidebar flex h-full flex-col overflow-y-auto [&>*]:shrink-0">
@@ -51,7 +51,7 @@
         </div>
         </aside>
 
-        <div id="dashboard-content" @class(["sm:ml-64 mt-14 transition-[margin] duration-300 ease-in-out", "bg-[#f7f7f7] sm:p-6" => request()->routeIs("member.dashboard"), "p-4" => ! request()->routeIs("member.dashboard", "member.jadwal-pt.*", "member.kehadiran.*", "member.absensi"), "sm:p-6" => request()->routeIs("member.jadwal-pt.*")])>
+        <div id="dashboard-content" @class(["sm:ml-64 mt-14 transition-[margin] duration-300 ease-in-out", "bg-black text-white sm:p-6" => request()->routeIs("member.dashboard"), "p-4" => ! request()->routeIs("member.dashboard", "member.jadwal-pt.*", "member.kehadiran.*", "member.absensi"), "sm:p-6" => request()->routeIs("member.jadwal-pt.*")])>
             <x-impersonation-banner />
             <div @class(["p-4 border-1 border-default rounded-md" => ! request()->routeIs("member.dashboard", "member.jadwal-pt.*", "member.kehadiran.*", "member.absensi")])>
                 {{ $slot }}

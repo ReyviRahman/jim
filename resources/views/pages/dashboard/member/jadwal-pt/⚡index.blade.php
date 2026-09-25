@@ -449,7 +449,7 @@ new #[Layout('layouts::member')] class extends Component
                     <div><dt class="text-gray-300">Tanggal dan jam</dt><dd>{{ Carbon::parse($bookingDate)->locale('id')->isoFormat('dddd, D MMM YYYY') }} · {{ $bookingTime }} - {{ Carbon::parse($bookingTime)->addHour()->format('H:i') }}</dd></div>
                 </dl>
                 <div class="my-4 text-sm text-white">
-                    <label for="studioType" class="block mb-1">Studio *</label>
+                    <label for="studioType" class="block mb-1">Akses Gym *</label>
                     <select id="studioType" wire:model="studioType" required class="w-full rounded-md border border-white/15 bg-[#1d2427] px-3 py-2 text-white">
                         <option value="">Pilih studio</option>
                         <option value="private_studio" @disabled(! $this->membership->hasNormalPrice())>Private Studio</option>
@@ -460,7 +460,7 @@ new #[Layout('layouts::member')] class extends Component
                     @endif
                     @error('studioType') <p class="mt-1 text-red-400">{{ $message }}</p> @enderror
                 </div>
-                <p class="text-sm text-gray-300">Satu sesi akan dipesan dan menunggu persetujuan coach/admin.</p>
+                <p class="text-sm text-gray-300">Satu sesi akan dipesan dan menunggu persetujuan Head Coach.</p>
                 <div class="mt-5 flex justify-end gap-2">
                     <button type="button" wire:click="closeBookingModal" class="rounded-md border border-white/15 px-4 py-2 text-sm text-white">Batal</button>
                     <button type="button" wire:click="book" wire:loading.attr="disabled" class="rounded-md bg-brand px-4 py-2 text-sm font-medium text-[#34342F] disabled:opacity-50"><span wire:loading.remove wire:target="book">Ajukan Booking</span><span wire:loading wire:target="book">Menyimpan...</span></button>

@@ -26,6 +26,12 @@
     --color-fg-brand: #FFED00;
 }
 
+.member-home-page {
+    min-height: 100vh;
+    background: #000;
+    color: #fff;
+}
+
 .member-package-hero {
     min-height: 460px;
 }
@@ -106,11 +112,11 @@
     overflow: hidden;
     border: none;
     border-radius: 999px;
-    background: #f0f1f3;
+    background: #262626;
 }
 
 .member-package-progress::-webkit-progress-bar {
-    background: #f0f1f3;
+    background: #262626;
     border-radius: 999px;
 }
 

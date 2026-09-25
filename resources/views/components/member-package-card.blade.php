@@ -43,36 +43,36 @@
     </header>
 
     <div class="relative z-10 -mt-12 space-y-3 px-3 sm:space-y-4 sm:px-7">
-        <section class="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/[0.03] sm:rounded-3xl sm:p-7" aria-label="Rincian Harga">
-            <dl class="grid grid-cols-2 divide-x divide-gray-200">
+        <section class="rounded-2xl bg-black text-white p-4 shadow-sm ring-1 ring-white/15 sm:rounded-3xl sm:p-7" aria-label="Rincian Harga">
+            <dl class="grid grid-cols-2 divide-x divide-gray-800">
                 <div class="flex min-w-0 items-center gap-3 pr-3 sm:gap-5 sm:pr-6">
-                    <span class="hidden size-16 shrink-0 items-center justify-center rounded-full bg-yellow-50 lg:flex"><x-member-package-icon name="tag" class="size-8"/></span>
-                    <div class="min-w-0"><dt class="text-[11px] font-semibold text-gray-500 sm:text-base">Harga Paket</dt><dd class="member-package-price mt-1 font-extrabold tracking-tight text-black">{{ $summary['price'] }}</dd></div>
+                    <span class="hidden size-16 shrink-0 items-center justify-center rounded-full bg-neutral-900 text-brand lg:flex"><x-member-package-icon name="tag" class="size-8"/></span>
+                    <div class="min-w-0"><dt class="text-[11px] font-semibold text-gray-300 sm:text-base">Harga Paket</dt><dd class="member-package-price mt-1 font-extrabold tracking-tight text-white">{{ $summary['price'] }}</dd></div>
                 </div>
                 <div class="flex min-w-0 items-center gap-3 pl-3 sm:gap-5 sm:pl-6">
-                    <span class="hidden size-16 shrink-0 items-center justify-center rounded-full bg-yellow-50 lg:flex"><x-member-package-icon name="payment" class="size-8"/></span>
-                    <div class="min-w-0"><dt class="text-[11px] font-semibold text-gray-500 sm:text-base">Total Pembayaran</dt><dd class="member-package-price mt-1 font-extrabold tracking-tight text-black">{{ $summary['total'] }}</dd></div>
+                    <span class="hidden size-16 shrink-0 items-center justify-center rounded-full bg-neutral-900 text-brand lg:flex"><x-member-package-icon name="payment" class="size-8"/></span>
+                    <div class="min-w-0"><dt class="text-[11px] font-semibold text-gray-300 sm:text-base">Total Pembayaran</dt><dd class="member-package-price mt-1 font-extrabold tracking-tight text-white">{{ $summary['total'] }}</dd></div>
                 </div>
             </dl>
             @if ($summary['discount_amount'] > 0)
-                <p class="mt-4 border-t border-gray-100 pt-3 text-xs font-medium text-gray-600">Diskon <span class="float-right text-emerald-700">-{{ $summary['discount'] }}</span></p>
+                <p class="mt-4 border-t border-gray-800 pt-3 text-xs font-medium text-gray-300">Diskon <span class="float-right text-emerald-400">-{{ $summary['discount'] }}</span></p>
             @endif
         </section>
 
-        <section class="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/[0.03] sm:rounded-3xl sm:p-7" aria-label="Status dan penggunaan paket">
-            <dl class="grid grid-cols-2 divide-x divide-gray-200">
+        <section class="rounded-2xl bg-black text-white p-4 shadow-sm ring-1 ring-white/15 sm:rounded-3xl sm:p-7" aria-label="Status dan penggunaan paket">
+            <dl class="grid grid-cols-2 divide-x divide-gray-800">
                 <div class="flex min-w-0 items-center gap-4 pr-3 sm:pr-6">
-                    <span class="hidden size-16 shrink-0 items-center justify-center rounded-full bg-gray-100 sm:flex"><x-member-package-icon name="calendar" class="size-8"/></span>
-                    <div class="min-w-0"><dt class="text-xs font-semibold text-gray-500 sm:text-base">{{ $summary['has_pt'] ? 'Jumlah Sesi' : 'Masa Berlaku' }}</dt><dd class="mt-2 text-lg font-bold text-black sm:text-2xl">{{ $summary['has_pt'] ? $summary['total_sessions'].' Sesi' : $summary['gym_end'] }}</dd></div>
+                    <span class="hidden size-16 shrink-0 items-center justify-center rounded-full bg-neutral-900 sm:flex"><x-member-package-icon name="calendar" class="size-8"/></span>
+                    <div class="min-w-0"><dt class="text-xs font-semibold text-gray-300 sm:text-base">{{ $summary['has_pt'] ? 'Jumlah Sesi' : 'Masa Berlaku' }}</dt><dd class="mt-2 text-lg font-bold text-white sm:text-2xl">{{ $summary['has_pt'] ? $summary['total_sessions'].' Sesi' : $summary['gym_end'] }}</dd></div>
                 </div>
                 <div class="flex items-center gap-4 pl-4 sm:pl-7">
-                    <span class="hidden size-16 shrink-0 items-center justify-center rounded-full bg-gray-100 sm:flex"><x-member-package-icon name="person" class="size-8"/></span>
-                    <div><dt class="text-xs font-semibold text-gray-500 sm:text-base">Status Paket</dt><dd class="mt-2 inline-flex items-center gap-2 rounded-full bg-brand px-4 py-1.5 text-sm font-bold text-black"><span class="size-2.5 rounded-full bg-emerald-500" aria-hidden="true"></span>Aktif</dd></div>
+                    <span class="hidden size-16 shrink-0 items-center justify-center rounded-full bg-neutral-900 sm:flex"><x-member-package-icon name="person" class="size-8"/></span>
+                    <div><dt class="text-xs font-semibold text-gray-300 sm:text-base">Status Paket</dt><dd class="mt-2 inline-flex items-center gap-2 rounded-full bg-brand px-4 py-1.5 text-sm font-bold text-black"><span class="size-2.5 rounded-full bg-emerald-500" aria-hidden="true"></span>Aktif</dd></div>
                 </div>
             </dl>
 
             @if ($summary['has_pt'])
-                <div class="mt-5 flex gap-4 border-t border-gray-100 pt-5 sm:gap-7">
+                <div class="mt-5 flex gap-4 border-t border-gray-800 pt-5 sm:gap-7">
                     <div class="min-w-0 flex-1">
                         <div class="flex flex-wrap items-center justify-between gap-2 text-xs sm:text-sm"><h3 class="font-bold">Progress Kehadiran</h3><p>{{ $summary['attended_sessions'] }} / {{ $summary['total_sessions'] }} Sesi</p></div>
                         <div class="mt-3 flex items-center gap-3">
@@ -80,25 +80,25 @@
                             <span class="text-sm font-bold">{{ $summary['progress'] }}%</span>
                         </div>
                     </div>
-                    <div class="shrink-0 border-l border-gray-200 pl-4 text-center sm:min-w-28 sm:pl-7"><p class="text-[10px] text-gray-500 sm:text-xs">Sisa Sesi</p><p class="mt-1 text-3xl font-extrabold leading-[1.1] sm:text-4xl">{{ $summary['remaining_sessions'] }}</p><p class="mt-1 text-[10px] text-gray-500">Sesi</p></div>
+                    <div class="shrink-0 border-l border-gray-800 pl-4 text-center sm:min-w-28 sm:pl-7"><p class="text-[10px] text-gray-300 sm:text-xs">Sisa Sesi</p><p class="mt-1 text-3xl font-extrabold leading-[1.1] sm:text-4xl">{{ $summary['remaining_sessions'] }}</p><p class="mt-1 text-[10px] text-gray-300">Sesi</p></div>
                 </div>
-                <p class="mt-4 text-xs leading-5 text-gray-500">PT: <span class="font-semibold {{ $summary['pt_active'] ? 'text-gray-700' : 'text-red-700' }}">{{ $summary['pt_active'] ? 'Aktif hingga' : 'Berakhir pada' }} {{ $summary['pt_end'] }}</span></p>
+                <p class="mt-4 text-xs leading-5 text-gray-300">PT: <span class="font-semibold {{ $summary['pt_active'] ? 'text-gray-200' : 'text-red-400' }}">{{ $summary['pt_active'] ? 'Aktif hingga' : 'Berakhir pada' }} {{ $summary['pt_end'] }}</span></p>
             @endif
 
             @if ($summary['has_gym'])
-                <div class="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 pt-4 text-xs sm:text-sm">
-                    <p class="text-gray-500">Gym: <span class="font-semibold {{ $summary['gym_active'] ? 'text-gray-700' : 'text-red-700' }}">{{ $summary['gym_active'] ? 'Aktif hingga' : 'Berakhir pada' }} {{ $summary['gym_end'] }}</span></p>
-                    <p class="font-bold text-black">{{ $summary['gym_duration'] }}</p>
+                <div class="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-gray-800 pt-4 text-xs sm:text-sm">
+                    <p class="text-gray-300">Gym: <span class="font-semibold {{ $summary['gym_active'] ? 'text-gray-200' : 'text-red-400' }}">{{ $summary['gym_active'] ? 'Aktif hingga' : 'Berakhir pada' }} {{ $summary['gym_end'] }}</span></p>
+                    <p class="font-bold text-white">{{ $summary['gym_duration'] }}</p>
                 </div>
             @endif
         </section>
 
-        <a href="{{ route('member.kehadiran.index') }}" wire:navigate class="flex min-h-14 items-center justify-center gap-4 rounded-xl bg-brand px-4 py-4 text-sm font-extrabold text-black transition-colors hover:bg-yellow-300 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-black sm:min-h-18 sm:rounded-2xl sm:text-lg">
+        <a href="{{ route('member.kehadiran.index') }}" wire:navigate class="flex min-h-14 items-center justify-center gap-4 rounded-xl bg-brand px-4 py-4 text-sm font-extrabold text-black transition-colors hover:bg-yellow-300 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white sm:min-h-18 sm:rounded-2xl sm:text-lg">
             <x-member-package-icon name="chart" class="size-6 sm:size-8"/>Lihat Riwayat Absen<x-member-package-icon name="chevron" class="size-5 sm:ml-4 sm:size-6"/>
         </a>
-        <aside class="flex flex-col gap-4 rounded-2xl bg-gray-100 px-5 py-5 text-gray-500 sm:flex-row sm:items-center sm:gap-6" aria-label="Catatan paket">
-            <div class="flex flex-1 items-start gap-3"><x-member-package-icon name="info" class="mt-0.5 size-5 shrink-0"/><div><h3 class="text-xs font-bold text-black sm:text-sm">Catatan</h3><p class="mt-1 text-[11px] leading-relaxed sm:text-xs">{{ $summary['has_pt'] ? 'Pastikan melakukan absensi sesuai jadwal bersama coach. Progress mengikuti kehadiran yang telah tercatat.' : 'Lakukan check-in saat datang dan check-out setelah latihan. Pantau masa aktif membership Anda di sini.' }}</p></div></div>
-            <div class="flex items-center gap-3 border-t border-gray-200 pt-3 sm:w-64 sm:border-t-0 sm:border-l sm:pt-0 sm:pl-6"><x-member-package-icon name="dumbbell" class="size-8 shrink-0"/><div><p class="text-[11px] leading-relaxed sm:text-xs">Konsistensi hari ini,<br>hasil yang lebih baik esok.</p><span class="mt-2 block h-1 w-9 rounded-full bg-brand" aria-hidden="true"></span></div></div>
+        <aside class="flex flex-col gap-4 rounded-2xl bg-neutral-900 px-5 py-5 text-gray-300 sm:flex-row sm:items-center sm:gap-6" aria-label="Catatan paket">
+            <div class="flex flex-1 items-start gap-3"><x-member-package-icon name="info" class="mt-0.5 size-5 shrink-0"/><div><h3 class="text-xs font-bold text-white sm:text-sm">Catatan</h3><p class="mt-1 text-[11px] leading-relaxed sm:text-xs">{{ $summary['has_pt'] ? 'Pastikan melakukan absensi sesuai jadwal bersama coach. Progress mengikuti kehadiran yang telah tercatat.' : 'Lakukan check-in saat datang dan check-out setelah latihan. Pantau masa aktif membership Anda di sini.' }}</p></div></div>
+            <div class="flex items-center gap-3 border-t border-gray-800 pt-3 sm:w-64 sm:border-t-0 sm:border-l sm:pt-0 sm:pl-6"><x-member-package-icon name="dumbbell" class="size-8 shrink-0"/><div><p class="text-[11px] leading-relaxed sm:text-xs">Konsistensi hari ini,<br>hasil yang lebih baik esok.</p><span class="mt-2 block h-1 w-9 rounded-full bg-brand" aria-hidden="true"></span></div></div>
         </aside>
     </div>
 </article>

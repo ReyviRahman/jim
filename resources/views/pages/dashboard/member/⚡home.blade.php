@@ -205,12 +205,12 @@ new #[Layout('layouts::member'), Title('Dashboard Membership')] class extends Co
     </div>
     @if ($this->ownedPackages->isNotEmpty())
     <footer class="flex items-center gap-5 px-5 py-8 sm:px-9 sm:py-10" aria-label="Frans Gym">
-        <div class="shrink-0 text-black">
+        <div class="shrink-0 text-white">
             <p class="text-lg font-black tracking-tight">FRANSGYM</p>
             <p class="text-[8px] font-semibold tracking-[0.35em]">FITNESS JAMBI</p>
         </div>
-        <span class="h-px grow bg-gray-300" aria-hidden="true"></span>
-        <p class="text-[8px] leading-5 tracking-[0.25em] text-gray-500">NEVERBACKDOWN<br>STAYDEDICATED</p>
+        <span class="h-px grow bg-gray-800" aria-hidden="true"></span>
+        <p class="text-[8px] leading-5 tracking-[0.25em] text-gray-300">NEVERBACKDOWN<br>STAYDEDICATED</p>
     </footer>
     @endif
 </main>

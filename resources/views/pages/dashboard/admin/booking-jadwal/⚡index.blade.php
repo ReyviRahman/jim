@@ -1637,7 +1637,7 @@ new #[Layout('layouts::admin')] class extends Component
 
                 <form wire:submit.prevent="saveChangeCoach" class="space-y-4">
                     <div>
-                        <label for="editStudioType" class="block text-sm font-medium text-gray-700 mb-1">Studio</label>
+                        <label for="editStudioType" class="block text-sm font-medium text-gray-700 mb-1">Akses Gym</label>
                         <select id="editStudioType" wire:model="editStudioType" class="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-sm">
                             @if($changeBooking?->studio_type === null)
                                 <option value="">Belum dipilih (data lama)</option>
@@ -1765,7 +1765,7 @@ new #[Layout('layouts::admin')] class extends Component
                     </div>
 
                     <div>
-                        <label for="studioType" class="block text-sm font-medium text-gray-700 mb-1">Studio *</label>
+                        <label for="studioType" class="block text-sm font-medium text-gray-700 mb-1">Akses Gym *</label>
                         <select id="studioType" wire:model="studioType" required class="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-sm">
                             <option value="">Pilih studio</option>
                             <option value="private_studio" @disabled(! $this->canChoosePrivateStudio)>Private Studio</option>
