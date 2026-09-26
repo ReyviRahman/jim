@@ -5,6 +5,7 @@ use Livewire\Component;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Livewire\WithPagination;
+use App\Models\GymPackage;
 
 new #[Layout('layouts::empty')] #[Title('FRANS GYM | Pusat Kebugaran Terbaik di Jambi')] class extends Component 
 {
@@ -27,7 +28,12 @@ new #[Layout('layouts::empty')] #[Title('FRANS GYM | Pusat Kebugaran Terbaik di 
             'trainers' => User::where('role', 'pt')
                               ->where('is_active', true)
                               ->whereNotIn('name', ['Wira Harianto', 'Melvin'])
-                              ->paginate(3)
+                              ->paginate(3),
+            'packagesByType' => GymPackage::query()
+                ->where('is_active', true)
+                ->orderBy('id')
+                ->get(['id', 'type', 'name', 'category', 'max_members', 'pt_sessions'])
+                ->groupBy('type'),
         ];
     }
 };
@@ -119,6 +125,13 @@ new #[Layout('layouts::empty')] #[Title('FRANS GYM | Pusat Kebugaran Terbaik di 
                             :class="activeSection === 'fasilitas' ? 'text-brand md:text-brand font-bold' : 'text-white'"
                             class="block py-2 px-3 rounded md:p-0 hover:bg-gray-800 md:hover:bg-transparent md:hover:text-brand transition-colors">
                             Fasilitas
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#paket"
+                            :class="activeSection === 'paket' ? 'text-brand md:text-brand font-bold' : 'text-white'"
+                            class="block py-2 px-3 rounded md:p-0 hover:bg-gray-800 md:hover:bg-transparent md:hover:text-brand transition-colors">
+                            Paket
                         </a>
                     </li>
                     <li>
@@ -347,6 +360,65 @@ new #[Layout('layouts::empty')] #[Title('FRANS GYM | Pusat Kebugaran Terbaik di 
             </div>
         </div>
     </div>
+
+    <section id="paket" class="scroll-mt-16 bg-[#101112] py-16 text-white sm:py-24" aria-labelledby="packages-heading">
+        <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div class="max-w-3xl">
+                <p class="text-sm font-bold uppercase tracking-[0.25em] text-brand">Pilihan Latihan</p>
+                <h2 id="packages-heading" class="mt-3 text-3xl font-extrabold tracking-tight sm:text-4xl">Temukan paket yang sesuai dengan tujuanmu</h2>
+                <p class="mt-4 text-base leading-relaxed text-gray-300">Beragam pilihan akses gym dan sesi bersama Personal Trainer. Pilih jenis paket yang paling cocok untuk perjalanan latihanmu.</p>
+            </div>
+
+            <div class="mt-10 grid gap-5 md:grid-cols-2">
+                <article class="rounded-2xl border border-white/15 bg-[#1d1f20] p-6 sm:p-8">
+                    <span class="inline-flex rounded-full bg-brand/15 px-3 py-1 text-xs font-bold uppercase tracking-widest text-brand">Area Gym</span>
+                    <h3 class="mt-5 text-2xl font-bold">Gym Reguler</h3>
+                    <p class="mt-3 leading-relaxed text-gray-300">Area latihan bersama untuk membangun rutinitas kebugaran sesuai ritme dan targetmu, dengan pilihan paket kunjungan maupun membership.</p>
+                </article>
+                <article class="rounded-2xl border border-brand/40 bg-[#1d1f20] p-6 sm:p-8">
+                    <span class="inline-flex rounded-full bg-brand/15 px-3 py-1 text-xs font-bold uppercase tracking-widest text-brand">Area Gym</span>
+                    <h3 class="mt-5 text-2xl font-bold">Private Gym 1-1</h3>
+                    <p class="mt-3 leading-relaxed text-gray-300">Area latihan privat satu lawan satu untuk kamu yang menginginkan pengalaman lebih personal dan fokus selama berlatih.</p>
+                </article>
+            </div>
+
+            @if ($packagesByType->isNotEmpty())
+                <div class="mt-14 space-y-12">
+                    @foreach (['visit' => ['Kunjungan Harian', 'Akses gym untuk satu kali kunjungan.'], 'gym' => ['Membership Gym', 'Pilihan membership untuk rutinitas latihanmu.'], 'pt' => ['Personal Trainer', 'Pilihan sesi latihan bersama coach.']] as $type => [$title, $description])
+                        @if ($packagesByType->has($type))
+                            <div>
+                                <div class="mb-5 flex flex-wrap items-end justify-between gap-3 border-b border-white/15 pb-4">
+                                    <div>
+                                        <h3 class="text-xl font-bold text-brand sm:text-2xl">{{ $title }}</h3>
+                                        <p class="mt-1 text-sm text-gray-400">{{ $description }}</p>
+                                    </div>
+                                    <span class="text-xs text-gray-400">{{ $packagesByType[$type]->count() }} pilihan</span>
+                                </div>
+                                <ul class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                                    @foreach ($packagesByType[$type] as $package)
+                                        <li wire:key="landing-package-{{ $package->id }}" class="rounded-xl border border-white/10 bg-[#1d1f20] p-5 transition-colors hover:border-brand/60">
+                                            <div class="mb-4 h-1 w-10 rounded-full bg-brand" aria-hidden="true"></div>
+                                            <h4 class="text-lg font-bold leading-snug">{{ $package->name }}</h4>
+                                            @if ($type === 'pt')
+                                                <div class="mt-4 flex flex-wrap gap-2 text-xs text-gray-300">
+                                                    <span class="rounded-full border border-white/15 px-3 py-1">{{ match ($package->category) { 'single' => 'Personal', 'couple' => 'Berdua', 'group' => 'Grup', default => ucfirst($package->category) } }}</span>
+                                                    @if ($package->pt_sessions)
+                                                        <span class="rounded-full border border-white/15 px-3 py-1">{{ $package->pt_sessions }} sesi</span>
+                                                    @endif
+                                                </div>
+                                            @endif
+                                        </li>
+                                    @endforeach
+                                </ul>
+                            </div>
+                        @endif
+                    @endforeach
+                </div>
+            @else
+                <p class="mt-12 rounded-xl border border-white/15 bg-[#1d1f20] p-6 text-gray-300">Belum ada paket yang tersedia saat ini.</p>
+            @endif
+        </div>
+    </section>
 
     <div id="pelatih" class="bg-neutral-primary py-16 sm:py-24 border-t border-default-medium overflow-hidden scroll-mt-16">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
