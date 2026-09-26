@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\GymPackage;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Livewire\Livewire;
 use Tests\TestCase;
 
 class LandingPackagesTest extends TestCase
@@ -18,9 +19,8 @@ class LandingPackagesTest extends TestCase
         $pt = $this->createPackage('pt', 'Couple Test PT', 448807, ['category' => 'couple', 'pt_sessions' => 10]);
         $inactive = $this->createPackage('gym', 'Hidden Test Package', 999901, ['is_active' => false]);
 
-        $this->actingAs(User::factory()->create(['role' => 'member']))
-            ->get(route('home'))
-            ->assertOk()
+        Livewire::actingAs(User::factory()->create(['role' => 'member']))
+            ->test('pages::index')
             ->assertSeeInOrder(['Gym Reguler', 'Private Gym 1-1', 'Kunjungan Harian', $visit->name, 'Membership Gym', $gym->name, 'Personal Trainer', $pt->name])
             ->assertSee('Berdua')
             ->assertSee('10 sesi')
@@ -34,9 +34,8 @@ class LandingPackagesTest extends TestCase
     {
         GymPackage::query()->update(['is_active' => false]);
 
-        $this->actingAs(User::factory()->create(['role' => 'member']))
-            ->get(route('home'))
-            ->assertOk()
+        Livewire::actingAs(User::factory()->create(['role' => 'member']))
+            ->test('pages::index')
             ->assertSee('Gym Reguler')
             ->assertSee('Private Gym 1-1')
             ->assertSee('Belum ada paket yang tersedia saat ini.');

@@ -18,8 +18,7 @@ Route::middleware('auth')->group(function () {
         ->name('impersonation.stop');
 });
 
-Route::livewire('/', 'pages::index')
-    ->middleware('auth')
+Route::get('/', fn () => redirect()->route(request()->user()?->dashboardRoute() ?? 'login'))
     ->name('home');
 
 // --- HALAMAN PUBLIK (Bisa diakses siapa saja) ---

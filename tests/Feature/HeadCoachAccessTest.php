@@ -180,8 +180,7 @@ class HeadCoachAccessTest extends TestCase
 
         $this->actingAs($headCoach)
             ->get(route('home'))
-            ->assertOk()
-            ->assertSee(route('admin.cicilan.index'), false);
+            ->assertRedirect(route('admin.cicilan.index'));
 
         Livewire::actingAs($headCoach)
             ->test('navbar')

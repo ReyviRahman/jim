@@ -193,18 +193,14 @@ new class extends Component {
                 </button>
 
                 {{-- Register --}}
-                <div class="text-center mt-8 text-sm text-zinc-400">
-
-                    Belum punya akun?
-
-                    <a 
+                <div class="mt-8 text-center">
+                    <a
                         href="{{ route('member.register') }}"
                         wire:navigate
-                        class="text-brand font-semibold hover:underline ml-1"
+                        class="inline-flex w-full items-center justify-center rounded-2xl border border-brand px-6 py-3 text-sm font-bold text-brand transition-colors hover:bg-brand hover:text-black focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
                     >
-                        Daftar
+                        Join Now
                     </a>
-
                 </div>
 
             </form>
