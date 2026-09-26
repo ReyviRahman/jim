@@ -10,14 +10,16 @@ class ExampleTest extends TestCase
 {
     use RefreshDatabase;
 
-    /**
-     * A basic test example.
-     */
-    public function test_the_application_returns_a_successful_response(): void
+    public function test_home_redirects_guests_to_login(): void
     {
-        $response = $this->get('/');
+        $this->get('/')->assertRedirect(route('login'));
+    }
 
-        $response->assertStatus(200);
+    public function test_home_is_accessible_after_login(): void
+    {
+        $this->actingAs(User::factory()->create(['role' => 'member']))
+            ->get('/')
+            ->assertOk();
     }
 
     public function test_home_page_hides_wira_and_melvin_from_the_trainer_list(): void
@@ -26,7 +28,7 @@ class ExampleTest extends TestCase
         User::factory()->create(['name' => 'Melvin', 'role' => 'pt', 'is_active' => true, ...$this->trainerProfile()]);
         User::factory()->create(['name' => 'Andi', 'role' => 'pt', 'is_active' => true, ...$this->trainerProfile()]);
 
-        $this->get('/')
+        $this->actingAs(User::factory()->create(['role' => 'member']))->get('/')
             ->assertOk()
             ->assertDontSee('Wira')
             ->assertDontSee('Melvin')

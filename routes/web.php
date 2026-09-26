@@ -18,10 +18,11 @@ Route::middleware('auth')->group(function () {
         ->name('impersonation.stop');
 });
 
-// --- HALAMAN PUBLIK (Bisa diakses siapa saja) ---
 Route::livewire('/', 'pages::index')
+    ->middleware('auth')
     ->name('home');
 
+// --- HALAMAN PUBLIK (Bisa diakses siapa saja) ---
 Route::livewire('/device-events', 'pages::device-events')
     ->name('device-events.index');
 
