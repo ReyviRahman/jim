@@ -1,0 +1,72 @@
+.bonus-recap-layout { background: #080909; }
+.bonus-recap-layout #dashboard-content { padding: 0; }
+.bonus-recap-layout #dashboard-content > div { padding: 0; border: 0; }
+
+.bonus-recap-page {
+    --color-heading: #f5f5f5;
+    --color-body: #b3bbc4;
+    --color-neutral-primary-soft: #111315;
+    --color-neutral-secondary-medium: #202325;
+    --color-neutral-tertiary-medium: #303437;
+    --color-brand-softer: #ffed001a;
+    --color-default: #393b3c;
+    --color-default-medium: #393b3c;
+    --color-brand-strong: #e4d500;
+    --color-brand-medium: #ffed0040;
+    min-height: calc(100svh - 56px);
+    padding: 36px 32px;
+    background: linear-gradient(90deg, rgb(0 0 0 / 82%), rgb(0 0 0 / 65%)), url('../../public/member-attendance-gym-v2.png') center / cover;
+    color: #f5f5f5;
+    color-scheme: dark;
+}
+
+.bonus-recap-page > div { max-width: 1100px; margin-inline: auto; }
+.bonus-recap-page h1 { font-size: clamp(25px, 5vw, 36px); font-weight: 800; letter-spacing: -.04em; }
+.bonus-recap-page > .relative { border-radius: 14px; box-shadow: 0 4px 16px #0006; }
+.bonus-recap-page input { background: #171818; border-color: #62615a; color: #fff; border-radius: 10px; }
+.bonus-recap-page input::placeholder { color: #a4a9b0; }
+.bonus-recap-page a.bg-brand { color: #080909; font-weight: 700; border-radius: 10px; }
+.bonus-recap-page table[data-responsive-table] tbody:not(.hidden) { background: #111315; }
+.bonus-recap-page table[data-responsive-table] tbody > tr:not(.hidden) { background: #111315; border-color: #393b3c; }
+.bonus-recap-page table[data-responsive-table] tbody > tr:not(.hidden):hover { background: #202325; }
+.bonus-recap-page table[data-responsive-table] tbody > tr:not(.hidden) > td:not(.hidden) { border-color: #393b3c; }
+.bonus-recap-page table[data-responsive-table] td::before { color: #b3bbc4; }
+.bonus-recap-page :is(a, button, input):focus-visible { outline: 2px solid #ffed00; outline-offset: 3px; }
+
+@media (max-width: 639px) {
+    .bonus-recap-page { padding: 24px 14px; }
+}
+
+.bonus-detail-page > div { max-width: 1440px; }
+.bonus-detail-page > .fixed { max-width: none; }
+.bonus-detail-page :is(.bg-white, .bg-gray-50) { background-color: #171a1c; }
+.bonus-detail-page .bg-gray-100 { background-color: #222628; }
+.bonus-detail-page :is(.text-gray-900, .text-gray-800, .text-gray-700) { color: #f5f5f5; }
+.bonus-detail-page :is(.text-gray-600, .text-gray-500, .text-gray-400) { color: #b3bbc4; }
+.bonus-detail-page :is(.border-gray-100, .border-gray-200, .border-gray-300) { border-color: #393b3c; }
+.bonus-detail-page :is(.hover\:bg-gray-50, .hover\:bg-gray-100, .hover\:bg-gray-200):hover { background-color: #303437; }
+.bonus-detail-page :is(button, a).bg-brand,
+.bonus-detail-page button.bg-emerald-600 { background-color: #ffed00; color: #080909; font-weight: 700; }
+.bonus-detail-page :is(button, a).bg-brand:hover,
+.bonus-detail-page button.bg-emerald-600:hover { background-color: #e4d500; }
+.bonus-detail-page :is(.text-blue-600, .text-blue-700, .text-blue-800) { color: #ffed00; }
+.bonus-detail-page .bg-blue-50 { background-color: #ffed0012; }
+.bonus-detail-page .border-blue-200 { border-color: #ffed0050; }
+.bonus-detail-page :is(.text-emerald-600, .text-emerald-700, .text-emerald-800) { color: #6ee7b7; }
+.bonus-detail-page .bg-emerald-50 { background-color: #103128; }
+.bonus-detail-page .border-emerald-200 { border-color: #28604c; }
+.bonus-detail-page :is(.text-red-600, .text-red-700, .text-red-800) { color: #fca5a5; }
+.bonus-detail-page .bg-red-50 { background-color: #35191d; }
+.bonus-detail-page .border-red-200 { border-color: #74333a; }
+.bonus-detail-page :is(input, textarea, select) { background-color: #171818; color: #fff; border-color: #62615a; }
+.bonus-detail-page table[data-responsive-table] tfoot:not(.hidden) { background: #222628; border-color: #62615a; }
+.bonus-detail-page .fixed > div { border: 1px solid #393b3c; border-radius: 14px; }
+
+.bonus-recap-layout .flatpickr-calendar { background: #171a1c; color: #f5f5f5; border: 1px solid #393b3c; box-shadow: 0 12px 32px #0008; }
+.bonus-recap-layout .flatpickr-calendar :is(.flatpickr-month, .flatpickr-weekday, .flatpickr-day, .flatpickr-current-month) { color: #f5f5f5; }
+.bonus-recap-layout .flatpickr-calendar .flatpickr-monthDropdown-months { background: #171a1c; }
+.bonus-recap-layout .flatpickr-calendar :is(.flatpickr-prev-month, .flatpickr-next-month) { fill: #ffed00; color: #ffed00; }
+.bonus-recap-layout .flatpickr-day:is(.prevMonthDay, .nextMonthDay, .flatpickr-disabled) { color: #777f87; }
+.bonus-recap-layout .flatpickr-day:is(:hover, :focus, .inRange) { background: #303437; border-color: #303437; box-shadow: none; }
+.bonus-recap-layout .flatpickr-day:is(.selected, .startRange, .endRange) { background: #ffed00; border-color: #ffed00; color: #080909; }
+.bonus-recap-layout .flatpickr-day.today { border-color: #ffed00; }

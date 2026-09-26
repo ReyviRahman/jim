@@ -10,6 +10,7 @@
 @import './coach-directory.css';
 @import './pt-installments.css';
 @import './member-detail.css';
+@import './bonus-recap.css';
 @import "flowbite/src/themes/default";
 @plugin "flowbite/plugin";
 @source "../../node_modules/flowbite";

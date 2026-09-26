@@ -7,12 +7,55 @@ use App\Models\CoachKonsultan;
 use App\Models\Membership;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Livewire\Livewire;
 use Tests\TestCase;
 
 class RekapBonusDetailTableTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_non_pt_default_period_runs_from_the_sixteenth_to_the_fifteenth(): void
+    {
+        $admin = $this->createUser('admin');
+
+        foreach (['sales', 'kasir_gym'] as $role) {
+            $staffUser = $this->createUser($role);
+
+            foreach ([
+                ['2026-09-16', '2026-09-16', '2026-10-15'],
+                ['2026-09-15', '2026-08-16', '2026-09-15'],
+                ['2026-01-01', '2025-12-16', '2026-01-15'],
+                ['2026-12-31', '2026-12-16', '2027-01-15'],
+                ['2028-02-29', '2028-02-16', '2028-03-15'],
+            ] as [$today, $start, $end]) {
+                $this->travelTo(Carbon::parse($today));
+
+                Livewire::actingAs($admin)
+                    ->test('pages::dashboard.admin.rekap-bonus.detail', ['user' => $staffUser])
+                    ->assertSet('filterTime', 'custom')
+                    ->assertSet('startDate', $start)
+                    ->assertSet('endDate', $end);
+            }
+        }
+    }
+
+    public function test_pt_defaults_to_calendar_month_and_manual_date_selection_still_works(): void
+    {
+        $this->travelTo(Carbon::parse('2026-09-16'));
+        $admin = $this->createUser('admin');
+        $trainer = $this->createUser('pt');
+
+        Livewire::actingAs($admin)
+            ->test('pages::dashboard.admin.rekap-bonus.detail', ['user' => $trainer])
+            ->assertSet('filterTime', 'month')
+            ->assertSet('startDate', '2026-09-01')
+            ->assertSet('endDate', '2026-09-30')
+            ->call('setDateRange', '2026-08-10 to 2026-08-20')
+            ->assertSet('filterTime', 'custom')
+            ->assertSet('startDate', '2026-08-10')
+            ->assertSet('endDate', '2026-08-20');
+    }
 
     public function test_membership_package_column_appears_immediately_after_member_name(): void
     {

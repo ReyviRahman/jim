@@ -71,7 +71,15 @@ new #[Layout('layouts::member')] class extends Component
         }
 
         if ($activeMemberships->isNotEmpty() && is_null($this->selectedMembershipId)) {
-            $this->selectedMembershipId = $activeMemberships->first()->id;
+            $booking = $this->eligibleBookingQuery()
+                ->whereIn('membership_id', $activeMemberships->where('type', 'pt')->pluck('id'))
+                ->orderBy('booking_time')
+                ->orderBy('id')
+                ->first();
+
+            $this->selectedMembershipId = $booking?->membership_id
+                ?? $activeMemberships->firstWhere('type', '!=', 'pt')?->id
+                ?? $activeMemberships->first()->id;
         }
     }
 
@@ -127,7 +135,8 @@ new #[Layout('layouts::member')] class extends Component
         }
 
         return $this->eligibleBookingQuery($membership->getKey())
-            ->orderBy('booking_date', 'asc')
+            ->orderBy('booking_time')
+            ->orderBy('id')
             ->get();
     }
 
@@ -203,6 +212,8 @@ new #[Layout('layouts::member')] class extends Component
         $qrCode = null;
         $selectedMembership = $activeMemberships->firstWhere('id', $this->selectedMembershipId);
         $eligibleBookings = $this->getEligibleBookingsProperty();
+        $selectedBooking = $eligibleBookings->first();
+        $this->selectedBookingId = $selectedBooking?->id;
 
         // QR Code generation based on membership type
         if ($hasActivePackage && $this->selectedMembershipId && $selectedMembership) {
@@ -234,6 +245,7 @@ new #[Layout('layouts::member')] class extends Component
             'selectedMembership' => $selectedMembership,
             'eligibleBookings' => $eligibleBookings,
             'selectedBookingId' => $this->selectedBookingId,
+            'selectedBooking' => $selectedBooking,
         ];
     }
 
@@ -256,11 +268,12 @@ new #[Layout('layouts::member')] class extends Component
             });
     }
 
-    private function eligibleBookingQuery(int $membershipId): Builder
+    private function eligibleBookingQuery(?int $membershipId = null): Builder
     {
         return PtBooking::query()
-            ->where('membership_id', $membershipId)
+            ->when($membershipId !== null, fn (Builder $query) => $query->where('membership_id', $membershipId))
             ->where('member_id', $this->authenticatedUser()->getKey())
+            ->whereDate('booking_date', today())
             ->where('status', 'approved')
             ->where('attendance', 'not_yet')
             ->whereNull('cancellation_requested_at');
@@ -358,16 +371,10 @@ new #[Layout('layouts::member')] class extends Component
                 @endif
             </div>
 
-            @if ($selectedMembership && $selectedMembership->type === 'pt')
+            @if ($selectedBooking)
                 <div class="checkin-booking">
                     <svg class="checkin-field-icon" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18M7 15h2m2 0h2m2 0h2M7 18h2m2 0h2" stroke-linecap="round"/></svg>
-                    <select wire:model.live="selectedBookingId" wire:key="checkin-bookings-{{ $selectedMembershipId }}" aria-label="Pilih jadwal booking" @disabled($eligibleBookings->isEmpty())>
-                        <option value="">-- Pilih Jadwal Booking --</option>
-                        @foreach ($eligibleBookings as $booking)
-                            <option wire:key="checkin-booking-{{ $booking->id }}" value="{{ $booking->id }}">{{ $booking->booking_date->locale('id')->isoFormat('dddd, D MMM YYYY') }} - {{ $booking->booking_time->format('H:i') }}</option>
-                        @endforeach
-                    </select>
-                    <svg class="checkin-chevron" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m6 9 6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    <span>{{ $selectedBooking->booking_date->locale('id')->isoFormat('dddd, D MMM YYYY') }} - {{ $selectedBooking->booking_time->format('H:i') }}</span>
                 </div>
             @endif
 
@@ -378,7 +385,7 @@ new #[Layout('layouts::member')] class extends Component
                         <div class="checkin-qr" role="img" aria-label="QR code check-in member">{!! $qrCode !!}</div>
                     @else
                         <svg class="checkin-placeholder" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="5" height="5" rx="1"/><rect x="16" y="3" width="5" height="5" rx="1"/><rect x="3" y="16" width="5" height="5" rx="1"/><path d="M12 3v1m0 5v4h5M3 12h5m4 5v4m5-4h4m-4 4h2m2-9h.01"/></svg>
-                        <p>{{ $eligibleBookings->isEmpty() ? 'Silakan Booking Jadwal terlebih dahulu' : 'Pilih jadwal booking terlebih dahulu' }}</p>
+                        <p>Tidak ada jadwal PT hari ini</p>
                     @endif
                 </div>
             </div>

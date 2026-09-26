@@ -43,11 +43,11 @@ class MemberAttendanceTest extends TestCase
         $membership->members()->attach($sharedMember);
 
         $sharedMemberBooking = $this->createBooking($membership, $sharedMember, [
-            'booking_date' => today()->addDay()->toDateString(),
+            'booking_date' => today()->toDateString(),
             'booking_time' => '09:00:00',
         ]);
         $ownerBooking = $this->createBooking($membership, $owner, [
-            'booking_date' => today()->addDays(2)->toDateString(),
+            'booking_date' => today()->toDateString(),
             'booking_time' => '10:00:00',
         ]);
 
@@ -94,10 +94,11 @@ class MemberAttendanceTest extends TestCase
         $this->assertNull($component->viewData('qrCode'));
     }
 
-    public function test_pt_qr_requires_booking_and_switching_package_resets_booking(): void
+    public function test_pt_qr_is_automatic_and_prioritized_over_gym_and_switching_package_resets_booking(): void
     {
         $member = $this->createUser();
         $trainer = $this->createUser(['role' => 'pt']);
+        $gym = $this->createMembership($member);
         $pt = $this->createMembership($member, [
             'type' => 'pt',
             'pt_id' => $trainer->id,
@@ -105,18 +106,16 @@ class MemberAttendanceTest extends TestCase
             'total_sessions' => 10,
             'remaining_sessions' => 10,
         ]);
-        $gym = $this->createMembership($member);
         $booking = $this->createBooking($pt, $member);
 
         $component = Livewire::actingAs($member)->test('pages::dashboard.member.absensi')
-            ->set('selectedMembershipId', $pt->id)
-            ->assertSee('Pilih jadwal booking terlebih dahulu')
+            ->assertSet('selectedMembershipId', $pt->id)
+            ->assertSet('selectedBookingId', $booking->id)
+            ->assertDontSee('Pilih Jadwal Booking')
             ->assertSee('08:00')
             ->assertDontSee('Paket Aktif Anda')
             ->assertDontSee('Manual Input Data (Untuk Admin)');
 
-        $this->assertNull($component->viewData('qrCode'));
-        $component->set('selectedBookingId', $booking->id);
         $this->assertNotNull($component->viewData('qrCode'));
 
         $component->set('selectedMembershipId', $gym->id)
@@ -138,9 +137,60 @@ class MemberAttendanceTest extends TestCase
         ]);
 
         $component = Livewire::actingAs($member)->test('pages::dashboard.member.absensi')
-            ->assertSee('Silakan Booking Jadwal terlebih dahulu');
+            ->assertSee('Tidak ada jadwal PT hari ini');
 
         $this->assertNull($component->viewData('qrCode'));
+    }
+
+    public function test_only_valid_bookings_today_are_selected_in_time_order(): void
+    {
+        $member = $this->createUser();
+        $trainer = $this->createUser(['role' => 'pt']);
+        $pt = $this->createMembership($member, [
+            'type' => 'pt',
+            'pt_id' => $trainer->id,
+            'pt_end_date' => today()->addMonth()->toDateString(),
+            'remaining_sessions' => 10,
+        ]);
+
+        foreach ([
+            ['booking_date' => today()->subDay()->toDateString()],
+            ['booking_date' => today()->addDay()->toDateString()],
+            ['status' => 'pending'],
+            ['attendance' => 'attended'],
+            ['cancellation_requested_at' => now()],
+        ] as $attributes) {
+            $this->createBooking($pt, $member, $attributes);
+        }
+
+        $later = $this->createBooking($pt, $member, ['booking_time' => '15:00:00']);
+        $earlier = $this->createBooking($pt, $member, ['booking_time' => '09:00:00']);
+
+        $component = Livewire::actingAs($member)->test('pages::dashboard.member.absensi')
+            ->assertSet('selectedBookingId', $earlier->id);
+
+        $this->assertSame([$earlier->id, $later->id], $component->viewData('eligibleBookings')->modelKeys());
+        $this->assertNotNull($component->viewData('qrCode'));
+    }
+
+    public function test_gym_is_selected_when_pt_has_no_booking_today(): void
+    {
+        $member = $this->createUser();
+        $trainer = $this->createUser(['role' => 'pt']);
+        $pt = $this->createMembership($member, [
+            'type' => 'pt',
+            'pt_id' => $trainer->id,
+            'pt_end_date' => today()->addMonth()->toDateString(),
+            'remaining_sessions' => 10,
+        ]);
+        $this->createBooking($pt, $member, ['booking_date' => today()->addDay()->toDateString()]);
+        $gym = $this->createMembership($member);
+
+        $component = Livewire::actingAs($member)->test('pages::dashboard.member.absensi')
+            ->assertSet('selectedMembershipId', $gym->id)
+            ->assertSet('selectedBookingId', null);
+
+        $this->assertNotNull($component->viewData('qrCode'));
     }
 
     /** @param array<string, mixed> $attributes */

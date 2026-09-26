@@ -12,7 +12,7 @@
 
         @livewireStyles
     </head>
-    <body @class(['admin-booking-layout' => request()->routeIs('admin.booking-jadwal.index'), 'coach-directory-layout' => request()->routeIs('admin.sesi-pt.index'), 'pt-installments-layout' => request()->routeIs('admin.pt-cicilan.index', 'admin.cicilan.index'), 'member-detail-layout' => request()->routeIs('admin.riwayat.detail')])>
+    <body @class(['bonus-recap-layout' => request()->routeIs('admin.rekap-bonus.index', 'admin.rekap-bonus.detail'), 'admin-booking-layout' => request()->routeIs('admin.booking-jadwal.index'), 'coach-directory-layout' => request()->routeIs('admin.sesi-pt.index'), 'pt-installments-layout' => request()->routeIs('admin.pt-cicilan.index', 'admin.cicilan.index'), 'member-detail-layout' => request()->routeIs('admin.riwayat.detail')])>
         <livewire:dashboard.navbar />
         <aside id="top-bar-sidebar" class="fixed top-0 left-0 z-40 w-64 h-full -translate-x-full transition-transform duration-300 ease-in-out" aria-label="Sidebar" aria-hidden="true">
         <div class="gym-sidebar flex h-full flex-col overflow-y-auto [&>*]:shrink-0">

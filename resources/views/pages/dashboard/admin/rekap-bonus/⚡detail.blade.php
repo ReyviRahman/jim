@@ -27,7 +27,7 @@ new #[Layout('layouts::admin')] class extends Component
     #[Locked]
     public User $staffUser; // Variabel untuk menyimpan data user (Admin/Sales)
     public $search = '';
-    public $filterTime = 'month'; // Default bulan ini
+    public $filterTime = 'month';
     public $startDate;
     public $endDate;
 
@@ -90,10 +90,25 @@ new #[Layout('layouts::admin')] class extends Component
         $this->resetPage();
     }
 
-    public function mount(User $user)
+    public function mount(User $user): void
     {
         $this->staffUser = $user;
-        $this->setFilterTime('month'); // Set default tanggal saat komponen diload
+
+        if ($user->role === 'pt') {
+            $this->setFilterTime('month');
+
+            return;
+        }
+
+        $today = Carbon::today();
+        $periodStart = $today->copy()->startOfMonth()->day(16);
+
+        if ($today->day < 16) {
+            $periodStart->subMonthNoOverflow();
+        }
+
+        $periodEnd = $periodStart->copy()->addMonthNoOverflow()->subDay();
+        $this->setDateRange($periodStart->toDateString().' to '.$periodEnd->toDateString());
     }
 
     public function setFilterTime($time)
@@ -730,7 +745,7 @@ new #[Layout('layouts::admin')] class extends Component
 };
 ?>
 
-<div>
+<div class="bonus-recap-page bonus-detail-page">
     @if (session('success'))
         <div class="mb-4 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700" role="alert">
             {{ session('success') }}
@@ -743,9 +758,14 @@ new #[Layout('layouts::admin')] class extends Component
         </div>
     @endif
 
-    <div class="flex sm:flex-row flex-col justify-between items-center mb-6">
-        <h5 class="text-xl font-semibold text-heading">
-            Perhitungan Bonus {{ $staffUser->name }} Target 
+    <div class="mb-6 flex flex-col justify-between gap-5 lg:flex-row lg:items-end">
+        <div class="min-w-0">
+            <a href="{{ route('admin.rekap-bonus.index') }}" wire:navigate class="mb-4 inline-flex items-center gap-2 text-sm text-body hover:text-brand">
+                <span aria-hidden="true">←</span> Rekap Bonus Karyawan
+            </a>
+            <h1>Perhitungan <span class="text-brand">Bonus</span></h1>
+            <p class="mt-2 break-words text-lg font-semibold text-heading">{{ $staffUser->name }}</p>
+            <p class="mt-2 text-sm text-body">Periode target:
             @if($startDate && $endDate)
                 @if($startDate === $endDate)
                     {{ \Carbon\Carbon::parse($startDate)->translatedFormat('d F Y') }}
@@ -755,7 +775,8 @@ new #[Layout('layouts::admin')] class extends Component
             @else
                 -
             @endif
-        </h5>
+            </p>
+        </div>
         <div class="flex gap-2">
             <button wire:click="exportExcel" wire:loading.attr="disabled" class="inline-flex items-center justify-center text-white bg-emerald-600 border border-transparent hover:bg-emerald-700 focus:ring-4 focus:ring-emerald-300 shadow-xs font-medium rounded-md text-sm px-4 py-2.5 focus:outline-none disabled:opacity-50">
                 <svg class="w-4 h-4 me-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"></path></svg>
@@ -783,7 +804,7 @@ new #[Layout('layouts::admin')] class extends Component
                     <div class="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
                         <svg class="w-4 h-4 text-body" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 10h16M8 14h8m-4-7V4M7 7V4m10 3V4M5 20h14a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1Z"/></svg>
                     </div>
-                    <input type="text" x-data x-init="flatpickr($el, { mode: 'range', dateFormat: 'Y-m-d', placeholder: 'Pilih Tanggal', onClose: function(selectedDates, dateStr) { $wire.setDateRange(dateStr) } })" class="block w-full ps-9 pe-3 py-2.5 bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand shadow-xs" placeholder="Pilih Rentang Tanggal">
+                    <input type="text" x-data x-init="const picker = flatpickr($el, { mode: 'range', dateFormat: 'Y-m-d', defaultDate: [$wire.startDate, $wire.endDate], onClose: function(selectedDates, dateStr) { $wire.setDateRange(dateStr) } }); $watch('$wire.startDate', () => picker.setDate([$wire.startDate, $wire.endDate])); $watch('$wire.endDate', () => picker.setDate([$wire.startDate, $wire.endDate]));" class="block w-full ps-9 pe-3 py-2.5 bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand shadow-xs" placeholder="Pilih Rentang Tanggal">
                 </div>
 
                 {{-- Filter Presets --}}
