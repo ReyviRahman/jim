@@ -98,7 +98,6 @@
         </a>
         <aside class="flex flex-col gap-4 rounded-2xl bg-neutral-900 px-5 py-5 text-gray-300 sm:flex-row sm:items-center sm:gap-6" aria-label="Catatan paket">
             <div class="flex flex-1 items-start gap-3"><x-member-package-icon name="info" class="mt-0.5 size-5 shrink-0"/><div><h3 class="text-xs font-bold text-white sm:text-sm">Catatan</h3><p class="mt-1 text-[11px] leading-relaxed sm:text-xs">{{ $summary['has_pt'] ? 'Pastikan melakukan absensi sesuai jadwal bersama coach. Progress mengikuti kehadiran yang telah tercatat.' : 'Lakukan check-in saat datang dan check-out setelah latihan. Pantau masa aktif membership Anda di sini.' }}</p></div></div>
-            <div class="flex items-center gap-3 border-t border-gray-800 pt-3 sm:w-64 sm:border-t-0 sm:border-l sm:pt-0 sm:pl-6"><x-member-package-icon name="dumbbell" class="size-8 shrink-0"/><div><p class="text-[11px] leading-relaxed sm:text-xs">Konsistensi hari ini,<br>hasil yang lebih baik esok.</p><span class="mt-2 block h-1 w-9 rounded-full bg-brand" aria-hidden="true"></span></div></div>
         </aside>
     </div>
 </article>

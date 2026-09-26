@@ -16,6 +16,34 @@ use Livewire\Component;
 
 new #[Layout('layouts::member'), Title('Dashboard Membership')] class extends Component
 {
+    /** @return EloquentCollection<int, User> */
+    #[Computed]
+    public function coaches(): EloquentCollection
+    {
+        return User::query()
+            ->where('role', 'pt')
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->orderBy('id')
+            ->get(['id', 'name', 'photo', 'email'])
+            ->sortBy(function (User $coach): int {
+                if ($coach->isHeadCoach()) {
+                    return 0;
+                }
+
+                $name = mb_strtolower($coach->name);
+
+                foreach (['tiwi', 'bintang', 'aditya', 'sri devi'] as $priority => $preferredName) {
+                    if (str_contains($name, $preferredName)) {
+                        return $priority + 1;
+                    }
+                }
+
+                return 5;
+            })
+            ->values();
+    }
+
     /** @return EloquentCollection<int, Membership> */
     #[Computed]
     public function ownedPackages(): EloquentCollection
@@ -203,6 +231,27 @@ new #[Layout('layouts::member'), Title('Dashboard Membership')] class extends Co
             <x-member-empty-package />
         @endforelse
     </div>
+    @if ($this->coaches->isNotEmpty())
+        <section class="mt-8 min-w-0 px-5 sm:mt-10 sm:px-9" aria-labelledby="member-coaches-heading">
+            <div class="mb-5 flex flex-wrap items-center justify-between gap-2">
+                <h2 id="member-coaches-heading" class="text-lg font-bold text-white sm:text-xl">Kenali <span class="text-brand">Coach Kami</span></h2>
+            </div>
+            <div class="member-coach-strip flex gap-4 overflow-x-auto overscroll-x-contain pb-2 sm:gap-5" tabindex="0" role="region" aria-label="Foto coach, geser ke samping" >
+                @foreach ($this->coaches as $coach)
+                    <figure wire:key="member-coach-{{ $coach->id }}" class="w-32 shrink-0 sm:w-40">
+                        <div class="aspect-[3/4] overflow-hidden rounded-2xl border border-white/10 bg-neutral-900">
+                            @if ($coach->photo)
+                                <img src="{{ asset('storage/'.$coach->photo) }}" alt="Foto {{ $coach->name }}" loading="lazy" width="240" height="320" class="h-full w-full object-cover object-top">
+                            @else
+                                <div class="flex h-full items-center justify-center text-4xl font-extrabold text-brand" aria-label="Foto {{ $coach->name }} belum tersedia" role="img">{{ mb_strtoupper(mb_substr($coach->name, 0, 1)) }}</div>
+                            @endif
+                        </div>
+                        <figcaption class="mt-3 break-words text-sm font-semibold text-white">{{ $coach->name }}<span class="mt-1 block text-[11px] font-normal text-gray-400">Personal Trainer</span></figcaption>
+                    </figure>
+                @endforeach
+            </div>
+        </section>
+    @endif
     @if ($this->ownedPackages->isNotEmpty())
     <footer class="flex items-center gap-5 px-5 py-8 sm:px-9 sm:py-10" aria-label="Frans Gym">
         <div class="shrink-0 text-white">

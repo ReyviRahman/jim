@@ -34,6 +34,20 @@
     color: #fff;
 }
 
+.member-coach-strip {
+    scrollbar-width: none;
+}
+
+.member-coach-strip::-webkit-scrollbar {
+    display: none;
+}
+
+.member-coach-strip:focus-visible {
+    outline: 2px solid #ffed00;
+    outline-offset: 4px;
+    border-radius: 12px;
+}
+
 .member-package-hero {
     min-height: 460px;
 }
