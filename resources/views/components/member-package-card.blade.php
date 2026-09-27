@@ -3,7 +3,6 @@
 <article {{ $attributes->merge(['class' => 'member-package']) }} data-testid="owned-package-{{ $summary['id'] }}" aria-labelledby="package-title-{{ $summary['id'] }}">
     @if ($summary['type'] === 'membership')
         <header class="overflow-hidden bg-black pb-12 text-white sm:rounded-t-3xl">
-            <h2 id="package-title-{{ $summary['id'] }}" class="sr-only">{{ $summary['label'] }}: {{ $summary['name'] }}</h2>
             <img src="{{ asset('member-membership-hero.webp') }}" alt="Membership Fransgym. Train better at Fransgym. Investasi terbaik untuk versi terbaik dirimu." width="1536" height="1024" class="block h-auto w-full" loading="{{ $first ? 'eager' : 'lazy' }}" @if ($first) fetchpriority="high" @endif>
             <p class="px-5 py-4 text-xs text-white/65 sm:px-9 sm:text-sm">Mulai {{ $summary['starting_price'] }}</p>
         </header>
@@ -29,12 +28,12 @@
         <div class="member-package-intro px-5 pb-20 pt-10 sm:px-9 sm:pb-24 sm:pt-14">
             <div class="member-package-copy">
                 @if ($summary['has_pt'])
-                    <h2 id="package-title-{{ $summary['id'] }}" class="sr-only">1-ON-1 TRANSFORMATION</h2>
+                    <p class="sr-only">1-ON-1 TRANSFORMATION</p>
                     <p class="sr-only">PERSONALIZED PROGRAM. REAL PROGRESS. A STRONGER YOU.</p>
                     <img src="{{ asset('member-pt-transformation.png') }}" alt="" aria-hidden="true" width="1983" height="793" class="-ml-[6%] block h-auto w-[140%] max-w-none mix-blend-screen">
                 @else
                     <p class="inline-block rounded-full bg-brand px-3 py-1.5 text-[9px] font-extrabold tracking-[0.16em] text-black sm:px-5 sm:text-xs">{{ $summary['label'] }}</p>
-                    <h2 id="package-title-{{ $summary['id'] }}" class="mt-3 text-balance text-[clamp(1.65rem,4vw,3.5rem)] font-black leading-[1.07] tracking-tight">{{ $summary['name'] }}</h2>
+                    <p class="mt-3 text-balance text-[clamp(1.65rem,4vw,3.5rem)] font-black leading-[1.07] tracking-tight">{{ $summary['name'] }}</p>
                     <p class="mt-3 text-xs font-bold tracking-[0.14em] sm:text-lg">MEMBERSHIP GYM</p>
                 @endif
                 <span class="mt-4 block h-1 w-12 rounded-full bg-brand" aria-hidden="true"></span>
@@ -52,6 +51,10 @@
 
     <div class="relative z-10 -mt-12 space-y-3 px-3 sm:space-y-4 sm:px-7">
         <section class="rounded-2xl bg-black text-white p-4 shadow-sm ring-1 ring-white/15 sm:rounded-3xl sm:p-7" aria-label="Rincian Harga">
+            <div class="mb-5 border-b border-gray-800 pb-4 sm:mb-6 sm:pb-5">
+                <p class="text-xs font-semibold text-brand sm:text-sm">{{ $summary['label'] }}</p>
+                <h2 id="package-title-{{ $summary['id'] }}" class="mt-2 break-words text-lg font-bold text-white sm:text-2xl">{{ $summary['name'] }}</h2>
+            </div>
             <dl class="grid grid-cols-2 divide-x divide-gray-800">
                 <div class="flex min-w-0 items-center gap-3 pr-3 sm:gap-5 sm:pr-6">
                     <span class="hidden size-16 shrink-0 items-center justify-center rounded-full bg-neutral-900 text-brand lg:flex"><x-member-package-icon name="tag" class="size-8"/></span>
