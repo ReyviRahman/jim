@@ -60,9 +60,8 @@ class MemberDashboardTest extends TestCase
             ->test('pages::dashboard.member.home')
             ->assertCount('ownedPackages', 1)
             ->assertSee('Paket Couple Bersama')
-            ->assertSee('Data Membership')
-            ->assertSee('Detail paket dan kehadiran member')
-            ->assertSee('MEMBERSHIP GYM')
+            ->assertSee('member-membership-hero.webp')
+            ->assertDontSee('member-package-hero.webp')
             ->assertDontSee('TRANSFORMATION');
 
         Livewire::actingAs($sharedMember)

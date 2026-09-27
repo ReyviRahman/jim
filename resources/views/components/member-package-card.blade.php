@@ -1,6 +1,13 @@
 @props(['summary', 'first' => false])
 
 <article {{ $attributes->merge(['class' => 'member-package']) }} data-testid="owned-package-{{ $summary['id'] }}" aria-labelledby="package-title-{{ $summary['id'] }}">
+    @if ($summary['type'] === 'membership')
+        <header class="overflow-hidden bg-black pb-12 text-white sm:rounded-t-3xl">
+            <h2 id="package-title-{{ $summary['id'] }}" class="sr-only">{{ $summary['label'] }}: {{ $summary['name'] }}</h2>
+            <img src="{{ asset('member-membership-hero.webp') }}" alt="Membership Fransgym. Train better at Fransgym. Investasi terbaik untuk versi terbaik dirimu." width="1536" height="1024" class="block h-auto w-full" loading="{{ $first ? 'eager' : 'lazy' }}" @if ($first) fetchpriority="high" @endif>
+            <p class="px-5 py-4 text-xs text-white/65 sm:px-9 sm:text-sm">Mulai {{ $summary['starting_price'] }}</p>
+        </header>
+    @else
     <header class="member-package-hero relative isolate overflow-hidden bg-black text-white sm:rounded-t-3xl">
         <picture class="absolute inset-0 -z-20">
             <source media="(max-width: 1023px)" srcset="{{ asset('member-package-hero-mobile.webp') }}" type="image/webp">
@@ -41,6 +48,7 @@
             </div>
         </div>
     </header>
+    @endif
 
     <div class="relative z-10 -mt-12 space-y-3 px-3 sm:space-y-4 sm:px-7">
         <section class="rounded-2xl bg-black text-white p-4 shadow-sm ring-1 ring-white/15 sm:rounded-3xl sm:p-7" aria-label="Rincian Harga">

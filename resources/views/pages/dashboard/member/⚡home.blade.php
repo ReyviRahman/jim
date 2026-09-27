@@ -72,7 +72,7 @@ new #[Layout('layouts::member'), Title('Dashboard Membership')] class extends Co
 
     /**
      * @return Collection<int, array{
-     *     id: int, name: string, label: string,
+     *     id: int, type: string, name: string, label: string,
      *     has_gym: bool, has_pt: bool, gym_active: bool, pt_active: bool,
      *     total_sessions: int, remaining_sessions: int, attended_sessions: int, progress: int,
      *     gym_end: string, pt_end: string, gym_duration: string,
@@ -114,6 +114,7 @@ new #[Layout('layouts::member'), Title('Dashboard Membership')] class extends Co
             $attendedSessions = max(0, (int) $membership->attended_sessions);
 
             return [
+                'type' => $membership->type,
                 'has_gym' => $hasGym,
                 'has_pt' => $hasPt,
                 'total_sessions' => $totalSessions,
