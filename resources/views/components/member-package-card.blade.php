@@ -4,7 +4,6 @@
     @if ($summary['type'] === 'membership')
         <header class="overflow-hidden bg-black pb-12 text-white sm:rounded-t-3xl">
             <img src="{{ asset('member-membership-hero.webp') }}" alt="Membership Fransgym. Train better at Fransgym. Investasi terbaik untuk versi terbaik dirimu." width="1536" height="1024" class="block h-auto w-full" loading="{{ $first ? 'eager' : 'lazy' }}" @if ($first) fetchpriority="high" @endif>
-            <p class="px-5 py-4 text-xs text-white/65 sm:px-9 sm:text-sm">Mulai {{ $summary['starting_price'] }}</p>
         </header>
     @else
     <header class="member-package-hero relative isolate overflow-hidden bg-black text-white sm:rounded-t-3xl">
@@ -38,7 +37,6 @@
                 @endif
                 <span class="mt-4 block h-1 w-12 rounded-full bg-brand" aria-hidden="true"></span>
                 <p class="mt-4 max-w-60 text-xs leading-relaxed text-white/85 sm:text-base">{{ $summary['has_pt'] ? 'Latihan lebih terarah, hasil lebih maksimal.' : 'Ruang untuk bergerak, semangat untuk lebih kuat.' }}</p>
-                <p class="mt-2 text-[10px] text-white/65 sm:text-xs">Mulai {{ $summary['starting_price'] }}</p>
                 <div class="mt-6 grid grid-cols-3 divide-x divide-white/20 text-[9px] leading-snug sm:mt-8 sm:text-xs">
                     <div class="pr-2"><x-member-package-icon name="dumbbell" class="mb-2 size-6 text-brand sm:size-8"/>{{ $summary['has_pt'] ? 'Program' : 'Fasilitas' }}<br>{{ $summary['has_pt'] ? 'Terarah' : 'Lengkap' }}</div>
                     <div class="px-2 sm:px-4"><x-member-package-icon name="chart" class="mb-2 size-6 text-brand sm:size-8"/>{{ $summary['has_pt'] ? 'Progress' : 'Latihan' }}<br>{{ $summary['has_pt'] ? 'Terukur' : 'Konsisten' }}</div>
@@ -55,19 +53,12 @@
                 <p class="text-xs font-semibold text-brand sm:text-sm">{{ $summary['label'] }}</p>
                 <h2 id="package-title-{{ $summary['id'] }}" class="mt-2 break-words text-lg font-bold text-white sm:text-2xl">{{ $summary['name'] }}</h2>
             </div>
-            <dl class="grid grid-cols-2 divide-x divide-gray-800">
-                <div class="flex min-w-0 items-center gap-3 pr-3 sm:gap-5 sm:pr-6">
+            <dl>
+                <div class="flex min-w-0 items-center gap-3 sm:gap-5">
                     <span class="hidden size-16 shrink-0 items-center justify-center rounded-full bg-neutral-900 text-brand lg:flex"><x-member-package-icon name="tag" class="size-8"/></span>
                     <div class="min-w-0"><dt class="text-[11px] font-semibold text-gray-300 sm:text-base">Harga Paket</dt><dd class="member-package-price mt-1 font-extrabold tracking-tight text-white">{{ $summary['price'] }}</dd></div>
                 </div>
-                <div class="flex min-w-0 items-center gap-3 pl-3 sm:gap-5 sm:pl-6">
-                    <span class="hidden size-16 shrink-0 items-center justify-center rounded-full bg-neutral-900 text-brand lg:flex"><x-member-package-icon name="payment" class="size-8"/></span>
-                    <div class="min-w-0"><dt class="text-[11px] font-semibold text-gray-300 sm:text-base">Total Pembayaran</dt><dd class="member-package-price mt-1 font-extrabold tracking-tight text-white">{{ $summary['total'] }}</dd></div>
-                </div>
             </dl>
-            @if ($summary['discount_amount'] > 0)
-                <p class="mt-4 border-t border-gray-800 pt-3 text-xs font-medium text-gray-300">Diskon <span class="float-right text-emerald-400">-{{ $summary['discount'] }}</span></p>
-            @endif
         </section>
 
         <section class="rounded-2xl bg-black text-white p-4 shadow-sm ring-1 ring-white/15 sm:rounded-3xl sm:p-7" aria-label="Status dan penggunaan paket">

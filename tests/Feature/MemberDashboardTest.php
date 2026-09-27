@@ -112,7 +112,8 @@ class MemberDashboardTest extends TestCase
             ->test('pages::dashboard.member.home')
             ->assertCount('ownedPackages', 1)
             ->assertSee('Paket Milik Sendiri')
-            ->assertDontSee('Paket Milik Orang Lain');
+            ->assertDontSeeHtml('data-testid="owned-package-'.$unrelatedMembership->id.'"')
+            ->assertSet('ownedPackages', fn ($packages): bool => $packages->modelKeys() === [$ownedMembership->id]);
     }
 
     public function test_current_memberships_are_filtered_by_type_status_active_flag_and_dates(): void
@@ -163,7 +164,7 @@ class MemberDashboardTest extends TestCase
             ->assertDontSee('Paket Milik Member Lain');
     }
 
-    public function test_owned_package_is_shown_instead_of_other_catalog_packages(): void
+    public function test_owned_package_is_followed_by_active_membership_catalog_packages(): void
     {
         $member = $this->createUser();
         $currentPackage = $this->createPackage('Paket Couple Saat Ini', [
@@ -210,16 +211,16 @@ class MemberDashboardTest extends TestCase
         Livewire::actingAs($member)
             ->test('pages::dashboard.member.home')
             ->assertDontSeeText('Upgrade Membership')
-            ->assertDontSee($firstTiedUpgrade->name)
+            ->assertSee($firstTiedUpgrade->name)
             ->assertSee('Paket Couple Saat Ini')
-            ->assertDontSee('Upgrade Tie ID Terbaru')
-            ->assertDontSee('Upgrade Lebih Mahal')
-            ->assertDontSee('Paket Single Salah Kategori')
+            ->assertSee('Upgrade Tie ID Terbaru')
+            ->assertSee('Upgrade Lebih Mahal')
+            ->assertSee('Paket Single Salah Kategori')
             ->assertDontSee('Paket Couple Nonaktif');
     }
 
     #[DataProvider('packageDurationCases')]
-    public function test_owned_package_starting_price_uses_purchase_price_and_duration(
+    public function test_owned_package_shows_only_package_price(
         string $packageName,
         int $price,
         int $discount,
@@ -243,10 +244,11 @@ class MemberDashboardTest extends TestCase
         Livewire::actingAs($member)
             ->test('pages::dashboard.member.home')
             ->assertSee($packageName)
-            ->assertSee('Mulai '.$expectedStartingPrice)
+            ->assertDontSee('Mulai '.$expectedStartingPrice)
             ->assertSee('Harga Paket')
             ->assertSee('Rp '.number_format($price, 0, ',', '.'))
-            ->assertSee('Total Pembayaran')
+            ->assertDontSee('Total Pembayaran')
+            ->assertDontSee('Diskon')
             ->assertDontSeeText('Rekomendasi paket');
     }
 
@@ -290,14 +292,16 @@ class MemberDashboardTest extends TestCase
 
         Livewire::actingAs($member)
             ->test('pages::dashboard.member.home')
-            ->assertDontSee('Rp 999.000')
+            ->assertSet('ownedPackageSummaries', fn ($summaries): bool => $summaries->first()['price'] === 'Rp 500.000')
+            ->assertSee('Rp 999.000')
             ->assertDontSee('Biaya Admin')
-            ->assertSee('Rp 475.000')
+            ->assertDontSee('Rp 475.000')
             ->assertDontSee('Sudah Dibayar')
             ->assertDontSee('Sisa Pembayaran')
             ->assertSee('Harga Paket')
             ->assertSee('Rp 500.000')
-            ->assertSee('Total Pembayaran')
+            ->assertDontSee('Total Pembayaran')
+            ->assertDontSee('Diskon')
             ->assertDontSee('Total Harga');
     }
 
@@ -338,7 +342,7 @@ class MemberDashboardTest extends TestCase
             ->assertSee('Paket Snapshot Lama')
             ->assertDontSee('Rekomendasi paket belum tersedia.')
             ->assertSee('Membership Anda')
-            ->assertDontSee('Paket Aktif Yang Tidak Bisa Dibandingkan');
+            ->assertSee('Paket Aktif Yang Tidak Bisa Dibandingkan');
     }
 
     public function test_missing_current_package_name_uses_generic_fallback(): void
@@ -512,13 +516,13 @@ class MemberDashboardTest extends TestCase
             ->assertDontSee('Membership Saat Ini')
             ->assertSee('16 bulan | 28 hari tersisa')
             ->assertDontSeeText('Upgrade Membership')
-            ->assertDontSee($upgradePackage->name)
+            ->assertSee($upgradePackage->name)
             ->assertSee('Lihat Riwayat Absen')
             ->assertSee('Harga Paket')
             ->assertSee('Rp 2.400.000')
-            ->assertSee('Diskon')
-            ->assertSee('Rp 114.000')
-            ->assertSee('Total Pembayaran')
+            ->assertDontSee('Diskon')
+            ->assertDontSee('Rp 114.000')
+            ->assertDontSee('Total Pembayaran')
             ->assertDontSee('Total Harga')
             ->assertSee('Rp 2.286.000')
             ->assertDontSee('Next');
@@ -563,7 +567,7 @@ class MemberDashboardTest extends TestCase
             ->assertSeeText('PT Privat Aktif')
             ->assertSee('Jumlah Sesi')
             ->assertSee('Progress Kehadiran')
-            ->assertSee('Mulai Rp 500.000')
+            ->assertDontSee('Mulai Rp 500.000')
             ->assertSee('PT Privat Aktif')
             ->assertDontSee('Sisa sesi PT: 0 sesi')
             ->assertSee('Rp 500.000')
@@ -609,7 +613,7 @@ class MemberDashboardTest extends TestCase
                 ->assertSeeText('Gym Bundle / PT Bundle')
                 ->assertDontSee('Data Absen PT Client')
                 ->assertDontSee('Detail paket dan kehadiran client')
-                ->assertSee('Mulai Rp 500.000')
+                ->assertDontSee('Mulai Rp 500.000')
                 ->assertDontSee('Total Harga');
             $this->assertSame(1, substr_count($component->html(), 'data-testid="owned-package-'.$purchase->id.'"'));
         } else {
@@ -698,6 +702,84 @@ class MemberDashboardTest extends TestCase
             'role' => 'member',
             ...$attributes,
         ]);
+    }
+
+    #[DataProvider('catalogTypes')]
+    public function test_catalog_matches_owned_package_type(string $type, bool $showsGym, bool $showsPt): void
+    {
+        $member = $this->createUser();
+        $purchase = $this->createMembership($member, null, [
+            'type' => $type,
+            'pt_end_date' => today()->addMonth(),
+        ]);
+        $gym = $this->createPackage('Katalog Gym Aktif', ['price' => 345000]);
+        $pt = $this->createPackage('Katalog PT Aktif', ['type' => 'pt', 'pt_sessions' => 8, 'price' => 765000]);
+        $this->createPackage('Katalog Gym Nonaktif', ['is_active' => false]);
+        $this->createPackage('Katalog PT Nonaktif', ['type' => 'pt', 'is_active' => false]);
+        $this->createPackage('Katalog Visit', ['type' => 'visit']);
+
+        $component = Livewire::actingAs($member)->test('pages::dashboard.member.home')
+            ->assertDontSee('Katalog Gym Nonaktif')
+            ->assertDontSee('Katalog PT Nonaktif')
+            ->assertDontSee('Katalog Visit');
+
+        if ($showsGym) {
+            $component->assertSeeInOrder(['owned-package-'.$purchase->id, 'Pilihan Paket Membership', $gym->name])
+                ->assertSee('Rp 345.000');
+        } else {
+            $component->assertDontSee($gym->name)->assertDontSee('Pilihan Paket Membership');
+        }
+
+        if ($showsPt) {
+            $component->assertSeeInOrder(['owned-package-'.$purchase->id, 'Pilihan Paket PT', $pt->name])
+                ->assertSee('per sesi')->assertSee('Rp 765.000');
+        } else {
+            $component->assertDontSee($pt->name)->assertDontSee('Pilihan Paket PT');
+        }
+    }
+
+    #[DataProvider('catalogPriceCases')]
+    public function test_catalog_shows_duration_unit_price_and_real_savings(array $attributes, ?int $quantity, string $period, string $unitPrice, string $total, ?string $saving): void
+    {
+        $member = $this->createUser();
+        $this->createMembership($member);
+        $package = $this->createPackage('Paket Khusus', $attributes);
+
+        Livewire::actingAs($member)->test('pages::dashboard.member.home')
+            ->assertSet('catalogSummaries', function ($summaries) use ($package, $quantity, $period, $unitPrice, $total, $saving): bool {
+                $summary = $summaries->firstWhere('id', $package->id);
+
+                return $summary['quantity'] === $quantity
+                    && $summary['period'] === $period
+                    && $summary['unit_price'] === $unitPrice
+                    && $summary['total'] === $total
+                    && $summary['saving'] === $saving
+                    && ($saving !== null || $summary['original'] === null);
+            });
+    }
+
+    /** @return array<string, array{array<string, mixed>, int|null, string, string, string, string|null}> */
+    public static function catalogPriceCases(): array
+    {
+        return [
+            'monthly discount' => [['name' => 'Membership 3 Monthly Pass', 'price' => 1500000, 'discount' => 300000], 3, 'per bulan', 'Rp 400.000', 'Rp 1.200.000', '20'],
+            'bonus months' => [['name' => 'PROMO 6 BULAN PLUS 2 BULAN', 'price' => 620000], 8, 'per bulan', 'Rp 77.500', 'Rp 620.000', null],
+            'yearly' => [['name' => 'Membership Yearly Pass', 'price' => 2400000], 12, 'per bulan', 'Rp 200.000', 'Rp 2.400.000', null],
+            'weekly' => [['name' => 'Membership Weekly Pass', 'price' => 150000, 'normal_price' => 130000], 1, 'per minggu', 'Rp 150.000', 'Rp 150.000', null],
+            'pt sessions' => [['type' => 'pt', 'pt_sessions' => 10, 'price' => 1600000, 'normal_price' => 2000000], 10, 'per sesi', 'Rp 160.000', 'Rp 1.600.000', '20'],
+            'unknown duration' => [['price' => 500000], null, 'per paket', 'Rp 500.000', 'Rp 500.000', null],
+            'zero sessions' => [['type' => 'pt', 'pt_sessions' => 0, 'price' => 0], null, 'per paket', 'Rp 0', 'Rp 0', null],
+        ];
+    }
+
+    /** @return array<string, array{string, bool, bool}> */
+    public static function catalogTypes(): array
+    {
+        return [
+            'membership' => ['membership', true, false],
+            'pt' => ['pt', false, true],
+            'bundle' => ['bundle_pt_membership', true, true],
+        ];
     }
 
     /** @param array<string, mixed> $attributes */

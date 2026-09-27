@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Member;
 
+use App\Models\GymPackage;
 use App\Models\Membership;
 use App\Models\User;
 use Carbon\CarbonInterface;
@@ -16,6 +17,54 @@ use Livewire\Component;
 
 new #[Layout('layouts::member'), Title('Dashboard Membership')] class extends Component
 {
+    /** @return EloquentCollection<int, GymPackage> */
+    #[Computed]
+    public function catalogPackages(): EloquentCollection
+    {
+        return GymPackage::query()
+            ->where('is_active', true)
+            ->whereIn('type', ['gym', 'pt'])
+            ->orderBy('price')
+            ->orderBy('id')
+            ->get(['id', 'type', 'name', 'price', 'normal_price', 'discount', 'pt_sessions', 'max_members']);
+    }
+
+    /** @return Collection<int, array{id: int, type: string, name: string, quantity: int|null, unit: string, period: string, unit_price: string, total: string, original: string|null, saving: string|null, max_members: int}> */
+    #[Computed]
+    public function catalogSummaries(): Collection
+    {
+        return $this->catalogPackages->map(function (GymPackage $package): array {
+            $quantity = $package->type === 'pt'
+                ? ((int) $package->pt_sessions > 0 ? (int) $package->pt_sessions : null)
+                : $this->packageDurationInMonths($package->name);
+            $unit = $package->type === 'pt' ? 'sesi' : 'bulan';
+
+            if ($package->type === 'gym' && preg_match('/\bweekly\s+pass\b/i', $package->name) === 1) {
+                $quantity = 1;
+                $unit = 'minggu';
+            }
+
+            $price = max(0, (int) $package->price);
+            $total = max(0, $price - max(0, (int) $package->discount));
+            $original = max($price, (int) $package->normal_price);
+            $hasSaving = $original > $total;
+
+            return [
+                'id' => $package->id,
+                'type' => $package->type,
+                'name' => $package->name,
+                'quantity' => $quantity,
+                'unit' => $quantity !== null ? $unit : 'paket',
+                'period' => $quantity !== null ? 'per '.$unit : 'per paket',
+                'unit_price' => $this->formatRupiah((int) round($total / ($quantity ?? 1))),
+                'total' => $this->formatRupiah($total),
+                'original' => $hasSaving ? $this->formatRupiah($original) : null,
+                'saving' => $hasSaving ? rtrim(rtrim(number_format(($original - $total) / $original * 100, 1, ',', ''), '0'), ',') : null,
+                'max_members' => max(1, (int) $package->max_members),
+            ];
+        });
+    }
+
     /** @return EloquentCollection<int, User> */
     #[Computed]
     public function coaches(): EloquentCollection
@@ -227,7 +276,15 @@ new #[Layout('layouts::member'), Title('Dashboard Membership')] class extends Co
     <h1 class="sr-only">Paket dan kehadiran member</h1>
     <div class="space-y-10 sm:space-y-16">
         @forelse ($this->ownedPackageSummaries as $summary)
+            <div class="space-y-6" wire:key="package-section-{{ $summary['id'] }}">
             <x-member-package-card :summary="$summary" :first="$loop->first" wire:key="owned-package-{{ $summary['id'] }}" />
+                @if ($summary['has_gym'])
+                    <x-member-package-catalog :packages="$this->catalogSummaries->where('type', 'gym')" title="Pilihan Paket Membership" :heading-id="'membership-catalog-'.$summary['id']" />
+                @endif
+                @if ($summary['has_pt'])
+                    <x-member-package-catalog :packages="$this->catalogSummaries->where('type', 'pt')" title="Pilihan Paket PT" :heading-id="'pt-catalog-'.$summary['id']" />
+                @endif
+            </div>
         @empty
             <x-member-empty-package />
         @endforelse
