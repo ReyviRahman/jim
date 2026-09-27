@@ -164,7 +164,7 @@ class MemberDashboardTest extends TestCase
             ->assertDontSee('Paket Milik Member Lain');
     }
 
-    public function test_owned_package_is_followed_by_active_membership_catalog_packages(): void
+    public function test_owned_package_is_shown_without_catalog_packages(): void
     {
         $member = $this->createUser();
         $currentPackage = $this->createPackage('Paket Couple Saat Ini', [
@@ -211,11 +211,11 @@ class MemberDashboardTest extends TestCase
         Livewire::actingAs($member)
             ->test('pages::dashboard.member.home')
             ->assertDontSeeText('Upgrade Membership')
-            ->assertSee($firstTiedUpgrade->name)
+            ->assertDontSee($firstTiedUpgrade->name)
             ->assertSee('Paket Couple Saat Ini')
-            ->assertSee('Upgrade Tie ID Terbaru')
-            ->assertSee('Upgrade Lebih Mahal')
-            ->assertSee('Paket Single Salah Kategori')
+            ->assertDontSee('Upgrade Tie ID Terbaru')
+            ->assertDontSee('Upgrade Lebih Mahal')
+            ->assertDontSee('Paket Single Salah Kategori')
             ->assertDontSee('Paket Couple Nonaktif');
     }
 
@@ -293,7 +293,7 @@ class MemberDashboardTest extends TestCase
         Livewire::actingAs($member)
             ->test('pages::dashboard.member.home')
             ->assertSet('ownedPackageSummaries', fn ($summaries): bool => $summaries->first()['price'] === 'Rp 500.000')
-            ->assertSee('Rp 999.000')
+            ->assertDontSee('Rp 999.000')
             ->assertDontSee('Biaya Admin')
             ->assertDontSee('Rp 475.000')
             ->assertDontSee('Sudah Dibayar')
@@ -342,7 +342,7 @@ class MemberDashboardTest extends TestCase
             ->assertSee('Paket Snapshot Lama')
             ->assertDontSee('Rekomendasi paket belum tersedia.')
             ->assertSee('Membership Anda')
-            ->assertSee('Paket Aktif Yang Tidak Bisa Dibandingkan');
+            ->assertDontSee('Paket Aktif Yang Tidak Bisa Dibandingkan');
     }
 
     public function test_missing_current_package_name_uses_generic_fallback(): void
@@ -516,7 +516,7 @@ class MemberDashboardTest extends TestCase
             ->assertDontSee('Membership Saat Ini')
             ->assertSee('16 bulan | 28 hari tersisa')
             ->assertDontSeeText('Upgrade Membership')
-            ->assertSee($upgradePackage->name)
+            ->assertDontSee($upgradePackage->name)
             ->assertSee('Lihat Riwayat Absen')
             ->assertSee('Harga Paket')
             ->assertSee('Rp 2.400.000')
@@ -524,7 +524,7 @@ class MemberDashboardTest extends TestCase
             ->assertDontSee('Rp 114.000')
             ->assertDontSee('Total Pembayaran')
             ->assertDontSee('Total Harga')
-            ->assertSee('Rp 2.286.000')
+            ->assertDontSee('Rp 2.286.000')
             ->assertDontSee('Next');
     }
 
@@ -705,7 +705,7 @@ class MemberDashboardTest extends TestCase
     }
 
     #[DataProvider('catalogTypes')]
-    public function test_catalog_matches_owned_package_type(string $type, bool $showsGym, bool $showsPt): void
+    public function test_catalog_is_hidden_for_every_owned_package_type(string $type, bool $showsGym, bool $showsPt): void
     {
         $member = $this->createUser();
         $purchase = $this->createMembership($member, null, [
@@ -723,39 +723,23 @@ class MemberDashboardTest extends TestCase
             ->assertDontSee('Katalog PT Nonaktif')
             ->assertDontSee('Katalog Visit');
 
-        if ($showsGym) {
-            $component->assertSeeInOrder(['owned-package-'.$purchase->id, 'Pilihan Paket Membership', $gym->name])
-                ->assertSee('Rp 345.000');
-        } else {
-            $component->assertDontSee($gym->name)->assertDontSee('Pilihan Paket Membership');
-        }
-
-        if ($showsPt) {
-            $component->assertSeeInOrder(['owned-package-'.$purchase->id, 'Pilihan Paket PT', $pt->name])
-                ->assertSee('per sesi')->assertSee('Rp 765.000');
-        } else {
-            $component->assertDontSee($pt->name)->assertDontSee('Pilihan Paket PT');
-        }
+        $component->assertSeeHtml('data-testid="owned-package-'.$purchase->id.'"')
+            ->assertDontSee($gym->name)->assertDontSee('Pilihan Paket Membership')
+            ->assertDontSee($pt->name)->assertDontSee('Pilihan Paket PT')
+            ->assertDontSee('Rp 345.000')->assertDontSee('Rp 765.000');
     }
 
     #[DataProvider('catalogPriceCases')]
-    public function test_catalog_shows_duration_unit_price_and_real_savings(array $attributes, ?int $quantity, string $period, string $unitPrice, string $total, ?string $saving): void
+    public function test_catalog_is_hidden_regardless_of_duration_or_savings(array $attributes, ?int $quantity, string $period, string $unitPrice, string $total, ?string $saving): void
     {
         $member = $this->createUser();
         $this->createMembership($member);
         $package = $this->createPackage('Paket Khusus', $attributes);
 
         Livewire::actingAs($member)->test('pages::dashboard.member.home')
-            ->assertSet('catalogSummaries', function ($summaries) use ($package, $quantity, $period, $unitPrice, $total, $saving): bool {
-                $summary = $summaries->firstWhere('id', $package->id);
-
-                return $summary['quantity'] === $quantity
-                    && $summary['period'] === $period
-                    && $summary['unit_price'] === $unitPrice
-                    && $summary['total'] === $total
-                    && $summary['saving'] === $saving
-                    && ($saving !== null || $summary['original'] === null);
-            });
+            ->assertDontSee($package->name)
+            ->assertDontSee('Pilihan Paket Membership')
+            ->assertDontSee('Pilihan Paket PT');
     }
 
     /** @return array<string, array{array<string, mixed>, int|null, string, string, string, string|null}> */
