@@ -69,7 +69,9 @@ class MemberAttendanceTest extends TestCase
         $component = Livewire::actingAs($member)
             ->test('pages::dashboard.member.absensi')
             ->assertSet('selectedMembershipId', null)
-            ->assertSee('Tidak Ada Paket Aktif');
+            ->assertSee('Tidak Ada Sesi Aktif')
+            ->assertSeeText('Anda belum memiliki sesi Personal Training atau sesi yang aktif telah habis. Silakan beli sesi baru untuk mendapatkan akses check-in Personal Training.')
+            ->assertSee('member-check-in-empty');
 
         $this->assertFalse($component->viewData('hasActivePackage'));
         $this->assertTrue($component->viewData('activeMemberships')->isEmpty());
@@ -87,7 +89,7 @@ class MemberAttendanceTest extends TestCase
         $component = Livewire::actingAs($member)
             ->test('pages::dashboard.member.absensi')
             ->assertSet('selectedMembershipId', null)
-            ->assertSee('Tidak Ada Paket Aktif');
+            ->assertSee('Tidak Ada Sesi Aktif');
 
         $this->assertFalse($component->viewData('hasActivePackage'));
         $this->assertTrue($component->viewData('activeMemberships')->isEmpty());

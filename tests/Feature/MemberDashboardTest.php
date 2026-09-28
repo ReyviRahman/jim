@@ -39,9 +39,12 @@ class MemberDashboardTest extends TestCase
             ->get(route('member.dashboard'))
             ->assertOk()
             ->assertSee('Dashboard Membership')
-            ->assertSeeText('Setelah Anda memiliki membership atau PT aktif, informasi akan otomatis ditampilkan di sini.')
+            ->assertSeeText('Paket PT Anda sudah habis. Hubungi admin untuk informasi pembelian paket selanjutnya.')
             ->assertSee('HUBUNGI ADMIN')
-            ->assertSee(route('home').'#lokasi', false)
+            ->assertSee('href="https://wa.me/6282373997318"', false)
+            ->assertSee('href="https://wa.me/6282181378658"', false)
+            ->assertSeeText('CS')
+            ->assertSeeText('Sales')
             ->assertDontSee('Jam Operasional')
             ->assertDontSeeText('Lihat masa aktif membership dan rekomendasi paket terbaik untuk Anda.');
     }
@@ -364,7 +367,7 @@ class MemberDashboardTest extends TestCase
         Livewire::actingAs($member)
             ->test('pages::dashboard.member.home')
             ->assertCount('ownedPackages', 0)
-            ->assertSeeText('Belum ada membership atau PT aktif')
+            ->assertSeeText('Paket Personal Training Session Telah Habis')
             ->assertDontSee('Paket Nonaktif');
     }
 
@@ -392,7 +395,7 @@ class MemberDashboardTest extends TestCase
         Livewire::actingAs($member)
             ->test('pages::dashboard.member.home')
             ->assertCount('ownedPackages', 0)
-            ->assertSeeText('Belum ada membership atau PT aktif')
+            ->assertSeeText('Paket Personal Training Session Telah Habis')
             ->assertDontSee('Belum ada paket membership yang tersedia saat ini.');
     }
 
@@ -419,7 +422,7 @@ class MemberDashboardTest extends TestCase
         Livewire::actingAs($member)
             ->test('pages::dashboard.member.home')
             ->assertCount('ownedPackages', 0)
-            ->assertSeeText('Belum ada membership atau PT aktif')
+            ->assertSeeText('Paket Personal Training Session Telah Habis')
             ->assertDontSee($cheapestPackage->name)
             ->assertDontSee('Paket Single Efektif Mahal')
             ->assertDontSee('Paket Couple Lebih Murah')
@@ -617,7 +620,7 @@ class MemberDashboardTest extends TestCase
                 ->assertDontSee('Total Harga');
             $this->assertSame(1, substr_count($component->html(), 'data-testid="owned-package-'.$purchase->id.'"'));
         } else {
-            $component->assertSeeText('Belum ada membership atau PT aktif');
+            $component->assertSeeText('Paket Personal Training Session Telah Habis');
         }
     }
 

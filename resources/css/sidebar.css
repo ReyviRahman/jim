@@ -91,7 +91,7 @@
 .gym-sidebar-motto-card img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: .5; z-index: -2; }
 .gym-sidebar-motto-card::before { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, #090b08 15%, rgb(9 11 8 / 75%) 55%, transparent); z-index: -1; }
 .gym-sidebar-motto-card p { color: #ffed00; font-size: 10px; font-weight: 700; letter-spacing: .19em; }
-.gym-sidebar-motto-card span { display: block; margin-top: 7px; font-size: 8px; line-height: 1.7; letter-spacing: .3em; color: #e2e2db; }
+.gym-sidebar-motto-card span { display: block; margin-top: 7px; font-size: 12px; line-height: 1.7; color: #e2e2db; }
 
 @media (prefers-reduced-motion: reduce) {
     .gym-sidebar .gym-sidebar-item { transition: none; }
