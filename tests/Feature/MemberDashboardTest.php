@@ -249,7 +249,7 @@ class MemberDashboardTest extends TestCase
             ->assertSee($packageName)
             ->assertDontSee('Mulai '.$expectedStartingPrice)
             ->assertSee('Harga Paket')
-            ->assertSee('Rp '.number_format($price, 0, ',', '.'))
+            ->assertSee('Rp '.number_format($price - $discount, 0, ',', '.'))
             ->assertDontSee('Total Pembayaran')
             ->assertDontSee('Diskon')
             ->assertDontSeeText('Rekomendasi paket');
@@ -295,14 +295,15 @@ class MemberDashboardTest extends TestCase
 
         Livewire::actingAs($member)
             ->test('pages::dashboard.member.home')
-            ->assertSet('ownedPackageSummaries', fn ($summaries): bool => $summaries->first()['price'] === 'Rp 500.000')
+            ->assertSet('ownedPackageSummaries', fn ($summaries): bool => $summaries->first()['price'] === 'Rp 475.000')
             ->assertDontSee('Rp 999.000')
             ->assertDontSee('Biaya Admin')
-            ->assertDontSee('Rp 475.000')
+            ->assertDontSee('Rp 200.000')
             ->assertDontSee('Sudah Dibayar')
             ->assertDontSee('Sisa Pembayaran')
             ->assertSee('Harga Paket')
-            ->assertSee('Rp 500.000')
+            ->assertSee('Rp 475.000')
+            ->assertDontSee('Rp 500.000')
             ->assertDontSee('Total Pembayaran')
             ->assertDontSee('Diskon')
             ->assertDontSee('Total Harga');
@@ -522,12 +523,12 @@ class MemberDashboardTest extends TestCase
             ->assertDontSee($upgradePackage->name)
             ->assertSee('Lihat Riwayat Absen')
             ->assertSee('Harga Paket')
-            ->assertSee('Rp 2.400.000')
+            ->assertSee('Rp 2.286.000')
             ->assertDontSee('Diskon')
             ->assertDontSee('Rp 114.000')
             ->assertDontSee('Total Pembayaran')
             ->assertDontSee('Total Harga')
-            ->assertDontSee('Rp 2.286.000')
+            ->assertDontSee('Rp 2.400.000')
             ->assertDontSee('Next');
     }
 

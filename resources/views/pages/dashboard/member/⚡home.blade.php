@@ -137,7 +137,7 @@ new #[Layout('layouts::member'), Title('Dashboard Membership')] class extends Co
                     }),
                 'label' => $label,
                 'starting_price' => $this->formatRupiah((int) round(max(0, (int) $membership->price_paid) / $priceDivisor)).$pricePeriod,
-                'price' => $this->formatRupiah((int) $membership->base_price),
+                'price' => $this->formatRupiah((int) $membership->price_paid),
                 'discount' => $this->formatRupiah((int) $membership->discount_applied),
                 'discount_amount' => (int) $membership->discount_applied,
                 'total' => $this->formatRupiah((int) $membership->price_paid),
