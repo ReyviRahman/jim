@@ -901,7 +901,7 @@ new #[Layout('layouts::admin')] class extends Component
                             <option value="membership">🏋️ Membership Gym Only</option>
                             <option value="pt">👨‍🏫 Personal Trainer Only</option>
                         </select>
-                        @error('registration_type') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                        @error('registration_type') <span data-validation-error role="alert" class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                     </div>
 
                     @if($registration_type)
@@ -913,7 +913,7 @@ new #[Layout('layouts::admin')] class extends Component
                                 <option value="completed">Completed</option>
                                 <option value="pending">Pending</option>
                             </select>
-                            @error('membership_status') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                            @error('membership_status') <span data-validation-error role="alert" class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                         </div>
 
                         <div class="md:col-span-2">
@@ -938,7 +938,7 @@ new #[Layout('layouts::admin')] class extends Component
                                     <label for="start_date" class="block mb-2.5 text-sm font-medium text-heading">Tanggal Mulai</label>
                                     <input type="date" id="start_date" wire:model.live="start_date" @disabled(! $is_active) class="border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs @if(! $is_active) bg-gray-100 text-gray-500 cursor-not-allowed @else bg-white @endif">
                                     <p class="mt-1.5 text-xs text-brand-strong font-medium">{{ $this->getFormattedDate($start_date) }}</p>
-                                    @error('start_date') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                                    @error('start_date') <span data-validation-error role="alert" class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                                 </div>
 
                                 @if(in_array($registration_type, ['membership', 'visit']))
@@ -946,7 +946,7 @@ new #[Layout('layouts::admin')] class extends Component
                                     <label for="membership_end_date" class="block mb-2.5 text-sm font-medium text-heading">Tanggal Berakhir Gym</label>
                                     <input type="date" id="membership_end_date" wire:model.live="membership_end_date" @disabled(! $is_active) class="border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs @if(! $is_active) bg-gray-100 text-gray-500 cursor-not-allowed @else bg-white @endif">
                                     <p class="mt-1.5 text-xs text-brand-strong font-medium">{{ $this->getFormattedDate($membership_end_date) }}</p>
-                                    @error('membership_end_date') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                                    @error('membership_end_date') <span data-validation-error role="alert" class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                                 </div>
                                 @endif
 
@@ -955,7 +955,7 @@ new #[Layout('layouts::admin')] class extends Component
                                     <label for="pt_end_date" class="block mb-2.5 text-sm font-medium text-heading">Berakhir Sesi PT</label>
                                     <input type="date" id="pt_end_date" wire:model.live="pt_end_date" @disabled(! $is_active) class="border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs @if(! $is_active) bg-gray-100 text-gray-500 cursor-not-allowed @else bg-white @endif">
                                     <p class="mt-1.5 text-xs text-brand-strong font-medium">{{ $this->getFormattedDate($pt_end_date) }}</p>
-                                    @error('pt_end_date') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                                    @error('pt_end_date') <span data-validation-error role="alert" class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                                 </div>
                                 @endif
 
@@ -984,7 +984,7 @@ new #[Layout('layouts::admin')] class extends Component
                                             </option>
                                         @endforeach
                                     </select>
-                                    @error('gym_package_id') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                                    @error('gym_package_id') <span data-validation-error role="alert" class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                                 </div>
                             </div>
                         </div>
@@ -1004,24 +1004,24 @@ new #[Layout('layouts::admin')] class extends Component
                                             </option>
                                         @endforeach
                                     </select>
-                                    @error('pt_package_id') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                                    @error('pt_package_id') <span data-validation-error role="alert" class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                                 </div>
 
                                 <div class="md:col-span-1 grid grid-cols-2 gap-4">
                                     <div>
                                         <label for="total_sessions" class="block mb-2 text-sm font-medium text-heading">Sesi Awal</label>
                                         <input type="number" id="total_sessions" wire:model="total_sessions" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs">
-                                        @error('total_sessions') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                                        @error('total_sessions') <span data-validation-error role="alert" class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                                     </div>
                                     <div>
                                         <label for="remaining_sessions" class="block mb-2 text-sm font-medium text-heading">Sisa Sesi</label>
                                         <input type="number" id="remaining_sessions" wire:model="remaining_sessions" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs">
-                                        @error('remaining_sessions') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                                        @error('remaining_sessions') <span data-validation-error role="alert" class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                                     </div>
                                     <div>
                                         <label for="sesi_hangus" class="block mb-2 text-sm font-medium text-heading">Sesi Hangus</label>
                                         <input type="number" id="sesi_hangus" wire:model="sesi_hangus" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs">
-                                        @error('sesi_hangus') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                                        @error('sesi_hangus') <span data-validation-error role="alert" class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                                     </div>
                                 </div>
 
@@ -1033,7 +1033,7 @@ new #[Layout('layouts::admin')] class extends Component
                                             <option value="{{ $trainer->id }}">{{ $trainer->name }}</option>
                                         @endforeach
                                     </select>
-                                    @error('pt_id') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                                    @error('pt_id') <span data-validation-error role="alert" class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                                 </div>
                             </div>
                         </div>
@@ -1051,7 +1051,7 @@ new #[Layout('layouts::admin')] class extends Component
                                             <option value="{{ $admin->id }}">{{ $admin->name }} ({{ $admin->assignedShift?->name }})</option>
                                         @endforeach
                                     </select>
-                                    @error('admin_id') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                                    @error('admin_id') <span data-validation-error role="alert" class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                                 </div>
 
                                 <div>
@@ -1062,7 +1062,7 @@ new #[Layout('layouts::admin')] class extends Component
                                             <option value="{{ $staff->id }}">{{ $staff->name }}</option>
                                         @endforeach
                                     </select>
-                                    @error('follow_up_id') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                                    @error('follow_up_id') <span data-validation-error role="alert" class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                                 </div>
 
                                 <div>
@@ -1073,7 +1073,7 @@ new #[Layout('layouts::admin')] class extends Component
                                             <option value="{{ $staff->id }}">{{ $staff->name }}</option>
                                         @endforeach
                                     </select>
-                                    @error('follow_up_id_two') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                                    @error('follow_up_id_two') <span data-validation-error role="alert" class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                                 </div>
 
                             </div>
@@ -1104,7 +1104,7 @@ new #[Layout('layouts::admin')] class extends Component
                                         <span class="mr-2">Rp</span>
                                         <input type="text" id="normal_price_ref" inputmode="numeric" x-model="formatted" @input="updateValue($event)" class="block w-full bg-white border border-blue-200 rounded-md px-2 py-1 text-sm font-semibold text-blue-900 focus:border-brand focus:ring-brand">
                                     </div>
-                                    @error('normal_price_ref') <span class="block mt-1 text-xs text-red-500">{{ $message }}</span> @enderror
+                                    @error('normal_price_ref') <span data-validation-error role="alert" class="block mt-1 text-xs text-red-500">{{ $message }}</span> @enderror
                                 </div>
 
                                 <div class="p-3 rounded-md border bg-emerald-50 border-emerald-200">
@@ -1128,7 +1128,7 @@ new #[Layout('layouts::admin')] class extends Component
                                         <span class="mr-2">Rp</span>
                                         <input type="text" id="net_price_ref" inputmode="numeric" x-model="formatted" @input="updateValue($event)" class="block w-full bg-white border border-emerald-200 rounded-md px-2 py-1 text-sm font-semibold text-emerald-900 focus:border-brand focus:ring-brand">
                                     </div>
-                                    @error('net_price_ref') <span class="block mt-1 text-xs text-red-500">{{ $message }}</span> @enderror
+                                    @error('net_price_ref') <span data-validation-error role="alert" class="block mt-1 text-xs text-red-500">{{ $message }}</span> @enderror
                                 </div>
 
                                 <div class="p-3 rounded-md border bg-red-50 border-red-200">
@@ -1152,7 +1152,7 @@ new #[Layout('layouts::admin')] class extends Component
                                         <span class="mr-2">Rp</span>
                                         <input type="text" id="unrecommended_price_ref" inputmode="numeric" x-model="formatted" @input="updateValue($event)" class="block w-full bg-white border border-red-200 rounded-md px-2 py-1 text-sm font-semibold text-red-900 focus:border-brand focus:ring-brand">
                                     </div>
-                                    @error('unrecommended_price_ref') <span class="block mt-1 text-xs text-red-500">{{ $message }}</span> @enderror
+                                    @error('unrecommended_price_ref') <span data-validation-error role="alert" class="block mt-1 text-xs text-red-500">{{ $message }}</span> @enderror
                                 </div>
                             </div>
 
@@ -1193,7 +1193,7 @@ new #[Layout('layouts::admin')] class extends Component
                                             class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2 shadow-xs"
                                             placeholder="Diskon (Jika Ada)">
                                     </div>
-                                    @error('manual_discount') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                                    @error('manual_discount') <span data-validation-error role="alert" class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                                 </div>
 
                                 <div>
@@ -1218,7 +1218,7 @@ new #[Layout('layouts::admin')] class extends Component
                                             class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2 shadow-xs"
                                             placeholder="Biaya Admin (Jika Ada)">
                                     </div>
-                                    @error('admin_fee') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                                    @error('admin_fee') <span data-validation-error role="alert" class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                                 </div>
 
                                 <div>
@@ -1254,19 +1254,19 @@ new #[Layout('layouts::admin')] class extends Component
                                 <div>
                                     <label class="block mb-1 text-sm font-medium text-heading">Paket Member</label>
                                     <textarea wire:model="package_name" rows="2" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2 shadow-xs placeholder-gray-400" placeholder="Contoh: 1 BULAN, 6 + 2 BULAN, PT 20 SESI"></textarea>
-                                    @error('package_name') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                                    @error('package_name') <span data-validation-error role="alert" class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                                 </div>
 
                                 <div>
                                     <label class="block mb-1 text-sm font-medium text-heading">Status</label>
                                     <textarea wire:model="transaction_type" rows="2" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2 shadow-xs placeholder-gray-400" placeholder="Contoh: NEW MEMBER, NEW PT 20 SESI"></textarea>
-                                    @error('transaction_type') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                                    @error('transaction_type') <span data-validation-error role="alert" class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                                 </div>
 
                                 <div>
                                     <label class="block mb-1 text-sm font-medium text-heading">Catatan</label>
                                     <textarea wire:model="notes" rows="2" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2 shadow-xs placeholder-gray-400" placeholder="Catatan transaksi"></textarea>
-                                    @error('notes') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                                    @error('notes') <span data-validation-error role="alert" class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                                 </div>
                             </div>
                         </div>
@@ -1429,3 +1429,27 @@ new #[Layout('layouts::admin')] class extends Component
         </div>
     </div>
 </div>
+
+@script
+<script>
+    $wire.interceptMessage('save', ({ onSuccess }) => {
+        onSuccess(({ onRender }) => {
+            onRender(() => {
+                const error = Array.from($wire.$el.querySelectorAll('[data-validation-error], [role="alert"]'))
+                    .find((element) => element.getClientRects().length > 0);
+
+                if (!error) {
+                    return;
+                }
+
+                error.setAttribute('tabindex', '-1');
+                error.focus({ preventScroll: true });
+                error.scrollIntoView({
+                    behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth',
+                    block: 'center',
+                });
+            });
+        });
+    });
+</script>
+@endscript

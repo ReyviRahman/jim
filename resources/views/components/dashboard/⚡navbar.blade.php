@@ -46,12 +46,14 @@ new class extends Component {
     #[Computed]
     public function shifts(): Collection
     {
-        return Shift::query()->forRole(Auth::user()->role)->orderBy('start_time')->orderBy('id')->get();
+        abort_unless(Auth::user()?->role === 'kasir_gym', 403);
+
+        return Shift::query()->forRole('kasir_gym')->whereIn('name', ['Pagi', 'Siang'])->orderBy('start_time')->orderBy('id')->get();
     }
 
-    public function openShiftModal()
+    public function openShiftModal(): void
     {
-        abort_unless(array_key_exists(Auth::user()->role, Shift::ROLE_LABELS), 403);
+        abort_unless(Auth::user()?->role === 'kasir_gym', 403);
         $this->selectedShift = (string) (Auth::user()->shift ?? '');
         $this->showShiftModal = true;
     }
@@ -64,9 +66,9 @@ new class extends Component {
 
     public function saveShift()
     {
-        abort_unless(array_key_exists(Auth::user()->role, Shift::ROLE_LABELS), 403);
+        abort_unless(Auth::user()?->role === 'kasir_gym', 403);
         $this->validate([
-            'selectedShift' => ['required', 'integer', Rule::exists('shifts', 'id')->where('role', Auth::user()->role)],
+            'selectedShift' => ['required', 'integer', Rule::exists('shifts', 'id')->where('role', 'kasir_gym')->whereIn('name', ['Pagi', 'Siang'])],
         ]);
 
         Auth::user()->update(['shift' => $this->selectedShift]);
@@ -115,7 +117,7 @@ new class extends Component {
             <div class="flex items-center">
                 @auth
                     <div class="sm:ms-4 ms-auto flex items-center md:order-2 space-x-3 md:space-x-0 rtl:space-x-reverse">
-                        @if(array_key_exists(Auth::user()->role, \App\Models\Shift::ROLE_LABELS))
+                        @if(Auth::user()->role === 'kasir_gym')
                             <button type="button" wire:click="openShiftModal"
                                 class="inline-flex items-center gap-1.5 me-2 sm:me-3 px-2 sm:px-3 py-1.5 text-sm font-medium text-brand bg-black border border-default-medium rounded-md hover:bg-neutral-tertiary-medium focus:ring-4 focus:ring-brand focus:outline-none">
                                 <svg class="w-4 h-4" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -205,7 +207,7 @@ new class extends Component {
         </div>
     </div>
 
-    @if($showShiftModal)
+    @if(Auth::user()?->role === 'kasir_gym' && $showShiftModal)
         <div class="fixed inset-0 z-50 flex items-center justify-center w-full h-full overflow-y-auto bg-gray-900/50 backdrop-blur-sm">
             <div class="relative w-full max-w-sm p-4 bg-white rounded-lg shadow sm:p-5">
                 <div class="flex items-center justify-between pb-4 mb-4 border-b rounded-t border-gray-200">

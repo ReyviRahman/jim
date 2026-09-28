@@ -42,6 +42,6 @@
     <p class="text-xs text-body">JPG, JPEG, PNG, atau WEBP. Maksimal 10 MB.</p>
 
     @error($validationKey)
-        <span class="block text-xs text-red-500">{{ $message }}</span>
+        <span data-validation-error role="alert" class="block text-xs text-red-500">{{ $message }}</span>
     @enderror
 </div>

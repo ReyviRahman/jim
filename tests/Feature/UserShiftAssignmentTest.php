@@ -128,12 +128,36 @@ class UserShiftAssignmentTest extends TestCase
     public function test_navbar_filters_roles_and_saves_id_instead_of_name(): void
     {
         $cashier = $this->cashier();
+        $otherShift = Shift::factory()->create(['role' => 'kasir_gym', 'name' => 'Sore']);
         $component = Livewire::actingAs($cashier)->test('dashboard.navbar')->call('openShiftModal')
-            ->assertSet('selectedShift', (string) $cashier->shift)->assertSee('Pagi')->assertSee('07:00');
+            ->assertSet('selectedShift', (string) $cashier->shift)->assertSee('Pagi')->assertSee('Siang')->assertSee('07:00')->assertDontSee('Sore');
         $this->assertSame(['kasir_gym'], $component->get('shifts')->pluck('role')->unique()->values()->all());
+        $this->assertSame(['Pagi', 'Siang'], $component->get('shifts')->pluck('name')->all());
+        $component->set('selectedShift', (string) $otherShift->id)->call('saveShift')->assertHasErrors('selectedShift');
         $component->set('selectedShift', (string) $this->shift('admin', 'Siang')->id)->call('saveShift')->assertHasErrors('selectedShift');
         $component->set('selectedShift', (string) $this->shift('kasir_gym', 'Siang')->id)->call('saveShift')->assertHasNoErrors();
         $this->assertSame($this->shift('kasir_gym', 'Siang')->id, $cashier->refresh()->shift);
+    }
+
+    public function test_navbar_shift_controls_are_only_available_to_gym_cashiers(): void
+    {
+        foreach (['admin', 'kasir_minum', 'pt', 'head_coach', 'sales', 'cleaning_service', 'member'] as $role) {
+            $user = User::factory()->create(['role' => $role]);
+
+            Livewire::actingAs($user)->test('dashboard.navbar')
+                ->assertDontSeeHtml('wire:click="openShiftModal"')
+                ->set('showShiftModal', true)
+                ->assertDontSeeHtml('wire:click="saveShift"');
+
+            Livewire::actingAs($user)->test('dashboard.navbar')
+                ->call('openShiftModal')->assertForbidden();
+
+            Livewire::actingAs($user)->test('dashboard.navbar')
+                ->set('selectedShift', (string) $this->shift('kasir_gym', 'Pagi')->id)
+                ->call('saveShift')->assertForbidden();
+
+            $this->assertNull($user->refresh()->shift);
+        }
     }
 
     public function test_expenses_keep_snapshot_after_user_assignment_changes_and_filter_by_snapshot(): void
