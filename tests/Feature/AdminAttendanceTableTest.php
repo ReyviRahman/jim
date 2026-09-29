@@ -6,12 +6,50 @@ use App\Models\Attendance;
 use App\Models\AttendanceEmployee;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Livewire\Livewire;
 use Tests\TestCase;
 
 class AdminAttendanceTableTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_today_member_count_counts_unique_members_independently_of_table_filters(): void
+    {
+        $this->travelTo(Carbon::parse('2026-09-29 01:00:00', config('app.timezone')));
+        $this->actingAs($this->createUser('admin'));
+
+        $first = $this->createUser('member');
+        $second = $this->createUser('member');
+        $this->createAttendance($first, ['check_in_time' => today()]);
+        $this->createAttendance($first);
+        $this->createAttendance($second, ['check_out_time' => now()]);
+        $this->createAttendance($this->createUser('member'), ['check_in_time' => today()->subSecond()]);
+        $this->createAttendance($this->createUser('member'), ['check_in_time' => today()->addDay()]);
+        $this->createAttendance($this->createUser('member'), ['check_in_time' => null, 'check_out_time' => now()]);
+        $this->createAttendance($this->createUser('kasir_minum'));
+
+        Livewire::test('pages::dashboard.admin.absensi.index')
+            ->assertViewHas('todayMemberCount', 2)
+            ->assertSee('Member Check-In Hari Ini')
+            ->assertSee('2 member')
+            ->set('search', 'TidakDitemukan')
+            ->call('setDateRange', '2026-09-28')
+            ->assertViewHas('todayMemberCount', 2)
+            ->assertSee('2 member');
+    }
+
+    public function test_today_member_count_is_zero_without_check_ins(): void
+    {
+        $this->actingAs($this->createUser('admin'));
+
+        Livewire::test('pages::dashboard.admin.absensi.index')
+            ->assertViewHas('todayMemberCount', 0)
+            ->assertSee('0 member');
+
+        Livewire::test('pages::dashboard.admin.absensi.index', ['employeesOnly' => true])
+            ->assertDontSee('Member Check-In Hari Ini');
+    }
 
     public function test_attendance_table_shows_user_role_without_arrival_type_or_package_details(): void
     {

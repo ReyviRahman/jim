@@ -314,6 +314,11 @@ session()->flash('success', "Berhasil Check-In: {$user->name}. {$infoSesi}");
         }
 
         return [
+            'todayMemberCount' => Attendance::query()
+                ->whereHas('user', fn (\Illuminate\Database\Eloquent\Builder $query) => $query->where('role', 'member'))
+                ->whereBetween('check_in_time', [today()->startOfDay(), today()->endOfDay()])
+                ->distinct()
+                ->count('user_id'),
             'attendances' => $query
                 ->orderByRaw('COALESCE(attendance_date, DATE(check_in_time), DATE(check_out_time)) DESC')
                 ->orderByRaw('COALESCE(check_in_time, check_out_time) DESC')
@@ -350,6 +355,12 @@ session()->flash('success', "Berhasil Check-In: {$user->name}. {$infoSesi}");
                 autocomplete="off"
             >
         </div>
+    </div>
+
+    <div class="mb-6 p-4 bg-neutral-primary-soft border border-default rounded-md shadow-xs">
+        <p class="text-sm text-body">Member Check-In Hari Ini</p>
+        <p class="text-xl font-semibold text-heading">{{ number_format($todayMemberCount) }} member</p>
+        <p class="text-sm text-body">Setiap member dihitung satu kali per hari.</p>
     </div>
 
     @if (session()->has('success'))
