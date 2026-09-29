@@ -17,6 +17,7 @@ use Livewire\WithPagination;
 new #[Layout('layouts::admin')] class extends Component
 {
     use WithPagination;
+    use \App\Livewire\Concerns\CalculatesActivationDates;
 
     public string $search = '';
 
@@ -50,6 +51,8 @@ new #[Layout('layouts::admin')] class extends Component
         $this->closeModal();
         $this->selectedMembershipId = $membershipId;
         $this->showModal = true;
+        $this->startDate = today()->toDateString();
+        $this->updatedStartDate();
     }
 
     public function closeModal(): void
@@ -74,10 +77,10 @@ new #[Layout('layouts::admin')] class extends Component
 
         ], [
             'startDate.required' => 'Tanggal mulai harus diisi.',
+            'endDate.required' => 'Tanggal akhir wajib diisi.',
+            'endDate.date_format' => 'Tanggal akhir tidak valid.',
+            'endDate.after_or_equal' => 'Tanggal akhir tidak boleh sebelum tanggal mulai.',
             'startDate.date_format' => 'Tanggal mulai tidak valid.',
-            'endDate.required' => 'Tanggal selesai harus diisi.',
-            'endDate.date_format' => 'Tanggal selesai tidak valid.',
-            'endDate.after_or_equal' => 'Tanggal selesai tidak boleh sebelum tanggal mulai.',
 
         ]);
 
@@ -258,7 +261,7 @@ new #[Layout('layouts::admin')] class extends Component
 
                         <div>
                             <label for="startDate" class="block text-sm font-medium text-heading mb-1">Tanggal Mulai</label>
-                            <input type="date" id="startDate" wire:model="startDate" required
+                            <input type="date" id="startDate" wire:model.live="startDate" required
                                 class="w-full px-3 py-2 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs">
                             @error('startDate') <p class="text-sm text-red-600">{{ $message }}</p> @enderror
                         </div>
@@ -266,6 +269,7 @@ new #[Layout('layouts::admin')] class extends Component
                             <label for="endDate" class="block text-sm font-medium text-heading mb-1">Tanggal Membership Berakhir</label>
                             <input type="date" id="endDate" wire:model="endDate" required
                                 class="w-full px-3 py-2 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs">
+                            <p class="text-sm text-body">Diisi otomatis dari durasi master paket dan dapat diubah.</p>
                             @error('endDate') <p class="text-sm text-red-600">{{ $message }}</p> @enderror
                         </div>
                     </div>

@@ -97,12 +97,11 @@ class MembershipActivationQueuesTest extends TestCase
         $membership = $this->membership($type);
         $before = $membership->fresh()->getAttributes();
         $page = Livewire::test($this->queueComponent($type))->call('openModal', $membership->id);
-        $page->call('aktivatekan')->assertHasErrors(['startDate', 'endDate']);
+        $page->set('startDate', '')->call('aktivatekan')->assertHasErrors('startDate');
         if ($type === 'pt') {
             $page->assertHasErrors('selectedCoachId');
         }
-        $page->set('startDate', 'bad-date')->set('endDate', 'bad-date')->call('aktivatekan')->assertHasErrors(['startDate', 'endDate']);
-        $page->set('startDate', '2026-10-01')->set('endDate', '2026-09-01')->call('aktivatekan')->assertHasErrors('endDate');
+        $page->set('startDate', 'bad-date')->set('endDate', 'bad-date')->call('aktivatekan')->assertHasErrors('startDate');
         $page->call('closeModal')->assertSet('showModal', false)->assertSet('selectedMembershipId', null)
             ->assertSet('startDate', '')->assertSet('endDate', '')->assertHasNoErrors();
         $this->assertSame($before, $membership->fresh()->getAttributes());
@@ -217,6 +216,44 @@ class MembershipActivationQueuesTest extends TestCase
         $page->set('selectedMembershipId', $membership->id + 1);
     }
 
+    #[DataProvider('types')]
+    public function test_activation_dates_follow_master_and_save_edited_end_date(string $type): void
+    {
+        $membership = $this->membership($type);
+        $package = $type === 'pt' ? $membership->ptPackage : $membership->gymPackage;
+        $package->update(['duration_months' => 1, 'duration_weeks' => 2, 'duration_days' => 1]);
+        $page = Livewire::test($this->queueComponent($type))->call('openModal', $membership->id)
+            ->assertSet('startDate', today()->toDateString())
+            ->assertSee('wire:model="endDate"', false)
+            ->set('startDate', '2026-12-20')->assertSet('endDate', '2027-02-02')
+            ->set('startDate', '2028-02-01')->assertSet('endDate', '2028-03-16')
+            ->set('startDate', '')->assertSet('endDate', '')
+            ->set('startDate', '2026-10-01')->assertSet('endDate', '2026-11-14');
+        $package->update(['duration_months' => 0, 'duration_weeks' => 0, 'duration_days' => 7]);
+        if ($type === 'pt') {
+            $page->set('selectedCoachId', User::factory()->create(['role' => 'pt', 'is_active' => true])->id);
+        }
+        $page->set('endDate', '2026-09-30')->call('aktivatekan')->assertHasErrors('endDate');
+        $page->set('endDate', '2099-01-01')->call('aktivatekan')->assertHasNoErrors();
+        $membership->refresh();
+        $this->assertSame('2099-01-01', ($type === 'pt' ? $membership->pt_end_date : $membership->membership_end_date)->toDateString());
+    }
+
+    #[DataProvider('types')]
+    public function test_activation_requires_master_duration(string $type): void
+    {
+        $membership = $this->membership($type);
+        $package = $type === 'pt' ? $membership->ptPackage : $membership->gymPackage;
+        $package->update(['duration_months' => 0]);
+        $page = Livewire::test($this->queueComponent($type))->call('openModal', $membership->id)
+            ->assertHasErrors('membership')->assertSet('endDate', '');
+        if ($type === 'pt') {
+            $page->set('selectedCoachId', User::factory()->create(['role' => 'pt', 'is_active' => true])->id);
+        }
+        $page->call('aktivatekan')->assertHasErrors('endDate');
+        $this->assertFalse($membership->fresh()->is_active);
+    }
+
     public static function types(): array
     {
         return [['membership'], ['pt']];
@@ -230,7 +267,10 @@ class MembershipActivationQueuesTest extends TestCase
     /** @param array<string, mixed> $attributes */
     private function membership(string $type, array $attributes = []): Membership
     {
+        $package = GymPackage::create(['type' => $type === 'pt' ? 'pt' : 'gym', 'name' => 'Activation package', 'category' => 'single', 'price' => 300000, 'duration_months' => 1]);
+
         return Membership::create([
+            ($type === 'pt' ? 'pt_package_id' : 'gym_package_id') => $package->id,
             'user_id' => $attributes['user_id'] ?? User::factory()->create(['role' => 'member'])->id,
             'type' => $type, 'base_price' => 300000, 'price_paid' => 300000, 'total_paid' => 300000,
             'payment_status' => 'paid', 'status' => 'active', 'is_active' => false,

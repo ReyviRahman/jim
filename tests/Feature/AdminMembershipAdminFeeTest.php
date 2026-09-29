@@ -7,6 +7,7 @@ use App\Models\Membership;
 use App\Models\MembershipTransaction;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Features\SupportTesting\Testable;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -40,7 +41,7 @@ class AdminMembershipAdminFeeTest extends TestCase
         $user = $this->createUser();
         $package = $this->createGymPackage();
         Livewire::withQueryParams(['users' => [$user->id]])
-            ->test('pages::dashboard.admin.membership.paket')
+            ->test('pages::dashboard.admin.membership.paket')->set('is_renewal', '0')
             ->set('registration_type', 'membership')
             ->set('gym_package_id', $package->id)
             ->set('admin_fee', 20000)
@@ -198,6 +199,8 @@ class AdminMembershipAdminFeeTest extends TestCase
             ->set('payment_date', now()->toDateString())
             ->set('transaction_type', 'MEMBERSHIP BARU')
             ->set('package_name', 'Paket Gym')
+            ->set('pt_trial_interest', 'no')
+            ->set('waivers.'.$membership->user_id, ['accepted' => true, 'signature' => $this->signature()])
             ->call('save');
 
         $renewal = Membership::query()->where('id', '!=', $membership->id)->latest('id')->firstOrFail();
@@ -236,6 +239,7 @@ class AdminMembershipAdminFeeTest extends TestCase
     private function createGymPackage(): GymPackage
     {
         return GymPackage::create([
+            'duration_months' => 1,
             'type' => 'gym',
             'name' => 'Paket Gym',
             'category' => 'single',
@@ -259,7 +263,7 @@ class AdminMembershipAdminFeeTest extends TestCase
     private function packageForm(User $user, GymPackage $package): Testable
     {
         return Livewire::withQueryParams(['users' => [$user->id]])
-            ->test('pages::dashboard.admin.membership.paket')
+            ->test('pages::dashboard.admin.membership.paket')->set('is_renewal', '0')
             ->set('registration_type', 'membership')
             ->set('gym_package_id', $package->id)
             ->set('admin_id', $user->id)
@@ -267,6 +271,22 @@ class AdminMembershipAdminFeeTest extends TestCase
             ->set('follow_up_id_two', $user->id)
             ->set('transaction_type', 'MEMBERSHIP BARU')
             ->set('package_name', 'PAKET GYM')
+            ->set('pt_trial_interest', 'no')
+            ->set('waivers.'.$user->id, ['accepted' => true, 'signature' => $this->signature()])
             ->set('notes', 'Catatan');
+    }
+
+    private function signature(): string
+    {
+        Storage::fake('local');
+        $image = imagecreatetruecolor(400, 160);
+        imagefill($image, 0, 0, imagecolorallocate($image, 255, 255, 255));
+        imageline($image, 25, 100, 360, 50, imagecolorallocate($image, 0, 0, 0));
+        ob_start();
+        imagepng($image);
+        $bytes = ob_get_clean();
+        imagedestroy($image);
+
+        return 'data:image/png;base64,'.base64_encode($bytes);
     }
 }

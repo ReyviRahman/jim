@@ -133,6 +133,7 @@ new #[Layout('layouts::admin')] class extends Component
                         {{-- Nama --}}
                         <td class="px-6 py-4 font-medium text-heading">
                             {{ $package->name }}
+                            <div class="mt-1 text-xs text-gray-500">{{ $package->durationLabel() }}</div>
                         </td>
 
                         {{-- Kategori & Kapasitas (DIPERBARUI) --}}

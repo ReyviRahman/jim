@@ -2,6 +2,7 @@
 
 namespace App\Actions;
 
+use App\MembershipFormValidation;
 use App\MembershipWaiverTerms;
 use App\Models\GymPackage;
 use App\Models\Membership;
@@ -34,9 +35,10 @@ final class MembershipOperationalApproval
             'user_ids.*' => ['integer', 'distinct', 'exists:users,id'],
             'registration_type' => ['required', Rule::in(['membership', 'pt', 'bundle_pt_membership', 'visit'])],
             'is_active' => ['required', 'boolean'],
-            'start_date' => ['nullable', 'required_if:is_active,1', 'date'],
-            'membership_end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
-            'pt_end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
+            'is_renewal' => ['required', 'boolean'],
+            'start_date' => ['nullable', 'required_if:is_active,1', 'date_format:Y-m-d'],
+            'membership_end_date' => ['nullable', Rule::requiredIf(fn () => ! empty($input['is_active']) && in_array($input['registration_type'] ?? '', ['membership', 'bundle_pt_membership', 'visit'], true)), 'date_format:Y-m-d', 'after_or_equal:start_date'],
+            'pt_end_date' => ['nullable', Rule::requiredIf(fn () => ! empty($input['is_active']) && in_array($input['registration_type'] ?? '', ['pt', 'bundle_pt_membership'], true)), 'date_format:Y-m-d', 'after_or_equal:start_date'],
             'gym_package_id' => ['nullable', 'integer', 'exists:gym_packages,id'],
             'pt_package_id' => ['nullable', 'integer', 'exists:gym_packages,id'],
             'pt_id' => ['nullable', Rule::exists('users', 'id')->where('role', 'pt')],
@@ -51,7 +53,7 @@ final class MembershipOperationalApproval
             'pt_trial_interest' => ['required', Rule::in(array_keys(Membership::PT_TRIAL_INTEREST_OPTIONS))],
             'payment_type' => ['required', 'in:paid'],
             'is_split_payment' => ['required', 'boolean', 'declined'],
-        ])->validate();
+        ], MembershipFormValidation::messages(), MembershipFormValidation::attributes())->validate();
         $createdFiles = [];
         try {
             return DB::transaction(function () use ($actor, $data, $waivers, $photos, &$createdFiles): MembershipOperationalRequest {
@@ -116,11 +118,10 @@ final class MembershipOperationalApproval
         }
         $gym = in_array($type, ['membership', 'bundle_pt_membership', 'visit'], true) ? $this->package($data['gym_package_id'] ?? null, $type === 'visit' ? 'visit' : 'gym', $memberCount) : null;
         $pt = in_array($type, ['pt', 'bundle_pt_membership'], true) ? $this->package($data['pt_package_id'] ?? null, 'pt', $memberCount) : null;
-        if ($data['is_active']) {
-            Validator::make($data, [
-                'membership_end_date' => $gym ? ['required', 'date', 'after_or_equal:start_date'] : ['nullable'],
-                'pt_end_date' => $pt ? ['required', 'date', 'after_or_equal:start_date'] : ['nullable'],
-            ])->validate();
+        if (! $data['is_active']) {
+            $data['start_date'] = null;
+            $data['membership_end_date'] = null;
+            $data['pt_end_date'] = null;
         }
         $base = (int) ($gym?->price ?? 0) + (int) ($pt?->price ?? 0);
         $manual = (int) ($data['manual_discount'] ?? 0);
@@ -133,7 +134,9 @@ final class MembershipOperationalApproval
         $primaryPackage = $gym ?? $pt;
         $attributes = [
             'user_id' => $data['user_ids'][0], 'type' => $type,
+            'is_renewal' => (bool) ($data['is_renewal'] ?? false),
             'gym_package_id' => $gym?->id, 'pt_package_id' => $pt?->id,
+            'gym_package_name_snapshot' => $gym?->name, 'pt_package_name_snapshot' => $pt?->name,
             'pt_id' => $pt ? ($data['pt_id'] ?? null) : null,
             'admin_id' => $data['admin_id'], 'follow_up_id' => null, 'follow_up_id_two' => null,
             'base_price' => $base, 'discount_applied' => $discount, 'admin_fee' => $fee,
@@ -179,6 +182,8 @@ final class MembershipOperationalApproval
             $this->requirePending($request);
             $snapshot = $request->snapshot;
             $attributes = $snapshot['membership'];
+            $attributes['gym_package_name_snapshot'] ??= $snapshot['gym_package_name'] ?? null;
+            $attributes['pt_package_name_snapshot'] ??= $snapshot['pt_package_name'] ?? null;
             $packageIds = array_filter([$attributes['gym_package_id'], $attributes['pt_package_id']]);
             $staffIds = array_unique(array_filter([$attributes['admin_id'], $attributes['pt_id']]));
             if (GymPackage::whereIn('id', $packageIds)->count() !== count(array_unique($packageIds)) || User::whereIn('id', $staffIds)->count() !== count($staffIds)) {

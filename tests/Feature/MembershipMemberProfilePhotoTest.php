@@ -24,7 +24,7 @@ class MembershipMemberProfilePhotoTest extends TestCase
         $this->actingAs($cashier);
 
         Livewire::withQueryParams(['users' => [$member->id]])
-            ->test('pages::dashboard.admin.membership.paket')
+            ->test('pages::dashboard.admin.membership.paket')->set('is_renewal', '0')
             ->assertSeeHtml('id="member-photo-'.$member->id.'"')
             ->assertSeeHtml('data-focus-on-invalid')
             ->assertSeeHtml('data-required-message="Foto profil wajib di upload."')
@@ -87,7 +87,7 @@ class MembershipMemberProfilePhotoTest extends TestCase
         $photoUrl = asset('storage/'.$photoPath);
 
         Livewire::withQueryParams(['users' => [$member->id]])
-            ->test('pages::dashboard.admin.membership.paket')
+            ->test('pages::dashboard.admin.membership.paket')->set('is_renewal', '0')
             ->assertSee($photoUrl, escape: false)
             ->assertDontSeeHtml('id="member-photo-'.$member->id.'"');
 
@@ -151,6 +151,7 @@ class MembershipMemberProfilePhotoTest extends TestCase
     private function createMembership(User $member, User $cashier, string $paymentStatus = 'partial'): Membership
     {
         $package = GymPackage::query()->create([
+            'duration_months' => 1,
             'type' => 'gym',
             'name' => 'Paket Foto Profil',
             'category' => 'single',

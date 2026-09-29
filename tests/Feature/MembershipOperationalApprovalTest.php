@@ -112,6 +112,8 @@ class MembershipOperationalApprovalTest extends TestCase
     public function test_historical_bundle_approval_expires_sessions_without_extending_dates(): void
     {
         [$actor, $input, $waivers] = $this->fixture('bundle_pt_membership');
+        GymPackage::findOrFail($input['gym_package_id'])->update(['duration_days' => 60]);
+        GymPackage::findOrFail($input['pt_package_id'])->update(['duration_days' => 32]);
         $input = array_replace($input, ['start_date' => '2025-01-01', 'pt_end_date' => '2025-02-01', 'membership_end_date' => '2025-03-01', 'payment_date' => '2025-01-01']);
         $action = app(MembershipOperationalApproval::class);
         $request = $action->submit($actor, $input, $waivers, []);
@@ -166,7 +168,7 @@ class MembershipOperationalApprovalTest extends TestCase
     {
         [$actor, $input, $waivers] = $this->fixture();
         $this->actingAs($actor);
-        $form = Livewire::withQueryParams(['users' => $input['user_ids']])->test('pages::dashboard.admin.membership.paket')
+        $form = Livewire::withQueryParams(['users' => $input['user_ids']])->test('pages::dashboard.admin.membership.paket')->set('is_renewal', '0')
             ->set('registration_type', 'membership')->set('gym_package_id', $input['gym_package_id'])->set('admin_id', $actor->id)
             ->set('follow_up_id', $actor->id)->set('follow_up_id_two', $actor->id)
             ->set('payment_method', 'operasional')->assertSet('follow_up_id', null)->assertSet('follow_up_id_two', null)
@@ -176,7 +178,7 @@ class MembershipOperationalApprovalTest extends TestCase
             ->call('save')->assertHasNoErrors()->assertRedirect(route('admin.riwayat.index'));
         $this->assertDatabaseCount('membership_operational_requests', 1);
         $this->assertDatabaseCount('memberships', 0);
-        $form = Livewire::withQueryParams(['users' => $input['user_ids']])->test('pages::dashboard.admin.membership.paket')
+        $form = Livewire::withQueryParams(['users' => $input['user_ids']])->test('pages::dashboard.admin.membership.paket')->set('is_renewal', '0')
             ->set('registration_type', 'membership')->set('gym_package_id', $input['gym_package_id'])->set('admin_id', $actor->id)
             ->set('transaction_type', 'Baru')->set('package_name', 'Gym')->set('notes', 'Cash')
             ->set('pt_trial_interest', 'no')->set('waivers', $waivers)->set('payment_method', 'cash')
@@ -253,6 +255,35 @@ class MembershipOperationalApprovalTest extends TestCase
         $this->assertDatabaseCount('memberships', 0);
     }
 
+    public function test_submission_preserves_edited_end_dates_and_legacy_snapshot_defaults_to_not_renewal(): void
+    {
+        [$actor, $input, $waivers] = $this->fixture('bundle_pt_membership');
+        $input = array_replace($input, [
+            'start_date' => '2026-10-01', 'membership_end_date' => '2026-11-15', 'pt_end_date' => '2099-01-01',
+            'is_renewal' => true,
+        ]);
+        $action = app(MembershipOperationalApproval::class);
+        $request = $action->submit($actor, $input, $waivers, []);
+        $this->assertSame('2026-11-15', $request->snapshot['membership']['membership_end_date']);
+        $this->assertSame('2099-01-01', $request->snapshot['membership']['pt_end_date']);
+        $this->assertTrue($request->snapshot['membership']['is_renewal']);
+
+        $snapshot = $request->snapshot;
+        unset($snapshot['membership']['is_renewal'], $snapshot['membership']['gym_package_name_snapshot'], $snapshot['membership']['pt_package_name_snapshot']);
+        GymPackage::whereIn('id', [$input['gym_package_id'], $input['pt_package_id']])->update(['name' => 'Renamed master']);
+        $request->update(['snapshot' => $snapshot]);
+        $action->approve(User::factory()->create(['role' => 'admin']), $request->id);
+        $membership = $request->membership()->sole();
+        $this->assertFalse($membership->is_renewal);
+        $this->assertSame($snapshot['gym_package_name'], $membership->gym_package_name_snapshot);
+        $this->assertSame($snapshot['pt_package_name'], $membership->pt_package_name_snapshot);
+        $membership->update(['gym_package_name_snapshot' => null, 'pt_package_name_snapshot' => '']);
+        $migration = require database_path('migrations/2026_09_29_095322_backfill_membership_package_name_snapshots.php');
+        $migration->up();
+        $this->assertSame($snapshot['gym_package_name'], $membership->fresh()->gym_package_name_snapshot);
+        $this->assertSame($snapshot['pt_package_name'], $membership->fresh()->pt_package_name_snapshot);
+    }
+
     private function fixture(string $type = 'membership', int $count = 1): array
     {
         $actor = User::factory()->create(['role' => 'kasir_gym']);
@@ -260,7 +291,7 @@ class MembershipOperationalApprovalTest extends TestCase
         $category = $count === 1 ? 'single' : 'couple';
         $gym = in_array($type, ['membership', 'bundle_pt_membership', 'visit'], true) ? GymPackage::create(['name' => 'Gym', 'type' => $type === 'visit' ? 'visit' : 'gym', 'category' => $category, 'price' => 100000, 'discount' => 0, 'duration_days' => 30, 'is_active' => true]) : null;
         $pt = in_array($type, ['pt', 'bundle_pt_membership'], true) ? GymPackage::create(['name' => 'PT', 'type' => 'pt', 'category' => $category, 'price' => 100000, 'discount' => 0, 'pt_sessions' => 8, 'duration_days' => 30, 'is_active' => true]) : null;
-        $input = ['submission_token' => (string) Str::uuid(), 'user_ids' => $members->modelKeys(), 'registration_type' => $type, 'gym_package_id' => $gym?->id, 'pt_package_id' => $pt?->id, 'admin_id' => $actor->id, 'is_active' => true, 'start_date' => today()->toDateString(), 'membership_end_date' => $gym ? today()->addMonth()->toDateString() : null, 'pt_end_date' => $pt ? today()->addMonth()->toDateString() : null, 'payment_date' => today()->toDateString(), 'transaction_type' => 'Baru', 'package_name' => 'Paket', 'notes' => 'Internal', 'reason' => 'Internal', 'pt_trial_interest' => 'no', 'payment_type' => 'paid', 'is_split_payment' => false];
+        $input = ['is_renewal' => false, 'submission_token' => (string) Str::uuid(), 'user_ids' => $members->modelKeys(), 'registration_type' => $type, 'gym_package_id' => $gym?->id, 'pt_package_id' => $pt?->id, 'admin_id' => $actor->id, 'is_active' => true, 'start_date' => today()->toDateString(), 'membership_end_date' => $gym ? today()->addMonth()->toDateString() : null, 'pt_end_date' => $pt ? today()->addMonth()->toDateString() : null, 'payment_date' => today()->toDateString(), 'transaction_type' => 'Baru', 'package_name' => 'Paket', 'notes' => 'Internal', 'reason' => 'Internal', 'pt_trial_interest' => 'no', 'payment_type' => 'paid', 'is_split_payment' => false];
         $waivers = $members->mapWithKeys(fn (User $member): array => [$member->id => ['accepted' => true, 'signature' => $this->signature()]])->all();
 
         return [$actor, $input, $waivers];

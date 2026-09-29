@@ -77,7 +77,7 @@ class MembershipOperationalApprovalConcurrencyTest extends TestCase
         $bytes = ob_get_clean();
         imagedestroy($image);
         $request = app(MembershipOperationalApproval::class)->submit($cashier, [
-            'submission_token' => (string) Str::uuid(), 'user_ids' => [$member->id], 'registration_type' => 'membership',
+            'is_renewal' => false, 'submission_token' => (string) Str::uuid(), 'user_ids' => [$member->id], 'registration_type' => 'membership',
             'gym_package_id' => $package->id, 'admin_id' => $cashier->id, 'is_active' => false,
             'payment_date' => today()->toDateString(), 'transaction_type' => 'Baru', 'package_name' => 'Gym', 'notes' => 'Concurrency',
             'reason' => 'Concurrency', 'pt_trial_interest' => 'no', 'payment_type' => 'paid', 'is_split_payment' => false,

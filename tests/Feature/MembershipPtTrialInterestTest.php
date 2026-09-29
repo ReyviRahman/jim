@@ -73,6 +73,7 @@ class MembershipPtTrialInterestTest extends TestCase
         $this->actingAs($admin);
         $member = User::factory()->create(['role' => 'member', 'photo' => 'profile-photos/existing.webp']);
         $package = GymPackage::create([
+            'duration_months' => 1,
             'type' => 'gym', 'name' => 'Paket Gym', 'category' => 'single', 'max_members' => 1,
             'price' => 300000, 'discount' => 0, 'is_active' => true,
         ]);
@@ -87,7 +88,7 @@ class MembershipPtTrialInterestTest extends TestCase
             $old->members()->attach($member->id);
             $form = Livewire::test('pages::dashboard.admin.renew.create', ['id' => $old->id]);
         } else {
-            $form = Livewire::withQueryParams(['users' => [$member->id]])->test('pages::dashboard.admin.membership.paket');
+            $form = Livewire::withQueryParams(['users' => [$member->id]])->test('pages::dashboard.admin.membership.paket')->set('is_renewal', '0');
         }
 
         $image = imagecreatetruecolor(400, 160);

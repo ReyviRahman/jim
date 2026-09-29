@@ -19,9 +19,11 @@ class Membership extends Model
 
     protected $attributes = [
         'admin_fee' => 0,
+        'is_renewal' => false,
     ];
 
     protected $fillable = [
+        'is_renewal',
         'operational_request_id',
         'pt_installment_expired_at',
         'pt_installment_expired_by',
@@ -54,11 +56,14 @@ class Membership extends Model
         'notes',
         'transaction_type',
         'package_name',
+        'gym_package_name_snapshot',
+        'pt_package_name_snapshot',
         'sesi_ditambahkan',
         'sesi_hangus',
     ];
 
     protected $casts = [
+        'is_renewal' => 'boolean',
         'pt_installment_expired_at' => 'datetime',
         'start_date' => 'date',
         'pt_end_date' => 'date',

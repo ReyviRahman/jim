@@ -10,6 +10,9 @@ use App\Models\GymPackage;
 
 new #[Layout('layouts::admin')] class extends Component
 {
+    use \App\Livewire\Concerns\ValidatesPackageDuration;
+    use \App\Livewire\Concerns\ReportsPackageValidation;
+
     #[Validate('required|string|max:255')]
     public $name = '';
 
@@ -98,19 +101,20 @@ new #[Layout('layouts::admin')] class extends Component
     {
         // Validasi kustom untuk PT
         if ($this->type === 'pt' && empty($this->pt_sessions)) {
-            $this->addError('pt_sessions', 'Jumlah sesi wajib diisi untuk paket Personal Trainer.');
-            return;
+            throw \Illuminate\Validation\ValidationException::withMessages(['pt_sessions' => 'Jumlah sesi wajib diisi untuk paket Personal Trainer.']);
         }
 
         if ((float) $this->discount > (float) $this->price) {
-            $this->addError('discount', 'Diskon tidak boleh lebih besar dari harga paket.');
-            return;
+            throw \Illuminate\Validation\ValidationException::withMessages(['discount' => 'Diskon tidak boleh lebih besar dari harga paket.']);
         }
 
         $this->validate();
 
+        $duration = $this->validatedDuration();
+
         GymPackage::create([
             'name' => $this->name,
+            ...$duration,
             'type' => $this->type,                         
             'pt_sessions' => $this->type === 'pt' ? $this->pt_sessions : null, 
             'category' => $this->category, 
@@ -137,14 +141,31 @@ new #[Layout('layouts::admin')] class extends Component
         </div>
     @endif
 
-    <form wire:submit="save">
+    <form wire:submit="save" novalidate x-data="membershipFormValidation" x-on:membership-form-invalid.window="showErrors($event.detail.fields)">
+        <x-membership-validation-summary :members="collect()" />
+        <p class="my-4 text-sm text-body">Isian bertanda * wajib diisi. Durasi cukup diisi salah satu atau digabungkan.</p>
         <h5 class="text-xl font-semibold text-heading mb-6">Buat Paket Membership / PT</h5>
         
+
+        <fieldset class="mb-6">
+            <legend class="mb-2 text-sm font-semibold text-heading">Durasi Paket <span class="text-red-600">*</span></legend>
+            <p class="mb-3 text-sm text-gray-500">Isi minimal satu durasi. 1 bulan = 30 hari, 1 minggu = 7 hari. Semua nilai dijumlahkan.</p>
+            <div class="grid gap-4 md:grid-cols-3">
+                @foreach(['duration_months' => 'Bulan', 'duration_weeks' => 'Minggu', 'duration_days' => 'Hari'] as $field => $label)
+                    <div wire:key="duration-{{ $field }}">
+                        <label for="{{ $field }}" class="mb-2 block text-sm font-medium text-heading">{{ $label }}</label>
+                        <input type="number" id="{{ $field }}" wire:model="{{ $field }}" min="0" max="65535" step="1" placeholder="0" class="bg-white border border-default-medium text-heading text-sm rounded-md block w-full px-3 py-2.5">
+                        @error($field) <p role="alert" class="mt-1 text-xs text-red-500">{{ $message }}</p> @enderror
+                    </div>
+                @endforeach
+            </div>
+        </fieldset>
+
         <div class="grid gap-6 mb-6 md:grid-cols-2">
             
             {{-- 1. Nama Paket --}}
             <div class="md:col-span-2">
-                <label for="name" class="block mb-2.5 text-sm font-medium text-heading">Nama Paket</label>
+                <label for="name" class="block mb-2.5 text-sm font-medium text-heading">Nama Paket <span class="text-red-600">*</span></label>
                 <input 
                     type="text" 
                     id="name" 
@@ -153,12 +174,12 @@ new #[Layout('layouts::admin')] class extends Component
                     placeholder="Contoh: Daily Pass" 
                     required 
                 />
-                @error('name') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                @error('name') <span role="alert" class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
             </div>
 
             {{-- 2. TIPE PAKET (BARU) --}}
             <div>
-                <label for="type" class="block mb-2.5 text-sm font-medium text-heading">Tipe Layanan</label>
+                <label for="type" class="block mb-2.5 text-sm font-medium text-heading">Tipe Layanan <span class="text-red-600">*</span></label>
                 <select 
                     id="type" 
                     wire:model.live="type"
@@ -168,15 +189,15 @@ new #[Layout('layouts::admin')] class extends Component
                     <option value="pt">👨‍🏫 Personal Trainer (PT)</option>
                     <option value="visit">🎟️ Visit / Harian</option> {{-- TAMBAHAN VISIT --}}
                 </select>
-                @error('type') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                @error('type') <span role="alert" class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
             </div>
 
             {{-- 3. JUMLAH SESI PT --}}
             @if($type === 'pt')
                 <div class="animate-pulse-once"> 
-                    <label for="pt_sessions" class="block mb-2.5 text-sm font-medium text-heading">Jumlah Sesi</label>
+                    <label for="pt_sessions" class="block mb-2.5 text-sm font-medium text-heading">Jumlah Sesi <span class="text-red-600">*</span></label>
                     <input type="number" id="pt_sessions" wire:model="pt_sessions" min="1" class="bg-white border border-blue-400 text-blue-800 text-sm rounded-md focus:ring-blue-500 focus:border-blue-500 block w-full px-3 py-2.5 shadow-xs placeholder:text-blue-300" placeholder="Contoh: 12" required />
-                    @error('pt_sessions') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                    @error('pt_sessions') <span role="alert" class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                 </div>
             @else
                 <div class="hidden md:block"></div> 
@@ -186,7 +207,7 @@ new #[Layout('layouts::admin')] class extends Component
 
             {{-- 4. Kategori Paket --}}
             <div>
-                <label for="category" class="block mb-2.5 text-sm font-medium text-heading">Kategori / Kapasitas Orang</label>
+                <label for="category" class="block mb-2.5 text-sm font-medium text-heading">Kategori / Kapasitas Orang <span class="text-red-600">*</span></label>
                 <select 
                     id="category" 
                     wire:model.live="category"
@@ -200,12 +221,12 @@ new #[Layout('layouts::admin')] class extends Component
                 @if($type === 'visit')
                     <p class="mt-1 text-xs text-gray-500">Terkunci ke Single karena ini adalah paket Visit.</p>
                 @endif
-                @error('category') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                @error('category') <span role="alert" class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
             </div>
 
             {{-- 5. Maksimal Member --}}
             <div>
-                <label for="max_members" class="block mb-2.5 text-sm font-medium text-heading">Maksimal Member</label>
+                <label for="max_members" class="block mb-2.5 text-sm font-medium text-heading">Maksimal Member <span class="text-red-600">*</span></label>
                 <input 
                     type="number" 
                     id="max_members" 
@@ -220,7 +241,7 @@ new #[Layout('layouts::admin')] class extends Component
                 @else
                     <p class="mt-1 text-xs text-brand-strong">Silakan tentukan kapasitas maksimal grup.</p>
                 @endif
-                @error('max_members') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                @error('max_members') <span role="alert" class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
             </div>
 
             {{-- 6. Harga --}}
@@ -236,7 +257,7 @@ new #[Layout('layouts::admin')] class extends Component
                     class="bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs placeholder:text-body" 
                     placeholder="Kosongkan jika tidak ada" 
                 />
-                @error('normal_price') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                @error('normal_price') <span role="alert" class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
             </div>
 
             {{-- 7. Harga Net --}}
@@ -249,7 +270,7 @@ new #[Layout('layouts::admin')] class extends Component
                     class="bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs placeholder:text-body" 
                     placeholder="Kosongkan jika tidak ada" 
                 />
-                @error('net_price') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                @error('net_price') <span role="alert" class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
             </div>
 
             {{-- 8. Harga Tidak di Sarankan --}}
@@ -262,12 +283,12 @@ new #[Layout('layouts::admin')] class extends Component
                     class="bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs placeholder:text-body" 
                     placeholder="Kosongkan jika tidak ada" 
                 />
-                @error('unrecommended_price') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                @error('unrecommended_price') <span role="alert" class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
             </div>
 
             {{-- 9. Harga Dipakai (Dropdown) --}}
             <div>
-                <label for="price" class="block mb-2.5 text-sm font-medium text-heading">Harga Dipakai</label>
+                <label for="price" class="block mb-2.5 text-sm font-medium text-heading">Harga Dipakai <span class="text-red-600">*</span></label>
                 <select 
                     id="price" 
                     wire:model.live="price"
@@ -288,7 +309,7 @@ new #[Layout('layouts::admin')] class extends Component
                 @if($normal_price <= 0 && $net_price <= 0 && $unrecommended_price <= 0)
                     <p class="mt-1 text-xs text-gray-500">Silakan isi salah satu harga di atas terlebih dahulu.</p>
                 @endif
-                @error('price') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                @error('price') <span role="alert" class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
             </div>
 
             {{-- 10. Diskon Nominal --}}
@@ -307,7 +328,7 @@ new #[Layout('layouts::admin')] class extends Component
                     />
                 </div>
                 <p class="mt-1 text-xs text-gray-500">Kosongkan jika tidak ada diskon.</p>
-                @error('discount') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                @error('discount') <span role="alert" class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
             </div>
             
             {{-- 8. Preview Harga Akhir --}}
@@ -332,6 +353,9 @@ new #[Layout('layouts::admin')] class extends Component
         </div>
 
         {{-- Tombol Submit & Batal --}}
+        @if($errors->any())
+            <p role="alert" class="mb-4 text-sm font-semibold text-red-600">Paket belum tersimpan. <button type="button" class="underline" x-on:click="focusField('')">Lihat isian yang perlu diperbaiki.</button></p>
+        @endif
         <div class="flex items-center gap-3">
             <button 
                 type="submit" 

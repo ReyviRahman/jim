@@ -23,6 +23,8 @@ use Livewire\WithFileUploads;
 new #[Layout('layouts::admin')] class extends Component
 {
     use HandlesRequiredMemberProfilePhotos;
+    use \App\Livewire\Concerns\ReportsMembershipValidation;
+    use \App\Livewire\Concerns\CalculatesMembershipDates;
     use WithFileUploads;
 
     #[\Livewire\Attributes\Locked]
@@ -33,7 +35,8 @@ new #[Layout('layouts::admin')] class extends Component
     public $mainUser; 
 
     // --- FORM INPUTS ---
-    public $registration_type = ''; 
+    public $registration_type = '';
+    public $is_renewal = null;
     
     // Gym Input
     public $gym_package_id = '';
@@ -145,10 +148,6 @@ new #[Layout('layouts::admin')] class extends Component
         $this->start_date = now()->format('Y-m-d');
         $this->payment_date = now()->format('Y-m-d');
         
-        // Gunakan hitungan 30 hari kaku (tambah 29 hari karena hari ini sudah dihitung 1 hari)
-        $this->membership_end_date = now()->addMonthsNoOverflow(1)->format('Y-m-d');
-        $this->pt_end_date = now()->addMonthsNoOverflow(1)->format('Y-m-d');
-        
         $this->calculateTotal();
     }
 
@@ -217,48 +216,6 @@ new #[Layout('layouts::admin')] class extends Component
         return User::where('role', 'pt')->where('is_active', true)->get(); 
     }
 
-    // HITUNG DURASI PROGRAM OTOMATIS (FORMAT BULAN & HARI)
-    #[Computed]
-    public function programDuration()
-    {
-        if (!$this->start_date) return '-';
-
-        $start = Carbon::parse($this->start_date)->startOfDay();
-        $end = null;
-
-        if (in_array($this->registration_type, ['membership', 'bundle_pt_membership', 'visit']) && $this->membership_end_date) {
-        $end = Carbon::parse($this->membership_end_date)->startOfDay();
-        } elseif ($this->registration_type === 'pt' && $this->pt_end_date) {
-        $end = Carbon::parse($this->pt_end_date)->startOfDay();
-        }
-
-        if ($end) {
-        if ($this->registration_type === 'visit') {
-            return '1 Hari (Visit Harian)';
-        }
-
-        // MENGGUNAKAN CARBON DIFF (Sesuai Kalender Asli)
-        $diff = $start->diff($end);
-        
-        // Konversi tahun ke bulan (jika langganan lebih dari 1 tahun)
-        $months = ($diff->y * 12) + $diff->m;
-        $days = $diff->d;
-
-        // Gabungkan menjadi teks
-        $parts = [];
-        if ($months > 0) $parts[] = $months . ' Bulan';
-        if ($days > 0) $parts[] = $days . ' Hari';
-
-        if (empty($parts)) {
-            return 'Berakhir hari ini';
-        }
-
-        return implode(' ', $parts);
-        }
-
-        return '-';
-    }
-
     public function updated($property)
     {
         if ($property === 'admin_fee' && blank($this->admin_fee)) {
@@ -271,7 +228,6 @@ new #[Layout('layouts::admin')] class extends Component
             $this->gym_package_id = '';
             
             if ($this->registration_type === 'visit') {
-                $this->membership_end_date = $this->start_date;
                 $this->payment_type = 'paid'; // Visit wajib lunas
             }
         }
@@ -280,14 +236,8 @@ new #[Layout('layouts::admin')] class extends Component
             $this->calculateTotal();
         }
 
-        if ($property === 'start_date' && $this->start_date) {
-            if ($this->registration_type === 'visit') {
-                $this->membership_end_date = $this->start_date;
-            } else {
-                // GANTI addDays(29) menjadi addMonthsNoOverflow(1)
-                $this->membership_end_date = Carbon::parse($this->start_date)->addMonthsNoOverflow(1)->format('Y-m-d');
-            }
- $this->pt_end_date = Carbon::parse($this->start_date)->addMonthsNoOverflow(1)->format('Y-m-d');
+        if (in_array($property, ['registration_type', 'gym_package_id', 'pt_package_id', 'start_date', 'is_active', 'payment_type'], true)) {
+            $this->syncMembershipDates();
         }
 
         if ($property === 'payment_type') {
@@ -371,7 +321,9 @@ new #[Layout('layouts::admin')] class extends Component
 
     public function getFormattedDate($date)
     {
-        if (!$date) return '';
+        if (\Illuminate\Support\Facades\Validator::make(['date' => $date], ['date' => 'required|date_format:Y-m-d'])->fails()) {
+            return '';
+        }
         Carbon::setLocale('id');
         return Carbon::parse($date)->translatedFormat('l, d F Y');
     }
@@ -381,9 +333,11 @@ new #[Layout('layouts::admin')] class extends Component
         StoreCompressedPaymentProof $storeCompressedPaymentProof,
     )
     {
+        $this->validateMembershipDates();
+
         if ($this->payment_method === 'operasional') {
             $input = collect($this->all())->only([
-                'registration_type', 'is_active', 'start_date', 'membership_end_date', 'pt_end_date',
+                'registration_type', 'is_active', 'is_renewal', 'start_date', 'membership_end_date', 'pt_end_date',
                 'gym_package_id', 'pt_package_id', 'pt_id', 'admin_id', 'manual_discount', 'admin_fee',
                 'payment_date', 'transaction_type', 'package_name', 'notes', 'pt_trial_interest',
                 'payment_type', 'is_split_payment',
@@ -391,37 +345,26 @@ new #[Layout('layouts::admin')] class extends Component
             $input['user_ids'] = $this->selectedUsers->modelKeys();
             $input['reason'] = $this->operational_reason;
             $input['submission_token'] = $this->operational_submission_token;
-            try {
-                $approval = app(\App\Actions\MembershipOperationalApproval::class)->submit(auth()->user(), $input, $this->waivers, $this->memberPhotos);
-            } catch (\Illuminate\Validation\ValidationException $exception) {
-                $this->dispatch('membership-waiver-invalid', field: array_key_first($exception->errors()));
-                throw $exception;
-            }
+            $approval = app(\App\Actions\MembershipOperationalApproval::class)->submit(auth()->user(), $input, $this->waivers, $this->memberPhotos);
             session()->flash('success', $approval->status === 'approved' ? 'Membership Operasional disetujui dan dicatat.' : 'Pengajuan menunggu persetujuan admin. Membership belum dapat digunakan.');
             return $this->redirectRoute('admin.riwayat.index', navigate: true);
         }
         $this->validateRequiredMemberProfilePhotos();
-        try {
-            $validatedWaivers = app(StoreMembershipWaivers::class)->validate($this->selectedUsers, $this->waivers, required: true);
-        } catch (\Illuminate\Validation\ValidationException $exception) {
-            $this->dispatch('membership-waiver-invalid', field: array_key_first($exception->errors()));
-            throw $exception;
-        }
+        $validatedWaivers = app(StoreMembershipWaivers::class)->validate($this->selectedUsers, $this->waivers, required: true);
 
         $this->admin_fee = blank($this->admin_fee) ? 0 : $this->admin_fee;
 
         if (!$this->registration_type) {
-            $this->addError('registration_type', 'Pilih jenis pendaftaran terlebih dahulu.');
-            return;
+            throw \Illuminate\Validation\ValidationException::withMessages(['registration_type' => 'Pilih jenis pendaftaran terlebih dahulu.']);
         }
 
         if ($this->registration_type === 'visit' && $this->selectedUsers->count() > 1) {
-            $this->addError('registration_type', 'Paket Visit / Harian hanya dapat didaftarkan untuk 1 orang per transaksi.');
-            return;
+            throw \Illuminate\Validation\ValidationException::withMessages(['registration_type' => 'Paket Visit / Harian hanya dapat didaftarkan untuk 1 orang per transaksi.']);
         }
 
         $rules = [
             'registration_type' => 'required|in:membership,pt,bundle_pt_membership,visit',
+            'is_renewal' => ['required', 'boolean'],
             'start_date' => $this->is_active ? 'required|date' : 'nullable|date',
             'payment_type' => 'required|in:paid,partial',
             'payment_date' => 'required|date',
@@ -438,6 +381,8 @@ new #[Layout('layouts::admin')] class extends Component
         ];
 
         $messages = [
+            'is_renewal.required' => 'Pilih Renewal atau Tidak Renewal.',
+            'is_renewal.boolean' => 'Pilih Renewal atau Tidak Renewal.',
             'pt_trial_interest.required' => 'Pilih minat program personal trainer atau trial.',
             'pt_trial_interest.in' => 'Pilih Iya, Tidak, atau Mungkin nanti.',
             'amount_paid.max' => 'Nominal cicilan tidak boleh lebih atau sama dengan total tagihan.',
@@ -477,7 +422,7 @@ new #[Layout('layouts::admin')] class extends Component
             $rules['pt_end_date'] = $this->is_active ? 'required|date|after_or_equal:start_date' : 'nullable|date';
         }
 
-        $this->validate($rules, $messages);
+        $this->validate($rules, array_replace($messages, \App\MembershipFormValidation::messages()));
 
         // Validasi Split Payment
         if ($this->is_split_payment) {
@@ -485,13 +430,11 @@ new #[Layout('layouts::admin')] class extends Component
             $expectedTotal = $this->payment_type === 'paid' ? (int) $this->price_paid : (int) $this->amount_paid;
 
             if ($splitTotal <= 0) {
-                $this->addError('split_payment', 'Minimal salah satu metode split payment harus diisi.');
-                return;
+                throw \Illuminate\Validation\ValidationException::withMessages(['split_payment' => 'Minimal salah satu metode split payment harus diisi.']);
             }
 
             if ($splitTotal != $expectedTotal) {
-                $this->addError('split_payment', 'Total split payment (Rp ' . number_format($splitTotal, 0, ',', '.') . ') harus sama dengan nominal yang dibayar (Rp ' . number_format($expectedTotal, 0, ',', '.') . ').');
-                return;
+                throw \Illuminate\Validation\ValidationException::withMessages(['split_payment' => 'Total split payment (Rp ' . number_format($splitTotal, 0, ',', '.') . ') harus sama dengan nominal yang dibayar (Rp ' . number_format($expectedTotal, 0, ',', '.') . ').']);
             }
         }
 
@@ -525,8 +468,11 @@ new #[Layout('layouts::admin')] class extends Component
 
             // 1. BUAT KONTRAK MEMBERSHIP
             $membership = MembershipModel::create([
+                'gym_package_name_snapshot' => in_array($this->registration_type, ['membership', 'visit', 'bundle_pt_membership'], true) ? GymPackage::find($this->gym_package_id)?->name : null,
+                'pt_package_name_snapshot' => in_array($this->registration_type, ['pt', 'bundle_pt_membership'], true) ? GymPackage::find($this->pt_package_id)?->name : null,
                 'user_id' => $this->mainUser->id, 
                 'type' => $this->registration_type,
+                'is_renewal' => $this->is_renewal,
                 
                 'gym_package_id' => in_array($this->registration_type, ['membership', 'bundle_pt_membership', 'visit']) ? $this->gym_package_id : null,
                 'pt_package_id' => in_array($this->registration_type, ['pt', 'bundle_pt_membership']) ? $this->pt_package_id : null,
@@ -648,6 +594,9 @@ new #[Layout('layouts::admin')] class extends Component
             Storage::disk('local')->delete($storedWaiverPaths);
             
             // Tampilkan pesan error ke layar agar kasir tahu
+            if ($e instanceof \Illuminate\Validation\ValidationException) {
+                throw $e;
+            }
             session()->flash('error', 'Terjadi kesalahan sistem saat memproses transaksi: ' . $e->getMessage());
             return;
         }
@@ -656,12 +605,6 @@ new #[Layout('layouts::admin')] class extends Component
 ?>
 
 <div>
-    @if($errors->any())
-        <div role="alert" class="mb-4 rounded-md bg-red-50 p-4 text-sm text-red-700">
-            @foreach($errors->all() as $error)<p>{{ $error }}</p>@endforeach
-        </div>
-    @endif
-    @error('shift')<p role="alert" class="mb-4 text-sm text-red-700">{{ $message }}</p>@enderror
     {{-- Container Fixed di Pojok Kanan Atas --}}
     <div class="fixed top-4 right-4 z-50 flex flex-col gap-3 w-full max-w-sm">
         
@@ -728,35 +671,6 @@ new #[Layout('layouts::admin')] class extends Component
             </div>
         @endif
 
-        {{-- Validation Errors Toast --}}
-        @if ($errors->any())
-            <div x-data="{ show: true }" x-init="setTimeout(() => show = false, 8000)" x-show="show" 
-                x-transition:enter="transition ease-out duration-300" 
-                x-transition:enter-start="opacity-0 translate-y-[-1rem]" 
-                x-transition:enter-end="opacity-100 translate-y-0" 
-                x-transition:leave="transition ease-in duration-200" 
-                x-transition:leave-start="opacity-100 translate-y-0" 
-                x-transition:leave-end="opacity-0 translate-y-[-1rem]"
-                class="relative p-4 text-sm text-red-800 rounded-lg bg-red-50 border border-red-200 shadow-lg">
-                
-                <div class="flex items-start gap-2">
-                    <svg class="flex-shrink-0 w-5 h-5 mt-0.5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                    <div class="flex-1 pr-6">
-                        <p class="font-semibold mb-1">Terdapat kesalahan input:</p>
-                        <ul class="list-disc list-inside space-y-0.5 text-xs">
-                            @foreach ($errors->all() as $error)
-                                <li>{{ $error }}</li>
-                            @endforeach
-                        </ul>
-                    </div>
-                </div>
-                
-                <button type="button" @click="show = false" class="absolute top-2 right-2 text-red-500 hover:text-red-900 rounded-lg focus:ring-2 focus:ring-red-400 p-1 inline-flex items-center justify-center h-6 w-6">
-                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                </button>
-            </div>
-        @endif
-
     </div>
     <div class="mb-6 flex items-end gap-2">
         <a href="{{ route('admin.akun.member.index') }}" wire:navigate class="p-2 bg-white border border-default rounded-md hover:bg-gray-50 text-gray-600 transition-colors">
@@ -768,7 +682,9 @@ new #[Layout('layouts::admin')] class extends Component
         </div>
     </div>
 
-    <form wire:submit="save" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <form wire:submit="save" novalidate x-data="membershipFormValidation" x-on:membership-form-invalid.window="showErrors($event.detail.fields)" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <x-membership-validation-summary :members="$selectedUsers" />
+        <p class="lg:col-span-3 text-sm text-body">Isian bertanda <span class="font-bold text-red-600">*</span> wajib diisi. Jika belum lengkap, periksa pesan pada formulir.</p>
         
         {{-- KOLOM KIRI: Form Input --}}
         <div class="lg:col-span-2 space-y-6">
@@ -781,7 +697,7 @@ new #[Layout('layouts::admin')] class extends Component
                     
                     {{-- 1. PILIH JENIS PENDAFTARAN UTAMA --}}
                     <div class="md:col-span-2 pb-4 border-b border-default-medium">
-                        <label for="registration_type" class="block mb-2.5 text-sm font-semibold text-brand-strong">Pilih Jenis Pendaftaran</label>
+                        <label for="registration_type" class="block mb-2.5 text-sm font-semibold text-brand-strong">Pilih Jenis Pendaftaran <span class="text-red-600">*</span></label>
                         <select id="registration_type" wire:model.live="registration_type" class="bg-white border border-brand-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-3 shadow-sm font-medium">
                             <option value="">-- Silakan Pilih Jenis Program --</option>
                             @if($selectedUsers->count() > 1)
@@ -792,13 +708,50 @@ new #[Layout('layouts::admin')] class extends Component
                             <option value="membership">🏋️ Membership Gym Only</option>
                             <option value="pt">👨‍🏫 Personal Trainer Only</option>
                         </select>
-                        @error('registration_type') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                        <fieldset class="mt-3">
+                            <legend class="mb-2 text-sm font-medium text-heading">Status Renewal <span class="text-red-500">*</span></legend>
+                            <div class="flex gap-6">
+                                <label class="flex items-center gap-2 text-sm text-heading">
+                                    <input type="radio" name="is_renewal" wire:model="is_renewal" value="1" required class="text-brand focus:ring-brand w-4 h-4">
+                                    Renewal
+                                </label>
+                                <label class="flex items-center gap-2 text-sm text-heading">
+                                    <input type="radio" name="is_renewal" wire:model="is_renewal" value="0" required class="text-brand focus:ring-brand w-4 h-4">
+                                    Tidak Renewal
+                                </label>
+                            </div>
+                        </fieldset>
+                        @error('is_renewal') <p role="alert" class="mt-1 text-xs text-red-500">{{ $message }}</p> @enderror
+
+                        @error('registration_type') <span role="alert" class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                     </div>
 
                     @if($registration_type)
+                        {{-- 3. FORM MEMBERSHIP GYM (TERMASUK VISIT) --}}
+                        @if(in_array($registration_type, ['membership', 'bundle_pt_membership', 'visit']))
+                        <div class="md:col-span-2 mt-2 p-4 bg-gray-50 rounded-md border border-gray-200">
+                            <h6 class="text-sm font-semibold text-heading mb-4 border-b border-gray-200 pb-2">Detail {{ $registration_type === 'visit' ? 'Kunjungan Harian' : 'Membership Gym' }}</h6>
+                            <div class="grid gap-6 md:grid-cols-2">
+                                <div class="md:col-span-2">
+                                    <label for="gym_package_id" class="block mb-2.5 text-sm font-medium text-heading">Pilih Paket {{ $registration_type === 'visit' ? 'Visit' : 'Gym' }} <span class="text-red-600">*</span></label>
+                                    <select id="gym_package_id" wire:model.live="gym_package_id" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs">
+                                        <option value="">-- Pilih Paket --</option>
+                                        @foreach($this->gymPackages as $package)
+                                            <option value="{{ $package->id }}">
+                                                {{ $package->name }} (Rp {{ number_format($package->price, 0, ',', '.') }})
+                                                @if($package->discount > 0) - Diskon Rp {{ number_format($package->discount, 0, ',', '.') }} @endif
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                    @error('gym_package_id') <span role="alert" class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                                </div>
+                            </div>
+                        </div>
+                        @endif
+
                         {{-- 2. STATUS AKTIF / TIDAK AKTIF --}}
                         <div class="md:col-span-2 pb-4 border-b border-default-medium">
-                            <label class="block mb-2.5 text-sm font-semibold text-brand-strong">Status Keanggotaan</label>
+                            <label class="block mb-2.5 text-sm font-semibold text-brand-strong">Status Keanggotaan <span class="text-red-600">*</span></label>
                             <div class="flex gap-6">
                                 <label class="flex items-center gap-2 cursor-pointer">
                                     <input type="radio" wire:model.live="is_active" value="1" {{ $is_active ? 'checked' : '' }} class="text-brand focus:ring-brand w-4 h-4">
@@ -819,28 +772,28 @@ new #[Layout('layouts::admin')] class extends Component
                                 
                                 {{-- Tanggal Mulai --}}
                                 <div {{ !$this->is_active ? 'style=display:none' : '' }}>
-                                    <label for="start_date" class="block mb-2.5 text-sm font-medium text-heading">Tanggal Mulai</label>
+                                    <label for="start_date" class="block mb-2.5 text-sm font-medium text-heading">Tanggal Mulai @if($is_active) <span class="text-red-600">*</span> @endif</label>
                                     <input type="date" id="start_date" wire:model.live="start_date" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs">
                                     <p class="mt-1.5 text-xs text-brand-strong font-medium">{{ $this->getFormattedDate($start_date) }}</p>
-                                    @error('start_date') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                                    @error('start_date') <span role="alert" class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                                 </div>
                                 
                                 {{-- Tanggal Berakhir (Menyesuaikan dengan tipe pendaftaran) --}}
-                                @if(in_array($registration_type, ['membership', 'visit']))
+                                @if(in_array($registration_type, ['membership', 'visit', 'bundle_pt_membership']))
                                 <div class="{{ !$this->is_active ? 'hidden' : '' }}">
                                     <label for="membership_end_date" class="block mb-2.5 text-sm font-medium text-heading">Tanggal Berakhir Gym</label>
                                     <input type="date" id="membership_end_date" wire:model.live="membership_end_date" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs">
                                     <p class="mt-1.5 text-xs text-brand-strong font-medium">{{ $this->getFormattedDate($membership_end_date) }}</p>
-                                    @error('membership_end_date') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                                    @error('membership_end_date') <span role="alert" class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                                 </div>
                                 @endif
 
-                                @if(in_array($registration_type, ['pt']))
+                                @if(in_array($registration_type, ['pt', 'bundle_pt_membership']))
                                 <div class="{{ !$this->is_active ? 'hidden' : '' }}">
                                     <label for="pt_end_date" class="block mb-2.5 text-sm font-medium text-heading">Berakhir Sesi PT</label>
                                     <input type="date" id="pt_end_date" wire:model.live="pt_end_date" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs">
                                     <p class="mt-1.5 text-xs text-brand-strong font-medium">{{ $this->getFormattedDate($pt_end_date) }}</p>
-                                    @error('pt_end_date') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                                    @error('pt_end_date') <span role="alert" class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                                 </div>
                                 @endif
 
@@ -855,35 +808,13 @@ new #[Layout('layouts::admin')] class extends Component
                             </div>
                         </div>
 
-                        {{-- 3. FORM MEMBERSHIP GYM (TERMASUK VISIT) --}}
-                        @if(in_array($registration_type, ['membership', 'bundle_pt_membership', 'visit']))
-                        <div class="md:col-span-2 mt-2 p-4 bg-gray-50 rounded-md border border-gray-200">
-                            <h6 class="text-sm font-semibold text-heading mb-4 border-b border-gray-200 pb-2">Detail {{ $registration_type === 'visit' ? 'Kunjungan Harian' : 'Membership Gym' }}</h6>
-                            <div class="grid gap-6 md:grid-cols-2">
-                                <div class="md:col-span-2">
-                                    <label for="gym_package_id" class="block mb-2.5 text-sm font-medium text-heading">Pilih Paket {{ $registration_type === 'visit' ? 'Visit' : 'Gym' }}</label>
-                                    <select id="gym_package_id" wire:model.live="gym_package_id" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs">
-                                        <option value="">-- Pilih Paket --</option>
-                                        @foreach($this->gymPackages as $package)
-                                            <option value="{{ $package->id }}">
-                                                {{ $package->name }} (Rp {{ number_format($package->price, 0, ',', '.') }}) 
-                                                @if($package->discount > 0) - Diskon Rp {{ number_format($package->discount, 0, ',', '.') }} @endif
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                    @error('gym_package_id') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
-                                </div>
-                            </div>
-                        </div>
-                        @endif
-
                         {{-- 4. FORM PERSONAL TRAINER --}}
                         @if(in_array($registration_type, ['pt', 'bundle_pt_membership']))
                         <div class="md:col-span-2 mt-2 p-4 bg-blue-50 rounded-md border border-blue-100">
                             <h6 class="text-sm font-semibold text-blue-800 mb-4 border-b border-blue-200 pb-2">Detail Personal Trainer (PT)</h6>
                             <div class="grid gap-6 md:grid-cols-2">
                                 <div class="md:col-span-2">
-                                    <label for="pt_package_id" class="block mb-2.5 text-sm font-medium text-heading">Pilih Paket Layanan PT</label>
+                                    <label for="pt_package_id" class="block mb-2.5 text-sm font-medium text-heading">Pilih Paket Layanan PT <span class="text-red-600">*</span></label>
                                     <select id="pt_package_id" wire:model.live="pt_package_id" class="bg-white border border-blue-300 text-blue-900 text-sm rounded-md focus:ring-blue-500 focus:border-blue-500 block w-full px-3 py-2.5 shadow-xs">
                                         <option value="">-- Pilih Paket PT --</option>
                                         @foreach($this->ptPackages as $package)
@@ -892,7 +823,7 @@ new #[Layout('layouts::admin')] class extends Component
                                             </option>
                                         @endforeach
                                     </select>
-                                    @error('pt_package_id') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                                    @error('pt_package_id') <span role="alert" class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                                 </div>
 
                                 <div class="md:col-span-2">
@@ -903,7 +834,7 @@ new #[Layout('layouts::admin')] class extends Component
                                             <option value="{{ $trainer->id }}">{{ $trainer->name }}</option>
                                         @endforeach
                                     </select>
-                                    @error('pt_id') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                                    @error('pt_id') <span role="alert" class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                                 </div>
                             </div>
                         </div>
@@ -916,36 +847,36 @@ new #[Layout('layouts::admin')] class extends Component
                                 
                                 {{-- Dropdown Admin / Kasir --}}
                                 <div class="col-span-2">
-                                    <label for="admin_id" class="block mb-2.5 text-sm font-medium text-heading">Shift</label>
+                                    <label for="admin_id" class="block mb-2.5 text-sm font-medium text-heading">Shift <span class="text-red-600">*</span></label>
                                     <select id="admin_id" wire:model="admin_id" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs">
                                         <option value="">-- Pilih Shift --</option>
                                         @foreach($this->adminUsers as $admin)
                                             <option value="{{ $admin->id }}">{{ $admin->name }} ({{ $admin->assignedShift?->name }})</option>
                                         @endforeach
                                     </select>
-                                    @error('admin_id') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                                    @error('admin_id') <span role="alert" class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                                 </div>
 
                                 <div>
-                                    <label for="follow_up_id" class="block mb-2.5 text-sm font-medium text-heading">Admin Follow Up</label>
+                                    <label for="follow_up_id" class="block mb-2.5 text-sm font-medium text-heading">Admin Follow Up <span class="text-red-600">*</span></label>
                                     <select id="follow_up_id" wire:model="follow_up_id" @disabled($payment_method === 'operasional') class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs disabled:bg-gray-100">
                                         <option value="">{{ $payment_method === 'operasional' ? 'Tidak berlaku untuk Operasional' : '-- Pilih Staff --' }}</option>
                                         @foreach($this->followUpUsers as $staff)
                                             <option value="{{ $staff->id }}">{{ $staff->name }}</option>
                                         @endforeach
                                     </select>
-                                    @error('follow_up_id') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                                    @error('follow_up_id') <span role="alert" class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                                 </div>
 
                                 <div>
-                                    <label for="follow_up_id_two" class="block mb-2.5 text-sm font-medium text-heading">Sales Follow Up</label>
+                                    <label for="follow_up_id_two" class="block mb-2.5 text-sm font-medium text-heading">Sales Follow Up <span class="text-red-600">*</span></label>
                                     <select id="follow_up_id_two" wire:model="follow_up_id_two" @disabled($payment_method === 'operasional') class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs disabled:bg-gray-100">
                                         <option value="">{{ $payment_method === 'operasional' ? 'Tidak berlaku untuk Operasional' : '-- Pilih Staff --' }}</option>
                                         @foreach($this->followUpUsers as $staff)
                                             <option value="{{ $staff->id }}">{{ $staff->name }}</option>
                                         @endforeach
                                     </select>
-                                    @error('follow_up_id_two') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                                    @error('follow_up_id_two') <span role="alert" class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                                 </div>
 
                             </div>
@@ -1065,7 +996,7 @@ new #[Layout('layouts::admin')] class extends Component
                             class="bg-white border border-default-medium text-heading text-lg font-bold rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2 shadow-xs text-red-600" 
                             placeholder="Diskon (Jika Ada)">
                     </div>
-                    @error('manual_discount') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                    @error('manual_discount') <span role="alert" class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                 </div>
                 @endif
 
@@ -1092,7 +1023,7 @@ new #[Layout('layouts::admin')] class extends Component
                             class="bg-white border border-default-medium text-heading text-lg font-bold rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2 shadow-xs text-brand-strong"
                             placeholder="Biaya Admin (Jika Ada)">
                     </div>
-                    @error('admin_fee') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                    @error('admin_fee') <span role="alert" class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                 </div>
                 @endif
 
@@ -1103,7 +1034,7 @@ new #[Layout('layouts::admin')] class extends Component
                     {{-- Pilihan Nyicil / Lunas --}}
                     @if($registration_type !== 'visit')
                     <div>
-                        <label class="block mb-2 text-sm font-medium text-heading">Tipe Pembayaran</label>
+                        <label class="block mb-2 text-sm font-medium text-heading">Tipe Pembayaran <span class="text-red-600">*</span></label>
                         <div class="flex gap-4">
                             <label class="flex items-center gap-2 cursor-pointer">
                                 <input type="radio" wire:model.live="payment_type" value="paid" class="text-brand focus:ring-brand w-4 h-4">
@@ -1119,7 +1050,7 @@ new #[Layout('layouts::admin')] class extends Component
 
                     {{-- Nominal Dibayar Sekarang --}}
                     <div>
-                        <label class="block mb-1 text-sm font-medium text-heading">{{ $payment_method === 'operasional' ? 'Ditanggung Operasional (Rp)' : 'Uang Diterima (Rp)' }}</label>
+                        <label class="block mb-1 text-sm font-medium text-heading">{{ $payment_method === 'operasional' ? 'Ditanggung Operasional (Rp)' : 'Uang Diterima (Rp)' }} @if($payment_type === 'partial') <span class="text-red-600">*</span> @endif</label>
                         
                         {{-- Menggunakan Alpine.js dengan entangle.live agar real-time --}}
                         <div x-data="{ 
@@ -1152,10 +1083,10 @@ new #[Layout('layouts::admin')] class extends Component
                                 @input="updateValue($event)"
                                 class="bg-white border border-default-medium text-heading text-lg font-bold rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2 shadow-xs {{ $payment_type === 'paid' ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : 'text-green-600' }}" 
                                 {{ $payment_type === 'paid' ? 'readonly' : '' }}
-                                placeholder="Contoh: 150.000" required>
+                                id="amount_paid" placeholder="Contoh: 150.000" @required($payment_type === 'partial')>
                         </div>
 
-                        @error('amount_paid') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                        @error('amount_paid') <span role="alert" class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                         
                         @if($payment_type === 'partial' && (int)$amount_paid > 0)
                             <div class="bg-orange-50 text-orange-700 text-xs px-3 py-2 rounded mt-2 font-medium border border-orange-200">
@@ -1169,7 +1100,7 @@ new #[Layout('layouts::admin')] class extends Component
                         <input type="checkbox" id="is_split_payment" wire:model.live="is_split_payment" @disabled($payment_method === 'operasional') class="w-4 h-4 text-brand focus:ring-brand border-gray-300 rounded">
                         <label for="is_split_payment" class="text-sm font-medium text-heading cursor-pointer">Split Payment (Pisah Metode Bayar)</label>
                     </div>
-                    @error('split_payment') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                    @error('split_payment') <span role="alert" class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
 
                     {{-- Split Payment Fields --}}
                     @if($is_split_payment)
@@ -1183,7 +1114,7 @@ new #[Layout('layouts::admin')] class extends Component
                                     formatValue(v) { if(!v){this.formatted='';return;} this.formatted = new Intl.NumberFormat('id-ID').format(v.toString().replace(/\D/g,'')); },
                                     update(e) { let raw = e.target.value.replace(/\D/g,''); this.val = raw; this.formatValue(raw); }
                                 }">
-                                    <input type="text" x-model="formatted" @input="update($event)" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2 shadow-xs" placeholder="0">
+                                    <input type="text" data-validation-field="split_cash" x-model="formatted" @input="update($event)" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2 shadow-xs" placeholder="0">
                                 </div>
                             </div>
                             <div>
@@ -1260,7 +1191,7 @@ new #[Layout('layouts::admin')] class extends Component
                     @else
                         {{-- Metode Bayar --}}
                         <div>
-                            <label class="block mb-1 text-sm font-medium text-heading">Metode Pembayaran</label>
+                            <label class="block mb-1 text-sm font-medium text-heading">Metode Pembayaran <span class="text-red-600">*</span></label>
                             <select wire:model.live="payment_method" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2 shadow-xs">
                                 <option value="operasional">Operasional</option>
                                 <option value="cash">💵 Cash / Tunai</option>
@@ -1268,35 +1199,35 @@ new #[Layout('layouts::admin')] class extends Component
                                 <option value="qris">📱 QRIS</option>
                                 <option value="debit">💳 Debit</option>
                             </select>
-                            @error('payment_method') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                            @error('payment_method') <span role="alert" class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                         </div>
                         @if(!in_array($payment_method, ['cash', 'operasional'], true))
                             <x-payment-proof-upload wire:key="package-payment-proof-{{ $payment_method }}" model="payment_proof" :proof="$payment_proof" />
                         @endif
                     @endif
                     <div>
-                        <label class="block mb-1 text-sm font-medium text-heading">{{ $payment_method === 'operasional' ? 'Tanggal Pencatatan' : 'Tanggal Pembayaran' }}</label>
+                        <label class="block mb-1 text-sm font-medium text-heading">{{ $payment_method === 'operasional' ? 'Tanggal Pencatatan' : 'Tanggal Pembayaran' }} <span class="text-red-600">*</span></label>
                         <input type="date" wire:model="payment_date" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2 shadow-xs">
                         <p class="mt-1.5 text-xs text-brand-strong font-medium">{{ $this->getFormattedDate($payment_date) }}</p>
-                        @error('payment_date') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                        @error('payment_date') <span role="alert" class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                     </div>
 
                     <div>
-                        <label class="block mb-1 text-sm font-medium text-heading">Paket Member</label>
+                        <label class="block mb-1 text-sm font-medium text-heading">Paket Member <span class="text-red-600">*</span></label>
                         <textarea wire:model="package_name" rows="2" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2 shadow-xs placeholder-gray-400" placeholder="Contoh: 1 BULAN, 6 + 2 BULAN, PT 20 SESI"></textarea>
-                        @error('package_name') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                        @error('package_name') <span role="alert" class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                     </div>
 
                     <div>
-                        <label class="block mb-1 text-sm font-medium text-heading">Status</label>
+                        <label class="block mb-1 text-sm font-medium text-heading">Status <span class="text-red-600">*</span></label>
                         <textarea wire:model="transaction_type" rows="2" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2 shadow-xs placeholder-gray-400" placeholder="Contoh: NEW MEMBER, NEW PT 20 SESI"></textarea>
-                        @error('transaction_type') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                        @error('transaction_type') <span role="alert" class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                     </div>
 
                     <div>
-                        <label class="block mb-1 text-sm font-medium text-heading">Catatan</label>
+                        <label class="block mb-1 text-sm font-medium text-heading">Catatan <span class="text-red-600">*</span></label>
                         <textarea wire:model="notes" rows="2" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2 shadow-xs placeholder-gray-400" placeholder="Contoh: NEW MEMBER, NEW PT 20 SESI"></textarea>
-                        @error('notes') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                        @error('notes') <span role="alert" class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                     </div>
 
                 </div>
@@ -1304,11 +1235,17 @@ new #[Layout('layouts::admin')] class extends Component
 
                 @if($payment_method === 'operasional')
                     <div class="rounded-md border border-amber-200 bg-amber-50 p-3">
-                        <label for="operational-reason" class="mb-2 block text-sm font-medium text-heading">Alasan Operasional</label>
+                        <label for="operational-reason" class="mb-2 block text-sm font-medium text-heading">Alasan Operasional <span class="text-red-600">*</span></label>
                         <textarea id="operational-reason" wire:model="operational_reason" maxlength="1000" rows="3" class="w-full rounded-md border border-default-medium p-2 text-sm"></textarea>
                         @error('reason')<p class="text-sm text-red-600">{{ $message }}</p>@enderror
                         <p class="mt-2 text-xs text-body">Operasional menanggung seluruh tagihan, tanpa cicilan, split payment, atau bonus penjualan. Tanggal paket tetap mengikuti formulir.</p>
                         @if(auth()->user()->role !== 'admin')<p class="mt-2 text-xs text-body">Membership baru dibuat setelah admin menyetujui.</p>@endif
+                    </div>
+                @endif
+                @if($errors->any())
+                    <div role="alert" class="mb-3 rounded-md border border-red-500 bg-red-50 p-3 text-sm text-red-800">
+                        <p class="font-semibold">Belum tersimpan. Ada isian yang perlu diperbaiki.</p>
+                        <button type="button" class="mt-1 font-semibold underline" x-on:click="focusField('')">Lihat daftar isian yang perlu diperbaiki</button>
                     </div>
                 @endif
                 <button

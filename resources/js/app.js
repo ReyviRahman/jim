@@ -1,5 +1,6 @@
 import './bootstrap';
 import './membership-signature';
+import './membership-validation';
 import flatpickr from "flatpickr";
 import Chart from 'chart.js/auto';
 import { initFlowbite } from 'flowbite';

@@ -49,7 +49,7 @@ class MembershipWaiverTest extends TestCase
             $errors['waivers.'.$member->id.'.signature'] = 'required';
         }
         $form->call('save')->assertHasErrors($errors)
-            ->assertDispatched('membership-waiver-invalid', field: 'waivers.'.$members[0]->id.'.accepted')
+            ->assertDispatched('membership-form-invalid', fn ($event, $params) => in_array('waivers.'.$members[0]->id.'.accepted', $params['fields'], true))
             ->assertSee('Persetujuan wajib dicentang.')
             ->assertSee('Tanda tangan wajib diisi.');
         $this->assertDatabaseCount('memberships', $renew ? 1 : 0);
@@ -63,7 +63,7 @@ class MembershipWaiverTest extends TestCase
         $last = $members->last();
         $form->set('waivers.'.$last->id.'.signature', null)->call('save')
             ->assertHasErrors(['waivers.'.$last->id.'.signature' => 'required'])
-            ->assertDispatched('membership-waiver-invalid', field: 'waivers.'.$last->id.'.signature');
+            ->assertDispatched('membership-form-invalid', fn ($event, $params) => in_array('waivers.'.$last->id.'.signature', $params['fields'], true));
         $form->set('waivers.'.$last->id.'.signature', $this->signature())
             ->set('waivers.'.$last->id.'.accepted', false)->call('save')
             ->assertHasErrors(['waivers.'.$last->id.'.accepted' => 'accepted']);
@@ -172,6 +172,7 @@ class MembershipWaiverTest extends TestCase
         $this->actingAs($admin);
         $members = User::factory()->count($count)->create(['role' => 'member', 'photo' => 'profile-photos/existing.webp']);
         $package = GymPackage::create([
+            'duration_months' => 1,
             'type' => 'gym', 'name' => 'Paket Waiver', 'category' => $count === 1 ? 'single' : ($count === 2 ? 'couple' : 'group'),
             'max_members' => $count, 'price' => 300000, 'discount' => 0, 'is_active' => true,
         ]);
@@ -190,7 +191,7 @@ class MembershipWaiverTest extends TestCase
             ]);
             $form = Livewire::test('pages::dashboard.admin.renew.create', ['id' => $old->id]);
         } else {
-            $form = Livewire::withQueryParams(['users' => $members->modelKeys()])->test('pages::dashboard.admin.membership.paket');
+            $form = Livewire::withQueryParams(['users' => $members->modelKeys()])->test('pages::dashboard.admin.membership.paket')->set('is_renewal', '0');
         }
         $form->set('registration_type', 'membership')->set('gym_package_id', $package->id)
             ->set('pt_trial_interest', 'no')

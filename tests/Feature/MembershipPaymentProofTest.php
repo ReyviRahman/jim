@@ -488,7 +488,7 @@ class MembershipPaymentProofTest extends TestCase
     private function packageForm(User $member, User $cashier, GymPackage $package): Testable
     {
         return Livewire::withQueryParams(['users' => [$member->id]])
-            ->test('pages::dashboard.admin.membership.paket')
+            ->test('pages::dashboard.admin.membership.paket')->set('is_renewal', '0')
             ->set('registration_type', 'membership')
             ->set('pt_trial_interest', 'no')
             ->set('waivers.'.$member->id, ['accepted' => true, 'signature' => $this->signature()])
@@ -596,6 +596,7 @@ class MembershipPaymentProofTest extends TestCase
     private function createGymPackage(): GymPackage
     {
         return GymPackage::create([
+            'duration_months' => 1,
             'type' => 'gym',
             'name' => 'Paket Gym '.Str::random(6),
             'category' => 'single',
