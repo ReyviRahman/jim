@@ -195,9 +195,7 @@ new #[Layout('layouts::admin')] class extends Component
     public function memberships()
     {
         $query = Membership::with(['user', 'members', 'admin', 'followUp', 'followUpTwo', 'personalTrainer', 'gymPackage', 'ptPackage'])
-            ->where('type', '!=', 'pt')
-            ->where('is_active', true)
-            ->where('status', 'active');
+            ->activeGym();
 
         // 1. Logika Pencarian (Mencari di tabel Users atau Members)
         if (! empty($this->search)) {

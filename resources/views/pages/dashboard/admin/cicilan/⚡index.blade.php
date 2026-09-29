@@ -74,15 +74,7 @@ new #[Layout('layouts::admin')] class extends Component
     {
         // Tambahkan 'members' di dalam array with()
         return Membership::with(['user', 'members', 'admin', 'followUp', 'gymPackage', 'ptPackage'])
-            ->whereIn('payment_status', ['partial', 'unpaid'])
-            ->where('type', $this->ptOnly ? '=' : '!=', 'pt')
-            ->when($this->ptOnly, function ($query) {
-                if ($this->installmentFilter === 'expired') {
-                    $query->whereNotNull('pt_installment_expired_at');
-                } else {
-                    $query->whereNull('pt_installment_expired_at');
-                }
-            })
+            ->installments($this->ptOnly, $this->installmentFilter === 'expired')
             ->when($this->search, function ($query) {
                 $query->where(function ($q) {
                     // Cari di nama pendaftar utama

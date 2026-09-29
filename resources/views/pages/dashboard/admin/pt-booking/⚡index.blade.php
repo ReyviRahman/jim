@@ -39,11 +39,7 @@ new #[Layout('layouts::admin')] class extends Component
 
     private function membershipQuery(): Builder
     {
-        return Membership::query()->where('status', 'active')
-            ->where('type', 'pt')
-            ->where(function (Builder $query): void {
-                $query->whereNull('pt_id')->orWhereNull('pt_end_date');
-            });
+        return Membership::query()->awaitingPtOnboarding();
     }
 
     public function updatedSearch(): void

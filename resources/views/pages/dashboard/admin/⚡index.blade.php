@@ -5,59 +5,11 @@ namespace App\Livewire\Admin;
 use Livewire\Component;
 use Livewire\Attributes\Layout;
 use App\Models\Membership;
-use App\Models\MembershipTransaction;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 
 new #[Layout('layouts::admin')] class extends Component
 {
-    public $dateStart;
-    public $dateEnd;
-
-    public function mount()
-    {
-        // Default: tanggal 15 bulan lalu hingga 15 bulan ini
-        $this->dateStart = now()->copy()->subMonth()->setDay(15)->format('Y-m-d');
-        $this->dateEnd = now()->copy()->setDay(15)->format('Y-m-d');
-    }
-
-    public function setDateRange($rangeStr)
-    {
-        if (str_contains($rangeStr, ' to ')) {
-            $dates = explode(' to ', $rangeStr);
-            $this->dateStart = $dates[0];
-            $this->dateEnd = $dates[1];
-        } elseif ($rangeStr) {
-            $this->dateStart = $rangeStr;
-            $this->dateEnd = $rangeStr;
-        } else {
-            $this->dateStart = null;
-            $this->dateEnd = null;
-        }
-
-        $this->dispatch('chartDataUpdated', $this->chartData);
-    }
-
-    public function getFormattedDateRangeProperty(): string
-    {
-        if (! $this->dateStart || ! $this->dateEnd) {
-            return 'Semua Waktu';
-        }
-
-        $bulanIndonesia = [
-            1 => 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-            'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
-        ];
-
-        $start = \Carbon\Carbon::parse($this->dateStart);
-        $end = \Carbon\Carbon::parse($this->dateEnd);
-
-        $format = function (\Carbon\Carbon $date) use ($bulanIndonesia): string {
-            return $date->day.' '.$bulanIndonesia[(int) $date->month].' '.$date->year;
-        };
-
-        return $format($start).' - '.$format($end);
-    }
-
     public function getDoubleMembershipsProperty()
     {
         // Ambil semua membership dengan status != completed beserta user_id
@@ -94,63 +46,36 @@ new #[Layout('layouts::admin')] class extends Component
             ->get();
     }
 
-    public function getChartDataProperty()
+    /** @return array{labels: list<string>, data: list<int>, percentages: list<float>, colors: list<string>, total: int} */
+    public function getChartDataProperty(): array
     {
-        // Subquery untuk ambil payment_date terakhir per membership
-        $lastPaymentSubquery = MembershipTransaction::select('membership_id', DB::raw('MAX(payment_date) as last_payment_date'))
-            ->groupBy('membership_id');
+        $installments = Membership::query()->where(fn (Builder $query) => $query
+            ->where(fn (Builder $gym) => $gym->installments())
+            ->orWhere(fn (Builder $pt) => $pt->installments(ptOnly: true)));
+        $awaitingActivation = Membership::query()->where(fn (Builder $query) => $query
+            ->where(fn (Builder $gym) => $gym->awaitingGymActivation())
+            ->orWhere(fn (Builder $pt) => $pt->awaitingPtOnboarding()));
+        $active = Membership::query()->where(fn (Builder $query) => $query
+            ->where(fn (Builder $gym) => $gym->activeGym())
+            ->orWhere(fn (Builder $pt) => $pt->runningPt()));
 
-        // Base query dengan join subquery
-        $baseQuery = Membership::query()
-            ->joinSub($lastPaymentSubquery, 'last_transactions', function ($join) {
-                $join->on('memberships.id', '=', 'last_transactions.membership_id');
-            });
-
-        // Filter berdasarkan range tanggal jika ada
-        if ($this->dateStart && $this->dateEnd) {
-            $baseQuery->whereBetween('last_transactions.last_payment_date', [
-                $this->dateStart . ' 00:00:00',
-                $this->dateEnd . ' 23:59:59'
-            ]);
-        }
-
-        // Hitung per kategori
-        $aktif = (clone $baseQuery)
-            ->where('memberships.payment_status', 'paid')
-            ->where('memberships.is_active', true)
-            ->count();
-
-        $belumAktif = (clone $baseQuery)
-            ->where('memberships.payment_status', 'paid')
-            ->where('memberships.is_active', false)
-            ->count();
-
-        $cicilan = (clone $baseQuery)
-            ->where('memberships.payment_status', 'partial')
-            ->where('memberships.is_active', false)
-            ->count();
-
-        $memberIdsWithActiveMembership = Membership::where('status', '!=', 'completed')
-            ->pluck('user_id')
-            ->merge(
-                DB::table('membership_users')
-                    ->join('memberships', 'membership_users.membership_id', '=', 'memberships.id')
-                    ->where('memberships.status', '!=', 'completed')
-                    ->pluck('membership_users.user_id')
-            )
-            ->unique()
-            ->values();
-
-        $tidakAktif = \App\Models\User::where('role', 'member')
-            ->whereNotIn('id', $memberIdsWithActiveMembership)
-            ->count();
+        $counts = [
+            $active->whereNotIn('id', (clone $installments)->select('id'))
+                ->whereNotIn('id', (clone $awaitingActivation)->select('id'))->count(),
+            $awaitingActivation->whereNotIn('id', (clone $installments)->select('id'))->count(),
+            $installments->count(),
+        ];
+        $total = array_sum($counts);
 
         return [
-            'labels' => ['Aktif', 'Belum Aktif', 'Cicilan', 'Tidak Aktif'],
-            'data' => [$aktif, $belumAktif, $cicilan, $tidakAktif],
-            'colors' => ['#10B981', '#F59E0B', '#EF4444', '#6B7280'],
+            'labels' => ['Aktif', 'Belum Aktif', 'Cicilan'],
+            'data' => $counts,
+            'percentages' => array_map(fn (int $count): float => $total > 0 ? round($count / $total * 100, 1) : 0.0, $counts),
+            'colors' => ['#10B981', '#F59E0B', '#EF4444'],
+            'total' => $total,
         ];
     }
+
 };
 ?>
 
@@ -159,97 +84,60 @@ new #[Layout('layouts::admin')] class extends Component
         <h5 class="text-xl font-semibold text-heading">Dashboard Membership</h5>
     </div>
 
-    {{-- Filter Tanggal --}}
-    <div class="flex flex-col sm:flex-row sm:items-center gap-3 mb-6">
-        <div class="relative w-full md:w-56" wire:ignore>
-            <div class="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
-                <svg class="w-4 h-4 text-body" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 10h16M8 14h8m-4-7V4M7 7V4m10 3V4M5 20h14a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1Z"/></svg>
-            </div>
-            <input type="text" x-data 
-                x-init="flatpickr($el, { 
-                    mode: 'range', 
-                    dateFormat: 'Y-m-d',
-                    defaultDate: ['{{ $dateStart }}', '{{ $dateEnd }}'],
-                    placeholder: 'Pilih Tanggal',
-                    onClose: function(selectedDates, dateStr, instance) { 
-                        @this.call('setDateRange', dateStr) 
-                    }
-                })" 
-                class="block w-full ps-9 pe-3 py-2.5 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs placeholder:text-body" 
-                placeholder="Pilih Rentang Tanggal">
+    @php
+        $chartData = $this->chartData;
+    @endphp
+    <section aria-labelledby="package-status-title" class="mb-6 rounded-base border border-default bg-neutral-primary-soft p-4 shadow-xs sm:p-6">
+        <h2 id="package-status-title" class="text-lg font-semibold text-heading">Status Paket Saat Ini</h2>
+        <p class="mt-1 text-sm text-body">Total: <strong>{{ number_format($chartData['total'], 0, ',', '.') }} paket</strong>. Setiap paket dihitung sekali.</p>
+        <div class="mt-6 grid items-center gap-6 md:grid-cols-2">
+            @if ($chartData['total'] > 0)
+                <div class="relative h-72 min-w-0 sm:h-80" wire:ignore
+                    x-data="{
+                        destroyChart: null,
+                        init() {
+                            const data = @js($chartData);
+                            const chart = new Chart(this.$refs.canvas.getContext('2d'), {
+                                type: 'pie',
+                                data: {
+                                    labels: data.labels,
+                                    datasets: [{ data: data.data, backgroundColor: data.colors, borderWidth: 2, borderColor: '#ffffff' }]
+                                },
+                                options: {
+                                    responsive: true,
+                                    maintainAspectRatio: false,
+                                    plugins: {
+                                        legend: { display: false },
+                                        tooltip: {
+                                            callbacks: {
+                                                label(context) {
+                                                    const percent = data.percentages[context.dataIndex].toLocaleString('id-ID', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+                                                    return context.label + ': ' + context.raw.toLocaleString('id-ID') + ' paket (' + percent + '%)';
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            });
+                            this.destroyChart = () => chart.destroy();
+                        },
+                        destroy() { this.destroyChart?.(); }
+                    }">
+                    <canvas x-ref="canvas" role="img" aria-label="Pie chart status paket: Aktif, Belum Aktif, dan Cicilan. Jumlah dan persentase tersedia pada legenda."></canvas>
+                </div>
+            @else
+                <p role="status" class="py-16 text-center text-body">Belum ada data paket</p>
+            @endif
+            <ul class="space-y-4" aria-label="Jumlah dan persentase status paket">
+                @foreach ($chartData['labels'] as $index => $label)
+                    <li class="flex flex-wrap items-center justify-between gap-3 rounded-md border border-default p-4">
+                        <span class="flex items-center gap-3 text-heading"><span aria-hidden="true" class="size-3 shrink-0 rounded-full" style="background-color: {{ $chartData['colors'][$index] }}"></span>{{ $label }}</span>
+                        <span class="text-sm text-body">{{ number_format($chartData['data'][$index], 0, ',', '.') }} paket <strong class="ml-2 text-heading">{{ number_format($chartData['percentages'][$index], 1, ',', '.') }}%</strong></span>
+                    </li>
+                @endforeach
+            </ul>
         </div>
-        <p class="text-sm text-body">
-            Periode: <span class="font-medium text-heading">{{ $this->formattedDateRange }}</span>
-        </p>
-    </div>
-
-    {{-- Chart Container --}}
-    <div class="bg-neutral-primary-soft border border-default rounded-base shadow-xs p-6 mb-6"
-         x-data="{
-             chart: null,
-             init() {
-                 this.render(@js($this->chartData));
-                 Livewire.on('chartDataUpdated', (data) => {
-                     this.render(data[0]);
-                 });
-             },
-             render(data) {
-                 if (this.chart) {
-                     this.chart.destroy();
-                 }
-                 this.chart = new Chart(this.$refs.canvas.getContext('2d'), {
-                     type: 'bar',
-                     data: {
-                         labels: data.labels,
-                         datasets: [{
-                             label: 'Jumlah Membership',
-                             data: data.data,
-                             backgroundColor: data.colors,
-                             borderColor: data.colors,
-                             borderWidth: 1,
-                             borderRadius: 8,
-                             barThickness: 60,
-                         }]
-                     },
-                     options: {
-                         responsive: true,
-                         maintainAspectRatio: false,
-                         plugins: {
-                             legend: {
-                                 display: false
-                             },
-                             tooltip: {
-                                 callbacks: {
-                                     label: function(context) {
-                                         var suffix = context.label === 'Tidak Aktif' ? ' User' : ' Membership';
-                                         return context.parsed.y + suffix;
-                                     }
-                                 }
-                             }
-                         },
-                         scales: {
-                             y: {
-                                 beginAtZero: true,
-                                 ticks: {
-                                     stepSize: 1,
-                                     precision: 0
-                                 },
-                                 grid: {
-                                     color: 'rgba(0, 0, 0, 0.1)'
-                                 }
-                             },
-                             x: {
-                                 grid: {
-                                     display: false
-                                 }
-                             }
-                         }
-                     }
-                 });
-             }
-         }">
-        <canvas x-ref="canvas" width="400" height="200"></canvas>
-    </div>
+    </section>
 
     {{-- Tabel Membership Dobel --}}
     <div class="mb-6">

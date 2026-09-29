@@ -36,8 +36,7 @@ new #[Layout('layouts::admin')] class extends Component
 
     private function membershipQuery(): Builder
     {
-        return Membership::query()->where('status', 'active')
-            ->where('type', 'membership')->where('is_active', false);
+        return Membership::query()->awaitingGymActivation();
     }
 
     public function updatedSearch(): void

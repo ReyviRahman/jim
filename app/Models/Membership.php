@@ -214,6 +214,31 @@ class Membership extends Model
         return $query->whereNotNull('pt_package_id')->where('is_active', true)->where('status', 'active');
     }
 
+    public function scopeActiveGym(Builder $query): Builder
+    {
+        return $query->where('type', '!=', 'pt')->where('is_active', true)->where('status', 'active');
+    }
+
+    public function scopeAwaitingGymActivation(Builder $query): Builder
+    {
+        return $query->where('status', 'active')->where('type', 'membership')->where('is_active', false);
+    }
+
+    public function scopeAwaitingPtOnboarding(Builder $query): Builder
+    {
+        return $query->where('status', 'active')->where('type', 'pt')
+            ->where(fn (Builder $onboarding) => $onboarding->whereNull('pt_id')->orWhereNull('pt_end_date'));
+    }
+
+    public function scopeInstallments(Builder $query, bool $ptOnly = false, bool $expired = false): Builder
+    {
+        return $query->whereIn('payment_status', ['partial', 'unpaid'])
+            ->where('type', $ptOnly ? '=' : '!=', 'pt')
+            ->when($ptOnly, fn (Builder $pt) => $expired
+                ? $pt->whereNotNull('pt_installment_expired_at')
+                : $pt->whereNull('pt_installment_expired_at'));
+    }
+
     public function scopeRecentlyExpiredPt(Builder $query): Builder
     {
         $today = today('Asia/Jakarta');
