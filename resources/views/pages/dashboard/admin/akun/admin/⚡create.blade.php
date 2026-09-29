@@ -30,7 +30,7 @@ new #[Layout('layouts::admin')] class extends Component
     #[Validate('required|integer|min:10')]
     public $age = '';
 
-    #[Validate('required|numeric|unique:users,phone')]
+    #[Validate('required|numeric|unique:users,phone,NULL,id,deleted_at,NULL')]
     public $phone = '';
 
     #[Validate('required|date')]
@@ -39,7 +39,7 @@ new #[Layout('layouts::admin')] class extends Component
     #[Validate('required|string')]
     public $alamat = '';
 
-    #[Validate('required|email|unique:users,email')]
+    #[Validate('required|email|unique:users,email,NULL,id,deleted_at,NULL')]
     public $email = '';
 
     #[Validate('required_unless:role,sales,cleaning_service|min:6')]

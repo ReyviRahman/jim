@@ -74,9 +74,9 @@ new class extends Component
             'occupation' => ['nullable', 'string'],
             'age' => ['required', 'integer', 'min:10'],
             'gender' => ['required', 'in:Laki-laki,Perempuan'],
-            'phone' => ['required', 'numeric', Rule::unique('users', 'phone')->ignore($user->id)],
+            'phone' => ['required', 'numeric', Rule::unique('users', 'phone')->withoutTrashed()->ignore($user->id)],
             'medical_history' => ['nullable', 'string'],
-            'email' => ['required', 'email', Rule::unique('users', 'email')->ignore($user->id)],
+            'email' => ['required', 'email', Rule::unique('users', 'email')->withoutTrashed()->ignore($user->id)],
             'password' => ['nullable', 'string', 'min:6', 'confirmed'],
             'current_password' => [Rule::requiredIf($credentialsAreChanging), 'nullable', 'current_password'],
         ];

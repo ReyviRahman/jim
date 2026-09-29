@@ -55,17 +55,17 @@ class PtBooking extends Model
 
     public function member(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'member_id');
+        return $this->belongsTo(User::class, 'member_id')->withTrashed();
     }
 
     public function pt(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'pt_id');
+        return $this->belongsTo(User::class, 'pt_id')->withTrashed();
     }
 
     public function cancelledBy(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'cancelled_by');
+        return $this->belongsTo(User::class, 'cancelled_by')->withTrashed();
     }
 
     public function paymentBatchItem(): HasOne

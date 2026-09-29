@@ -38,23 +38,23 @@ class MembershipTransaction extends Model
     // Relasi ke User (Member yang bayar)
     public function user()
     {
-        return $this->belongsTo(User::class, 'user_id');
+        return $this->belongsTo(User::class, 'user_id')->withTrashed();
     }
 
     // Relasi ke Admin/Kasir (Opsional, jika mau ditampilkan)
     public function admin()
     {
-        return $this->belongsTo(User::class, 'admin_id');
+        return $this->belongsTo(User::class, 'admin_id')->withTrashed();
     }
 
     public function followUp()
     {
-        return $this->belongsTo(User::class, 'follow_up_id');
+        return $this->belongsTo(User::class, 'follow_up_id')->withTrashed();
     }
 
     public function followUpTwo()
     {
-        return $this->belongsTo(User::class, 'follow_up_id_two');
+        return $this->belongsTo(User::class, 'follow_up_id_two')->withTrashed();
     }
 
     public function membership()

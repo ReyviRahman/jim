@@ -24,7 +24,7 @@ new #[Layout('layouts::admin')] class extends Component
     #[Validate('required|integer|min:10')]
     public $age = '';
 
-    #[Validate('required|numeric|unique:users,phone')]
+    #[Validate('required|numeric|unique:users,phone,NULL,id,deleted_at,NULL')]
     public $phone = '';
 
     #[Validate('required|date')]
@@ -33,7 +33,7 @@ new #[Layout('layouts::admin')] class extends Component
     #[Validate('required|string')]
     public $alamat = '';
 
-    #[Validate('required|email|unique:users,email')] // Pastikan nama tabel benar
+    #[Validate('required|email|unique:users,email,NULL,id,deleted_at,NULL')] // Pastikan nama tabel benar
     public $email = '';
 
     #[Validate('required|min:6')]

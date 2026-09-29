@@ -35,14 +35,14 @@ new #[Layout('layouts::admin')] class extends Component
             'phone'     => [
                 'required', 
                 'numeric', 
-                Rule::unique('users', 'phone')->ignore($this->user->id)
+                Rule::unique('users', 'phone')->withoutTrashed()->ignore($this->user->id)
             ],
             'joined_at' => 'required|date',
             'address'    => 'required|string',
             'email'     => [
                 'required', 
                 'email', 
-                Rule::unique('users', 'email')->ignore($this->user->id)
+                Rule::unique('users', 'email')->withoutTrashed()->ignore($this->user->id)
             ],
             'password'  => 'nullable|min:6', // Opsional saat edit
         ];

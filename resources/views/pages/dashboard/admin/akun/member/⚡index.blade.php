@@ -30,6 +30,21 @@ new #[Layout('layouts::admin')] class extends Component
     public ?string $hikvisionEmployeeNo = null;
     public bool $showHikvisionEmployeeModal = false;
 
+    public function deleteMember(int $userId): void
+    {
+        abort_unless(auth()->user()?->role === 'admin', 403);
+
+        $user = User::query()->where('role', 'member')->findOrFail($userId);
+        $user->delete();
+
+        $this->selectedUsers = array_values(array_filter(
+            $this->selectedUsers,
+            fn ($id) => (int) $id !== $userId,
+        ));
+        $this->resetPage();
+        session()->flash('success', 'Akun member berhasil dihapus. Email dan nomor telepon dapat digunakan kembali.');
+    }
+
     public function openSyncModal(int $userId): void
     {
         $user = User::query()
@@ -107,7 +122,7 @@ new #[Layout('layouts::admin')] class extends Component
                 'nullable',
                 'string',
                 'max:255',
-                Rule::unique('users', 'hikvision_employee_no')->ignore($user),
+                Rule::unique('users', 'hikvision_employee_no')->withoutTrashed()->ignore($user),
             ],
         ], [
             'hikvisionEmployeeNo.unique' => 'Hikvision Employee ID sudah digunakan oleh akun lain.',
@@ -460,6 +475,17 @@ new #[Layout('layouts::admin')] class extends Component
                         <td class="px-6 py-4 text-center">
                             <div class="flex items-center gap-2">
                                 <x-impersonation-button :user="$user" />
+                                @if (auth()->user()?->role === 'admin')
+                                    <button type="button" wire:click="deleteMember({{ $user->id }})"
+                                        wire:confirm="Hapus akun {{ $user->name }}? Akun tidak bisa login lagi. Riwayat tetap tersimpan dan email serta nomor telepon dapat digunakan untuk akun baru."
+                                        wire:loading.attr="disabled" wire:target="deleteMember"
+                                        title="Hapus member" aria-label="Hapus akun {{ $user->name }}"
+                                        class="font-medium text-red-600 hover:underline">
+                                        <svg class="w-5 h-5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 6h18M9 6V4h6v2M5 6l1 14h12l1-14M10 10v6m4-6v6" />
+                                        </svg>
+                                    </button>
+                                @endif
                                 <a href="{{ route('admin.akun.member.edit', $user->id) }}" wire:navigate class="font-medium text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1">
                                     <svg class="w-5 h-5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />

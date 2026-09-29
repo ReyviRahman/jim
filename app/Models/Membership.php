@@ -87,22 +87,22 @@ class Membership extends Model
      */
     public function user(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'user_id');
+        return $this->belongsTo(User::class, 'user_id')->withTrashed();
     }
 
     public function admin(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'admin_id');
+        return $this->belongsTo(User::class, 'admin_id')->withTrashed();
     }
 
     public function followUp(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'follow_up_id');
+        return $this->belongsTo(User::class, 'follow_up_id')->withTrashed();
     }
 
     public function followUpTwo(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'follow_up_id_two');
+        return $this->belongsTo(User::class, 'follow_up_id_two')->withTrashed();
     }
 
     /**
@@ -117,7 +117,7 @@ class Membership extends Model
 
     public function personalTrainer(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'pt_id');
+        return $this->belongsTo(User::class, 'pt_id')->withTrashed();
     }
 
     public function gymPackage(): BelongsTo

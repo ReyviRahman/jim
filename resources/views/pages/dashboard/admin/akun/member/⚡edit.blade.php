@@ -36,19 +36,19 @@ new #[Layout('layouts::admin')] class extends Component
             'phone' => [
                 'required',
                 'numeric',
-                Rule::unique('users', 'phone')->ignore($this->user->id),
+                Rule::unique('users', 'phone')->withoutTrashed()->ignore($this->user->id),
             ],
             'medical_history' => ['nullable', 'string'],
             'email' => [
                 'required',
                 'email',
-                Rule::unique('users', 'email')->ignore($this->user->id),
+                Rule::unique('users', 'email')->withoutTrashed()->ignore($this->user->id),
             ],
             'hikvision_employee_no' => [
                 'nullable',
                 'string',
                 'max:255',
-                Rule::unique('users', 'hikvision_employee_no')->ignore($this->user),
+                Rule::unique('users', 'hikvision_employee_no')->withoutTrashed()->ignore($this->user),
             ],
             'password' => ['nullable', 'min:6'],
             'photo' => [

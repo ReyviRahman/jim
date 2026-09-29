@@ -25,13 +25,13 @@ new #[Layout('layouts::admin')] class extends Component
     #[Validate('required|in:Laki-laki,Perempuan')]
     public $gender = 'Laki-laki';
 
-    #[Validate('required|numeric|unique:users,phone')]
+    #[Validate('required|numeric|unique:users,phone,NULL,id,deleted_at,NULL')]
     public $phone = '';
 
     #[Validate('nullable|string')]
     public $medical_history = null;
 
-    #[Validate('required|email|unique:users,email')]
+    #[Validate('required|email|unique:users,email,NULL,id,deleted_at,NULL')]
     public $email = '';
 
     #[Validate('required|min:6')]

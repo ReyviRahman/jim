@@ -32,7 +32,7 @@ new class extends Component
     #[Validate('required|string')]
     public $alamat = '';
 
-    #[Validate('required|email|unique:users,email')] // Pastikan nama tabel benar
+    #[Validate('required|email|unique:users,email,NULL,id,deleted_at,NULL')] // Pastikan nama tabel benar
     public $email = '';
 
     #[Validate('required|min:6')]

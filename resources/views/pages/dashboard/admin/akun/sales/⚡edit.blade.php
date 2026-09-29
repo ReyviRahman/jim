@@ -34,8 +34,8 @@ new #[Layout('layouts::admin')] class extends Component
             'age' => 'required|integer|min:10',
             'gender' => 'required|in:Laki-laki,Perempuan',
             // Ignore unique rule untuk ID milik user ini sendiri
-            'phone' => 'required|numeric|unique:users,phone,' . $this->userId,
-            'email' => 'required|email|unique:users,email,' . $this->userId,
+            'phone' => 'required|numeric|unique:users,phone,' . $this->userId . ',id,deleted_at,NULL',
+            'email' => 'required|email|unique:users,email,' . $this->userId . ',id,deleted_at,NULL',
             // Foto tidak lagi required saat edit, tapi jika diisi wajib berupa gambar
             'photo' => 'nullable|image|max:10048', 
         ];
