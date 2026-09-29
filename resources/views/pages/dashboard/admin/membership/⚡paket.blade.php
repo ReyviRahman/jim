@@ -23,6 +23,7 @@ use Livewire\WithFileUploads;
 new #[Layout('layouts::admin')] class extends Component
 {
     use HandlesRequiredMemberProfilePhotos;
+    use \App\Livewire\Concerns\HasMembershipAddon;
     use \App\Livewire\Concerns\ReportsMembershipValidation;
     use \App\Livewire\Concerns\CalculatesMembershipDates;
     use WithFileUploads;
@@ -334,6 +335,7 @@ new #[Layout('layouts::admin')] class extends Component
     )
     {
         $this->validateMembershipDates();
+        $addonInput = $this->validatedAddon();
 
         if ($this->payment_method === 'operasional') {
             $input = collect($this->all())->only([
@@ -341,6 +343,7 @@ new #[Layout('layouts::admin')] class extends Component
                 'gym_package_id', 'pt_package_id', 'pt_id', 'admin_id', 'manual_discount', 'admin_fee',
                 'payment_date', 'transaction_type', 'package_name', 'notes', 'pt_trial_interest',
                 'payment_type', 'is_split_payment',
+                'has_addon', 'addon_name', 'addon_duration_months', 'addon_duration_weeks', 'addon_duration_days',
             ])->map(fn ($value) => $value === '' ? null : $value)->all();
             $input['user_ids'] = $this->selectedUsers->modelKeys();
             $input['reason'] = $this->operational_reason;
@@ -507,6 +510,7 @@ new #[Layout('layouts::admin')] class extends Component
             ]);
 
             $membership->members()->attach($this->selectedUsers->pluck('id')->toArray());
+            app(\App\Actions\MembershipAddonApproval::class)->submit($membership, $addonInput, Auth::id());
             $storedWaiverPaths = app(StoreMembershipWaivers::class)->execute($membership, $validatedWaivers, Auth::id());
 
             // 2. CATAT TRANSAKSI KEUANGAN KASIR
@@ -727,6 +731,37 @@ new #[Layout('layouts::admin')] class extends Component
                     </div>
 
                     @if($registration_type)
+                        @if(in_array($registration_type, ['pt', 'bundle_pt_membership']))
+                        <div class="md:col-span-2 mt-2 p-4 bg-blue-50 rounded-md border border-blue-100">
+                            <h6 class="text-sm font-semibold text-blue-800 mb-4 border-b border-blue-200 pb-2">Detail Personal Trainer (PT)</h6>
+                            <div class="grid gap-6 md:grid-cols-2">
+                                <div class="md:col-span-2">
+                                    <label for="pt_package_id" class="block mb-2.5 text-sm font-medium text-heading">Pilih Paket Layanan PT <span class="text-red-600">*</span></label>
+                                    <select id="pt_package_id" wire:model.live="pt_package_id" class="bg-white border border-blue-300 text-blue-900 text-sm rounded-md focus:ring-blue-500 focus:border-blue-500 block w-full px-3 py-2.5 shadow-xs">
+                                        <option value="">-- Pilih Paket PT --</option>
+                                        @foreach($this->ptPackages as $package)
+                                            <option value="{{ $package->id }}">
+                                                {{ $package->name }} [{{ $package->pt_sessions }} Sesi] (Rp {{ number_format($package->price, 0, ',', '.') }})
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                    @error('pt_package_id') <span role="alert" class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                                </div>
+
+                                <div class="md:col-span-2">
+                                    <label for="pt_id" class="block mb-2.5 text-sm font-medium text-heading">Pilih Personal Trainer</label>
+                                    <select id="pt_id" wire:model.live="pt_id" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs">
+                                        <option value="">-- Belum Ada Trainer --</option>
+                                        @foreach($this->trainers as $trainer)
+                                            <option value="{{ $trainer->id }}">{{ $trainer->name }}</option>
+                                        @endforeach
+                                    </select>
+                                    @error('pt_id') <span role="alert" class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                                </div>
+                            </div>
+                        </div>
+                        @endif
+
                         {{-- 3. FORM MEMBERSHIP GYM (TERMASUK VISIT) --}}
                         @if(in_array($registration_type, ['membership', 'bundle_pt_membership', 'visit']))
                         <div class="md:col-span-2 mt-2 p-4 bg-gray-50 rounded-md border border-gray-200">
@@ -808,37 +843,7 @@ new #[Layout('layouts::admin')] class extends Component
                             </div>
                         </div>
 
-                        {{-- 4. FORM PERSONAL TRAINER --}}
-                        @if(in_array($registration_type, ['pt', 'bundle_pt_membership']))
-                        <div class="md:col-span-2 mt-2 p-4 bg-blue-50 rounded-md border border-blue-100">
-                            <h6 class="text-sm font-semibold text-blue-800 mb-4 border-b border-blue-200 pb-2">Detail Personal Trainer (PT)</h6>
-                            <div class="grid gap-6 md:grid-cols-2">
-                                <div class="md:col-span-2">
-                                    <label for="pt_package_id" class="block mb-2.5 text-sm font-medium text-heading">Pilih Paket Layanan PT <span class="text-red-600">*</span></label>
-                                    <select id="pt_package_id" wire:model.live="pt_package_id" class="bg-white border border-blue-300 text-blue-900 text-sm rounded-md focus:ring-blue-500 focus:border-blue-500 block w-full px-3 py-2.5 shadow-xs">
-                                        <option value="">-- Pilih Paket PT --</option>
-                                        @foreach($this->ptPackages as $package)
-                                            <option value="{{ $package->id }}">
-                                                {{ $package->name }} [{{ $package->pt_sessions }} Sesi] (Rp {{ number_format($package->price, 0, ',', '.') }})
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                    @error('pt_package_id') <span role="alert" class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
-                                </div>
-
-                                <div class="md:col-span-2">
-                                    <label for="pt_id" class="block mb-2.5 text-sm font-medium text-heading">Pilih Personal Trainer</label>
-                                    <select id="pt_id" wire:model.live="pt_id" class="bg-white border border-default-medium text-heading text-sm rounded-md focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs">
-                                        <option value="">-- Belum Ada Trainer --</option>
-                                        @foreach($this->trainers as $trainer)
-                                            <option value="{{ $trainer->id }}">{{ $trainer->name }}</option>
-                                        @endforeach
-                                    </select>
-                                    @error('pt_id') <span role="alert" class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
-                                </div>
-                            </div>
-                        </div>
-                        @endif
+                        @include('components.membership-addon-fields')
 
                         {{-- 5. FORM PETUGAS INTERNAL --}}
                         <div class="md:col-span-2 mt-2 p-4 bg-gray-50 rounded-md border border-gray-200">

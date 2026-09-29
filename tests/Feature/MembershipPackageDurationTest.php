@@ -181,6 +181,7 @@ class MembershipPackageDurationTest extends TestCase
             $gym->update(['name' => 'Gym asli', 'type' => $type === 'visit' ? 'visit' : 'gym']);
             $pt = $this->package(['type' => 'pt', 'name' => 'PT asli', 'pt_sessions' => 8]);
             $form->set('registration_type', $type)->set('gym_package_id', $gym->id)
+                ->set('has_addon', 'no')
                 ->set('pt_package_id', $pt->id)->set('start_date', '2026-10-01')
                 ->set('package_name', 'Catatan manual')->call('save')->assertHasNoErrors();
             $membership = Membership::latest('id')->firstOrFail();
@@ -242,7 +243,7 @@ class MembershipPackageDurationTest extends TestCase
         $pt = $this->package(['type' => 'pt', 'pt_sessions' => 8]);
         $old->update(['type' => 'pt', 'gym_package_id' => null, 'pt_package_id' => $pt->id, 'pt_end_date' => '2026-09-27']);
         $form = Livewire::test('pages::dashboard.admin.renew.create', ['id' => $old->id]);
-        $this->completeForm($form, $member, $actor)->call('save')->assertHasNoErrors();
+        $this->completeForm($form, $member, $actor)->set('has_addon', 'no')->call('save')->assertHasNoErrors();
         $this->assertSame('2026-10-26', $old->refresh()->pt_end_date->toDateString());
         $this->assertTrue(Membership::latest('id')->firstOrFail()->is_renewal);
     }

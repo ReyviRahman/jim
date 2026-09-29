@@ -88,6 +88,9 @@
             @endif
 
             @if ($summary['has_gym'])
+                @if (isset($summary['gym_start']))
+                    <p class="mt-4 text-xs text-gray-300 sm:text-sm">Mulai: {{ $summary['gym_start'] }}</p>
+                @endif
                 <div class="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-gray-800 pt-4 text-xs sm:text-sm">
                     <p class="text-gray-300">Gym: <span class="font-semibold {{ $summary['gym_active'] ? 'text-gray-200' : 'text-red-400' }}">{{ $summary['gym_active'] ? 'Aktif hingga' : 'Berakhir pada' }} {{ $summary['gym_end'] }}</span></p>
                     <p class="font-bold text-white">{{ $summary['gym_duration'] }}</p>

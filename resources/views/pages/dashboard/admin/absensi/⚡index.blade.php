@@ -84,6 +84,17 @@ public function processScan()
             return;
         }
 
+        if (array_key_exists('membership_addon_id', $data)) {
+            try {
+                app(\App\Actions\CheckInMembershipAddon::class)->execute(auth()->user(), $user, $data);
+                session()->flash('success', "Berhasil Check-In: {$user->name}. Akses Gym Add-on Gratis.");
+            } catch (ValidationException $exception) {
+                session()->flash('error', collect($exception->errors())->flatten()->first());
+            }
+            $this->scannedCode = '';
+            return;
+        }
+
         if ($bookingId && $membershipId) {
             $booking = PtBooking::with('membership')->find($bookingId);
 

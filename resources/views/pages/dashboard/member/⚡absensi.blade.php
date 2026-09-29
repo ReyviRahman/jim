@@ -20,6 +20,8 @@ new #[Layout('layouts::member')] class extends Component
     public $hasCheckedIn = false;
     public $selectedMembershipId = null;
     public $selectedBookingId = null;
+    #[\Livewire\Attributes\Locked]
+    public ?int $selectedAddonId = null;
 
     public function mount(): void
     {
@@ -81,6 +83,22 @@ new #[Layout('layouts::member')] class extends Component
                 ?? $activeMemberships->firstWhere('type', '!=', 'pt')?->id
                 ?? $activeMemberships->first()->id;
         }
+        if ($this->selectedMembershipId === null) {
+            $this->selectedAddonId = $this->selectableAddonQuery()->value('id');
+        }
+    }
+
+    private function selectableAddonQuery(): Builder
+    {
+        return \App\Models\MembershipAddon::query()->accessibleTo($this->authenticatedUser())->usable();
+    }
+
+    public function selectAddon(int $id): void
+    {
+        abort_unless($this->selectableAddonQuery()->whereKey($id)->exists(), 403);
+        $this->selectedAddonId = $id;
+        $this->selectedMembershipId = null;
+        $this->selectedBookingId = null;
     }
 
     public function updatingSelectedMembershipId(mixed $value): void
@@ -91,6 +109,7 @@ new #[Layout('layouts::member')] class extends Component
     public function updatedSelectedMembershipId(mixed $value): void
     {
         $this->selectedMembershipId = (int) $value;
+        $this->selectedAddonId = null;
         $this->selectedBookingId = null;
     }
 
@@ -111,6 +130,7 @@ new #[Layout('layouts::member')] class extends Component
     public function selectMembership(mixed $membershipId): void
     {
         $this->selectedMembershipId = $this->validatedSelectableMembershipId($membershipId);
+        $this->selectedAddonId = null;
         $this->selectedBookingId = null;
     }
 
@@ -236,7 +256,23 @@ new #[Layout('layouts::member')] class extends Component
             }
         }
 
+        $activeAddons = $this->selectableAddonQuery()->get();
+        $selectedAddon = $activeAddons->firstWhere('id', $this->selectedAddonId);
+        $hasActivePackage = $hasActivePackage || $activeAddons->isNotEmpty();
+        if ($selectedAddon !== null) {
+            $selectedMembership = null;
+            $selectedBooking = null;
+            $eligibleBookings = new EloquentCollection();
+            $this->selectedBookingId = null;
+            $qrCode = QrCode::size(220)->margin(1)->generate(json_encode([
+                'user_id' => $user->id, 'membership_id' => $selectedAddon->membership_id,
+                'membership_addon_id' => $selectedAddon->id,
+            ]));
+        }
+
         return [
+            'activeAddons' => $activeAddons,
+            'selectedAddon' => $selectedAddon,
             'user' => $user,
             'activeMemberships' => $activeMemberships,
             'hasActivePackage' => $hasActivePackage,
@@ -353,9 +389,21 @@ new #[Layout('layouts::member')] class extends Component
                 <p>Anda belum memiliki sesi Personal Training atau sesi yang aktif telah habis. Silakan beli sesi baru untuk mendapatkan akses check-in Personal Training.</p>
             </div>
         @else
+            @if($activeAddons->isNotEmpty())
+                <div class="mb-4 flex flex-wrap justify-center gap-2" aria-label="Pilih akses check-in">
+                    @foreach($activeMemberships as $membership)
+                        <button type="button" wire:key="select-contract-{{ $membership->id }}" wire:click="selectMembership({{ $membership->id }})" aria-pressed="{{ !$selectedAddon && $selectedMembershipId == $membership->id ? 'true' : 'false' }}" class="rounded-md border border-current px-3 py-2 text-sm">{{ $membership->type === 'pt' ? ($membership->ptPackage?->name ?? 'Paket PT') : ($membership->gymPackage?->name ?? 'Membership') }}</button>
+                    @endforeach
+                    @foreach($activeAddons as $addon)
+                        <button type="button" wire:key="select-addon-{{ $addon->id }}" wire:click="selectAddon({{ $addon->id }})" aria-pressed="{{ $selectedAddon?->id === $addon->id ? 'true' : 'false' }}" class="rounded-md border border-current px-3 py-2 text-sm">{{ $addon->name }} · Add-on Gratis</button>
+                    @endforeach
+                </div>
+            @endif
             <div class="checkin-package">
                 <svg class="checkin-field-icon" aria-hidden="true" fill="currentColor" viewBox="0 0 24 24"><path d="M12 12a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9Zm0 2c-5 0-8 2.6-8 6v1h16v-1c0-3.4-3-6-8-6Z"/></svg>
-                @if ($activeMemberships->count() > 1)
+                @if($selectedAddon)
+                    <span class="checkin-package-name">{{ $selectedAddon->name }} · Add-on Gratis</span>
+                @elseif ($activeMemberships->count() > 1)
                     <div class="checkin-package-choice">
                         <span aria-hidden="true" class="checkin-package-name">
                             {{ $selectedMembership?->type === 'pt' ? ($selectedMembership->ptPackage?->name ?? 'Paket PT') : ($selectedMembership?->gymPackage?->name ?? 'Paket '.ucfirst($selectedMembership?->type ?? '')) }}

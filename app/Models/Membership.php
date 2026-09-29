@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Actions\MembershipAddonApproval;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -153,6 +154,11 @@ class Membership extends Model
     public function holds(): HasMany
     {
         return $this->hasMany(MembershipHold::class);
+    }
+
+    public function addon(): HasOne
+    {
+        return $this->hasOne(MembershipAddon::class);
     }
 
     public function packageTransactions(): HasMany
@@ -334,6 +340,12 @@ class Membership extends Model
     protected static function boot()
     {
         parent::boot();
+
+        static::updated(function (Membership $membership): void {
+            if ($membership->wasChanged(['payment_status', 'is_active', 'start_date', 'status'])) {
+                app(MembershipAddonApproval::class)->synchronize($membership);
+            }
+        });
 
         static::deleting(function ($membership) {
             $membership->transactions()->delete();

@@ -2,6 +2,7 @@
 
 namespace App\Actions;
 
+use App\MembershipAddonInput;
 use App\MembershipFormValidation;
 use App\MembershipWaiverTerms;
 use App\Models\GymPackage;
@@ -29,6 +30,7 @@ final class MembershipOperationalApproval
     public function submit(User $actor, array $input, array $waivers, array $photos): MembershipOperationalRequest
     {
         abort_unless(in_array($actor->role, self::ROLES, true), 403);
+        $addonInput = app(MembershipAddonInput::class)->validate((string) ($input['registration_type'] ?? ''), $input);
         $data = Validator::make($input, [
             'submission_token' => ['required', 'uuid'],
             'user_ids' => ['required', 'array', 'min:1', 'max:100'],
@@ -55,6 +57,7 @@ final class MembershipOperationalApproval
             'is_split_payment' => ['required', 'boolean', 'declined'],
         ], MembershipFormValidation::messages(), MembershipFormValidation::attributes())->validate();
         $createdFiles = [];
+        $data['addon'] = $addonInput;
         try {
             return DB::transaction(function () use ($actor, $data, $waivers, $photos, &$createdFiles): MembershipOperationalRequest {
                 User::whereKey($actor->id)->lockForUpdate()->firstOrFail();
@@ -152,6 +155,7 @@ final class MembershipOperationalApproval
         ];
 
         return ['membership' => $attributes, 'payment_date' => $data['payment_date'],
+            'addon' => $data['addon'] ?? null,
             'gym_package_name' => $gym?->name, 'pt_package_name' => $pt?->name,
             'shift' => User::findOrFail($data['admin_id'])->shiftSnapshot(),
             'admin_name' => User::findOrFail($data['admin_id'])->name,
@@ -217,6 +221,10 @@ final class MembershipOperationalApproval
                 $attributes['sesi_hangus'] = $attributes['total_sessions'];
             }
             $membership = Membership::create($attributes + ['operational_request_id' => $request->id]);
+            app(MembershipAddonApproval::class)->submit(
+                $membership, $snapshot['addon'] ?? null, $request->requested_by,
+                $snapshot['membership']['is_active'] ? $snapshot['membership']['start_date'] : null,
+            );
             $membership->members()->attach($memberIds);
             foreach ($request->documents as $document) {
                 $membership->waivers()->create([

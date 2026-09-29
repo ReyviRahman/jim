@@ -87,6 +87,9 @@ new class extends Component
                     <p>Petugas: {{ $snapshot['admin_name'] }} · Shift: {{ $snapshot['shift'] ?? '—' }} · Trainer: {{ $snapshot['trainer_name'] ?? '—' }}</p>
                     <p>Harga: Rp {{ number_format($package['base_price'], 0, ',', '.') }} · Diskon: Rp {{ number_format($package['discount_applied'], 0, ',', '.') }} · Biaya admin: Rp {{ number_format($package['admin_fee'], 0, ',', '.') }}</p>
                     <p>Sesi PT: {{ $package['total_sessions'] ?? '—' }} · Aktivasi: {{ $package['is_active'] ? 'Aktif sesuai tanggal' : 'Belum diaktifkan' }}</p>
+                    @if($snapshot['addon'] ?? null)
+                        <p>Add-on: {{ $snapshot['addon']['name'] }} · {{ $snapshot['addon']['duration_months'] }} bulan, {{ $snapshot['addon']['duration_weeks'] }} minggu, {{ $snapshot['addon']['duration_days'] }} hari. Memerlukan approval add-on terpisah setelah PT dicatat.</p>
+                    @endif
                     <p>Tanggal mulai: {{ $package['start_date'] ?? '—' }} · Akhir Gym: {{ $package['membership_end_date'] ?? '—' }} · Akhir PT: {{ $package['pt_end_date'] ?? '—' }}</p>
                     <p>Tanggal pencatatan: {{ $snapshot['payment_date'] }}</p>
                     <p class="whitespace-pre-wrap break-words">Alasan: {{ $request->reason }}</p>
@@ -114,4 +117,5 @@ new class extends Component
         @endforelse
     </div>
     <div class="mt-4">{{ $this->requests->links() }}</div>
+    <livewire:dashboard.membership-addon-approvals />
 </div>

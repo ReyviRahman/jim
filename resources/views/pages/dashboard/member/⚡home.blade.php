@@ -70,6 +70,32 @@ new #[Layout('layouts::member'), Title('Dashboard Membership')] class extends Co
             ->get();
     }
 
+    #[Computed]
+    public function ownedAddons(): EloquentCollection
+    {
+        return \App\Models\MembershipAddon::query()->accessibleTo($this->authenticatedUser())
+            ->usable()->latest('id')->get();
+    }
+
+    /** @return Collection<int, array{id: string, type: string, name: string, label: string, has_gym: bool, has_pt: bool, gym_active: bool, gym_start: string, gym_end: string, gym_duration: string, price: string}> */
+    #[Computed]
+    public function ownedAddonSummaries(): Collection
+    {
+        return $this->ownedAddons->map(fn (\App\Models\MembershipAddon $addon): array => [
+            'id' => 'addon-'.$addon->id,
+            'type' => 'membership',
+            'name' => $addon->name,
+            'label' => 'Add-on Gratis',
+            'has_gym' => true,
+            'has_pt' => false,
+            'gym_active' => true,
+            'gym_start' => $addon->start_date->locale('id')->translatedFormat('d M Y'),
+            'gym_end' => $addon->end_date->locale('id')->translatedFormat('d M Y'),
+            'gym_duration' => $this->remainingDurationLabel($addon->end_date),
+            'price' => 'Rp 0 (Gratis)',
+        ]);
+    }
+
     /**
      * @return Collection<int, array{
      *     id: int, type: string, name: string, label: string,
@@ -229,8 +255,11 @@ new #[Layout('layouts::member'), Title('Dashboard Membership')] class extends Co
         @forelse ($this->ownedPackageSummaries as $summary)
             <x-member-package-card :summary="$summary" :first="$loop->first" wire:key="owned-package-{{ $summary['id'] }}" />
         @empty
-            <x-member-empty-package />
+            @if($this->ownedAddons->isEmpty())<x-member-empty-package />@endif
         @endforelse
+        @foreach($this->ownedAddonSummaries as $summary)
+            <x-member-package-card :summary="$summary" :first="$loop->first && $this->ownedPackages->isEmpty()" wire:key="owned-package-{{ $summary['id'] }}" />
+        @endforeach
     </div>
     @if ($this->coaches->isNotEmpty())
         <section class="mt-8 min-w-0 px-5 sm:mt-10 sm:px-9" aria-labelledby="member-coaches-heading">
@@ -253,7 +282,7 @@ new #[Layout('layouts::member'), Title('Dashboard Membership')] class extends Co
             </div>
         </section>
     @endif
-    @if ($this->ownedPackages->isNotEmpty())
+    @if ($this->ownedPackages->isNotEmpty() || $this->ownedAddons->isNotEmpty())
     <footer class="flex items-center gap-5 px-5 py-8 sm:px-9 sm:py-10" aria-label="Frans Gym">
         <div class="shrink-0 text-white">
             <p class="text-lg font-black tracking-tight">FRANSGYM</p>

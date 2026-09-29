@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Actions\BeverageOperationalApproval;
 use App\Models\Beverage;
 use App\Models\BeverageOperationalRequest;
+use App\Models\MembershipAddon;
 use App\Models\MembershipOperationalRequest;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -23,7 +24,7 @@ class NavbarOperationalApprovalTest extends TestCase
         BeverageOperationalRequest::factory()->create(['status' => 'rejected']);
         Livewire::actingAs(User::factory()->create(['role' => 'admin']))->test('dashboard.navbar')
             ->assertSet('pendingOperationalCount', 12)
-            ->assertSee('Approval Operasional, 12 pengajuan menunggu')
+            ->assertSee('Approval, 12 pengajuan menunggu')
             ->assertSee('data-operational-approval-badge', false)
             ->assertSee('wire:poll.30s.visible', false)
             ->assertSee('wire:navigate', false)
@@ -33,7 +34,7 @@ class NavbarOperationalApprovalTest extends TestCase
     public function test_zero_count_keeps_link_without_badge_and_polling_detects_new_requests(): void
     {
         $navbar = Livewire::actingAs(User::factory()->create(['role' => 'admin']))->test('dashboard.navbar')
-            ->assertSee('Approval Operasional, 0 pengajuan menunggu')
+            ->assertSee('Approval, 0 pengajuan menunggu')
             ->assertDontSee('data-operational-approval-badge', false);
         $request = BeverageOperationalRequest::factory()->create();
         $navbar->call('refreshOperationalApprovals')->assertSet('pendingOperationalCount', 1);
@@ -64,10 +65,10 @@ class NavbarOperationalApprovalTest extends TestCase
         BeverageOperationalRequest::factory()->count(2)->create();
         foreach (['kasir_minum', 'kasir_gym', 'member', 'pt', 'head_coach'] as $role) {
             $navbar = Livewire::actingAs(User::factory()->create(['role' => $role]))->test('dashboard.navbar')
-                ->assertDontSee('Approval Operasional')
+                ->assertDontSee('Approval Add-on')
                 ->assertDontSee('wire:poll.30s.visible', false)
                 ->dispatch('operational-approvals-updated')->assertOk();
-            foreach (['pendingOperationalCount', 'pendingBeverageCount', 'pendingMembershipCount'] as $property) {
+            foreach (['pendingOperationalCount', 'pendingBeverageCount', 'pendingMembershipCount', 'pendingAddonCount'] as $property) {
                 try {
                     $navbar->instance()->{$property};
                     $this->fail('Count must be restricted to admins.');
@@ -86,6 +87,36 @@ class NavbarOperationalApprovalTest extends TestCase
             ->assertSet('approvalStatus', 'pending')
             ->assertSet('paginators.approvalPage', 1)
             ->assertSee('id="operational-approvals"', false);
+    }
+
+    public function test_addons_contribute_to_badge_and_refresh_after_decisions(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        BeverageOperationalRequest::factory()->create();
+        MembershipOperationalRequest::factory()->create();
+        MembershipAddon::factory()->create(['approval_status' => 'approved']);
+        MembershipAddon::factory()->create(['approval_status' => 'rejected']);
+        $navbar = Livewire::actingAs($admin)->test('dashboard.navbar')->assertSet('pendingAddonCount', 0);
+        $first = MembershipAddon::factory()->create();
+        $second = MembershipAddon::factory()->create();
+        $navbar->call('refreshOperationalApprovals')->assertSet('pendingAddonCount', 2)
+            ->assertSet('pendingOperationalCount', 4)->assertSee('Approval, 4 pengajuan menunggu')
+            ->assertSee(route('admin.riwayat.index', ['addonApproval' => 'pending', 'addonApprovalPage' => 1]).'#membership-addon-approvals');
+        Livewire::test('dashboard.membership-addon-approvals')->call('approve', $first->id)
+            ->assertHasNoErrors()->assertDispatched('addon-approvals-updated');
+        $navbar->dispatch('addon-approvals-updated')->assertSet('pendingAddonCount', 1)->assertSet('pendingOperationalCount', 3);
+        Livewire::test('dashboard.membership-addon-approvals')->set('rejectionReasons.'.$second->id, 'Tidak sesuai')
+            ->call('reject', $second->id)->assertHasNoErrors()->assertDispatched('addon-approvals-updated');
+        $navbar->dispatch('addon-approvals-updated')->assertSet('pendingAddonCount', 0)->assertSet('pendingOperationalCount', 2);
+    }
+
+    public function test_addon_link_opens_pending_filter_and_first_page(): void
+    {
+        Livewire::actingAs(User::factory()->create(['role' => 'admin']))
+            ->withQueryParams(['addonApproval' => 'pending', 'addonApprovalPage' => 1])
+            ->test('dashboard.membership-addon-approvals')->assertSet('status', 'pending')
+            ->assertSet('paginators.addonApprovalPage', 1)
+            ->assertSee('id="membership-addon-approvals"', false);
     }
 
     public function test_successful_decisions_dispatch_navbar_refresh(): void

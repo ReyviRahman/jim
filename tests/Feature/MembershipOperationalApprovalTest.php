@@ -2,8 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Actions\MembershipAddonApproval;
 use App\Actions\MembershipOperationalApproval;
 use App\Models\GymPackage;
+use App\Models\MembershipAddon;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -284,6 +286,48 @@ class MembershipOperationalApprovalTest extends TestCase
         $this->assertSame($snapshot['pt_package_name'], $membership->fresh()->pt_package_name_snapshot);
     }
 
+    public function test_operational_addon_requires_separate_approval_and_keeps_snapshot_dates(): void
+    {
+        [$actor, $input, $waivers] = $this->fixture('pt');
+        $input = array_replace($input, [
+            'has_addon' => 'yes', 'addon_name' => 'Bonus operasional', 'addon_duration_months' => 1,
+            'start_date' => today()->subDays(40)->toDateString(), 'pt_end_date' => today()->subDays(10)->toDateString(),
+        ]);
+        $action = app(MembershipOperationalApproval::class);
+        $request = $action->submit($actor, $input, $waivers, []);
+        $this->assertDatabaseCount('membership_addons', 0);
+        $this->assertSame('Bonus operasional', $request->snapshot['addon']['name']);
+        $admin = User::factory()->create(['role' => 'admin']);
+        $action->approve($admin, $request->id);
+        $action->approve($admin, $request->id);
+        $addon = MembershipAddon::sole();
+        $this->assertSame('pending', $addon->approval_status);
+        $this->assertSame($actor->id, $addon->requested_by);
+        $this->assertSame($input['start_date'], $addon->start_date->toDateString());
+        $this->assertDatabaseCount('membership_transactions', 1);
+        app(MembershipAddonApproval::class)->approve($admin, $addon->id);
+        $this->assertSame('completed', $addon->refresh()->status);
+    }
+
+    public function test_admin_operational_submission_does_not_auto_approve_addon_and_legacy_snapshot_still_works(): void
+    {
+        [$actor, $input, $waivers] = $this->fixture('pt');
+        $admin = User::factory()->create(['role' => 'admin']);
+        $action = app(MembershipOperationalApproval::class);
+        $request = $action->submit($admin, array_replace($input, [
+            'has_addon' => 'yes', 'addon_name' => 'Bonus admin', 'addon_duration_days' => 7,
+        ]), $waivers, []);
+        $this->assertSame('approved', $request->status);
+        $this->assertSame('pending', MembershipAddon::sole()->approval_status);
+        $legacy = $action->submit($actor, array_replace($input, ['submission_token' => (string) Str::uuid()]), $waivers, []);
+        $snapshot = $legacy->snapshot;
+        unset($snapshot['addon']);
+        $legacy->update(['snapshot' => $snapshot]);
+        $action->approve($admin, $legacy->id);
+        $this->assertNull($legacy->membership()->sole()->addon);
+        $this->assertDatabaseCount('membership_addons', 1);
+    }
+
     private function fixture(string $type = 'membership', int $count = 1): array
     {
         $actor = User::factory()->create(['role' => 'kasir_gym']);
@@ -293,6 +337,7 @@ class MembershipOperationalApprovalTest extends TestCase
         $pt = in_array($type, ['pt', 'bundle_pt_membership'], true) ? GymPackage::create(['name' => 'PT', 'type' => 'pt', 'category' => $category, 'price' => 100000, 'discount' => 0, 'pt_sessions' => 8, 'duration_days' => 30, 'is_active' => true]) : null;
         $input = ['is_renewal' => false, 'submission_token' => (string) Str::uuid(), 'user_ids' => $members->modelKeys(), 'registration_type' => $type, 'gym_package_id' => $gym?->id, 'pt_package_id' => $pt?->id, 'admin_id' => $actor->id, 'is_active' => true, 'start_date' => today()->toDateString(), 'membership_end_date' => $gym ? today()->addMonth()->toDateString() : null, 'pt_end_date' => $pt ? today()->addMonth()->toDateString() : null, 'payment_date' => today()->toDateString(), 'transaction_type' => 'Baru', 'package_name' => 'Paket', 'notes' => 'Internal', 'reason' => 'Internal', 'pt_trial_interest' => 'no', 'payment_type' => 'paid', 'is_split_payment' => false];
         $waivers = $members->mapWithKeys(fn (User $member): array => [$member->id => ['accepted' => true, 'signature' => $this->signature()]])->all();
+        $input['has_addon'] = 'no';
 
         return [$actor, $input, $waivers];
     }

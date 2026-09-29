@@ -107,12 +107,25 @@
                 <summary>Informasi paket lainnya{{ auth()->user()->role === 'admin' ? ' & kelola' : '' }}</summary>
                 <p>Member: {{ $membership->members->isNotEmpty() ? $membership->members->pluck('name')->implode(', ') : ($membership->user?->name ?? 'N/A') }}</p>
                 <p>Status paket: {{ $statusLabel }}</p>
+                @if ($membership->addon)
+                    <div class="my-3 rounded-md border border-default-medium p-3">
+                        <p><strong>Add-on: {{ $membership->addon->name }}</strong></p>
+                        <p>Durasi: {{ $membership->addon->duration_months }} bulan, {{ $membership->addon->duration_weeks }} minggu, {{ $membership->addon->duration_days }} hari</p>
+                        <p>Mulai: {{ $membership->addon->start_date?->format('d/m/Y') ?? 'Belum aktif' }} · Selesai: {{ $membership->addon->end_date?->format('d/m/Y') ?? 'Belum aktif' }}</p>
+                        <p>Persetujuan: {{ match ($membership->addon->approval_status) { 'approved' => 'Disetujui', 'rejected' => 'Ditolak', default => 'Menunggu persetujuan Manager' } }}</p>
+                        <p>Masa aktif: {{ match ($membership->addon->status) { 'active' => 'Aktif', 'completed' => 'Selesai', 'rejected' => 'Ditolak', default => 'Menunggu' } }}</p>
+                    </div>
+                @endif
+                @error('addon') <p role="alert" class="text-red-600">{{ $message }}</p> @enderror
                 @if (auth()->user()->role === 'admin')
                     @php($priceLabelData = $membership->getPriceLabel())
                     @if ($priceLabelData)<p>{{ $priceLabelData['label'] }}</p>@endif
                     <div class="member-detail-actions">
                         @if ($membership->type === 'pt')
                             <a href="{{ route('admin.membership.hold', ['membership' => $membership, 'user' => $user->id]) }}" wire:navigate>Hold</a>
+                            @if (! $membership->addon && in_array($membership->status, ['pending', 'active', 'completed'], true))
+                                <button type="button" wire:click="openAddon({{ $membership->id }})" wire:loading.attr="disabled">Add-on</button>
+                            @endif
                         @endif
                         <a href="{{ route('admin.membership.edit', $membership) }}" wire:navigate>Edit Paket</a>
                         <button type="button" wire:click="delete({{ $membership->id }})" wire:confirm="Apakah Anda yakin ingin menghapus membership ini?" wire:loading.attr="disabled">Hapus Membership</button>

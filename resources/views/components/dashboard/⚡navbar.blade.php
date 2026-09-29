@@ -17,7 +17,7 @@ new class extends Component {
     {
         abort_unless(Auth::user()?->role === 'admin', 403);
 
-        return $this->pendingBeverageCount + $this->pendingMembershipCount;
+        return $this->pendingBeverageCount + $this->pendingMembershipCount + $this->pendingAddonCount;
     }
 
     #[Computed]
@@ -34,13 +34,21 @@ new class extends Component {
         return \App\Models\MembershipOperationalRequest::where('status', 'pending')->count();
     }
 
+    #[Computed]
+    public function pendingAddonCount(): int
+    {
+        abort_unless(Auth::user()?->role === 'admin', 403);
+        return \App\Models\MembershipAddon::where('approval_status', 'pending')->count();
+    }
+
     #[On('operational-approvals-updated')]
+    #[On('addon-approvals-updated')]
     public function refreshOperationalApprovals(): void
     {
         if (Auth::user()?->role !== 'admin') {
             return;
         }
-        unset($this->pendingOperationalCount, $this->pendingBeverageCount, $this->pendingMembershipCount);
+        unset($this->pendingOperationalCount, $this->pendingBeverageCount, $this->pendingMembershipCount, $this->pendingAddonCount);
     }
 
     #[Computed]
@@ -135,13 +143,13 @@ new class extends Component {
                         @if(Auth::user()->role === 'admin')
                             <div x-data="{ approvalMenuOpen: false }" class="relative" @keydown.escape.window="approvalMenuOpen = false" @click.outside="approvalMenuOpen = false" wire:poll.30s.visible="refreshOperationalApprovals">
                             <button type="button" @click="approvalMenuOpen = !approvalMenuOpen" :aria-expanded="approvalMenuOpen" aria-controls="operational-approval-menu"
-                                aria-label="Approval Operasional, {{ $this->pendingOperationalCount }} pengajuan menunggu"
-                                title="Approval Operasional"
+                                aria-label="Approval, {{ $this->pendingOperationalCount }} pengajuan menunggu"
+                                title="Approval"
                                 class="relative me-2 sm:me-3 inline-flex shrink-0 items-center gap-2 rounded-md border border-default-medium px-2 py-2 text-sm font-medium text-brand focus:outline-none focus:ring-2 focus:ring-brand">
                                 <svg class="size-5 shrink-0" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                     <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H5v15h14V5h-4M9 3h6v4H9V3Zm0 11 2 2 4-4" />
                                 </svg>
-                                <span class="hidden lg:inline">Approval Operasional</span>
+                                <span class="hidden lg:inline">Approval</span>
                                 @if($this->pendingOperationalCount > 0)
                                     <span data-operational-approval-badge class="inline-flex min-w-5 items-center justify-center rounded-full bg-red-600 px-1.5 py-0.5 text-xs font-bold text-white">{{ $this->pendingOperationalCount }}</span>
                                 @endif
@@ -152,6 +160,9 @@ new class extends Component {
                                 </a>
                                 <a href="{{ route('admin.riwayat.index', ['approval' => 'pending', 'membershipApprovalPage' => 1]) }}#membership-operational-approvals" wire:navigate class="flex items-center justify-between gap-3 rounded p-3 hover:bg-neutral-tertiary-medium hover:text-heading focus:outline-none focus:ring-2 focus:ring-brand">
                                     <span>Operasional Membership</span><span>{{ $this->pendingMembershipCount }}</span>
+                                </a>
+                                <a href="{{ route('admin.riwayat.index', ['addonApproval' => 'pending', 'addonApprovalPage' => 1]) }}#membership-addon-approvals" wire:navigate class="flex items-center justify-between gap-3 rounded p-3 hover:bg-neutral-tertiary-medium hover:text-heading focus:outline-none focus:ring-2 focus:ring-brand">
+                                    <span>Approval Add-on</span><span>{{ $this->pendingAddonCount }}</span>
                                 </a>
                             </div>
                             </div>

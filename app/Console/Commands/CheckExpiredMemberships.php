@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\Membership;
+use App\Models\MembershipAddon;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
@@ -19,6 +20,14 @@ class CheckExpiredMemberships extends Command
         $dryRun = $this->option('dry-run');
         $now = Carbon::now()->startOfDay();
         $timestamp = $now->toISOString();
+        $expiredAddons = MembershipAddon::query()->where('status', 'active')
+            ->where('approval_status', 'approved')->whereDate('end_date', '<', today('Asia/Jakarta'));
+        $addonCount = (clone $expiredAddons)->count();
+        if (! $dryRun) {
+            $expiredAddons->update(['status' => 'completed']);
+        }
+        $this->info(($dryRun ? 'DRY RUN: ' : '').$addonCount.' add-on '.($dryRun ? 'akan diupdate' : 'diupdate').' ke completed.');
+        Log::info('[CheckExpiredMemberships] Add-on expired', ['count' => $addonCount, 'dry_run' => (bool) $dryRun]);
 
         $this->info("Memeriksa membership aktif... (Timestamp: {$now->toDateTimeString()})");
 

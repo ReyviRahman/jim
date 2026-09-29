@@ -12,6 +12,7 @@ class Attendance extends Model
         'nama_di_alat',
         'device_event_id',
         'membership_id',
+        'membership_addon_id',
         'type',
         'attendance_status',
         'attendance_date',
@@ -33,6 +34,11 @@ class Attendance extends Model
     public function membership(): BelongsTo
     {
         return $this->belongsTo(Membership::class);
+    }
+
+    public function membershipAddon(): BelongsTo
+    {
+        return $this->belongsTo(MembershipAddon::class);
     }
 
     public function deviceEvent(): BelongsTo
