@@ -15,7 +15,6 @@
             <p role="status" class="mb-4 rounded-md bg-green-50 p-3 text-green-800">{{ $successMessage }}</p>
         @endif
         @error('installment')<p role="alert" class="mb-4 rounded-md bg-red-50 p-3 text-red-700">{{ $message }}</p>@enderror
-        @if ($ptOnly)
             <div class="mb-4 flex items-center gap-3">
                 <label for="pt-installment-filter">Status cicilan</label>
                 <select id="pt-installment-filter" wire:model.live="installmentFilter" class="rounded-md border border-gray-300 bg-white p-2 text-gray-900">
@@ -23,7 +22,6 @@
                     <option value="expired">Hangus</option>
                 </select>
             </div>
-        @endif
 
         <div class="pt-installments-search">
             <label for="pt-installments-search" class="sr-only">Cari nama member</label>
@@ -84,23 +82,21 @@
                             <dd class="pt-installment-amount pt-installment-due">Rp {{ number_format($membership->price_paid - $membership->total_paid, 0, ',', '.') }}</dd>
                         </div>
                     </dl>
-                    @if ($ptOnly)
                         <div class="flex flex-wrap items-center justify-between gap-3 p-4">
-                            @if ($membership->pt_installment_expired_at)
+                            @if ($ptOnly ? $membership->pt_installment_expired_at : $membership->membership_installment_expired_at)
                                 <span class="rounded-md bg-amber-100 px-3 py-1 text-sm font-semibold text-amber-900">Hangus</span>
-                                <button type="button" wire:click="restoreInstallment({{ $membership->id }})" wire:confirm="Pulihkan cicilan PT ke daftar Aktif?" wire:loading.attr="disabled" class="rounded-md border border-gray-400 bg-white px-4 py-2 text-sm text-gray-900 disabled:opacity-50">Pulihkan</button>
+                                <button type="button" wire:click="restoreInstallment({{ $membership->id }})" wire:confirm="Pulihkan cicilan {{ $ptOnly ? 'PT' : 'membership' }} ke daftar Aktif?" wire:loading.attr="disabled" class="rounded-md border border-gray-400 bg-white px-4 py-2 text-sm text-gray-900 disabled:opacity-50">Pulihkan</button>
                             @else
-                                <button type="button" wire:click="markExpired({{ $membership->id }})" wire:confirm="Tandai cicilan PT sebagai Hangus? Data akan disembunyikan dari daftar Aktif. Tagihan dan sesi PT tidak berubah." wire:loading.attr="disabled" class="rounded-md border border-red-600 bg-white px-4 py-2 text-sm text-red-700 disabled:opacity-50">Tandai Hangus</button>
+                                <button type="button" wire:click="markExpired({{ $membership->id }})" wire:confirm="Tandai cicilan {{ $ptOnly ? 'PT' : 'membership' }} sebagai Hangus? Data akan disembunyikan dari daftar Aktif. Tagihan dan paket tidak berubah." wire:loading.attr="disabled" class="rounded-md border border-red-600 bg-white px-4 py-2 text-sm text-red-700 disabled:opacity-50">Tandai Hangus</button>
                             @endif
                         </div>
-                    @endif
                     <a href="{{ route('admin.cicilan.pay', $membership) }}" wire:navigate class="pt-installment-pay" aria-label="Bayar cicilan {{ $memberName }}">
                         <span><x-installment-icon name="card" />Bayar Cicilan</span>
                         <x-installment-icon name="chevron" />
                     </a>
                 </article>
             @empty
-                <p role="status" class="pt-installments-empty">{{ $search !== '' ? 'Tidak ada member yang cocok dengan pencarian.' : ($ptOnly ? ($installmentFilter === 'expired' ? 'Tidak ada cicilan PT Hangus.' : 'Tidak ada cicilan PT aktif.') : 'Tidak ada tagihan membership yang tertunda. Semua lunas!') }}</p>
+                <p role="status" class="pt-installments-empty">{{ $search !== '' ? 'Tidak ada member yang cocok dengan pencarian.' : ($installmentFilter === 'expired' ? 'Tidak ada cicilan '.($ptOnly ? 'PT' : 'membership').' Hangus.' : 'Tidak ada cicilan '.($ptOnly ? 'PT' : 'membership').' aktif.') }}</p>
             @endforelse
         </div>
         @if ($memberships->hasPages())

@@ -48,25 +48,27 @@ new #[Layout('layouts::admin')] class extends Component
     private function setInstallmentExpired(int $id, bool $expired): void
     {
         $actor = auth()->user();
-        abort_unless($this->ptOnly && $actor && (in_array($actor->role, ['admin', 'kasir_gym'], true) || $actor->isHeadCoach()), 403);
+        abort_unless($actor && (in_array($actor->role, ['admin', 'kasir_gym'], true) || $actor->isHeadCoach()), 403);
         $this->resetValidation();
         $this->successMessage = '';
         DB::transaction(function () use ($id, $expired): void {
             $membership = Membership::lockForUpdate()->findOrFail($id);
-            if ($membership->type !== 'pt' || ! in_array($membership->payment_status, ['partial', 'unpaid'], true)) {
-                throw ValidationException::withMessages(['installment' => 'Hanya cicilan PT yang belum lunas dapat ditandai Hangus atau dipulihkan.']);
+            if (($membership->type === 'pt') !== $this->ptOnly || ! in_array($membership->payment_status, ['partial', 'unpaid'], true)) {
+                throw ValidationException::withMessages(['installment' => 'Hanya cicilan yang belum lunas pada daftar ini dapat ditandai Hangus atau dipulihkan.']);
             }
-            if (($membership->pt_installment_expired_at !== null) === $expired) {
+            $prefix = $this->ptOnly ? 'pt' : 'membership';
+            if (($membership->{$prefix.'_installment_expired_at'} !== null) === $expired) {
                 return;
             }
             $membership->update([
-                'pt_installment_expired_at' => $expired ? now() : null,
-                'pt_installment_expired_by' => $expired ? auth()->id() : null,
+                $prefix.'_installment_expired_at' => $expired ? now() : null,
+                $prefix.'_installment_expired_by' => $expired ? auth()->id() : null,
             ]);
         }, 3);
         unset($this->memberships);
         $this->resetPage();
-        $this->successMessage = $expired ? 'Cicilan PT ditandai Hangus.' : 'Cicilan PT dipulihkan ke daftar Aktif.';
+        $label = $this->ptOnly ? 'PT' : 'membership';
+        $this->successMessage = $expired ? "Cicilan {$label} ditandai Hangus." : "Cicilan {$label} dipulihkan ke daftar Aktif.";
     }
 
     #[Computed]

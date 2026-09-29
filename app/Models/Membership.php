@@ -28,6 +28,8 @@ class Membership extends Model
         'operational_request_id',
         'pt_installment_expired_at',
         'pt_installment_expired_by',
+        'membership_installment_expired_at',
+        'membership_installment_expired_by',
         'user_id',
         'type',
         'pt_id',
@@ -66,6 +68,7 @@ class Membership extends Model
     protected $casts = [
         'is_renewal' => 'boolean',
         'pt_installment_expired_at' => 'datetime',
+        'membership_installment_expired_at' => 'datetime',
         'start_date' => 'date',
         'pt_end_date' => 'date',
         'membership_end_date' => 'date',
@@ -232,11 +235,12 @@ class Membership extends Model
 
     public function scopeInstallments(Builder $query, bool $ptOnly = false, bool $expired = false): Builder
     {
+        $expiryColumn = $ptOnly ? 'pt_installment_expired_at' : 'membership_installment_expired_at';
+
         return $query->whereIn('payment_status', ['partial', 'unpaid'])
             ->where('type', $ptOnly ? '=' : '!=', 'pt')
-            ->when($ptOnly, fn (Builder $pt) => $expired
-                ? $pt->whereNotNull('pt_installment_expired_at')
-                : $pt->whereNull('pt_installment_expired_at'));
+            ->when($expired, fn (Builder $installments) => $installments->whereNotNull($expiryColumn),
+                fn (Builder $installments) => $installments->whereNull($expiryColumn));
     }
 
     public function scopeRecentlyExpiredPt(Builder $query): Builder
