@@ -211,8 +211,8 @@ class ResponsiveTableLayoutTest extends TestCase
         sort($discoveredViews);
 
         $this->assertSame($expectedViews, $discoveredViews);
-        $this->assertCount(34, $discoveredViews);
-        $this->assertSame(46, $discoveredTableCount);
+        $this->assertCount(35, $discoveredViews);
+        $this->assertSame(48, $discoveredTableCount);
     }
 
     /**
@@ -241,6 +241,7 @@ class ResponsiveTableLayoutTest extends TestCase
             'dashboard/admin/membership/⚡gabung.blade.php',
             'dashboard/admin/membership/⚡non-member.blade.php',
             'dashboard/admin/package/⚡index.blade.php',
+            'dashboard/admin/operasional-pengeluaran/⚡index.blade.php',
             'dashboard/admin/pengeluaran/⚡index.blade.php',
             'dashboard/admin/penjualan/⚡index.blade.php',
             'dashboard/admin/pt-booking/⚡index.blade.php',

@@ -164,6 +164,11 @@ new class extends Component {
                                 <a href="{{ route('admin.riwayat.index', ['addonApproval' => 'pending', 'addonApprovalPage' => 1]) }}#membership-addon-approvals" wire:navigate class="flex items-center justify-between gap-3 rounded p-3 hover:bg-neutral-tertiary-medium hover:text-heading focus:outline-none focus:ring-2 focus:ring-brand">
                                     <span>Approval Add-on</span><span>{{ $this->pendingAddonCount }}</span>
                                 </a>
+                                <div class="mt-2 border-t border-default-medium pt-2">
+                                    <a href="{{ route('admin.operasional-pengeluaran.index') }}" wire:navigate @click="approvalMenuOpen = false" class="block rounded p-3 hover:bg-neutral-tertiary-medium hover:text-heading focus:outline-none focus:ring-2 focus:ring-brand">
+                                        Operasional &amp; Pengeluaran
+                                    </a>
+                                </div>
                             </div>
                             </div>
                         @endif

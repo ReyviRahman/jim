@@ -103,6 +103,9 @@ Route::middleware('auth')->group(function () {
             ->name('admin.absensi-karyawan.index');
 
         Route::livewire('/penjualan', 'pages::dashboard.admin.penjualan.index')->name('admin.penjualan.index');
+        Route::livewire('/operasional-pengeluaran', 'pages::dashboard.admin.operasional-pengeluaran.index')
+            ->middleware('role:admin,kasir_gym')
+            ->name('admin.operasional-pengeluaran.index');
         Route::get('/penjualan/{membershipTransaction}/invoice', [MembershipTransactionInvoiceController::class, 'download'])
             ->name('admin.penjualan.invoice');
         Route::livewire('/pengeluaran', 'pages::dashboard.admin.pengeluaran.index')->name('admin.pengeluaran.index');
