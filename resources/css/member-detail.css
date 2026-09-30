@@ -67,7 +67,12 @@
 .member-detail-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-block: 10px; }
 .member-detail-actions :is(a, button) { border: 1px solid #76671b; border-radius: 6px; padding: 7px 12px; color: #ffed00; cursor: pointer; }
 .member-detail-actions button { color: #ff8e84; border-color: #8a4234; }
-.member-detail-package-heading { display: flex; align-items: center; justify-content: space-between; font-size: 13px; color: #d2c55a; }
+.member-detail-package-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; font-size: 13px; color: #d2c55a; }
+.member-detail-transaction { display: flex; align-items: center; gap: 8px; margin-block: 6px; }
+.member-detail-transaction > p { min-width: 0; overflow-wrap: anywhere; }
+.member-detail-sequence { display: grid; justify-items: center; flex-shrink: 0; gap: 1px; min-width: 34px; padding: 4px 6px; border: 1px solid #998329; border-radius: 6px; background: linear-gradient(135deg, #453912, #171509); box-shadow: 0 2px 5px #0004; }
+.member-detail-sequence span { color: #bfc0bd; font-size: 8px; }
+.member-detail-sequence strong { color: #ffed00; font-size: 16px; font-weight: 750; line-height: 1; font-variant-numeric: tabular-nums; }
 .member-detail-empty, .member-detail-notice { padding: 24px; }
 .member-detail :is(a, button, summary):focus-visible { outline: 2px solid #ffed00; outline-offset: 4px; }
 .member-detail-button:hover { background: #fff56b; }

@@ -47,10 +47,11 @@
                 'cancelled' => 'Dibatalkan', default => ucfirst($membership->status),
             };
         @endphp
-        <section class="member-detail-membership" wire:key="membership-{{ $membership->id }}" aria-label="Paket {{ $loop->iteration }}">
-            @if ($memberships->count() > 1 || $membership->status !== 'active')
-                <div class="member-detail-package-heading"><h3>Riwayat Paket #{{ $membership->id }}</h3><span>{{ $statusLabel }}</span></div>
-            @endif
+        <section class="member-detail-membership" wire:key="membership-{{ $membership->id }}" aria-label="Paket {{ $loop->remaining + 1 }}">
+            <div class="member-detail-package-heading">
+                <h3>Riwayat Paket #{{ $membership->id }}</h3>
+                <span>{{ $statusLabel }}</span>
+            </div>
             <div class="member-detail-summary">
                 <div class="member-detail-panel member-detail-feature">
                     <span class="member-detail-icon"><x-member-detail-icon name="gym" /></span>
@@ -107,6 +108,10 @@
                 <summary>Informasi paket lainnya{{ auth()->user()->role === 'admin' ? ' & kelola' : '' }}</summary>
                 <p>Member: {{ $membership->members->isNotEmpty() ? $membership->members->pluck('name')->implode(', ') : ($membership->user?->name ?? 'N/A') }}</p>
                 <p>Status paket: {{ $statusLabel }}</p>
+                <div class="member-detail-transaction">
+                    <div class="member-detail-sequence" aria-label="Nomor urut {{ $loop->remaining + 1 }}"><span>No.</span><strong>{{ $loop->remaining + 1 }}</strong></div>
+                    <p>Jenis transaksi: {{ $membership->transaction_type ?: '-' }}</p>
+                </div>
                 @if ($membership->addon)
                     <div class="my-3 rounded-md border border-default-medium p-3">
                         <p><strong>Add-on: {{ $membership->addon->name }}</strong></p>
