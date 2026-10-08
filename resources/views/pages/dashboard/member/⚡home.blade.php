@@ -51,16 +51,7 @@ new #[Layout('layouts::member'), Title('Dashboard Membership')] class extends Co
         return $this->accessibleMembershipQuery()
             ->where('status', 'active')
             ->where('is_active', true)
-            ->whereDate('start_date', '<=', today())
-            ->where(function (Builder $query): void {
-                $query->where(function (Builder $gymQuery): void {
-                    $gymQuery->whereIn('type', ['membership', 'bundle_pt_membership'])
-                        ->whereDate('membership_end_date', '>=', today());
-                })->orWhere(function (Builder $ptQuery): void {
-                    $ptQuery->whereIn('type', ['pt', 'bundle_pt_membership'])
-                        ->whereDate('pt_end_date', '>=', today());
-                });
-            })
+            ->whereIn('type', ['membership', 'pt', 'bundle_pt_membership'])
             ->with(['gymPackage:id,name', 'ptPackage:id,name'])
             ->withCount(['ptBookings as attended_sessions' => function (Builder $query): void {
                 $query->where('attendance', 'attended');

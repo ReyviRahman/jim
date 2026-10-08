@@ -119,7 +119,7 @@ class MemberDashboardTest extends TestCase
             ->assertSet('ownedPackages', fn ($packages): bool => $packages->modelKeys() === [$ownedMembership->id]);
     }
 
-    public function test_current_memberships_are_filtered_by_type_status_active_flag_and_dates(): void
+    public function test_current_memberships_are_filtered_by_type_status_and_active_flag_regardless_of_dates(): void
     {
         $member = $this->createUser();
         $otherMember = $this->createUser();
@@ -155,13 +155,13 @@ class MemberDashboardTest extends TestCase
 
         Livewire::actingAs($member)
             ->test('pages::dashboard.member.home')
-            ->assertCount('ownedPackages', 2)
+            ->assertCount('ownedPackages', 4)
             ->assertSee('Paket Valid Saat Ini')
             ->assertDontSee('Paket Pending')
             ->assertDontSee('Paket Selesai')
             ->assertDontSee('Paket Flag Tidak Aktif')
-            ->assertDontSee('Paket Belum Dimulai')
-            ->assertDontSee('Paket Kedaluwarsa')
+            ->assertSee('Paket Belum Dimulai')
+            ->assertSee('Paket Kedaluwarsa')
             ->assertSee('Paket PT Bukan Gym')
             ->assertDontSee('Paket Visit Bukan Membership')
             ->assertDontSee('Paket Milik Member Lain');
@@ -430,7 +430,7 @@ class MemberDashboardTest extends TestCase
             ->assertDontSee('Paket Single Nonaktif');
     }
 
-    public function test_pt_banner_sums_only_accessible_active_unexpired_pt_sessions(): void
+    public function test_pt_banner_sums_accessible_active_pt_sessions_regardless_of_dates(): void
     {
         $member = $this->createUser();
         $payer = $this->createUser();
@@ -490,8 +490,8 @@ class MemberDashboardTest extends TestCase
 
         Livewire::actingAs($member)
             ->test('pages::dashboard.member.home')
-            ->assertCount('ownedPackages', 3)
-            ->assertSet('ownedPackageSummaries', fn ($summaries): bool => $summaries->sum('remaining_sessions') === 9)
+            ->assertCount('ownedPackages', 5)
+            ->assertSet('ownedPackageSummaries', fn ($summaries): bool => $summaries->sum('remaining_sessions') === 209)
             ->assertDontSee('Sisa sesi PT aktif Anda:');
     }
 
@@ -579,7 +579,7 @@ class MemberDashboardTest extends TestCase
     }
 
     #[DataProvider('bundleDates')]
-    public function test_bundle_is_one_purchase_card_while_either_benefit_is_active(int $gymDays, int $ptDays, int $expectedCount): void
+    public function test_active_bundle_is_one_purchase_card_regardless_of_benefit_dates(int $gymDays, int $ptDays, int $expectedCount): void
     {
         $member = $this->createUser();
         $gym = $this->createPackage('Gym Bundle');
@@ -694,7 +694,7 @@ class MemberDashboardTest extends TestCase
         return [
             'gym expired' => [-1, 10, 1],
             'pt expired' => [10, -1, 1],
-            'both expired' => [-1, -1, 0],
+            'both expired' => [-1, -1, 1],
             'both end today' => [0, 0, 1],
         ];
     }
