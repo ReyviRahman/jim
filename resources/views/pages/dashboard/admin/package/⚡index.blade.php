@@ -134,6 +134,9 @@ new #[Layout('layouts::admin')] class extends Component
                         <td class="px-6 py-4 font-medium text-heading">
                             {{ $package->name }}
                             <div class="mt-1 text-xs text-gray-500">{{ $package->durationLabel() }}</div>
+                            <div class="mt-1 text-xs text-gray-500">
+                                {{ $package->available_from ? substr($package->available_from, 0, 5).' - '.substr($package->available_until, 0, 5).' WIB' : 'Sepanjang hari' }}
+                            </div>
                         </td>
 
                         {{-- Kategori & Kapasitas (DIPERBARUI) --}}

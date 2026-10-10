@@ -23,6 +23,7 @@ use Livewire\WithFileUploads;
 new #[Layout('layouts::admin')] class extends Component
 {
     use HandlesRequiredMemberProfilePhotos;
+    use \App\Livewire\Concerns\ChecksSelectedPackageAvailability;
     use \App\Livewire\Concerns\HasMembershipAddon;
     use \App\Livewire\Concerns\ReportsMembershipValidation;
     use \App\Livewire\Concerns\CalculatesMembershipDates;
@@ -115,6 +116,12 @@ new #[Layout('layouts::admin')] class extends Component
         $this->registration_type = $this->oldMembership->type;
         $this->gym_package_id = $this->oldMembership->gym_package_id;
         $this->pt_package_id = $this->oldMembership->pt_package_id;
+        if ($this->gym_package_id && ! GymPackage::availableNow()->whereKey($this->gym_package_id)->exists()) {
+            $this->gym_package_id = '';
+        }
+        if ($this->pt_package_id && ! GymPackage::availableNow()->whereKey($this->pt_package_id)->exists()) {
+            $this->pt_package_id = '';
+        }
         $this->pt_id = $this->oldMembership->pt_id;
         $this->follow_up_id = $this->oldMembership->pt_id;
 
@@ -142,9 +149,9 @@ new #[Layout('layouts::admin')] class extends Component
     {
         $jumlahUser = $this->selectedUsers->count();
         if ($this->registration_type === 'visit') {
-            $query = GymPackage::where('is_active', true)->where('type', 'visit');
+            $query = GymPackage::availableNow()->where('is_active', true)->where('type', 'visit');
         } else {
-            $query = GymPackage::where('is_active', true)->where('type', 'gym');
+            $query = GymPackage::availableNow()->where('is_active', true)->where('type', 'gym');
             if ($jumlahUser === 1) $query->where('category', 'single');
             elseif ($jumlahUser === 2) $query->where('category', 'couple');
             elseif ($jumlahUser >= 3) $query->where('category', 'group')->where('max_members', '>=', $jumlahUser); 
@@ -156,7 +163,7 @@ new #[Layout('layouts::admin')] class extends Component
     public function ptPackages()
     {
         $jumlahUser = $this->selectedUsers->count();
-        $query = GymPackage::where('is_active', true)->where('type', 'pt');
+        $query = GymPackage::availableNow()->where('is_active', true)->where('type', 'pt');
         if ($jumlahUser === 1) $query->where('category', 'single');
         elseif ($jumlahUser === 2) $query->where('category', 'couple');
         elseif ($jumlahUser >= 3) $query->where('category', 'group')->where('max_members', '>=', $jumlahUser); 
@@ -271,6 +278,7 @@ new #[Layout('layouts::admin')] class extends Component
     )
     {
         $this->validateMembershipDates();
+        $this->validateSelectedPackageAvailability();
         $addonInput = $this->validatedAddon();
 
         $this->validateRequiredMemberProfilePhotos();

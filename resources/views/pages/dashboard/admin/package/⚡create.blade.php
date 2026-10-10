@@ -11,6 +11,7 @@ use App\Models\GymPackage;
 new #[Layout('layouts::admin')] class extends Component
 {
     use \App\Livewire\Concerns\ValidatesPackageDuration;
+    use \App\Livewire\Concerns\ValidatesPackageAvailability;
     use \App\Livewire\Concerns\ReportsPackageValidation;
 
     #[Validate('required|string|max:255')]
@@ -111,10 +112,12 @@ new #[Layout('layouts::admin')] class extends Component
         $this->validate();
 
         $duration = $this->validatedDuration();
+        $availability = $this->validatedAvailability();
 
         GymPackage::create([
             'name' => $this->name,
             ...$duration,
+            ...$availability,
             'type' => $this->type,                         
             'pt_sessions' => $this->type === 'pt' ? $this->pt_sessions : null, 
             'category' => $this->category, 
@@ -146,6 +149,8 @@ new #[Layout('layouts::admin')] class extends Component
         <p class="my-4 text-sm text-body">Isian bertanda * wajib diisi. Durasi cukup diisi salah satu atau digabungkan.</p>
         <h5 class="text-xl font-semibold text-heading mb-6">Buat Paket Membership / PT</h5>
         
+
+        <x-package-availability-fields />
 
         <fieldset class="mb-6">
             <legend class="mb-2 text-sm font-semibold text-heading">Durasi Paket <span class="text-red-600">*</span></legend>

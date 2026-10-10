@@ -23,6 +23,7 @@ use Livewire\WithFileUploads;
 new #[Layout('layouts::admin')] class extends Component
 {
     use HandlesRequiredMemberProfilePhotos;
+    use \App\Livewire\Concerns\ChecksSelectedPackageAvailability;
     use \App\Livewire\Concerns\HasMembershipAddon;
     use \App\Livewire\Concerns\ReportsMembershipValidation;
     use \App\Livewire\Concerns\CalculatesMembershipDates;
@@ -179,9 +180,9 @@ new #[Layout('layouts::admin')] class extends Component
         $jumlahUser = $this->selectedUsers->count();
         
         if ($this->registration_type === 'visit') {
-            $query = GymPackage::where('is_active', true)->where('type', 'visit');
+            $query = GymPackage::availableNow()->where('is_active', true)->where('type', 'visit');
         } else {
-            $query = GymPackage::where('is_active', true)->where('type', 'gym');
+            $query = GymPackage::availableNow()->where('is_active', true)->where('type', 'gym');
             if ($jumlahUser === 1) {
                 $query->where('category', 'single');
             } elseif ($jumlahUser === 2) {
@@ -198,7 +199,7 @@ new #[Layout('layouts::admin')] class extends Component
     public function ptPackages()
     {
         $jumlahUser = $this->selectedUsers->count();
-        $query = GymPackage::where('is_active', true)->where('type', 'pt');
+        $query = GymPackage::availableNow()->where('is_active', true)->where('type', 'pt');
 
         if ($jumlahUser === 1) {
             $query->where('category', 'single');
@@ -335,6 +336,7 @@ new #[Layout('layouts::admin')] class extends Component
     )
     {
         $this->validateMembershipDates();
+        $this->validateSelectedPackageAvailability();
         $addonInput = $this->validatedAddon();
 
         if ($this->payment_method === 'operasional') {

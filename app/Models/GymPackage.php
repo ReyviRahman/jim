@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
@@ -28,6 +29,8 @@ class GymPackage extends Model
         'duration_months',
         'duration_weeks',
         'duration_days',
+        'available_from',
+        'available_until',
     ];
 
     protected function casts(): array
@@ -37,6 +40,23 @@ class GymPackage extends Model
             'duration_weeks' => 'integer',
             'duration_days' => 'integer',
         ];
+    }
+
+    public function scopeAvailableNow(Builder $query): Builder
+    {
+        $time = now(config('app.timezone'))->format('H:i:s');
+
+        return $query->where(function (Builder $query) use ($time): void {
+            $query->where(fn (Builder $query) => $query->whereNull('available_from')->whereNull('available_until'))
+                ->orWhere(function (Builder $query) use ($time): void {
+                    $query->whereColumn('available_from', '<', 'available_until')
+                        ->where('available_from', '<=', $time)->where('available_until', '>', $time);
+                })
+                ->orWhere(function (Builder $query) use ($time): void {
+                    $query->whereColumn('available_from', '>', 'available_until')
+                        ->where(fn (Builder $query) => $query->where('available_from', '<=', $time)->orWhere('available_until', '>', $time));
+                });
+        });
     }
 
     public function durationInDays(): int
