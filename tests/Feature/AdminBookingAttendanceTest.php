@@ -14,6 +14,58 @@ class AdminBookingAttendanceTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_detail_counts_paid_attendance_across_members_of_only_the_selected_membership(): void
+    {
+        $membership = $this->createMembership([
+            'remaining_sessions' => 4,
+            'start_date' => '2026-01-02',
+            'pt_end_date' => '2026-12-30',
+        ]);
+        $otherMember = $this->createUser();
+        $membership->members()->attach([$membership->user_id, $otherMember->id]);
+        $booking = $this->createBookingForMembership($membership, ['attendance' => 'attended']);
+        $this->createBookingForMembership($membership, [
+            'member_id' => $otherMember->id,
+            'attendance' => 'attended',
+            'booking_date' => '2026-01-05',
+        ]);
+
+        foreach ([
+            ['attendance' => 'attended', 'is_free' => true],
+            ['attendance' => 'noshow'],
+            ['attendance' => 'not_yet'],
+            ['attendance' => 'attended', 'status' => 'pending'],
+            ['attendance' => 'attended', 'status' => 'cancelled'],
+            ['attendance' => 'attended', 'status' => 'rejected'],
+        ] as $attributes) {
+            $this->createBookingForMembership($membership, $attributes);
+        }
+        $this->createBooking(['attendance' => 'attended']);
+
+        Livewire::actingAs($this->createUser(['role' => 'admin']))
+            ->test('pages::dashboard.admin.booking-jadwal.index')
+            ->call('openDetailModal', $booking->id)
+            ->assertSeeInOrder(['Ringkasan Membership', 'Sesi hadir', '2 sesi', 'Sisa sesi', '4 sesi', 'Tanggal mulai', '2 Jan 2026', 'Tanggal berakhir PT', '30 Des 2026']);
+    }
+
+    public function test_detail_refreshes_membership_summary_when_switching_bookings_and_handles_empty_dates(): void
+    {
+        $first = $this->createBooking(['attendance' => 'attended']);
+        $second = $this->createBookingForMembership($this->createMembership([
+            'remaining_sessions' => 0,
+            'start_date' => null,
+            'pt_end_date' => null,
+        ]));
+
+        Livewire::actingAs($this->createUser(['role' => 'admin']))
+            ->test('pages::dashboard.admin.booking-jadwal.index')
+            ->call('openDetailModal', $first->id)
+            ->assertSeeInOrder(['Ringkasan Membership', 'Sesi hadir', '1 sesi', 'Sisa sesi', '10 sesi'])
+            ->call('closeDetailModal')
+            ->call('openDetailModal', $second->id)
+            ->assertSeeInOrder(['Ringkasan Membership', 'Sesi hadir', '0 sesi', 'Sisa sesi', '0 sesi', 'Tanggal mulai', '-', 'Tanggal berakhir PT', '-']);
+    }
+
     public function test_editing_attended_booking_to_free_refunds_once_and_can_charge_it_again(): void
     {
         $membership = $this->createMembership(['remaining_sessions' => 1]);

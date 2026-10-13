@@ -375,7 +375,15 @@ new #[Layout('layouts::admin')] class extends Component
             return null;
         }
 
-        return PtBooking::with(['member', 'pt', 'membership.ptPackage', 'membership.members', 'cancelledBy'])->find($this->selectedBookingId);
+        return PtBooking::with([
+            'member', 'pt', 'membership.ptPackage', 'membership.members', 'cancelledBy',
+            'membership' => fn ($query) => $query->withCount([
+                'ptBookings as attended_non_free_sessions_count' => fn ($bookings) => $bookings
+                    ->where('status', 'approved')
+                    ->where('attendance', 'attended')
+                    ->where('is_free', false),
+            ]),
+        ])->find($this->selectedBookingId);
     }
 
     public function openDetailModal($bookingId)
@@ -1406,6 +1414,11 @@ new #[Layout('layouts::admin')] class extends Component
                         <div>
                             <span class="text-body">Member</span>
                             <div class="font-medium text-heading">{{ $booking->member?->name ?? '-' }}</div>
+                            @if($booking->membership?->members->count() > 1)
+                                @foreach($booking->membership->members->where('id', '!=', $booking->member_id) as $member)
+                                    <div wire:key="booking-detail-member-{{ $booking->id }}-{{ $member->id }}" class="font-medium text-heading">{{ $member->name }}</div>
+                                @endforeach
+                            @endif
                         </div>
                         <div>
                             <span class="text-body">Coach</span>
@@ -1476,16 +1489,27 @@ new #[Layout('layouts::admin')] class extends Component
                         </div>
                     </div>
 
-                    @if($booking->membership && $booking->membership->members && $booking->membership->members->count() > 1)
-                        <div class="border-t border-default pt-3">
-                            <span class="text-body text-sm">Member Lain</span>
-                            <div class="flex flex-wrap gap-2 mt-1">
-                                @foreach($booking->membership->members->where('id', '!=', $booking->member_id) as $member)
-                                    <span class="px-2 py-1 bg-neutral-secondary-medium rounded text-xs text-heading">{{ $member->name }}</span>
-                                @endforeach
+                    <div class="border-t border-default pt-3">
+                        <h4 class="text-sm font-medium text-heading mb-3">Ringkasan Membership</h4>
+                        <div class="grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                                <span class="text-body">Sesi hadir</span>
+                                <div class="font-medium text-heading">{{ $booking->membership ? $booking->membership->attended_non_free_sessions_count.' sesi' : '-' }}</div>
+                            </div>
+                            <div>
+                                <span class="text-body">Sisa sesi</span>
+                                <div class="font-medium text-heading">{{ $booking->membership ? $booking->membership->remaining_sessions.' sesi' : '-' }}</div>
+                            </div>
+                            <div>
+                                <span class="text-body">Tanggal mulai</span>
+                                <div class="font-medium text-heading">{{ $booking->membership?->start_date?->locale('id')->isoFormat('D MMM YYYY') ?? '-' }}</div>
+                            </div>
+                            <div>
+                                <span class="text-body">Tanggal berakhir PT</span>
+                                <div class="font-medium text-heading">{{ $booking->membership?->pt_end_date?->locale('id')->isoFormat('D MMM YYYY') ?? '-' }}</div>
                             </div>
                         </div>
-                    @endif
+                    </div>
 
                     @if($booking->isCancellationPending())
                         <div class="border-t border-default pt-3">
