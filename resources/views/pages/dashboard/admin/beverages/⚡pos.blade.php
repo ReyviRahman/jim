@@ -176,27 +176,19 @@ new #[Layout('layouts::admin')] class extends Component
         $this->expense_date = now()->format('Y-m-d');
     }
 
-    public function saveExpense()
+    public function saveExpense(): void
     {
-        if (empty($this->expense_name) || empty($this->expense_amount)) {
-            session()->flash('error', 'Nama dan jumlah pengeluaran harus diisi.');
-            return;
-        }
-
-        BeverageSale::create([
-            'nama_staff' => $this->nama_staff,
-            'waktu_transaksi' => $this->expense_date,
-            'shift' => auth()->user()->beverageShiftSnapshot(),
-            'jumlah_beli' => 0,
-            'harga_satuan' => 0,
-            'total_harga' => (int) str_replace('.', '', $this->expense_amount),
-            'keterangan_bayar' => 'pengeluaran_umum',
-            'nama_produk' => $this->expense_name,
-            'nama_penghutang' => auth()->user()->name,
+        $request = app(\App\Actions\ExpenseApproval::class)->submit(auth()->user(), 'beverage', [
+            'description' => $this->expense_name,
+            'amount' => str_replace('.', '', (string) $this->expense_amount),
+            'expense_date' => $this->expense_date,
         ]);
 
-        session()->flash('success', 'Pengeluaran berhasil disimpan!');
-
+        session()->flash('success', $request->status === 'approved'
+            ? 'Pengeluaran disetujui dan dicatat.'
+            : 'Pengajuan pengeluaran menunggu persetujuan admin. Belum masuk laporan.');
+        $this->dispatch('expense-approvals-updated');
+        $this->dispatch('expense-submitted');
         $this->closeExpenseModal();
     }
 
@@ -866,6 +858,7 @@ new #[Layout('layouts::admin')] class extends Component
         </div>
     </form>
 
+    <livewire:dashboard.expense-approvals source="beverage" />
     <section id="operational-approvals" class="mt-6 scroll-mt-24 rounded-md border border-default bg-neutral-primary-soft p-4" aria-label="Approval Operasional">
         <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
             <h2 class="text-lg font-semibold text-heading">Approval Operasional</h2>
@@ -1075,7 +1068,7 @@ new #[Layout('layouts::admin')] class extends Component
         </div>
     </div>
 
-    <div x-show="showExpenseModal" x-on:keydown.escape.window="closeExpenseModal()"
+    <div x-show="showExpenseModal" x-on:keydown.escape.window="closeExpenseModal()" x-on:expense-submitted.window="closeExpenseModal()"
         class="fixed inset-0 z-50 overflow-y-auto"
         x-transition:enter="transition ease-out duration-300"
         x-transition:enter-start="opacity-0"
@@ -1101,6 +1094,8 @@ new #[Layout('layouts::admin')] class extends Component
                 <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                     <div class="text-center">
                         <h3 class="text-lg leading-6 font-semibold text-heading mb-4">Tambah Pengeluaran Umum</h3>
+                        @if(auth()->user()->role !== 'admin')<p class="mb-4 text-sm text-body">Pengeluaran akan menunggu persetujuan admin sebelum masuk laporan.</p>@endif
+                        @if($errors->any())<div role="alert" class="mb-4 text-sm text-red-700">@foreach($errors->all() as $error)<p>{{ $error }}</p>@endforeach</div>@endif
                         
                         <div class="mb-4">
                             <label class="block mb-2 text-sm font-medium text-heading">Nama Pengeluaran</label>
@@ -1123,9 +1118,9 @@ new #[Layout('layouts::admin')] class extends Component
                         </div>
 
                         <div class="flex flex-col gap-2 mt-6">
-                            <button type="button" wire:click="saveExpense" @click="closeExpenseModal()"
+                            <button type="button" wire:click="saveExpense" wire:loading.attr="disabled" wire:target="saveExpense"
                                 class="w-full px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-semibold rounded-md transition-colors">
-                                Simpan Pengeluaran
+                                {{ auth()->user()->role === 'admin' ? 'Simpan Pengeluaran' : 'Ajukan Pengeluaran' }}
                             </button>
                             <button type="button" @click="closeExpenseModal()"
                                 class="w-full px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 text-sm font-semibold rounded-md transition-colors">

@@ -5,7 +5,7 @@ namespace App\Livewire\Admin;
 use Livewire\Component;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Rule;
-use App\Models\Expense;
+use App\Actions\ExpenseApproval;
 use Illuminate\Support\Facades\Auth;
 
 new #[Layout('layouts::admin')] class extends Component
@@ -32,16 +32,16 @@ new #[Layout('layouts::admin')] class extends Component
         $this->validate();
 
         // Simpan ke database
-        Expense::create([
-            'admin_id' => Auth::id(),
-            'shift' => Auth::user()->shiftSnapshot(),
+        $request = app(ExpenseApproval::class)->submit(Auth::user(), 'gym', [
             'description' => $this->description,
             'amount' => $this->amount,
             'expense_date' => $this->expense_date,
         ]);
 
         // Beri pesan sukses (opsional, jika Anda punya komponen alert)
-        session()->flash('success', 'Pengeluaran berhasil dicatat!');
+        session()->flash('success', $request->status === 'approved'
+            ? 'Pengeluaran disetujui dan dicatat.'
+            : 'Pengajuan pengeluaran menunggu persetujuan admin. Belum masuk laporan.');
 
         // Redirect kembali ke halaman tabel pengeluaran 
         // (Sesuaikan "/admin/expenses" dengan URL route tabel Anda)
@@ -58,6 +58,9 @@ new #[Layout('layouts::admin')] class extends Component
 
     <div class="bg-white rounded-md border border-default-medium shadow-xs p-6 max-w-2xl">
         <form wire:submit="save" class="space-y-6">
+            @if(auth()->user()->role !== 'admin')
+                <p class="text-sm text-body">Pengeluaran akan diajukan untuk persetujuan admin sebelum masuk laporan.</p>
+            @endif
             
             {{-- Tanggal Pengeluaran --}}
             <div>
@@ -119,7 +122,7 @@ new #[Layout('layouts::admin')] class extends Component
             <div class="flex items-center gap-3 pt-4 border-t border-gray-100">
                 {{-- Tombol Simpan dengan indikator loading Livewire --}}
                 <button type="submit" class="px-5 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:ring-4 focus:ring-blue-300 shadow-xs flex items-center justify-center min-w-[160px]">
-                    <span wire:loading.remove wire:target="save">Simpan Pengeluaran</span>
+                    <span wire:loading.remove wire:target="save">{{ auth()->user()->role === 'admin' ? 'Simpan Pengeluaran' : 'Ajukan Pengeluaran' }}</span>
                     <span wire:loading wire:target="save">Menyimpan...</span>
                 </button>
                 

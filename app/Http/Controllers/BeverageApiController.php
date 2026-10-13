@@ -49,6 +49,10 @@ class BeverageApiController extends Controller
     public function processSale(Request $request)
     {
         abort_unless(in_array($request->user()->role, ['admin', 'kasir_gym', 'kasir_minum'], true), 403);
+        $request->validate([
+            'keterangan_bayar' => ['required', 'in:cash,tf_bca_qris,hutang,deposit,operasional'],
+            'secondary_payment_method' => ['nullable', 'in:cash,tf_bca_qris,hutang,operasional'],
+        ]);
         if ($request->keterangan_bayar === 'operasional' || ($request->keterangan_bayar === 'deposit' && $request->secondary_payment_method === 'operasional')) {
             $input = $request->all();
             $input['selected_products'] = json_decode($request->input('selected_products', '[]'), true);

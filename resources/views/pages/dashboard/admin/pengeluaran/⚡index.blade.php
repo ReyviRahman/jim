@@ -24,6 +24,12 @@ new #[Layout('layouts::admin')] class extends Component
     public $perPage = '50';
     public $shift;
 
+    #[\Livewire\Attributes\On('expense-approvals-updated')]
+    public function refreshExpenses(): void
+    {
+        unset($this->expenses);
+    }
+
     /** @return Collection<string, string> */
     #[Computed]
     public function shiftOptions(): Collection
@@ -140,6 +146,7 @@ new #[Layout('layouts::admin')] class extends Component
 ?>
 
 <div>
+    <livewire:dashboard.expense-approvals source="gym" />
     <div class="flex sm:flex-row flex-col justify-between items-center mb-6">
         <h5 class="text-xl font-semibold text-heading">
             Riwayat Pengeluaran Shift {{ blank($this->shift) ? 'Semua' : ($this->shiftOptions[$this->shift] ?? $this->shift) }}

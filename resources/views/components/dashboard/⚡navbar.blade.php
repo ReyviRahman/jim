@@ -17,7 +17,7 @@ new class extends Component {
     {
         abort_unless(Auth::user()?->role === 'admin', 403);
 
-        return $this->pendingBeverageCount + $this->pendingMembershipCount + $this->pendingAddonCount;
+        return $this->pendingBeverageCount + $this->pendingMembershipCount + $this->pendingAddonCount + $this->pendingGymExpenseCount + $this->pendingBeverageExpenseCount;
     }
 
     #[Computed]
@@ -42,13 +42,28 @@ new class extends Component {
     }
 
     #[On('operational-approvals-updated')]
+    #[On('expense-approvals-updated')]
     #[On('addon-approvals-updated')]
     public function refreshOperationalApprovals(): void
     {
         if (Auth::user()?->role !== 'admin') {
             return;
         }
-        unset($this->pendingOperationalCount, $this->pendingBeverageCount, $this->pendingMembershipCount, $this->pendingAddonCount);
+        unset($this->pendingOperationalCount, $this->pendingBeverageCount, $this->pendingMembershipCount, $this->pendingAddonCount, $this->pendingGymExpenseCount, $this->pendingBeverageExpenseCount);
+    }
+
+    #[Computed]
+    public function pendingGymExpenseCount(): int
+    {
+        abort_unless(Auth::user()?->role === 'admin', 403);
+        return \App\Models\ExpenseRequest::where('source', 'gym')->where('status', 'pending')->count();
+    }
+
+    #[Computed]
+    public function pendingBeverageExpenseCount(): int
+    {
+        abort_unless(Auth::user()?->role === 'admin', 403);
+        return \App\Models\ExpenseRequest::where('source', 'beverage')->where('status', 'pending')->count();
     }
 
     #[Computed]
@@ -163,6 +178,12 @@ new class extends Component {
                                 </a>
                                 <a href="{{ route('admin.riwayat.index', ['addonApproval' => 'pending', 'addonApprovalPage' => 1]) }}#membership-addon-approvals" wire:navigate class="flex items-center justify-between gap-3 rounded p-3 hover:bg-neutral-tertiary-medium hover:text-heading focus:outline-none focus:ring-2 focus:ring-brand">
                                     <span>Approval Add-on</span><span>{{ $this->pendingAddonCount }}</span>
+                                </a>
+                                <a href="{{ route('admin.pengeluaran.index', ['expenseApprovalPage' => 1]) }}#expense-approvals" wire:navigate class="flex items-center justify-between gap-3 rounded p-3 hover:bg-neutral-tertiary-medium hover:text-heading focus:outline-none focus:ring-2 focus:ring-brand">
+                                    <span>Pengeluaran Gym</span><span>{{ $this->pendingGymExpenseCount }}</span>
+                                </a>
+                                <a href="{{ route('admin.beverages.pos', ['expenseApprovalPage' => 1]) }}#expense-approvals" wire:navigate class="flex items-center justify-between gap-3 rounded p-3 hover:bg-neutral-tertiary-medium hover:text-heading focus:outline-none focus:ring-2 focus:ring-brand">
+                                    <span>Pengeluaran Minuman</span><span>{{ $this->pendingBeverageExpenseCount }}</span>
                                 </a>
                                 <div class="mt-2 border-t border-default-medium pt-2">
                                     <a href="{{ route('admin.operasional-pengeluaran.index') }}" wire:navigate @click="approvalMenuOpen = false" class="block rounded p-3 hover:bg-neutral-tertiary-medium hover:text-heading focus:outline-none focus:ring-2 focus:ring-brand">
