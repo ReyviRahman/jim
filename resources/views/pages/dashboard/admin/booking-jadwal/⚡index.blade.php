@@ -1424,7 +1424,7 @@ new #[Layout('layouts::admin')] class extends Component
                     </button>
                 </div>
 
-                <div class="booking-detail-content p-5 sm:p-6 space-y-4">
+                <div class="booking-detail-content p-5 sm:p-6">
                     <div class="booking-detail-member flex items-center gap-5 px-2 py-2">
                         <div class="booking-detail-avatar flex size-20 shrink-0 items-center justify-center rounded-full text-3xl font-bold uppercase" aria-hidden="true">{{ $initials ?: '-' }}</div>
                         <div class="min-w-0 flex-1">
@@ -1510,30 +1510,7 @@ new #[Layout('layouts::admin')] class extends Component
                         </div>
                     </div>
 
-                    <div class="flex flex-wrap items-center gap-3 pt-2 text-sm">
-                        <span class="booking-detail-label">Absensi</span>
-                                @if($booking->status === 'approved')
-                                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium capitalize
-                                        @if($booking->attendance === 'attended') bg-green-950 text-green-300
-                                        @elseif($booking->attendance === 'noshow') bg-red-950 text-red-300
-                                        @else bg-neutral-secondary-medium text-body
-                                        @endif">
-                                        @if($booking->attendance === 'attended') Hadir
-                                        @elseif($booking->attendance === 'noshow') Hangus
-                                        @elseif($booking->attendance === 'not_yet' && $booking->booking_date->lt(today(config('app.timezone')))) Tidak Hadir
-                                        @else Belum Absen
-                                        @endif
-                                    </span>
-                                @elseif($booking->status === 'pending')
-                                    <span class="text-xs text-orange-400">Menunggu Approval</span>
-                                @else
-                                    <span class="text-xs text-gray-400">-</span>
-                                @endif
 
-                        @if($booking->is_free)
-                            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-purple-950 text-purple-300">Free</span>
-                        @endif
-                    </div>
 
                     @if($booking->isCancellationPending())
                         <div class="border-t border-default pt-3">
@@ -1641,6 +1618,31 @@ new #[Layout('layouts::admin')] class extends Component
                                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                                 Hapus
                             </button>
+                        @endif
+                    </div>
+
+                    <div class="flex flex-wrap items-center gap-3 text-sm">
+                        <span class="booking-detail-label">Absensi</span>
+                                @if($booking->status === 'approved')
+                                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium capitalize
+                                        @if($booking->attendance === 'attended') bg-green-950 text-green-300
+                                        @elseif($booking->attendance === 'noshow') bg-red-950 text-red-300
+                                        @else bg-neutral-secondary-medium text-body
+                                        @endif">
+                                        @if($booking->attendance === 'attended') Hadir
+                                        @elseif($booking->attendance === 'noshow') Hangus
+                                        @elseif($booking->attendance === 'not_yet' && $booking->booking_date->lt(today(config('app.timezone')))) Tidak Hadir
+                                        @else Belum Absen
+                                        @endif
+                                    </span>
+                                @elseif($booking->status === 'pending')
+                                    <span class="text-xs text-orange-400">Menunggu Approval</span>
+                                @else
+                                    <span class="text-xs text-gray-400">-</span>
+                                @endif
+
+                        @if($booking->is_free)
+                            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-purple-950 text-purple-300">Free</span>
                         @endif
                     </div>
                 </div>
