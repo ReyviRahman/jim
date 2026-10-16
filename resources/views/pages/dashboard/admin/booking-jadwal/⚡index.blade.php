@@ -377,12 +377,6 @@ new #[Layout('layouts::admin')] class extends Component
 
         return PtBooking::with([
             'member', 'pt', 'membership.ptPackage', 'membership.members', 'cancelledBy',
-            'membership' => fn ($query) => $query->withCount([
-                'ptBookings as attended_non_free_sessions_count' => fn ($bookings) => $bookings
-                    ->where('status', 'approved')
-                    ->where('attendance', 'attended')
-                    ->where('is_free', false),
-            ]),
         ])->find($this->selectedBookingId);
     }
 
@@ -1405,50 +1399,44 @@ new #[Layout('layouts::admin')] class extends Component
     @endif
 
     @if($showDetailModal && $this->selectedBooking)
-        @php $booking = $this->selectedBooking; @endphp
-        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" wire:click.self="closeDetailModal">
-            <div class="bg-neutral-primary-soft rounded-lg shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto" @click.stop>
-                <div class="flex items-center justify-between p-4 border-b border-default sticky top-0 bg-neutral-primary-soft">
-                    <h3 class="text-lg font-semibold text-heading">Detail Booking</h3>
-                    <button wire:click="closeDetailModal" class="text-gray-400 hover:text-heading">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        @php
+            $booking = $this->selectedBooking;
+            $membership = $booking->membership;
+            $totalSessions = $membership?->total_sessions;
+            $remainingSessions = $membership?->remaining_sessions;
+            $usedSessions = $membership ? max(0, $totalSessions - $remainingSessions) : null;
+            $sessionProgress = $totalSessions > 0 ? (int) round(min(100, max(0, $usedSessions / $totalSessions * 100))) : 0;
+            $initials = str($booking->member?->name ?? '')->squish()->explode(' ')->filter()->take(2)->map(fn ($part) => mb_substr($part, 0, 1))->implode('');
+            $detailFields = [
+                ['label' => 'Paket', 'value' => $membership?->ptPackage?->name ?? '-', 'icon' => 'M6 7v10M3 10v4m15-7v10m3-7v4M6 12h12'],
+                ['label' => 'Coach', 'value' => $booking->pt?->name ?? '-', 'icon' => 'M20 21v-2a7 7 0 0 0-14 0v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8'],
+                ['label' => 'Tanggal', 'value' => $booking->booking_date?->locale('id')->isoFormat('dddd, D MMM YYYY') ?? '-', 'icon' => 'M8 2v4m8-4v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14H3V6a2 2 0 0 1 2-2M7 14h2m4 0h2m-8 4h2'],
+                ['label' => 'Waktu', 'value' => $booking->booking_time?->format('H:i') ?? '-', 'icon' => 'M12 8v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0'],
+                ['label' => 'Studio', 'value' => $booking->studioLabel(), 'icon' => 'M3 10l9-8 9 8v11h-6v-7H9v7H3z'],
+            ];
+        @endphp
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-2 sm:p-4" wire:click.self="closeDetailModal" @keydown.escape.window="$wire.closeDetailModal()">
+            <section class="booking-detail-modal w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-3xl shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="booking-detail-title" @click.stop>
+                <div class="booking-detail-header sticky top-0 z-10 flex items-center justify-between gap-4 px-6 py-6 sm:px-8">
+                    <h3 id="booking-detail-title" class="text-2xl sm:text-4xl font-bold tracking-tight">Detail Booking</h3>
+                    <button type="button" wire:click="closeDetailModal" aria-label="Tutup detail booking" class="shrink-0 p-2 text-gray-400 hover:text-white">
+                        <svg class="size-7" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                     </button>
                 </div>
 
-                <div class="p-4 space-y-4">
-                    <div class="grid grid-cols-2 gap-4 text-sm">
-                        <div>
-                            <span class="text-body">Member</span>
-                            <div class="font-medium text-heading">{{ $booking->member?->name ?? '-' }}</div>
-                            @if($booking->membership?->members->count() > 1)
-                                @foreach($booking->membership->members->where('id', '!=', $booking->member_id) as $member)
-                                    <div wire:key="booking-detail-member-{{ $booking->id }}-{{ $member->id }}" class="font-medium text-heading">{{ $member->name }}</div>
+                <div class="booking-detail-content p-5 sm:p-6 space-y-4">
+                    <div class="booking-detail-member flex items-center gap-5 px-2 py-2">
+                        <div class="booking-detail-avatar flex size-20 shrink-0 items-center justify-center rounded-full text-3xl font-bold uppercase" aria-hidden="true">{{ $initials ?: '-' }}</div>
+                        <div class="min-w-0 flex-1">
+                            <div class="booking-detail-label">Member</div>
+                            <div class="text-xl sm:text-2xl font-bold break-words">{{ $booking->member?->name ?? '-' }}</div>
+                            @if($membership?->members->count() > 1)
+                                @foreach($membership->members->where('id', '!=', $booking->member_id) as $member)
+                                    <div wire:key="booking-detail-member-{{ $booking->id }}-{{ $member->id }}" class="font-medium break-words">{{ $member->name }}</div>
                                 @endforeach
                             @endif
                         </div>
-                        <div>
-                            <span class="text-body">Coach</span>
-                            <div class="font-medium text-heading">{{ $booking->pt?->name ?? '-' }}</div>
-                        </div>
-                        <div>
-                            <span class="text-body">Paket</span>
-                            <div class="font-medium text-heading">{{ $booking->membership?->ptPackage?->name ?? '-' }}</div>
-                        </div>
-                        <div>
-                            <span class="text-body">Tanggal</span>
-                            <div class="font-medium text-heading">{{ $booking->booking_date->locale('id')->isoFormat('dddd, D MMM YYYY') }}</div>
-                        </div>
-                        <div>
-                            <span class="text-body">Waktu</span>
-                            <div class="font-medium text-heading">{{ $booking->booking_time->format('H:i') }}</div>
-                        </div>
-                        <div>
-                            <span class="text-body">Studio</span>
-                            <div class="font-medium text-heading">{{ $booking->studioLabel() }}</div>
-                        </div>
-                        <div>
-                            <span class="text-body">Status</span>
-                            <div class="mt-1">
+                        <div class="booking-detail-status shrink-0">
                                 @if($booking->isCancellationPending())
                                     <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-950 text-yellow-300">Pending Cancel</span>
                                 @else
@@ -1462,11 +1450,68 @@ new #[Layout('layouts::admin')] class extends Component
                                         {{ $booking->status }}
                                     </span>
                                 @endif
-                            </div>
+
                         </div>
-                        <div>
-                            <span class="text-body">Absensi</span>
-                            <div class="mt-1">
+                    </div>
+
+                    <div class="booking-detail-panel grid grid-cols-2 overflow-hidden">
+                        @foreach($detailFields as $field)
+                            <div wire:key="booking-detail-field-{{ $field['label'] }}" class="booking-detail-field flex items-start gap-5 p-5">
+                                <div class="booking-detail-icon flex size-14 shrink-0 items-center justify-center rounded-2xl">
+                                    <svg class="size-8" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="{{ $field['icon'] }}"/></svg>
+                                </div>
+                                <div class="min-w-0">
+                                    <div class="booking-detail-label">{{ $field['label'] }}</div>
+                                    <div class="text-lg sm:text-xl font-semibold break-words">{{ $field['value'] }}</div>
+                                    @if($field['label'] === 'Paket' && $membership)
+                                        <div class="booking-detail-label">{{ $totalSessions }} Sessions</div>
+                                    @endif
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+
+                    <div class="booking-detail-summary booking-detail-panel p-5">
+                        <div class="flex flex-wrap items-center justify-between gap-2">
+                            <h4 class="text-2xl font-bold">Ringkasan PT</h4>
+                            <span class="booking-detail-label">{{ $membership ? $usedSessions.' dari '.$totalSessions.' sesi' : '-' }}</span>
+                        </div>
+                        <div class="flex items-center gap-4 mt-4 mb-5">
+                            <div class="h-4 flex-1 rounded-full bg-gray-700/60 overflow-hidden" role="progressbar" aria-label="Sesi PT terpakai" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ $sessionProgress }}">
+                                <div class="h-full rounded-full bg-brand" style="width: {{ $sessionProgress }}%"></div>
+                            </div>
+                            <span class="text-xl font-bold">{{ $membership ? $sessionProgress.'%' : '-' }}</span>
+                        </div>
+                        <div class="grid grid-cols-3 gap-4">
+                            @foreach([
+                                ['label' => 'Total Sesi', 'value' => $totalSessions, 'icon' => 'M9 5h12M9 12h12M9 19h12M3 5h1M3 12h1M3 19h1'],
+                                ['label' => 'Sesi Terpakai', 'value' => $usedSessions, 'icon' => 'M8 12l3 3 5-6M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0'],
+                                ['label' => 'Sisa Sesi', 'value' => $remainingSessions, 'icon' => 'M12 7v6l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0'],
+                            ] as $stat)
+                                <div wire:key="booking-detail-stat-{{ $loop->index }}" class="booking-detail-panel p-5">
+                                    <svg class="size-7 mb-4 {{ $loop->last ? 'text-brand' : '' }}" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="{{ $stat['icon'] }}"/></svg>
+                                    <div class="booking-detail-label">{{ $stat['label'] }}</div>
+                                    <div class="mt-1 font-bold {{ $loop->last ? 'text-brand' : '' }}"><span class="text-4xl">{{ $stat['value'] ?? '-' }}</span> <span class="text-base">sesi</span></div>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+
+                    <div class="booking-detail-validity booking-detail-panel p-5">
+                        <h4 class="text-xl font-bold mb-5">Masa Berlaku Paket</h4>
+                        <div class="grid grid-cols-2 gap-5">
+                            <div class="flex items-center gap-5">
+                                <div class="booking-detail-icon flex size-14 shrink-0 items-center justify-center rounded-2xl text-white">
+                                    <svg class="size-8" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><path d="M8 2v4m8-4v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14H3V6a2 2 0 0 1 2-2M7 14h2m4 0h2m-8 4h2"/></svg>
+                                </div>
+                                <div><div class="booking-detail-label">Tanggal Mulai</div><div class="text-xl font-semibold mt-1">{{ $membership?->start_date?->locale('id')->isoFormat('D MMM YYYY') ?? '-' }}</div></div>
+                            </div>
+                            <div class="border-l border-white/10 pl-3 sm:pl-6"><div class="booking-detail-label">Tanggal Berakhir</div><div class="text-xl font-semibold mt-1">{{ $membership?->pt_end_date?->locale('id')->isoFormat('D MMM YYYY') ?? '-' }}</div></div>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-wrap items-center gap-3 pt-2 text-sm">
+                        <span class="booking-detail-label">Absensi</span>
                                 @if($booking->status === 'approved')
                                     <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium capitalize
                                         @if($booking->attendance === 'attended') bg-green-950 text-green-300
@@ -1484,37 +1529,10 @@ new #[Layout('layouts::admin')] class extends Component
                                 @else
                                     <span class="text-xs text-gray-400">-</span>
                                 @endif
-                            </div>
-                        </div>
-                        <div>
-                            <div class="mt-1">
-                                @if($booking->is_free)
-                                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-purple-950 text-purple-300">Free</span>
-                                @endif
-                            </div>
-                        </div>
-                    </div>
 
-                    <div class="border-t border-default pt-3">
-                        <h4 class="text-sm font-medium text-heading mb-3">Ringkasan Membership</h4>
-                        <div class="grid grid-cols-2 gap-4 text-sm">
-                            <div>
-                                <span class="text-body">Sesi hadir</span>
-                                <div class="font-medium text-heading">{{ $booking->membership ? $booking->membership->attended_non_free_sessions_count.' sesi' : '-' }}</div>
-                            </div>
-                            <div>
-                                <span class="text-body">Sisa sesi</span>
-                                <div class="font-medium text-heading">{{ $booking->membership ? $booking->membership->remaining_sessions.' sesi' : '-' }}</div>
-                            </div>
-                            <div>
-                                <span class="text-body">Tanggal mulai</span>
-                                <div class="font-medium text-heading">{{ $booking->membership?->start_date?->locale('id')->isoFormat('D MMM YYYY') ?? '-' }}</div>
-                            </div>
-                            <div>
-                                <span class="text-body">Tanggal berakhir PT</span>
-                                <div class="font-medium text-heading">{{ $booking->membership?->pt_end_date?->locale('id')->isoFormat('D MMM YYYY') ?? '-' }}</div>
-                            </div>
-                        </div>
+                        @if($booking->is_free)
+                            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-purple-950 text-purple-300">Free</span>
+                        @endif
                     </div>
 
                     @if($booking->isCancellationPending())
@@ -1626,7 +1644,7 @@ new #[Layout('layouts::admin')] class extends Component
                         @endif
                     </div>
                 </div>
-            </div>
+            </section>
         </div>
     @endif
 

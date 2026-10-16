@@ -60,3 +60,118 @@
         background: var(--color-neutral-primary-soft);
     }
 }
+
+.booking-detail-modal {
+    background: #101214;
+    color: #f5f5f5;
+    border: 1px solid rgb(255 255 255 / 5%);
+}
+.booking-detail-header {
+    background: #101214;
+    border-bottom: 1px solid rgb(255 255 255 / 7%);
+}
+.booking-detail-panel {
+    background: #111618;
+    border: 1px solid rgb(255 255 255 / 6%);
+    border-radius: 18px;
+}
+.booking-detail-label { color: #a4a8ae; font-size: 1rem; }
+.booking-detail-avatar { background: rgb(255 237 0 / 8%); color: var(--color-brand); }
+.booking-detail-icon { background: rgb(255 255 255 / 4%); color: var(--color-brand); }
+.booking-detail-icon.text-white { color: #f5f5f5; }
+.booking-detail-status > span { padding: 10px 18px; font-size: 1rem; }
+.booking-detail-status > span::before {
+    content: '';
+    width: 10px;
+    height: 10px;
+    margin-right: 8px;
+    border-radius: 50%;
+    background: currentColor;
+}
+.booking-detail-field + .booking-detail-field { border-top: 1px solid rgb(255 255 255 / 6%); }
+.booking-detail-field:nth-child(2) { border-top: 0; }
+.booking-detail-field:nth-child(even) { border-left: 1px solid rgb(255 255 255 / 6%); }
+
+@media (max-width: 39.999rem) {
+    .booking-detail-modal { max-height: calc(100dvh - 16px); }
+    .booking-detail-header { padding: 10px 14px; }
+    .booking-detail-header h3 { font-size: 22px; }
+    .booking-detail-content { padding: 12px; }
+    .booking-detail-content > * + * { margin-top: 12px; }
+    .booking-detail-member { gap: 10px; padding: 4px 0; }
+    .booking-detail-avatar { width: 42px; height: 42px; font-size: 19px; }
+    .booking-detail-member > .min-w-0 .font-bold { font-size: 13px; line-height: 1.4; }
+    .booking-detail-member .font-medium { font-size: 11px; }
+    .booking-detail-label { font-size: 11px; line-height: 1.5; }
+    .booking-detail-status > span { padding: 7px 9px; font-size: 10px; white-space: nowrap; }
+    .booking-detail-status > span::before { width: 7px; height: 7px; margin-right: 5px; flex-shrink: 0; }
+    .booking-detail-panel { border-radius: 12px; }
+    .booking-detail-field { padding: 10px 8px; gap: 6px; }
+    .booking-detail-icon { width: 30px; height: 30px; border-radius: 9px; }
+    .booking-detail-icon svg { width: 20px; height: 20px; }
+    .booking-detail-field .font-semibold { font-size: 12px; line-height: 1.45; }
+    .booking-detail-summary,
+    .booking-detail-validity { padding: 12px; }
+    .booking-detail-summary h4 { font-size: 18px; }
+    .booking-detail-summary > .flex { flex-wrap: nowrap; gap: 8px; }
+    .booking-detail-summary > .flex:nth-child(2) { margin: 12px 0; }
+    .booking-detail-summary [role="progressbar"] { height: 10px; }
+    .booking-detail-summary .text-xl { font-size: 14px; }
+    .booking-detail-summary > .grid { gap: 8px; }
+    .booking-detail-summary .booking-detail-panel { padding: 12px 8px; min-width: 0; }
+    .booking-detail-summary .booking-detail-panel svg { width: 22px; height: 22px; margin-bottom: 10px; }
+    .booking-detail-summary .booking-detail-panel .booking-detail-label { font-size: 10px; }
+    .booking-detail-summary .text-4xl { font-size: 28px; }
+    .booking-detail-summary .text-base { font-size: 10px; }
+    .booking-detail-validity h4 { font-size: 16px; margin-bottom: 12px; }
+    .booking-detail-validity .grid,
+    .booking-detail-validity .flex { gap: 8px; }
+    .booking-detail-validity .font-semibold { font-size: 13px; }
+}
+
+@media (min-width: 40rem) {
+    .booking-detail-modal {
+        max-width: 680px;
+        max-height: calc(100dvh - 32px);
+    }
+
+    .booking-detail-header { padding: 6px 20px; }
+    .booking-detail-header button { padding: 4px; }
+    .booking-detail-summary .booking-detail-panel .font-bold { line-height: 1; }
+    .booking-detail-header h3 { font-size: 26px; }
+    .booking-detail-content { display: flex; flex-direction: column; gap: 8px; padding: 10px 18px; }
+    .booking-detail-content > * { margin-block: 0; flex-shrink: 0; }
+    .booking-detail-member { gap: 14px; padding: 0; }
+    .booking-detail-avatar { width: 42px; height: 42px; font-size: 22px; }
+    .booking-detail-member > .min-w-0 .font-bold { font-size: 18px; line-height: 1.3; }
+    .booking-detail-member .font-medium { font-size: 13px; }
+    .booking-detail-label { font-size: 12px; line-height: 1.3; }
+    .booking-detail-status > span { padding: 8px 14px; font-size: 13px; }
+    .booking-detail-field { padding: 6px 14px; gap: 10px; }
+    .booking-detail-icon { width: 30px; height: 30px; border-radius: 10px; }
+    .booking-detail-icon svg { width: 23px; height: 23px; }
+    .booking-detail-field .font-semibold { font-size: 14px; line-height: 1.25; }
+    .booking-detail-summary,
+    .booking-detail-validity { padding: 8px 14px; }
+    .booking-detail-summary h4 { font-size: 20px; line-height: 1.3; }
+    .booking-detail-summary > .flex:nth-child(2) { margin: 6px 0; }
+    .booking-detail-summary [role="progressbar"] { height: 10px; }
+    .booking-detail-summary .text-xl { font-size: 15px; line-height: 1.3; }
+    .booking-detail-summary > .grid { gap: 12px; }
+    .booking-detail-summary .booking-detail-panel { padding: 8px 14px; }
+    .booking-detail-summary .booking-detail-panel svg { width: 18px; height: 18px; margin-bottom: 4px; }
+    .booking-detail-summary .text-4xl { font-size: 28px; line-height: 1.1; }
+    .booking-detail-summary .text-base { font-size: 12px; }
+    .booking-detail-validity h4 { font-size: 17px; line-height: 1.3; margin-bottom: 8px; }
+    .booking-detail-validity .font-semibold { font-size: 15px; line-height: 1.25; }
+    .booking-detail-content > .border-t { padding-top: 8px; }
+}
+
+@media (min-width: 40rem) and (max-height: 47.5rem) {
+    .booking-detail-content { gap: 4px; padding-block: 8px; }
+    .booking-detail-header { padding-block: 4px; }
+    .booking-detail-field { padding-block: 4px; }
+    .booking-detail-summary,
+    .booking-detail-validity,
+    .booking-detail-summary .booking-detail-panel { padding-block: 6px; }
+}

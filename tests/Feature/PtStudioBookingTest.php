@@ -234,6 +234,51 @@ class PtStudioBookingTest extends TestCase
         ];
     }
 
+    #[DataProvider('detailSessionCounts')]
+    public function test_admin_booking_detail_shows_session_usage(int $total, int $remaining, int $used, int $percent): void
+    {
+        $membership = $this->membership(['total_sessions' => $total, 'remaining_sessions' => $remaining]);
+        $booking = $this->booking($membership, '2026-09-22 09:00', ['attendance' => 'noshow']);
+
+        Livewire::actingAs(User::factory()->create(['role' => 'admin']))
+            ->test('pages::dashboard.admin.booking-jadwal.index')
+            ->call('openDetailModal', $booking->id)
+            ->assertSee('Ringkasan PT')
+            ->assertSee($used.' dari '.$total.' sesi')
+            ->assertSee('aria-valuenow="'.$percent.'"', false)
+            ->assertSee('1 Sep 2026')
+            ->assertSee('21 Okt 2026')
+            ->assertSee('Hangus')
+            ->assertSee('Restore')
+            ->call('closeDetailModal')
+            ->assertSet('showDetailModal', false);
+    }
+
+    public static function detailSessionCounts(): array
+    {
+        return [[10, 9, 1, 10], [10, 0, 10, 100], [0, 0, 0, 0], [3, 2, 1, 33]];
+    }
+
+    public function test_admin_booking_detail_handles_unavailable_membership(): void
+    {
+        $membership = $this->membership();
+        $booking = $this->booking($membership, '2026-09-22 09:00');
+        $scopes = Membership::getAllGlobalScopes();
+
+        try {
+            Membership::addGlobalScope('unavailable', fn ($query) => $query->whereRaw('1 = 0'));
+
+            Livewire::actingAs(User::factory()->create(['role' => 'admin']))
+                ->test('pages::dashboard.admin.booking-jadwal.index')
+                ->call('openDetailModal', $booking->id)
+                ->assertSee('Ringkasan PT')
+                ->assertSee('Masa Berlaku Paket')
+                ->assertSee('aria-valuenow="0"', false);
+        } finally {
+            Membership::setAllGlobalScopes($scopes);
+        }
+    }
+
     private function membership(array $attributes = []): Membership
     {
         return Membership::create([

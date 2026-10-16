@@ -40,7 +40,7 @@ class AdminBookingAttendanceTest extends TestCase
         $this->assertEqualsCanonicalizing([$older->id, $sameDay->id, $future->id], $page->get('filteredMemberships')->modelKeys());
     }
 
-    public function test_detail_counts_paid_attendance_across_members_of_only_the_selected_membership(): void
+    public function test_detail_uses_session_balance_of_only_the_selected_membership(): void
     {
         $membership = $this->createMembership([
             'remaining_sessions' => 4,
@@ -71,7 +71,7 @@ class AdminBookingAttendanceTest extends TestCase
         Livewire::actingAs($this->createUser(['role' => 'admin']))
             ->test('pages::dashboard.admin.booking-jadwal.index')
             ->call('openDetailModal', $booking->id)
-            ->assertSeeInOrder(['Ringkasan Membership', 'Sesi hadir', '2 sesi', 'Sisa sesi', '4 sesi', 'Tanggal mulai', '2 Jan 2026', 'Tanggal berakhir PT', '30 Des 2026']);
+            ->assertSeeInOrder(['Ringkasan PT', '6 dari 10 sesi', 'Sisa Sesi', 'Tanggal Mulai', '2 Jan 2026', 'Tanggal Berakhir', '30 Des 2026']);
     }
 
     public function test_detail_refreshes_membership_summary_when_switching_bookings_and_handles_empty_dates(): void
@@ -86,10 +86,10 @@ class AdminBookingAttendanceTest extends TestCase
         Livewire::actingAs($this->createUser(['role' => 'admin']))
             ->test('pages::dashboard.admin.booking-jadwal.index')
             ->call('openDetailModal', $first->id)
-            ->assertSeeInOrder(['Ringkasan Membership', 'Sesi hadir', '1 sesi', 'Sisa sesi', '10 sesi'])
+            ->assertSeeInOrder(['Ringkasan PT', '0 dari 10 sesi', 'Sesi Terpakai', 'Sisa Sesi'])
             ->call('closeDetailModal')
             ->call('openDetailModal', $second->id)
-            ->assertSeeInOrder(['Ringkasan Membership', 'Sesi hadir', '0 sesi', 'Sisa sesi', '0 sesi', 'Tanggal mulai', '-', 'Tanggal berakhir PT', '-']);
+            ->assertSeeInOrder(['Ringkasan PT', '10 dari 10 sesi', 'Sisa Sesi', 'Tanggal Mulai', '-', 'Tanggal Berakhir', '-']);
     }
 
     public function test_editing_attended_booking_to_free_refunds_once_and_can_charge_it_again(): void
