@@ -40,16 +40,16 @@ class MemberPtScheduleTest extends TestCase
             ->call('previousWeek')->call('thisWeek')->assertSet('weekStart', '2026-09-21');
     }
 
-    public function test_latest_active_package_is_selected_and_switching_changes_coach_availability(): void
+    public function test_busy_coach_does_not_hide_another_packages_available_slot(): void
     {
         $older = $this->membership(['start_date' => '2026-09-01']);
         $latest = $this->membership(['user_id' => $older->user_id, 'start_date' => '2026-09-20']);
         $this->membership(['user_id' => $older->user_id, 'start_date' => '2026-09-21', 'is_active' => false]);
         $this->booking($this->membership(['pt_id' => $latest->pt_id]));
-        $page = $this->page($older)->call('setDayView', 'all')->assertSet('selectedMembershipId', $latest->id)->assertSee('Dibooking member lain');
-        $this->assertTrue($page->get('calendar')[1]['slots'][0]['occupied']);
-        $page->set('selectedMembershipId', $older->id);
+        $page = $this->page($older)->assertSet('selectedMembershipId', null);
         $this->assertFalse($page->get('calendar')[1]['slots'][0]['occupied']);
+        $page->call('openBookingModal', '2026-09-22', '07:00')
+            ->assertSet('selectedMembershipId', $older->id)->assertSet('showBookingModal', true);
     }
 
     #[DataProvider('unselectableMemberships')]
@@ -60,7 +60,7 @@ class MemberPtScheduleTest extends TestCase
         $groupMembership = $this->membership($attributes);
         $groupMembership->members()->attach($active->user);
 
-        $page = $this->page($active)->assertSet('selectedMembershipId', $active->id);
+        $page = $this->page($active)->assertSet('selectedMembershipId', null);
 
         $this->assertSame([$active->id], $page->get('memberships')->modelKeys());
         $page->set('selectedMembershipId', $inactive->id)->assertForbidden();
@@ -136,7 +136,7 @@ class MemberPtScheduleTest extends TestCase
             ->assertSeeHtml('data-date="2026-09-27"');
     }
 
-    public function test_daily_booking_count_counts_unique_active_bookings_of_the_selected_package(): void
+    public function test_daily_booking_count_and_history_include_all_owned_packages(): void
     {
         $membership = $this->membership();
         $this->booking($membership, ['booking_time' => '07:30:00', 'status' => 'pending']);
@@ -152,11 +152,71 @@ class MemberPtScheduleTest extends TestCase
         $page = $this->page($membership)->set('selectedMembershipId', $membership->id);
         $calendar = $page->get('calendar');
         $this->assertSame(0, $calendar[0]['bookingCount']);
-        $this->assertSame(3, $calendar[1]['bookingCount']);
+        $this->assertSame(4, $calendar[1]['bookingCount']);
         $this->assertSame(1, $calendar[2]['bookingCount']);
 
         $page->set('selectedMembershipId', $otherPackage->id);
-        $this->assertSame(1, $page->get('calendar')[1]['bookingCount']);
+        $this->assertSame(4, $page->get('calendar')[1]['bookingCount']);
+        $this->assertCount(7, $page->get('history'));
+    }
+
+    public function test_future_package_does_not_prevent_booking_today_with_older_package(): void
+    {
+        $older = $this->membership();
+        $this->membership(['user_id' => $older->user_id, 'start_date' => '2026-09-23']);
+        $page = $this->page($older)->assertSet('selectedMembershipId', null)->assertDontSeeHtml('id="pt-membership"');
+        $this->assertNull($page->get('calendar')[0]['slots'][1]['reason']);
+        $page->call('openBookingModal', '2026-09-21', '08:00')->assertSet('selectedMembershipId', $older->id)
+            ->assertDontSee('Pilih paket PT dan coach')->set('studioType', 'regular')->call('book')->assertHasNoErrors();
+        $this->assertDatabaseHas('pt_bookings', ['membership_id' => $older->id, 'booking_date' => '2026-09-21']);
+    }
+
+    public function test_overlapping_packages_require_selection_and_book_chosen_package(): void
+    {
+        $first = $this->membership();
+        $second = $this->membership(['user_id' => $first->user_id, 'pt_id' => $first->pt_id]);
+        $page = $this->page($first)->call('openBookingModal', '2026-09-22', '08:00')
+            ->assertSet('showBookingModal', true)->assertSet('selectedMembershipId', null)
+            ->assertSee('Pilih paket PT dan coach')->call('book')->assertHasErrors('selectedMembershipId');
+        $this->assertEqualsCanonicalizing([$first->id, $second->id], $page->get('eligibleMemberships')->modelKeys());
+        $this->assertDatabaseCount('pt_bookings', 0);
+        $page->set('selectedMembershipId', $first->id)->set('studioType', 'private_studio')
+            ->set('selectedMembershipId', $second->id)->assertSet('studioType', '')
+            ->assertSet('showBookingModal', true)->set('studioType', 'regular')->call('book')->assertHasNoErrors();
+        $this->assertSame($second->id, PtBooking::sole()->membership_id);
+    }
+
+    public function test_package_selection_resets_when_modal_is_closed_or_another_slot_is_opened(): void
+    {
+        $first = $this->membership();
+        $this->membership(['user_id' => $first->user_id]);
+        $this->page($first)->call('openBookingModal', '2026-09-22', '08:00')
+            ->set('selectedMembershipId', $first->id)->call('closeBookingModal')
+            ->assertSet('selectedMembershipId', null)->assertSet('bookingDate', '')
+            ->call('openBookingModal', '2026-09-23', '09:00')->assertSet('selectedMembershipId', null);
+    }
+
+    public function test_eligibility_excludes_exhausted_expired_future_and_unassigned_packages(): void
+    {
+        $valid = $this->membership();
+        foreach ([['remaining_sessions' => 0], ['pt_end_date' => '2026-09-21'], ['start_date' => '2026-09-23'], ['pt_id' => null]] as $attributes) {
+            $this->membership(['user_id' => $valid->user_id, ...$attributes]);
+        }
+        $reserved = $this->membership(['user_id' => $valid->user_id, 'remaining_sessions' => 1]);
+        $this->booking($reserved, ['booking_date' => '2026-09-24', 'status' => 'pending']);
+        $page = $this->page($valid)->call('openBookingModal', '2026-09-22', '08:00');
+        $this->assertEqualsCanonicalizing([$valid->id], $page->get('eligibleMemberships')->modelKeys());
+        $page->assertSet('selectedMembershipId', $valid->id);
+    }
+
+    public function test_ineligible_owned_package_cannot_be_submitted_by_tampering_with_selection(): void
+    {
+        $valid = $this->membership();
+        $future = $this->membership(['user_id' => $valid->user_id, 'start_date' => '2026-09-23']);
+        $this->page($valid)->call('openBookingModal', '2026-09-22', '08:00')
+            ->set('selectedMembershipId', $future->id)->set('studioType', 'regular')->call('book')
+            ->assertHasErrors('booking');
+        $this->assertDatabaseCount('pt_bookings', 0);
     }
 
     public function test_member_submits_pending_booking_without_decrementing_sessions(): void
@@ -253,7 +313,7 @@ class MemberPtScheduleTest extends TestCase
         $page = $this->page($membership);
         $slot = $page->get('calendar')[1]['slots'][0];
 
-        $this->assertSame([['id' => $booking->id, 'studio' => '—', 'status' => ucfirst($status)]], $slot['ownBookings']);
+        $this->assertSame([['id' => $booking->id, 'coach' => $membership->personalTrainer->name, 'studio' => '—', 'status' => ucfirst($status)]], $slot['ownBookings']);
         $this->assertFalse($slot['occupied']);
         $this->assertFalse($slot['otherBooked']);
         $page->call('openDetailModal', $booking->id)->assertSet('selectedBookingId', $booking->id);
@@ -268,7 +328,7 @@ class MemberPtScheduleTest extends TestCase
         $page = $this->page($membership)->assertSee('Dibooking member lain');
         $slot = $page->get('calendar')[1]['slots'][0];
 
-        $this->assertSame([['id' => $booking->id, 'studio' => '—', 'status' => 'Cancelled']], $slot['ownBookings']);
+        $this->assertSame([['id' => $booking->id, 'coach' => $membership->personalTrainer->name, 'studio' => '—', 'status' => 'Cancelled']], $slot['ownBookings']);
         $this->assertTrue($slot['occupied']);
         $this->assertTrue($slot['otherBooked']);
     }
@@ -470,7 +530,7 @@ class MemberPtScheduleTest extends TestCase
         $page->set('studioType', 'regular')->call('book')->assertHasNoErrors();
         $this->assertDatabaseHas('pt_bookings', ['membership_id' => $membership->id, 'booking_date' => '2026-09-21', 'status' => 'pending']);
 
-        $page->call('openBookingModal', '2026-09-21', '08:00');
+        $page = $this->page($this->membership())->call('openBookingModal', '2026-09-21', '08:00');
         $this->travelTo(now()->setTime(8, 0));
         $page->set('studioType', 'regular')->call('book')->assertHasErrors('booking');
         $this->assertDatabaseCount('pt_bookings', 1);

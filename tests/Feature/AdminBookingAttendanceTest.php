@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\GymPackage;
 use App\Models\Membership;
 use App\Models\PtBooking;
 use App\Models\User;
@@ -13,6 +14,31 @@ use Tests\TestCase;
 class AdminBookingAttendanceTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_membership_choices_follow_clicked_date_and_show_pt_expiry(): void
+    {
+        Carbon::setTestNow('2026-10-16 08:00:00');
+        $package = GymPackage::create([
+            'type' => 'pt', 'name' => 'PT Single', 'category' => 'single',
+            'max_members' => 1, 'price' => 500000, 'discount' => 0, 'is_active' => true,
+        ]);
+        $older = $this->createMembership(['pt_package_id' => $package->id, 'start_date' => '2026-10-01', 'pt_end_date' => '2026-11-01']);
+        $sameDay = $this->createMembership(['pt_package_id' => $package->id, 'start_date' => '2026-10-16']);
+        $future = $this->createMembership(['pt_package_id' => $package->id, 'start_date' => '2026-10-17']);
+
+        $page = Livewire::actingAs($this->createUser(['role' => 'admin']))
+            ->test('pages::dashboard.admin.booking-jadwal.index')
+            ->call('openInsertModal', 'jumat', 9)
+            ->assertSet('insertDate', '2026-10-16')
+            ->assertSee('Mulai: 1 Okt 2026')->assertSee('Berakhir: 1 Nov 2026');
+        $this->assertEqualsCanonicalizing([$older->id, $sameDay->id], $page->get('filteredMemberships')->modelKeys());
+        $page->set('insertMembershipSearch', $future->user->name);
+        $this->assertCount(0, $page->get('filteredMemberships'));
+        $page->set('insertMembershipSearch', '')->call('selectMembership', $older->id)
+            ->assertSee('Mulai: 1 Okt 2026')->assertSee('Berakhir: 1 Nov 2026')
+            ->call('closeInsertModal')->call('openInsertModal', 'sabtu', 9);
+        $this->assertEqualsCanonicalizing([$older->id, $sameDay->id, $future->id], $page->get('filteredMemberships')->modelKeys());
+    }
 
     public function test_detail_counts_paid_attendance_across_members_of_only_the_selected_membership(): void
     {

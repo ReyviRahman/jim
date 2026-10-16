@@ -41,7 +41,6 @@ new #[Layout('layouts::member')] class extends Component
     {
         abort_unless(Auth::user()->role === 'member', 403);
         $this->today();
-        $this->selectedMembershipId = $this->memberships->first()?->id;
     }
 
     /** @return Collection<int, Membership> */
@@ -52,6 +51,8 @@ new #[Layout('layouts::member')] class extends Component
             ->where('status', 'active')
             ->where('is_active', true)
             ->with(['personalTrainer', 'ptPackage'])
+            ->withCount(['ptBookings as reserved_sessions' => fn (Builder $query): Builder => $query
+                ->where('status', 'pending')->where('attendance', 'not_yet')->where('is_free', false)])
             ->orderByDesc('start_date')->orderByDesc('id')->get();
     }
 
@@ -73,9 +74,7 @@ new #[Layout('layouts::member')] class extends Component
         $this->studioType = '';
         unset($this->membership);
         $this->membership;
-        $this->closeBookingModal();
-        $this->closeDetailModal();
-        $this->closeCancelModal();
+        $this->resetErrorBag();
     }
 
     public function getWeekStart(): Carbon
@@ -155,8 +154,46 @@ new #[Layout('layouts::member')] class extends Component
     {
         $schedule = app(MemberPtSchedule::class);
 
-        return $schedule->unavailableReason($this->membership, $this->membership
-            ? $schedule->reservations($this->membership)->count() : 0);
+        if ($this->memberships->isEmpty()) {
+            return $schedule->unavailableReason(null, 0);
+        }
+
+        foreach ($this->memberships as $membership) {
+            if ($schedule->unavailableReason($membership, $membership->reserved_sessions) === null) {
+                return null;
+            }
+        }
+
+        $membership = $this->memberships->first();
+
+        return $schedule->unavailableReason($membership, $membership->reserved_sessions);
+    }
+
+    /** @return Collection<int, Membership> */
+    private function availableMemberships(Carbon $start): Collection
+    {
+        $schedule = app(MemberPtSchedule::class);
+
+        return $this->memberships->filter(fn (Membership $membership): bool =>
+            $schedule->unavailableReason($membership, $membership->reserved_sessions) === null
+            && $schedule->dateUnavailableReason($membership, $start) === null);
+    }
+
+    /** @return Collection<int, Membership> */
+    #[Computed]
+    public function eligibleMemberships(): Collection
+    {
+        if ($this->bookingDate === '' || $this->bookingTime === '') {
+            return new Collection;
+        }
+
+        $start = Carbon::parse($this->bookingDate.' '.$this->bookingTime);
+        $busyCoaches = PtBooking::query()->whereIn('pt_id', $this->memberships->pluck('pt_id'))
+            ->whereIn('status', ['pending', 'approved'])->whereDate('booking_date', $this->bookingDate)
+            ->where('booking_time', '>', $start->copy()->subHour()->format('H:i:s'))
+            ->where('booking_time', '<', $start->copy()->addHour()->format('H:i:s'))->pluck('pt_id');
+
+        return $this->availableMemberships($start)->whereNotIn('pt_id', $busyCoaches);
     }
 
     /** @return array<int, array{date: string, label: string, bookingCount: int, slots: array<int, array<string, mixed>>}> */
@@ -164,10 +201,9 @@ new #[Layout('layouts::member')] class extends Component
     public function calendar(): array
     {
         $start = $this->getWeekStart();
-        $membership = $this->membership;
-        $ownedIds = $this->memberships->modelKeys();
-        $bookings = $membership?->pt_id
-            ? PtBooking::query()->where('pt_id', $membership->pt_id)
+        $ownedIds = app(MemberPtSchedule::class)->memberships(Auth::user())->pluck('id')->all();
+        $bookings = PtBooking::query()->with('pt')
+                ->where(fn (Builder $query): Builder => $query->whereIn('pt_id', $this->memberships->pluck('pt_id'))->orWhereIn('membership_id', $ownedIds))
                 ->whereBetween('booking_date', [$start->toDateString(), $start->copy()->addDays(6)->toDateString()])
                 ->where(function (Builder $query) use ($ownedIds): void {
                     $query->whereIn('status', ['pending', 'approved'])
@@ -176,8 +212,7 @@ new #[Layout('layouts::member')] class extends Component
                                 ->whereIn('status', ['cancelled', 'rejected']);
                         });
                 })
-                ->get(['id', 'membership_id', 'booking_date', 'booking_time', 'studio_type', 'status', 'cancellation_requested_at'])
-            : collect();
+                ->get(['id', 'membership_id', 'pt_id', 'booking_date', 'booking_time', 'studio_type', 'status', 'cancellation_requested_at']);
         $schedule = app(MemberPtSchedule::class);
         $days = [];
 
@@ -198,24 +233,28 @@ new #[Layout('layouts::member')] class extends Component
                 });
                 $own = $overlaps->filter(fn (PtBooking $booking): bool => in_array($booking->membership_id, $ownedIds, true));
                 $active = $overlaps->whereIn('status', ['pending', 'approved']);
+                $available = $this->availableMemberships($slotStart);
+                $allCoachesBusy = $available->isNotEmpty() && $available->whereNotIn('pt_id', $active->pluck('pt_id'))->isEmpty();
                 $slots[] = [
                     'time' => $slotStart->format('H:i'),
                     'label' => $slotStart->format('H:i').' - '.$slotEnd->format('H:i'),
-                    'occupied' => $active->isNotEmpty(),
-                    'otherBooked' => $active->contains(fn (PtBooking $booking): bool => ! in_array($booking->membership_id, $ownedIds, true)),
+                    'occupied' => $allCoachesBusy || $own->whereIn('status', ['pending', 'approved'])->isNotEmpty(),
+                    'otherBooked' => $allCoachesBusy && $active->contains(fn (PtBooking $booking): bool => ! in_array($booking->membership_id, $ownedIds, true)),
                     'ownBookings' => $own->map(fn (PtBooking $booking): array => [
                         'id' => $booking->id,
+                        'coach' => $booking->pt?->name,
                         'studio' => $booking->studioLabel(),
                         'status' => $booking->isCancellationPending() ? 'Pending Cancel' : ucfirst($booking->status),
                     ])->values()->all(),
-                    'reason' => $this->unavailableReason ?? ($membership ? $schedule->dateUnavailableReason($membership, $slotStart) : null) ?? $dailyLimitReason,
+                    'reason' => $dailyLimitReason ?? ($available->isEmpty()
+                        ? ($this->unavailableReason ?? 'Tidak ada paket PT yang berlaku untuk jadwal ini.') : null),
                 ];
             }
 
             $days[] = [
                 'date' => $date->toDateString(),
                 'label' => $date->locale('id')->isoFormat('dddd, D MMM'),
-                'bookingCount' => $dailyBookings->where('membership_id', $membership?->id)->whereIn('status', ['pending', 'approved'])->count(),
+                'bookingCount' => $dailyBookings->whereIn('membership_id', $ownedIds)->whereIn('status', ['pending', 'approved'])->count(),
                 'slots' => $slots,
             ];
         }
@@ -234,7 +273,7 @@ new #[Layout('layouts::member')] class extends Component
     public function history(): Collection
     {
         $start = $this->getWeekStart();
-        $query = $this->ownBookings()->with('pt')->where('membership_id', $this->selectedMembershipId)
+        $query = $this->ownBookings()->with('pt')
             ->whereBetween('booking_date', [$start->toDateString(), $start->copy()->addDays(6)->toDateString()]);
 
         return $query->orderBy('booking_date')->orderBy('booking_time')->get();
@@ -243,6 +282,9 @@ new #[Layout('layouts::member')] class extends Component
     public function openBookingModal(string $date, string $time): void
     {
         $this->resetErrorBag();
+        $this->showBookingModal = false;
+        $this->selectedMembershipId = null;
+        unset($this->membership, $this->eligibleMemberships);
         $this->studioType = '';
         $this->bookingDate = $date;
         $this->bookingTime = $time;
@@ -250,33 +292,30 @@ new #[Layout('layouts::member')] class extends Component
             'bookingDate' => ['required', 'date_format:Y-m-d'],
             'bookingTime' => ['required', 'date_format:H:i', 'in:'.implode(',', array_map(fn (int $hour): string => sprintf('%02d:00', $hour), range(7, 22)))],
         ]);
-        $membership = $this->membership;
-        $start = Carbon::parse($date.' '.$time);
-        $reason = $this->unavailableReason ?? ($membership ? app(MemberPtSchedule::class)->dateUnavailableReason($membership, $start) : null);
-
-        if ($reason !== null) {
-            $this->addError('booking', $reason);
-
-            return;
-        }
-
         if (app(MemberPtSchedule::class)->dailyBookings(Auth::user(), $date)->exists()) {
             $this->addError('booking', 'Sudah ada booking pending atau approved pada tanggal ini. Maksimal 1 booking per hari.');
 
             return;
         }
 
-        if (app(MemberPtSchedule::class)->overlappingBookings($membership->pt_id, $start)->exists()) {
-            $this->addError('booking', 'Slot ini sudah terbooking. Silakan pilih jam lain.');
+        if ($this->eligibleMemberships->isEmpty()) {
+            $this->addError('booking', 'Tidak ada paket PT yang tersedia untuk jadwal ini. Periksa masa berlaku, sisa sesi, atau pilih jam lain.');
 
             return;
         }
 
+        $this->selectedMembershipId = $this->eligibleMemberships->count() === 1 ? $this->eligibleMemberships->first()->id : null;
         $this->showBookingModal = true;
     }
 
     public function book(CreateMemberPtBooking $createBooking): void
     {
+        if ($this->selectedMembershipId === null) {
+            $this->addError('selectedMembershipId', 'Pilih paket PT untuk jadwal ini.');
+
+            return;
+        }
+
         try {
             $createBooking->execute(Auth::user(), $this->selectedMembershipId ?? 0, $this->bookingDate, $this->bookingTime, $this->studioType);
         } catch (ValidationException $exception) {
@@ -293,6 +332,8 @@ new #[Layout('layouts::member')] class extends Component
     public function closeBookingModal(): void
     {
         $this->showBookingModal = false;
+        $this->selectedMembershipId = null;
+        unset($this->membership, $this->eligibleMemberships);
         $this->studioType = '';
         $this->bookingDate = '';
         $this->bookingTime = '';
@@ -379,17 +420,8 @@ new #[Layout('layouts::member')] class extends Component
     @endif
 
     <section class="mb-5 rounded-2xl border border-white/15 bg-[#121719] p-4 sm:p-5" aria-label="Paket dan ketentuan booking">
-        <label for="pt-membership" class="mb-2 block text-sm font-semibold text-white">Paket PT dan coach</label>
-        <select id="pt-membership" wire:model.live="selectedMembershipId" class="pt-schedule-control w-full" @disabled($this->memberships->isEmpty())>
-            @forelse($this->memberships as $membership)
-                <option value="{{ $membership->id }}">{{ $membership->ptPackage?->name ?? $membership->package_name ?? 'Paket PT' }} #{{ $membership->id }} · {{ $membership->personalTrainer?->name ?? 'Coach belum ditentukan' }}</option>
-            @empty
-                <option value="">Tidak ada membership PT</option>
-            @endforelse
-        </select>
-        @if($this->membership)
-            <p class="mt-3 text-sm text-gray-300">Coach: {{ $this->membership->personalTrainer?->name ?? 'Belum ditentukan' }}</p>
-        @endif
+        <h2 class="text-sm font-semibold text-white">Pilih jadwal booking</h2>
+        <p class="mt-2 text-sm text-gray-300">Klik Booking pada jadwal yang Anda inginkan. Jika ada beberapa paket yang tersedia, pilih paket dan coach di langkah berikutnya.</p>
         <p class="mt-3 text-xs leading-6 text-gray-400">Booking tersedia mulai hari ini sampai 7 hari ke depan, selama sesi belum dimulai. Maksimal 1 booking pending atau approved per hari. Setiap sesi berlangsung 60 menit.</p>
         <p class="mt-2 text-xs leading-6 text-yellow-200">{{ $this->unavailableReason ?? 'Booking baru menunggu persetujuan Head Coach.' }}</p>
     </section>
@@ -418,7 +450,7 @@ new #[Layout('layouts::member')] class extends Component
     <div data-member-pt-calendar @class(['grid items-start gap-4', 'lg:grid-cols-2' => $dayView === 'all']) aria-label="Kalender slot PT">
         @foreach($this->calendar as $day)
             @if($dayView === 'all' || $day['date'] === $this->getSelectedDate()->toDateString())
-                <x-member-pt-day :day="$day" :selected="$day['date'] === $this->getSelectedDate()->toDateString()" :coach="$this->membership?->personalTrainer?->name" wire:key="day-{{ $selectedMembershipId }}-{{ $day['date'] }}" />
+                <x-member-pt-day :day="$day" :selected="$day['date'] === $this->getSelectedDate()->toDateString()" wire:key="day-{{ $day['date'] }}" />
             @endif
         @endforeach
     </div>
@@ -439,15 +471,38 @@ new #[Layout('layouts::member')] class extends Component
         </div>
     </section>
 
-    @if($showBookingModal && $this->membership)
+    @if($showBookingModal)
         <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm" wire:click.self="closeBookingModal" x-on:keydown.escape.window="$wire.closeBookingModal()">
             <section role="dialog" aria-modal="true" aria-labelledby="booking-title" class="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-lg bg-[#121719] p-6 shadow-xl" x-trap.inert.noscroll="true">
                 <h2 id="booking-title" class="text-lg font-semibold text-white">Konfirmasi booking PT</h2>
+                @if($this->eligibleMemberships->count() > 1 || ! $this->membership)
+                    <fieldset class="my-4 space-y-3">
+                        <legend class="text-sm font-semibold text-white">Pilih paket PT dan coach</legend>
+                        <p class="text-sm text-gray-300">Paket berikut tersedia untuk jadwal ini.</p>
+                        @forelse($this->eligibleMemberships as $option)
+                            <label wire:key="package-option-{{ $option->id }}" class="flex cursor-pointer items-start gap-3 rounded-md border border-white/15 p-3 text-sm text-white">
+                                <input type="radio" wire:model.live="selectedMembershipId" value="{{ $option->id }}" name="booking-package" class="mt-1">
+                                <span>
+                                    <span class="block font-semibold">{{ $option->ptPackage?->name ?? $option->package_name ?? 'Paket PT' }} #{{ $option->id }}</span>
+                                    <span class="block text-gray-300">{{ $option->personalTrainer?->name }}</span>
+                                    <span class="block text-gray-300">{{ $option->start_date?->format('d/m/Y') ?? '-' }} - {{ $option->pt_end_date?->format('d/m/Y') ?? 'Tanpa batas akhir' }}</span>
+                                    <span class="block text-gray-300">{{ $option->remaining_sessions - $option->reserved_sessions }} sesi tersedia</span>
+                                </span>
+                            </label>
+                        @empty
+                            <p class="text-sm text-gray-300">Paket tidak lagi tersedia. Tutup dan pilih jadwal lain.</p>
+                        @endforelse
+                        @error('selectedMembershipId') <p role="alert" class="text-sm text-red-400">{{ $message }}</p> @enderror
+                    </fieldset>
+                @endif
                 <dl class="my-4 space-y-2 text-sm text-white">
+                    @if($this->membership)
                     <div><dt class="text-gray-300">Paket</dt><dd>{{ $this->membership->ptPackage?->name ?? $this->membership->package_name ?? 'Paket PT' }}</dd></div>
                     <div><dt class="text-gray-300">Coach</dt><dd>{{ $this->membership->personalTrainer?->name }}</dd></div>
+                    @endif
                     <div><dt class="text-gray-300">Tanggal dan jam</dt><dd>{{ Carbon::parse($bookingDate)->locale('id')->isoFormat('dddd, D MMM YYYY') }} · {{ $bookingTime }} - {{ Carbon::parse($bookingTime)->addHour()->format('H:i') }}</dd></div>
                 </dl>
+                @if($this->membership)
                 <div class="my-4 text-sm text-white">
                     <label for="studioType" class="block mb-1">Akses Gym *</label>
                     <select id="studioType" wire:model="studioType" required class="w-full rounded-md border border-white/15 bg-[#1d2427] px-3 py-2 text-white">
@@ -460,10 +515,11 @@ new #[Layout('layouts::member')] class extends Component
                     @endif
                     @error('studioType') <p class="mt-1 text-red-400">{{ $message }}</p> @enderror
                 </div>
+                @endif
                 <p class="text-sm text-gray-300">Satu sesi akan dipesan dan menunggu persetujuan Head Coach.</p>
                 <div class="mt-5 flex justify-end gap-2">
                     <button type="button" wire:click="closeBookingModal" class="rounded-md border border-white/15 px-4 py-2 text-sm text-white">Batal</button>
-                    <button type="button" wire:click="book" wire:loading.attr="disabled" class="rounded-md bg-brand px-4 py-2 text-sm font-medium text-[#34342F] disabled:opacity-50"><span wire:loading.remove wire:target="book">Ajukan Booking</span><span wire:loading wire:target="book">Menyimpan...</span></button>
+                    <button type="button" wire:click="book" wire:loading.attr="disabled" @disabled(! $this->membership) class="rounded-md bg-brand px-4 py-2 text-sm font-medium text-[#34342F] disabled:opacity-50"><span wire:loading.remove wire:target="book">Ajukan Booking</span><span wire:loading wire:target="book">Menyimpan...</span></button>
                 </div>
             </section>
         </div>

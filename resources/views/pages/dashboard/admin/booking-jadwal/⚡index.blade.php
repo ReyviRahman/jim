@@ -794,6 +794,12 @@ new #[Layout('layouts::admin')] class extends Component
             ->whereNotNull('pt_id')
             ->whereNotNull('pt_package_id');
 
+        if ($this->insertDate !== '') {
+            $query->where(function (\Illuminate\Database\Eloquent\Builder $query): void {
+                $query->whereNull('start_date')->orWhereDate('start_date', '<=', $this->insertDate);
+            });
+        }
+
         if (! empty($this->insertMembershipSearch)) {
             $search = '%'.$this->insertMembershipSearch.'%';
             $query->where(function ($q) use ($search) {
@@ -1742,7 +1748,7 @@ new #[Layout('layouts::admin')] class extends Component
                             @php $selectedMembership = \App\Models\Membership::with(['user', 'personalTrainer'])->find($insertMembershipId); @endphp
                             @if($selectedMembership)
                                 <div class="mb-2 p-2 bg-brand/10 border border-brand/30 rounded-md text-sm text-brand flex justify-between items-center">
-                                    <span>{{ $selectedMembership->user?->name ?? '-' }} — {{ $selectedMembership->personalTrainer?->name ?? '-' }} (Sisa: {{ $selectedMembership->remaining_sessions }})</span>
+                                    <span>{{ $selectedMembership->user?->name ?? '-' }} — {{ $selectedMembership->personalTrainer?->name ?? '-' }} (Sisa: {{ $selectedMembership->remaining_sessions }} · Mulai: {{ $selectedMembership->start_date?->locale('id')->isoFormat('D MMM YYYY') ?? '-' }} · Berakhir: {{ $selectedMembership->pt_end_date?->locale('id')->isoFormat('D MMM YYYY') ?? '-' }})</span>
                                     <button type="button" wire:click="$set('insertMembershipId', null)" class="text-brand hover:text-brand text-xs underline">Ganti</button>
                                 </div>
                                 @if($insertType === 'fleksibel')
@@ -1763,7 +1769,7 @@ new #[Layout('layouts::admin')] class extends Component
                                 @forelse($this->filteredMemberships as $membership)
                                     <div wire:click="selectMembership({{ $membership->id }})"
                                         class="cursor-pointer px-3 py-2 text-sm hover:bg-neutral-secondary-dark transition-colors border-b border-default last:border-0">
-                                        {{ $membership->user?->name ?? '-' }} — {{ $membership->personalTrainer?->name ?? '-' }} (Sisa: {{ $membership->remaining_sessions }})
+                                        {{ $membership->user?->name ?? '-' }} — {{ $membership->personalTrainer?->name ?? '-' }} (Sisa: {{ $membership->remaining_sessions }} · Mulai: {{ $membership->start_date?->locale('id')->isoFormat('D MMM YYYY') ?? '-' }} · Berakhir: {{ $membership->pt_end_date?->locale('id')->isoFormat('D MMM YYYY') ?? '-' }})
                                     </div>
                                 @empty
                                     <div class="px-3 py-2 text-sm text-body">Tidak ada membership ditemukan.</div>
