@@ -511,6 +511,7 @@ new #[Layout('layouts::admin')] class extends Component
                 'package_name' => $this->package_name,
             ]);
 
+            app(\App\Actions\SyncPreviousPtRenewalEndDate::class)->execute($membership, $this->selectedUsers->modelKeys());
             $membership->members()->attach($this->selectedUsers->pluck('id')->toArray());
             app(\App\Actions\MembershipAddonApproval::class)->submit($membership, $addonInput, Auth::id());
             $storedWaiverPaths = app(StoreMembershipWaivers::class)->execute($membership, $validatedWaivers, Auth::id());

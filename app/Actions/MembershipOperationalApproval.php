@@ -221,6 +221,7 @@ final class MembershipOperationalApproval
                 $attributes['sesi_hangus'] = $attributes['total_sessions'];
             }
             $membership = Membership::create($attributes + ['operational_request_id' => $request->id]);
+            app(SyncPreviousPtRenewalEndDate::class)->execute($membership, $memberIds);
             app(MembershipAddonApproval::class)->submit(
                 $membership, $snapshot['addon'] ?? null, $request->requested_by,
                 $snapshot['membership']['is_active'] ? $snapshot['membership']['start_date'] : null,
