@@ -49,8 +49,15 @@ new #[Layout('layouts::member'), Title('Dashboard Membership')] class extends Co
     public function ownedPackages(): EloquentCollection
     {
         return $this->accessibleMembershipQuery()
-            ->where('status', 'active')
-            ->where('is_active', true)
+            ->where(function (Builder $query): void {
+                $query->where(fn (Builder $active): Builder => $active->where('status', 'active')->where('is_active', true))
+                    ->orWhere(function (Builder $renewed): void {
+                        $renewed->where('type', 'pt')
+                            ->whereIn('status', ['active', 'completed'])
+                            ->whereNotNull('renewal_from')
+                            ->where('remaining_sessions', '>', 0);
+                    });
+            })
             ->whereIn('type', ['membership', 'pt', 'bundle_pt_membership'])
             ->with(['gymPackage:id,name', 'ptPackage:id,name'])
             ->withCount(['ptBookings as attended_sessions' => function (Builder $query): void {

@@ -38,6 +38,10 @@ final class MembershipOperationalApproval
             'registration_type' => ['required', Rule::in(['membership', 'pt', 'bundle_pt_membership', 'visit'])],
             'is_active' => ['required', 'boolean'],
             'is_renewal' => ['required', 'boolean'],
+            'renewal_selected_ids' => ['nullable', 'array'],
+            'renewal_selected_ids.*' => ['integer', 'distinct'],
+            'renewal_candidate_ids' => ['nullable', 'array'],
+            'renewal_candidate_ids.*' => ['integer', 'distinct'],
             'start_date' => ['nullable', 'required_if:is_active,1', 'date_format:Y-m-d'],
             'membership_end_date' => ['nullable', Rule::requiredIf(fn () => ! empty($input['is_active']) && in_array($input['registration_type'] ?? '', ['membership', 'bundle_pt_membership', 'visit'], true)), 'date_format:Y-m-d', 'after_or_equal:start_date'],
             'pt_end_date' => ['nullable', Rule::requiredIf(fn () => ! empty($input['is_active']) && in_array($input['registration_type'] ?? '', ['pt', 'bundle_pt_membership'], true)), 'date_format:Y-m-d', 'after_or_equal:start_date'],
@@ -68,6 +72,13 @@ final class MembershipOperationalApproval
                     return $existing;
                 }
                 $members = User::whereIn('id', $data['user_ids'])->orderBy('id')->get();
+                if ($data['is_renewal']) {
+                    app(LinkMembershipRenewal::class)->lockMembers($data['user_ids']);
+                    app(LinkMembershipRenewal::class)->validateSelection(
+                        app(LinkMembershipRenewal::class)->candidates($data['user_ids'], lock: true)->modelKeys(),
+                        $data['renewal_selected_ids'] ?? null, $data['renewal_candidate_ids'] ?? null,
+                    );
+                }
                 $snapshot = $this->snapshot($data, $members->count());
                 $validatedWaivers = app(StoreMembershipWaivers::class)->validate($members, $waivers, required: true);
                 $documents = [];
@@ -155,6 +166,8 @@ final class MembershipOperationalApproval
         ];
 
         return ['membership' => $attributes, 'payment_date' => $data['payment_date'],
+            'renewal_selected_ids' => $data['is_renewal'] ? ($data['renewal_selected_ids'] ?? null) : null,
+            'renewal_candidate_ids' => $data['is_renewal'] ? ($data['renewal_candidate_ids'] ?? null) : null,
             'addon' => $data['addon'] ?? null,
             'gym_package_name' => $gym?->name, 'pt_package_name' => $pt?->name,
             'shift' => User::findOrFail($data['admin_id'])->shiftSnapshot(),
@@ -221,12 +234,12 @@ final class MembershipOperationalApproval
                 $attributes['sesi_hangus'] = $attributes['total_sessions'];
             }
             $membership = Membership::create($attributes + ['operational_request_id' => $request->id]);
-            app(SyncPreviousPtRenewalEndDate::class)->execute($membership, $memberIds);
             app(MembershipAddonApproval::class)->submit(
                 $membership, $snapshot['addon'] ?? null, $request->requested_by,
                 $snapshot['membership']['is_active'] ? $snapshot['membership']['start_date'] : null,
             );
             $membership->members()->attach($memberIds);
+            app(LinkMembershipRenewal::class)->execute($membership, $memberIds, $snapshot['renewal_selected_ids'] ?? null, $snapshot['renewal_candidate_ids'] ?? null);
             foreach ($request->documents as $document) {
                 $membership->waivers()->create([
                     'user_id' => $document['user_id'], 'member_name' => $document['member_name'],

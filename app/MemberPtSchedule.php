@@ -30,11 +30,14 @@ class MemberPtSchedule
 
     public function unavailableReason(?Membership $membership, int $reservedSessions): ?string
     {
+        $renewed = $membership?->canBookUsingRenewal() ?? false;
+
         return match (true) {
             $membership === null => 'Tidak ada membership PT yang tersedia.',
-            ! $membership->is_active || $membership->status !== 'active' => 'Membership PT tidak aktif.',
+            (! $membership->is_active || $membership->status !== 'active') && ! $renewed => 'Membership PT tidak aktif.',
             $membership->pt_id === null || $membership->personalTrainer === null => 'Coach belum ditentukan untuk paket ini.',
-            $membership->pt_end_date !== null && $membership->pt_end_date->lt(today()) => 'Masa berlaku paket PT sudah berakhir.',
+            $membership->pt_package_id === null => 'Paket PT belum ditentukan untuk membership ini.',
+            $membership->pt_end_date !== null && $membership->pt_end_date->lt(today()) && ! $renewed => 'Masa berlaku paket PT sudah berakhir.',
             (int) $membership->remaining_sessions <= $reservedSessions => 'Sisa sesi sudah habis atau seluruhnya ditahan oleh booking pending.',
             default => null,
         };
@@ -46,7 +49,7 @@ class MemberPtSchedule
             $start->lte(now()) => 'Waktu sesi sudah lewat.',
             $start->toDateString() > today(config('app.timezone'))->addDays(7)->toDateString() => 'Booking hanya bisa dibuat mulai hari ini sampai 7 hari ke depan.',
             $membership->start_date !== null && $start->toDateString() < $membership->start_date->toDateString() => 'Paket PT belum dimulai pada tanggal ini.',
-            $membership->pt_end_date !== null && $start->toDateString() > $membership->pt_end_date->toDateString() => 'Tanggal sesi melewati masa berlaku paket PT.',
+            $membership->pt_end_date !== null && $start->toDateString() > $membership->pt_end_date->toDateString() && ! $membership->canBookUsingRenewal() => 'Tanggal sesi melewati masa berlaku paket PT.',
             default => null,
         };
     }

@@ -770,6 +770,35 @@ class MemberDashboardTest extends TestCase
         ];
     }
 
+    public function test_expired_renewed_pt_packages_with_sessions_remain_visible_to_owner_and_shared_members(): void
+    {
+        $owner = $this->createUser();
+        $shared = $this->createUser();
+        $successor = $this->createMembership($owner, null, ['is_renewal' => true, 'status' => 'pending', 'is_active' => false]);
+        $old = $this->createMembership($owner, null, [
+            'type' => 'pt', 'status' => 'completed', 'is_active' => false,
+            'pt_end_date' => today()->subMonth(), 'remaining_sessions' => 3,
+            'total_sessions' => 10, 'renewal_from' => $successor->id,
+        ], [$shared]);
+        $before = $old->refresh()->getAttributes();
+
+        foreach ([$owner, $shared] as $member) {
+            Livewire::actingAs($member)->test('pages::dashboard.member.home')
+                ->assertSet('ownedPackages', fn ($packages): bool => $packages->modelKeys() === [$old->id])
+                ->assertSet('ownedPackageSummaries', fn ($summaries): bool => $summaries->sum('remaining_sessions') === 3);
+        }
+        Livewire::actingAs($this->createUser())->test('pages::dashboard.member.home')->assertCount('ownedPackages', 0);
+        $this->assertSame($before, $old->refresh()->getAttributes());
+
+        foreach ([
+            ['remaining_sessions' => 0], ['remaining_sessions' => null], ['remaining_sessions' => -1],
+            ['renewal_from' => null], ['status' => 'pending'], ['status' => 'rejected'],
+        ] as $attributes) {
+            $old->update(array_replace(['remaining_sessions' => 3, 'renewal_from' => $successor->id, 'status' => 'completed'], $attributes));
+            Livewire::actingAs($owner)->test('pages::dashboard.member.home')->assertCount('ownedPackages', 0);
+        }
+    }
+
     /** @param array<string, mixed> $attributes */
     private function createPackage(string $name, array $attributes = []): GymPackage
     {

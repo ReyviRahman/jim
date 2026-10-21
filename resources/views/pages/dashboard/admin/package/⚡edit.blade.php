@@ -168,7 +168,7 @@ new #[Layout('layouts::admin')] class extends Component
 
         <fieldset class="mb-6">
             <legend class="mb-2 text-sm font-semibold text-heading">Durasi Paket <span class="text-red-600">*</span></legend>
-            <p class="mb-3 text-sm text-gray-500">Isi minimal satu durasi. 1 bulan = 30 hari, 1 minggu = 7 hari. Semua nilai dijumlahkan.</p>
+            <p class="mb-3 text-sm text-gray-500">Isi minimal satu durasi. Semua nilai dijumlahkan.</p>
             <div class="grid gap-4 md:grid-cols-3">
                 @foreach(['duration_months' => 'Bulan', 'duration_weeks' => 'Minggu', 'duration_days' => 'Hari'] as $field => $label)
                     <div wire:key="duration-{{ $field }}">

@@ -24,6 +24,7 @@ class Membership extends Model
     ];
 
     protected $fillable = [
+        'renewal_from',
         'is_renewal',
         'operational_request_id',
         'pt_installment_expired_at',
@@ -66,6 +67,7 @@ class Membership extends Model
     ];
 
     protected $casts = [
+        'renewal_from' => 'integer',
         'is_renewal' => 'boolean',
         'pt_installment_expired_at' => 'datetime',
         'membership_installment_expired_at' => 'datetime',
@@ -92,6 +94,47 @@ class Membership extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id')->withTrashed();
+    }
+
+    public function renewalSuccessor(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'renewal_from');
+    }
+
+    public function hasRenewalSuccessor(): bool
+    {
+        return $this->renewalSuccessor?->is_renewal === true;
+    }
+
+    public function canBookUsingRenewal(): bool
+    {
+        return in_array($this->status, ['active', 'completed'], true)
+            && $this->remaining_sessions > 0
+            && $this->pt_package_id !== null
+            && $this->pt_id !== null
+            && $this->hasRenewalSuccessor();
+    }
+
+    public function scopeWithBookingRenewal(Builder $query): Builder
+    {
+        return $query->whereIn('status', ['active', 'completed'])
+            ->where('remaining_sessions', '>', 0)
+            ->whereNotNull('pt_package_id')->whereNotNull('pt_id')
+            ->whereHas('renewalSuccessor', fn (Builder $successor): Builder => $successor->where('is_renewal', true));
+    }
+
+    public function scopeBookableByAdmin(Builder $query): Builder
+    {
+        return $query->where('remaining_sessions', '>', 0)
+            ->whereNotNull('pt_package_id')
+            ->whereNotNull('pt_id')
+            ->where(function (Builder $query): void {
+                $query->where(function (Builder $active): void {
+                    $active->where('status', 'active')->where('is_active', true);
+                })->orWhere(function (Builder $renewed): void {
+                    $renewed->withBookingRenewal();
+                });
+            });
     }
 
     public function admin(): BelongsTo

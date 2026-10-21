@@ -34,10 +34,11 @@ class CreateKeepPtBookings
     ): array {
         return app(PtStudioBooking::class)->transaction($studioType, function () use ($membershipId, $ptId, $weekStart, $dayTimes, $status, $studioType): array {
             $membership = Membership::query()
+                ->bookableByAdmin()
                 ->lockForUpdate()
                 ->find($membershipId);
 
-            if (! $membership || ! $membership->is_active || $membership->status !== 'active' || ($membership->remaining_sessions ?? 0) <= 0) {
+            if (! $membership) {
                 return $this->result(stopReason: 'invalid_membership');
             }
 
@@ -73,7 +74,7 @@ class CreateKeepPtBookings
                 ->all();
 
             $currentWeekStart = Carbon::parse($weekStart->toDateString(), config('app.timezone'))->startOfDay();
-            $expiresAt = $membership->pt_end_date?->copy()->endOfDay();
+            $expiresAt = $membership->hasRenewalSuccessor() ? null : $membership->pt_end_date?->copy()->endOfDay();
             $createdCount = 0;
             $stopReason = null;
 

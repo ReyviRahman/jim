@@ -23,6 +23,7 @@ use Livewire\WithFileUploads;
 new #[Layout('layouts::admin')] class extends Component
 {
     use HandlesRequiredMemberProfilePhotos;
+    use \App\Livewire\Concerns\SelectsRenewalMemberships;
     use \App\Livewire\Concerns\ChecksSelectedPackageAvailability;
     use \App\Livewire\Concerns\HasMembershipAddon;
     use \App\Livewire\Concerns\ReportsMembershipValidation;
@@ -335,6 +336,9 @@ new #[Layout('layouts::admin')] class extends Component
         StoreCompressedPaymentProof $storeCompressedPaymentProof,
     )
     {
+        if (! $this->renewalSelectionReady((bool) $this->is_renewal)) {
+            return;
+        }
         $this->validateMembershipDates();
         $this->validateSelectedPackageAvailability();
         $addonInput = $this->validatedAddon();
@@ -348,6 +352,8 @@ new #[Layout('layouts::admin')] class extends Component
                 'has_addon', 'addon_name', 'addon_duration_months', 'addon_duration_weeks', 'addon_duration_days',
             ])->map(fn ($value) => $value === '' ? null : $value)->all();
             $input['user_ids'] = $this->selectedUsers->modelKeys();
+            $input['renewal_selected_ids'] = $this->confirmedRenewalIds;
+            $input['renewal_candidate_ids'] = $this->renewalCandidateIds;
             $input['reason'] = $this->operational_reason;
             $input['submission_token'] = $this->operational_submission_token;
             $approval = app(\App\Actions\MembershipOperationalApproval::class)->submit(auth()->user(), $input, $this->waivers, $this->memberPhotos);
@@ -469,6 +475,9 @@ new #[Layout('layouts::admin')] class extends Component
         try {
             DB::beginTransaction();
 
+            app(\App\Actions\LinkMembershipRenewal::class)->lockMembers($this->selectedUsers->modelKeys());
+            $this->validateRenewalSelectionForSave((bool) $this->is_renewal);
+
             $storedProfilePhotoPaths = $this->storeRequiredMemberProfilePhotos($storeCompressedProfilePhoto);
 
             // 1. BUAT KONTRAK MEMBERSHIP
@@ -511,8 +520,8 @@ new #[Layout('layouts::admin')] class extends Component
                 'package_name' => $this->package_name,
             ]);
 
-            app(\App\Actions\SyncPreviousPtRenewalEndDate::class)->execute($membership, $this->selectedUsers->modelKeys());
             $membership->members()->attach($this->selectedUsers->pluck('id')->toArray());
+            app(\App\Actions\LinkMembershipRenewal::class)->execute($membership, $this->selectedUsers->modelKeys(), $this->confirmedRenewalIds, $this->renewalCandidateIds);
             app(\App\Actions\MembershipAddonApproval::class)->submit($membership, $addonInput, Auth::id());
             $storedWaiverPaths = app(StoreMembershipWaivers::class)->execute($membership, $validatedWaivers, Auth::id());
 
@@ -719,11 +728,11 @@ new #[Layout('layouts::admin')] class extends Component
                             <legend class="mb-2 text-sm font-medium text-heading">Status Renewal <span class="text-red-500">*</span></legend>
                             <div class="flex gap-6">
                                 <label class="flex items-center gap-2 text-sm text-heading">
-                                    <input type="radio" name="is_renewal" wire:model="is_renewal" value="1" required class="text-brand focus:ring-brand w-4 h-4">
+                                    <input type="radio" name="is_renewal" wire:model.live="is_renewal" value="1" required class="text-brand focus:ring-brand w-4 h-4">
                                     Renewal
                                 </label>
                                 <label class="flex items-center gap-2 text-sm text-heading">
-                                    <input type="radio" name="is_renewal" wire:model="is_renewal" value="0" required class="text-brand focus:ring-brand w-4 h-4">
+                                    <input type="radio" name="is_renewal" wire:model.live="is_renewal" value="0" required class="text-brand focus:ring-brand w-4 h-4">
                                     Tidak Renewal
                                 </label>
                             </div>
@@ -1267,5 +1276,8 @@ new #[Layout('layouts::admin')] class extends Component
             </div>
         </div>
 
-    </form>
+        </form>
+        @if ($is_renewal)
+            <x-renewal-membership-selection />
+        @endif
 </div>

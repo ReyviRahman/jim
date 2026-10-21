@@ -21,7 +21,6 @@
                     </div>
                 @endforeach
                 <div class="sm:col-span-3 text-sm text-body">
-                    <p>1 bulan = 30 hari. 1 minggu = 7 hari.</p>
                     @if($this->addonEndDate)
                         <p>Mulai: {{ $this->getFormattedDate($start_date) }} · Selesai: {{ $this->addonEndDate }}</p>
                     @else

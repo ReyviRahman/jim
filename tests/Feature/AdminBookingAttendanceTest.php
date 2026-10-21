@@ -1008,6 +1008,10 @@ class AdminBookingAttendanceTest extends TestCase
 
         return Membership::create([
             'user_id' => $member->id,
+            'pt_package_id' => GymPackage::create([
+                'type' => 'pt', 'name' => 'PT Single', 'category' => 'single',
+                'max_members' => 1, 'price' => 500000, 'discount' => 0, 'is_active' => true,
+            ])->id,
             'pt_id' => $personalTrainer->id,
             'type' => 'pt',
             'base_price' => 100000,

@@ -46,7 +46,7 @@ trait HasMembershipAddon
             return null;
         }
         try {
-            return CarbonImmutable::parse($this->start_date)->addDays($days - 1)->format('d/m/Y');
+            return CarbonImmutable::parse($this->start_date)->addDays($days - 1)->locale('id')->translatedFormat('l, d F Y');
         } catch (\Throwable) {
             return null;
         }

@@ -23,6 +23,7 @@ use Livewire\WithFileUploads;
 new #[Layout('layouts::admin')] class extends Component
 {
     use HandlesRequiredMemberProfilePhotos;
+    use \App\Livewire\Concerns\SelectsRenewalMemberships;
     use \App\Livewire\Concerns\ChecksSelectedPackageAvailability;
     use \App\Livewire\Concerns\HasMembershipAddon;
     use \App\Livewire\Concerns\ReportsMembershipValidation;
@@ -111,6 +112,7 @@ new #[Layout('layouts::admin')] class extends Component
         
         $this->selectedUsers = User::whereIn('id', array_unique($userIds))->get();
         $this->mainUser = $this->selectedUsers->where('id', $this->oldMembership->user_id)->first();
+        $this->renewalSelectionReady(true);
 
         // 3. Pre-fill data form dari paket lama
         $this->registration_type = $this->oldMembership->type;
@@ -277,6 +279,9 @@ new #[Layout('layouts::admin')] class extends Component
         StoreCompressedPaymentProof $storeCompressedPaymentProof,
     )
     {
+        if (! $this->renewalSelectionReady(true)) {
+            return;
+        }
         $this->validateMembershipDates();
         $this->validateSelectedPackageAvailability();
         $addonInput = $this->validatedAddon();
@@ -368,6 +373,9 @@ new #[Layout('layouts::admin')] class extends Component
         try {
             DB::beginTransaction();
 
+            app(\App\Actions\LinkMembershipRenewal::class)->lockMembers($this->selectedUsers->modelKeys());
+            $this->validateRenewalSelectionForSave(true);
+
             $storedProfilePhotoPaths = $this->storeRequiredMemberProfilePhotos($storeCompressedProfilePhoto);
 
             // 1. BUAT KONTRAK MEMBERSHIP BARU (BUKAN UPDATE YANG LAMA)
@@ -426,15 +434,9 @@ new #[Layout('layouts::admin')] class extends Component
             ]);
 
             $newMembership->members()->attach($this->selectedUsers->pluck('id')->toArray());
+            app(\App\Actions\LinkMembershipRenewal::class)->execute($newMembership, $this->selectedUsers->modelKeys(), $this->confirmedRenewalIds, $this->renewalCandidateIds);
             app(\App\Actions\MembershipAddonApproval::class)->submit($newMembership, $addonInput, Auth::id());
             $storedWaiverPaths = app(StoreMembershipWaivers::class)->execute($newMembership, $validatedWaivers, Auth::id());
-
-            // Jika paket lama adalah PT, update pt_end_date paket lama agar mengikuti nilai pt_end_date yang dipilih
-            if ($this->payment_type === 'paid' && $this->oldMembership->type === 'pt') {
-                $this->oldMembership->update([
-                    'pt_end_date' => $this->pt_end_date,
-                ]);
-            }
 
             $paymentProofPath = null;
 
@@ -917,4 +919,5 @@ new #[Layout('layouts::admin')] class extends Component
             </div>
         </div>
     </form>
+    <x-renewal-membership-selection />
 </div>

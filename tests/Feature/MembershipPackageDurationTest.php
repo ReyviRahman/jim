@@ -235,7 +235,7 @@ class MembershipPackageDurationTest extends TestCase
         $this->assertSame($expected, app(MembershipDates::class)->renewalStartDate($membership));
     }
 
-    public function test_renewal_initializes_from_old_end_and_preserves_pt_extension(): void
+    public function test_renewal_initializes_from_old_end_without_changing_previous_package(): void
     {
         $this->travelTo(now()->setDate(2026, 9, 30));
         [$form, $package, $member, $actor, $old] = $this->membershipForm(true);
@@ -244,8 +244,27 @@ class MembershipPackageDurationTest extends TestCase
         $old->update(['type' => 'pt', 'gym_package_id' => null, 'pt_package_id' => $pt->id, 'pt_end_date' => '2026-09-27']);
         $form = Livewire::test('pages::dashboard.admin.renew.create', ['id' => $old->id]);
         $this->completeForm($form, $member, $actor)->set('has_addon', 'no')->call('save')->assertHasNoErrors();
-        $this->assertSame('2026-10-26', $old->refresh()->pt_end_date->toDateString());
-        $this->assertTrue(Membership::latest('id')->firstOrFail()->is_renewal);
+        $this->assertSame('2026-09-27', $old->refresh()->pt_end_date->toDateString());
+        $this->assertSame('2026-09-27', $old->membership_end_date->toDateString());
+        $renewal = Membership::latest('id')->firstOrFail();
+        $this->assertTrue($renewal->is_renewal);
+        $this->assertSame('2026-10-26', $renewal->pt_end_date->toDateString());
+        $this->assertSame($renewal->id, $old->renewal_from);
+    }
+
+    public function test_renew_form_links_latest_purchase_instead_of_url_package(): void
+    {
+        [$form, $package, $member, $actor, $old] = $this->membershipForm(true);
+        $latest = $old->replicate();
+        $latest->save();
+        $latest->members()->attach($member->id);
+
+        $form->set('has_addon', 'no')->call('save')->assertHasNoErrors()->assertRedirect();
+
+        $renewal = Membership::latest('id')->firstOrFail();
+        $this->assertSame($renewal->id, $latest->refresh()->renewal_from);
+        $this->assertNull($old->refresh()->renewal_from);
+        $this->assertSame('2026-09-27', $latest->membership_end_date->toDateString());
     }
 
     public function test_operational_snapshot_keeps_calculated_dates_and_renewal_on_approval(): void

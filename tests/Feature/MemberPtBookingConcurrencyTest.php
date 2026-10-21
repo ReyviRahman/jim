@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\GymPackage;
 use App\Models\Membership;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTruncation;
@@ -35,6 +36,10 @@ class MemberPtBookingConcurrencyTest extends TestCase
         $this->assertSame('jim_test', DB::connection()->getDatabaseName());
         $coach = User::factory()->create(['role' => 'pt']);
         $memberships = collect(range(1, 2))->map(fn (): Membership => Membership::create([
+            'pt_package_id' => GymPackage::create([
+                'type' => 'pt', 'name' => 'PT', 'category' => 'single', 'max_members' => 1,
+                'price' => 300000, 'discount' => 0, 'is_active' => true,
+            ])->id,
             'user_id' => User::factory()->create(['role' => 'member'])->id,
             'pt_id' => $coach->id, 'type' => 'pt', 'status' => 'active', 'is_active' => true,
             'base_price' => 300000, 'price_paid' => 300000, 'total_paid' => 300000,

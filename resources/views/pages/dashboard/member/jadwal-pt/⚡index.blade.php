@@ -48,9 +48,11 @@ new #[Layout('layouts::member')] class extends Component
     public function memberships(): Collection
     {
         return app(MemberPtSchedule::class)->memberships(Auth::user())
-            ->where('status', 'active')
-            ->where('is_active', true)
-            ->with(['personalTrainer', 'ptPackage'])
+            ->where(function (Builder $query): void {
+                $query->where(fn (Builder $active): Builder => $active->where('status', 'active')->where('is_active', true))
+                    ->orWhere(fn (Builder $renewed): Builder => $renewed->withBookingRenewal());
+            })
+            ->with(['personalTrainer', 'ptPackage', 'renewalSuccessor'])
             ->withCount(['ptBookings as reserved_sessions' => fn (Builder $query): Builder => $query
                 ->where('status', 'pending')->where('attendance', 'not_yet')->where('is_free', false)])
             ->orderByDesc('start_date')->orderByDesc('id')->get();
@@ -64,7 +66,9 @@ new #[Layout('layouts::member')] class extends Component
         }
 
         $membership = $this->memberships->find($this->selectedMembershipId);
-        abort_unless($membership, 403);
+        if ($membership === null) {
+            abort_unless(app(MemberPtSchedule::class)->memberships(Auth::user())->whereKey($this->selectedMembershipId)->exists(), 403);
+        }
 
         return $membership;
     }
@@ -73,7 +77,7 @@ new #[Layout('layouts::member')] class extends Component
     {
         $this->studioType = '';
         unset($this->membership);
-        $this->membership;
+        abort_unless($this->membership, 403);
         $this->resetErrorBag();
     }
 

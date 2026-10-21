@@ -66,7 +66,7 @@ new #[Layout('layouts::admin')] class extends Component
         }
         $end = $membership->start_date->copy()->addDays($input['duration_months'] * 30 + $input['duration_weeks'] * 7 + $input['duration_days'] - 1);
 
-        return ['start' => $membership->start_date->format('d/m/Y'), 'end' => $end->format('d/m/Y'), 'expired' => $end->lt(today('Asia/Jakarta'))];
+        return ['start' => $membership->start_date->locale('id')->translatedFormat('l, d F Y'), 'end' => $end->locale('id')->translatedFormat('l, d F Y'), 'expired' => $end->lt(today('Asia/Jakarta'))];
     }
 
     public function submitAddon(): void
@@ -138,7 +138,6 @@ new #[Layout('layouts::admin')] class extends Component
                     @endforeach
                 </div>
                 <div class="text-sm text-body">
-                    <p>1 bulan = 30 hari. 1 minggu = 7 hari.</p>
                     @if ($this->addonPreview)
                         <p>Mulai: {{ $this->addonPreview['start'] }} · Selesai: {{ $this->addonPreview['end'] }}</p>
                         @if ($this->addonPreview['expired'])

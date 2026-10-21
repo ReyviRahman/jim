@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Actions\CreateMemberPtBooking;
+use App\Models\GymPackage;
 use App\Models\Membership;
 use App\Models\PtBooking;
 use App\Models\User;
@@ -34,6 +35,10 @@ class PtStudioConcurrencyTest extends TestCase
     public function test_concurrent_requests_cannot_both_take_the_last_private_place(): void
     {
         $memberships = collect(range(1, 3))->map(fn (): Membership => Membership::create([
+            'pt_package_id' => GymPackage::create([
+                'type' => 'pt', 'name' => 'PT', 'category' => 'single', 'max_members' => 1,
+                'price' => 300000, 'discount' => 0, 'is_active' => true,
+            ])->id,
             'user_id' => User::factory()->create(['role' => 'member'])->id,
             'pt_id' => User::factory()->create(['role' => 'pt'])->id,
             'type' => 'pt', 'base_price' => 300000, 'normal_price' => 300000,

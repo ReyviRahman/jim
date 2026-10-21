@@ -31,6 +31,7 @@ class CreateMemberPtBooking
             User::query()->whereKey($member->id)->lockForUpdate()->firstOrFail();
             $membership = $this->schedule->memberships($member)->lockForUpdate()->find($membershipId);
             abort_unless($membership, 403);
+            $membership->load('renewalSuccessor');
 
             $coach = User::query()->lockForUpdate()->find($membership->pt_id);
             $membership->setRelation('personalTrainer', $coach);

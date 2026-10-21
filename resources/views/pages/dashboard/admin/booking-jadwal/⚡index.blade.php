@@ -783,10 +783,7 @@ new #[Layout('layouts::admin')] class extends Component
     public function filteredMemberships()
     {
         $query = Membership::with(['user', 'ptPackage', 'personalTrainer'])
-            ->where('status', 'active')
-            ->where('remaining_sessions', '>', 0)
-            ->whereNotNull('pt_id')
-            ->whereNotNull('pt_package_id');
+            ->bookableByAdmin();
 
         if ($this->insertDate !== '') {
             $query->where(function (\Illuminate\Database\Eloquent\Builder $query): void {
@@ -909,10 +906,11 @@ new #[Layout('layouts::admin')] class extends Component
 
         $result = app(PtStudioBooking::class)->transaction($this->studioType, function () use ($validated, $status): string {
             $membership = Membership::query()
+                ->bookableByAdmin()
                 ->lockForUpdate()
                 ->find($validated['insertMembershipId']);
 
-            if (! $membership || ! $membership->is_active || $membership->status !== 'active' || ($membership->remaining_sessions ?? 0) <= 0) {
+            if (! $membership) {
                 return 'invalid_membership';
             }
 

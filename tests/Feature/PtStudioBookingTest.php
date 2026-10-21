@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Actions\CreateKeepPtBookings;
 use App\Actions\CreateMemberPtBooking;
+use App\Models\GymPackage;
 use App\Models\Membership;
 use App\Models\PtBooking;
 use App\Models\User;
@@ -282,6 +283,10 @@ class PtStudioBookingTest extends TestCase
     private function membership(array $attributes = []): Membership
     {
         return Membership::create([
+            'pt_package_id' => GymPackage::create([
+                'type' => 'pt', 'name' => 'PT Single', 'category' => 'single',
+                'max_members' => 1, 'price' => 300000, 'discount' => 0, 'is_active' => true,
+            ])->id,
             'user_id' => User::factory()->create(['role' => 'member'])->id,
             'pt_id' => User::factory()->create(['role' => 'pt'])->id,
             'type' => 'pt', 'base_price' => 300000, 'normal_price' => 300000, 'net_price' => 200000,
