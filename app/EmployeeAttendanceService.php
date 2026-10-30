@@ -12,11 +12,11 @@ use Illuminate\Validation\ValidationException;
 
 class EmployeeAttendanceService
 {
-    public function record(User $user, Carbon $receivedAt, ?DeviceEvent $deviceEvent = null): AttendanceEmployee
+    public function record(User $user, Carbon $attendanceAt, ?DeviceEvent $deviceEvent = null): AttendanceEmployee
     {
-        $receivedAt = $receivedAt->copy()->setTimezone(config('app.timezone'))->startOfSecond();
+        $attendanceAt = $attendanceAt->copy()->setTimezone(config('app.timezone'))->startOfSecond();
 
-        return DB::transaction(function () use ($user, $receivedAt, $deviceEvent): AttendanceEmployee {
+        return DB::transaction(function () use ($user, $attendanceAt, $deviceEvent): AttendanceEmployee {
             $employee = User::query()->lockForUpdate()->findOrFail($user->id);
             if (! array_key_exists($employee->role, Shift::ROLE_LABELS)) {
                 throw ValidationException::withMessages(['attendance' => 'Akun ini bukan karyawan.']);
@@ -32,7 +32,7 @@ class EmployeeAttendanceService
             }
 
             $attendance = $employee->employeeAttendances()
-                ->where('attendance_date', $receivedAt->toDateString())
+                ->where('attendance_date', $attendanceAt->toDateString())
                 ->lockForUpdate()->first();
 
             if ($attendance !== null) {
@@ -41,19 +41,19 @@ class EmployeeAttendanceService
 
             if ($attendance?->check_in_time !== null) {
                 $checkoutStart = $attendance->check_in_time->min($attendance->scheduled_start_at);
-                if ($receivedAt->lessThan($checkoutStart) || $receivedAt->greaterThanOrEqualTo($attendance->checkout_deadline_at)) {
+                if ($attendanceAt->lessThan($checkoutStart) || $attendanceAt->greaterThanOrEqualTo($attendance->checkout_deadline_at)) {
                     throw ValidationException::withMessages(['attendance' => 'Presensi untuk tanggal shift ini sudah tercatat.']);
                 }
 
                 $lastScan = $attendance->check_out_time ?? $attendance->check_in_time;
-                if ($receivedAt->greaterThan($lastScan)) {
-                    $attendance->update(['check_out_time' => $receivedAt]);
+                if ($attendanceAt->greaterThan($lastScan)) {
+                    $attendance->update(['check_out_time' => $attendanceAt]);
                 }
 
                 return $attendance;
             }
 
-            ['shift' => $shift, 'start' => $start] = $this->nearestShift($employee, $receivedAt);
+            ['shift' => $shift, 'start' => $start] = $this->nearestShift($employee, $attendanceAt);
             $end = $start->copy()->setTimeFromTimeString($shift->end_time);
             if ($end->lessThan($start)) {
                 $end->addDay();
@@ -61,9 +61,9 @@ class EmployeeAttendanceService
 
             $attendance ??= $employee->employeeAttendances()->make();
             $attendance->fill([
-                'attendance_date' => $receivedAt->toDateString(),
+                'attendance_date' => $attendanceAt->toDateString(),
                 'status' => EmployeeAttendanceStatus::Hadir,
-                'check_in_time' => $receivedAt,
+                'check_in_time' => $attendanceAt,
                 'shift_code' => $shift->code,
                 'shift_name' => $shift->name,
                 'shift_role' => $shift->role,
@@ -84,7 +84,7 @@ class EmployeeAttendanceService
     }
 
     /** @return array{shift: Shift, start: Carbon} */
-    private function nearestShift(User $employee, Carbon $receivedAt): array
+    private function nearestShift(User $employee, Carbon $attendanceAt): array
     {
         $nearest = null;
         $nearestDistance = PHP_INT_MAX;
@@ -93,8 +93,8 @@ class EmployeeAttendanceService
 
         foreach ($shifts as $shift) {
             foreach ([-1, 0, 1] as $dayOffset) {
-                $start = $receivedAt->copy()->addDays($dayOffset)->setTimeFromTimeString($shift->start_time);
-                $distance = abs($start->getTimestamp() - $receivedAt->getTimestamp());
+                $start = $attendanceAt->copy()->addDays($dayOffset)->setTimeFromTimeString($shift->start_time);
+                $distance = abs($start->getTimestamp() - $attendanceAt->getTimestamp());
                 if ($distance < $nearestDistance || ($distance === $nearestDistance && $start->lessThan($nearest['start']))) {
                     $nearest = ['shift' => $shift, 'start' => $start];
                     $nearestDistance = $distance;

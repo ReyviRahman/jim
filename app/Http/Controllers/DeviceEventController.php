@@ -53,7 +53,7 @@ class DeviceEventController extends Controller
             return response('OK', 200);
         }
 
-        $receivedAt = Carbon::now(config('app.timezone'));
+        $attendanceAt = $eventData['accessed_at'];
         $eventHash = hash('sha256', implode('|', [
             $device,
             $eventData['employee_no'],
@@ -61,7 +61,7 @@ class DeviceEventController extends Controller
         ]));
 
         try {
-            DB::transaction(function () use ($device, $eventData, $eventHash, $receivedAt, $sourceIp): void {
+            DB::transaction(function () use ($device, $eventData, $eventHash, $attendanceAt, $sourceIp): void {
                 $user = $this->resolveUser($eventData['employee_no']);
                 $deviceEventAttributes = $this->deviceEventAttributes(
                     $device,
@@ -87,7 +87,7 @@ class DeviceEventController extends Controller
                     return;
                 }
 
-                if ($user === null || ! $this->shouldRecordAttendance($eventData)) {
+                if ($user === null || $attendanceAt === null || ! $this->shouldRecordAttendance($eventData)) {
                     $this->markDeviceEventAsProcessed($deviceEvent);
 
                     return;
@@ -96,11 +96,11 @@ class DeviceEventController extends Controller
                 $this->hikvisionAttendanceService->record(
                     $user,
                     $deviceEvent,
-                    $receivedAt,
+                    $attendanceAt,
                 );
 
                 if ($user->role === 'member') {
-                    $this->markTodaysPtBookingAsAttended($user, $receivedAt);
+                    $this->markPtBookingAsAttended($user, $attendanceAt);
                 }
 
                 $this->markDeviceEventAsProcessed($deviceEvent);
@@ -179,7 +179,18 @@ class DeviceEventController extends Controller
 
         $dateTime = $event['dateTime'] ?? $event['date_time'] ?? null;
         if (! empty($dateTime)) {
+            $parts = date_parse($dateTime);
+            if ($parts['error_count'] > 0 || $parts['warning_count'] > 0 || isset($parts['relative'])
+                || in_array(false, array_intersect_key($parts, array_flip(['year', 'month', 'day', 'hour', 'minute', 'second'])), true)) {
+                throw new RuntimeException('Invalid device time');
+            }
             $data['accessed_at'] = Carbon::parse($dateTime)->setTimezone(config('app.timezone'));
+        } elseif (isset($event['Time']) && $event['Time'] !== '') {
+            $deviceTime = Carbon::createFromFormat('!m-d-Y H:i:s', $event['Time'], config('app.timezone'));
+            if ($deviceTime === null || $deviceTime->format('m-d-Y H:i:s') !== $event['Time']) {
+                throw new RuntimeException('Invalid device time');
+            }
+            $data['accessed_at'] = $deviceTime;
         }
 
         return $data;
@@ -359,13 +370,13 @@ class DeviceEventController extends Controller
         return strtolower(trim((string) $value));
     }
 
-    private function markTodaysPtBookingAsAttended(User $user, Carbon $receivedAt): void
+    private function markPtBookingAsAttended(User $user, Carbon $attendanceAt): void
     {
         $bookings = PtBooking::query()
             ->whereIn('membership_id', MembershipUser::query()
                 ->select('membership_id')
                 ->where('user_id', $user->id))
-            ->where('booking_date', $receivedAt->toDateString())
+            ->where('booking_date', $attendanceAt->toDateString())
             ->where('attendance', 'not_yet')
             ->where('status', 'approved')
             ->orderBy('booking_time')
@@ -373,9 +384,9 @@ class DeviceEventController extends Controller
             ->lockForUpdate()
             ->get();
 
-        $booking = $bookings->sort(function (PtBooking $leftBooking, PtBooking $rightBooking) use ($receivedAt): int {
-            $distanceComparison = $this->bookingDistanceInSeconds($leftBooking, $receivedAt)
-                <=> $this->bookingDistanceInSeconds($rightBooking, $receivedAt);
+        $booking = $bookings->sort(function (PtBooking $leftBooking, PtBooking $rightBooking) use ($attendanceAt): int {
+            $distanceComparison = $this->bookingDistanceInSeconds($leftBooking, $attendanceAt)
+                <=> $this->bookingDistanceInSeconds($rightBooking, $attendanceAt);
 
             if ($distanceComparison !== 0) {
                 return $distanceComparison;
@@ -420,15 +431,15 @@ class DeviceEventController extends Controller
         ]);
     }
 
-    private function bookingDistanceInSeconds(PtBooking $booking, Carbon $receivedAt): int
+    private function bookingDistanceInSeconds(PtBooking $booking, Carbon $attendanceAt): int
     {
         [$hours, $minutes, $seconds] = array_map(
             'intval',
             explode(':', (string) $booking->getRawOriginal('booking_time'))
         );
         $bookingTimeInSeconds = ($hours * 3600) + ($minutes * 60) + $seconds;
-        $receivedTimeInSeconds = ($receivedAt->hour * 3600) + ($receivedAt->minute * 60) + $receivedAt->second;
+        $attendanceTimeInSeconds = ($attendanceAt->hour * 3600) + ($attendanceAt->minute * 60) + $attendanceAt->second;
 
-        return abs($bookingTimeInSeconds - $receivedTimeInSeconds);
+        return abs($bookingTimeInSeconds - $attendanceTimeInSeconds);
     }
 }

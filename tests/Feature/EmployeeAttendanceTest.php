@@ -65,7 +65,7 @@ class EmployeeAttendanceTest extends TestCase
         $this->assertSame(0, DeviceEvent::where('status', 'failed')->count());
         $this->assertDatabaseCount('attendances', 0);
         $this->postJson('/api/absensi', $this->payload($user, '2026-09-10T16:00:00+07:00'))->assertOk();
-        $this->assertSame('12:00:00', AttendanceEmployee::query()->sole()->check_out_time->format('H:i:s'));
+        $this->assertSame('16:00:00', AttendanceEmployee::query()->sole()->check_out_time->format('H:i:s'));
     }
 
     public function test_single_role_shift_records_actual_time_and_snapshot(): void
@@ -225,23 +225,23 @@ class EmployeeAttendanceTest extends TestCase
         $this->assertDatabaseCount('attendance_employee', 1);
     }
 
-    public function test_hikvision_uses_server_time_and_identical_retry_does_not_checkout(): void
+    public function test_hikvision_uses_device_time_and_identical_retry_does_not_checkout(): void
     {
         $user = $this->employee();
-        $payload = $this->payload($user, '2030-01-01T20:00:00+07:00');
+        $payload = $this->payload($user, '2026-09-09T08:00:00+07:00');
         $this->travelTo(Carbon::parse('2026-09-10 08:00:00', 'Asia/Jakarta'));
         $this->postJson('/api/absensi', $payload)->assertOk();
         $this->travelTo(Carbon::parse('2026-09-10 12:00:00', 'Asia/Jakarta'));
         $this->postJson('/api/absensi', $payload)->assertOk();
         $row = AttendanceEmployee::query()->sole();
-        $this->assertSame('2026-09-10 08:00:00', $row->check_in_time->toDateTimeString());
+        $this->assertSame('2026-09-09 08:00:00', $row->check_in_time->toDateTimeString());
         $this->assertNull($row->check_out_time);
         $this->assertSame('Nama Perangkat', $row->nama_di_alat);
         $this->assertSame(DeviceEvent::query()->sole()->id, $row->device_event_id);
         $this->assertDatabaseCount('attendances', 0);
         $this->travelTo(Carbon::parse('2026-09-10 18:00:00', 'Asia/Jakarta'));
-        $this->postJson('/api/absensi', $this->payload($user, '2020-01-01T08:00:00+07:00'))->assertOk();
-        $this->assertSame('2026-09-10 18:00:00', $row->fresh()->check_out_time->toDateTimeString());
+        $this->postJson('/api/absensi', $this->payload($user, '2026-09-09T18:00:00+07:00'))->assertOk();
+        $this->assertSame('2026-09-09 18:00:00', $row->fresh()->check_out_time->toDateTimeString());
     }
 
     public function test_rejected_device_scan_keeps_log_but_not_attendance(): void
@@ -256,10 +256,10 @@ class EmployeeAttendanceTest extends TestCase
         $this->assertDatabaseCount('attendances', 0);
     }
 
-    public function test_early_device_check_in_uses_server_time_and_allows_checkout_before_shift_start(): void
+    public function test_early_device_check_in_uses_device_time_and_allows_checkout_before_shift_start(): void
     {
         $user = $this->employee(['start_time' => '07:00:00']);
-        $payload = $this->payload($user, '2030-01-01T20:00:00+07:00');
+        $payload = $this->payload($user, '2026-09-10T06:00:00+07:00');
         $this->travelTo(Carbon::parse('2026-09-10 06:00:00', 'Asia/Jakarta'));
         $this->postJson('/api/absensi', $payload)->assertOk();
         $row = AttendanceEmployee::query()->sole();
@@ -268,7 +268,7 @@ class EmployeeAttendanceTest extends TestCase
         $this->travelTo(Carbon::parse('2026-09-10 06:30:00', 'Asia/Jakarta'));
         $this->postJson('/api/absensi', $payload)->assertOk();
         $this->assertNull($row->fresh()->check_out_time);
-        $this->postJson('/api/absensi', $this->payload($user, '2030-01-01T20:01:00+07:00'))->assertOk();
+        $this->postJson('/api/absensi', $this->payload($user, '2026-09-10T06:30:00+07:00'))->assertOk();
         $this->assertSame('06:30:00', $row->fresh()->check_out_time->format('H:i:s'));
         $this->assertSame('Pagi', $row->fresh()->shift_name);
         $this->assertDatabaseCount('attendance_employee', 1);

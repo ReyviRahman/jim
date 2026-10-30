@@ -16,7 +16,7 @@ class HikvisionAttendanceService
     public function record(
         User $user,
         DeviceEvent $deviceEvent,
-        Carbon $receivedAt,
+        Carbon $attendanceAt,
     ): bool {
         $user = User::query()
             ->whereKey($user->id)
@@ -29,15 +29,15 @@ class HikvisionAttendanceService
             }
 
             try {
-                return $this->employeeAttendanceService->record($user, $receivedAt, $deviceEvent)->wasRecentlyCreated;
+                return $this->employeeAttendanceService->record($user, $attendanceAt, $deviceEvent)->wasRecentlyCreated;
             } catch (ValidationException) {
                 return false;
             }
         }
 
-        $attendanceDate = $receivedAt->toDateString();
-        $dayStart = $receivedAt->copy()->startOfDay();
-        $dayEnd = $receivedAt->copy()->endOfDay();
+        $attendanceDate = $attendanceAt->toDateString();
+        $dayStart = $attendanceAt->copy()->startOfDay();
+        $dayEnd = $attendanceAt->copy()->endOfDay();
 
         $attendance = Attendance::query()
             ->whereBelongsTo($user)
@@ -72,7 +72,7 @@ class HikvisionAttendanceService
                 'type' => null,
                 'attendance_status' => null,
                 'attendance_date' => $attendanceDate,
-                'check_in_time' => $receivedAt,
+                'check_in_time' => $attendanceAt,
                 'check_out_time' => null,
             ]);
 
@@ -81,7 +81,7 @@ class HikvisionAttendanceService
 
         $attendance->update([
             'nama_di_alat' => $deviceEvent->name,
-            'check_out_time' => $receivedAt,
+            'check_out_time' => $attendanceAt,
         ]);
 
         return false;

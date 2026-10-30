@@ -20,6 +20,99 @@ class DeviceEventWebhookTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_device_times_drive_attendance_even_when_webhooks_arrive_the_next_day(): void
+    {
+        $this->travelTo(Carbon::parse('2026-11-01 12:00:00', 'Asia/Jakarta'));
+
+        foreach (['member', 'pt'] as $role) {
+            foreach (['Time', 'dateTime', 'date_time'] as $field) {
+                $user = $this->createUser(['role' => $role]);
+                foreach (['06:04:51', '17:15:20'] as $time) {
+                    $payload = $this->attendancePayload($user, 'undefined', '2026-10-31T'.$time.'+07:00');
+                    unset($payload['dateTime']);
+                    $payload[$field] = $field === 'Time' ? '10-31-2026 '.$time : '2026-10-31T'.$time.'+07:00';
+                    $this->postJson('/api/absensi', $payload)->assertOk();
+                    $this->postJson('/api/absensi', $payload)->assertOk();
+                }
+
+                $attendance = ($role === 'member' ? Attendance::query() : AttendanceEmployee::query())->whereBelongsTo($user)->sole();
+                $this->assertSame('2026-10-31', $attendance->attendance_date->format('Y-m-d'));
+                $this->assertSame('2026-10-31 06:04:51', $attendance->check_in_time->format('Y-m-d H:i:s'));
+                $this->assertSame('2026-10-31 17:15:20', $attendance->check_out_time->format('Y-m-d H:i:s'));
+                $events = DeviceEvent::where('employee_no', (string) $user->id)->orderBy('id')->get();
+                $this->assertCount(2, $events);
+                $this->assertSame('2026-10-31 06:04:51', $events[0]->accessed_at->format('Y-m-d H:i:s'));
+                $this->assertSame('2026-11-01 12:00:00', $events[0]->created_at->format('Y-m-d H:i:s'));
+            }
+        }
+    }
+
+    public function test_device_timezone_and_booking_date_are_used_for_a_delayed_event(): void
+    {
+        $this->travelTo(Carbon::parse('2026-11-02 12:00:00', 'Asia/Jakarta'));
+        $member = $this->createUser();
+        $membership = $this->createPtMembership($member, ['remaining_sessions' => 3]);
+        $deviceDayBooking = $this->createPtBooking($member, $membership, ['booking_date' => '2026-11-01']);
+        $serverDayBooking = $this->createPtBooking($member, $membership);
+
+        $this->postJson('/api/absensi', $this->attendancePayload($member, 'checkIn', '2026-10-31T18:04:51Z'))->assertOk();
+
+        $attendance = Attendance::whereBelongsTo($member)->sole();
+        $this->assertSame('2026-11-01', $attendance->attendance_date->format('Y-m-d'));
+        $this->assertSame('2026-11-01 01:04:51', $attendance->check_in_time->format('Y-m-d H:i:s'));
+        $this->assertSame('attended', $deviceDayBooking->fresh()->attendance);
+        $this->assertSame('not_yet', $serverDayBooking->fresh()->attendance);
+    }
+
+    public function test_missing_device_time_never_creates_attendance(): void
+    {
+        $this->travelTo(Carbon::parse('2026-11-01 08:00:00', 'Asia/Jakarta'));
+        foreach (['member', 'pt'] as $role) {
+            $user = $this->createUser(['role' => $role]);
+            $payload = $this->attendancePayload($user, 'checkIn', '2026-10-31T06:04:51+07:00');
+            unset($payload['dateTime']);
+            $this->postJson('/api/absensi', $payload)->assertOk();
+            $this->assertDatabaseCount('attendances', 0);
+            $this->assertDatabaseCount('attendance_employee', 0);
+            $this->assertNull(DeviceEvent::where('employee_no', (string) $user->id)->sole()->accessed_at);
+        }
+    }
+
+    public function test_invalid_device_time_does_not_create_attendance(): void
+    {
+        $user = $this->createUser();
+        foreach (['invalid', '02-31-2026 06:04:51', '10-31-2026 25:04:51', '31-10-2026 06:04:51'] as $time) {
+            $payload = $this->attendancePayload($user, 'checkIn', '2026-10-31T06:04:51+07:00');
+            unset($payload['dateTime']);
+            $payload['Time'] = $time;
+            $this->postJson('/api/absensi', $payload)->assertOk();
+        }
+        $this->assertDatabaseCount('attendances', 0);
+        $this->assertDatabaseCount('device_events', 0);
+    }
+
+    public function test_missing_or_relative_time_never_updates_existing_attendance_or_bookings(): void
+    {
+        $this->travelTo(Carbon::parse('2026-10-31 12:00:00', 'Asia/Jakarta'));
+        foreach (['member', 'pt'] as $role) {
+            $user = $this->createUser(['role' => $role]);
+            $payload = $this->attendancePayload($user, 'checkIn', '2026-10-31T06:04:51+07:00');
+            $this->postJson('/api/absensi', $payload)->assertOk();
+            $membership = $this->createPtMembership($user);
+            $booking = $this->createPtBooking($user, $membership);
+
+            foreach ([null, '', 'now', 'tomorrow', '08:00:00', '2026-10-31'] as $time) {
+                $payload['dateTime'] = $time;
+                $this->postJson('/api/absensi', $payload)->assertOk();
+            }
+
+            $attendance = ($role === 'member' ? Attendance::query() : AttendanceEmployee::query())->whereBelongsTo($user)->sole();
+            $this->assertSame('2026-10-31 06:04:51', $attendance->check_in_time->format('Y-m-d H:i:s'));
+            $this->assertNull($attendance->check_out_time);
+            $this->assertSame('not_yet', $booking->fresh()->attendance);
+        }
+    }
+
     public function test_event_type_codes_are_normalized_and_labels_require_a_known_pair(): void
     {
         $cases = [
@@ -98,7 +191,7 @@ class DeviceEventWebhookTest extends TestCase
         }
 
         $user = $this->createUser();
-        $this->postJson('/api/absensi', $this->attendancePayload($user, 'checkIn', '2026-09-01T08:00:00+07:00'))->assertOk();
+        $this->postJson('/api/absensi', $this->attendancePayload($user, 'checkIn', now()->toIso8601String()))->assertOk();
         $this->assertFalse(DeviceEvent::where('employee_no', (string) $user->id)->sole()->is_member);
     }
 
@@ -107,7 +200,7 @@ class DeviceEventWebhookTest extends TestCase
         $user = $this->createUser();
         $this->createPtMembership($user, ['status' => 'completed']);
         $membership = $this->createPtMembership($user);
-        $payload = $this->attendancePayload($user, 'checkIn', '2026-09-01T08:00:00+07:00');
+        $payload = $this->attendancePayload($user, 'checkIn', now()->toIso8601String());
         $this->postJson('/api/absensi', $payload)->assertOk();
         $this->assertTrue(DeviceEvent::query()->sole()->is_member);
 
@@ -136,7 +229,7 @@ class DeviceEventWebhookTest extends TestCase
                 return $this->realService->record($user, $deviceEvent, $receivedAt);
             }
         });
-        $payload = $this->attendancePayload($user, 'checkIn', '2026-09-01T08:00:00+07:00');
+        $payload = $this->attendancePayload($user, 'checkIn', now()->toIso8601String());
 
         $this->postJson('/api/absensi', $payload)->assertOk();
         $this->assertTrue(DeviceEvent::query()->sole()->is_member);
@@ -214,7 +307,7 @@ XML;
         $response = $this->postJson('/api/absensi', $this->attendancePayload(
             $user,
             'checkIn',
-            '2025-10-30T14:32:00+07:00',
+            now()->toIso8601String(),
         ));
 
         $response->assertOk();
@@ -249,6 +342,7 @@ XML;
 
         $this->postJson('/api/absensi', [
             'employeeNoString' => 'EMP-PT-001',
+            'dateTime' => '2026-10-31T06:04:51+07:00',
             'name' => $mappedUser->name,
             'currentVerifyMode' => 'face',
         ])->assertOk();
@@ -353,7 +447,7 @@ XML;
             $this->postJson('/api/absensi', $this->attendancePayload(
                 $user,
                 $index % 2 === 0 ? 'checkIn' : 'checkOut',
-                sprintf('2025-11-01T09:%02d:00+07:00', $index),
+                now()->toIso8601String(),
             ))->assertOk();
 
             $this->assertDatabaseHas($role === 'member' ? 'attendances' : 'attendance_employee', [
@@ -369,7 +463,7 @@ XML;
         $this->postJson('/api/absensi', $this->attendancePayload(
             $inactiveUser,
             'checkIn',
-            '2025-11-01T10:00:00+07:00',
+            now()->toIso8601String(),
         ))->assertOk();
 
         $this->assertDatabaseHas('attendances', [
@@ -388,7 +482,7 @@ XML;
         $this->travelTo(Carbon::parse('2026-09-10 09:00:00', 'Asia/Jakarta'));
         $user = $this->createUser(['role' => 'head_coach', 'shift' => null]);
 
-        $this->postJson('/api/absensi', $this->attendancePayload($user, 'checkIn', '2026-09-10T09:00:00+07:00'))->assertOk();
+        $this->postJson('/api/absensi', $this->attendancePayload($user, 'checkIn', now()->toIso8601String()))->assertOk();
 
         $this->assertDatabaseCount('device_events', 1);
         $this->assertDatabaseCount('attendance_employee', 0);
@@ -402,7 +496,7 @@ XML;
         $membership = $this->createPtMembership($user, ['remaining_sessions' => 3]);
         $booking = $this->createPtBooking($user, $membership);
 
-        $this->postJson('/api/absensi', $this->attendancePayload($user, 'checkIn', '2026-09-10T09:00:00+07:00'))->assertOk();
+        $this->postJson('/api/absensi', $this->attendancePayload($user, 'checkIn', now()->toIso8601String()))->assertOk();
 
         $this->assertDatabaseCount('attendance_employee', 1);
         $this->assertDatabaseCount('attendances', 0);
@@ -410,7 +504,7 @@ XML;
         $this->assertSame(3, $membership->fresh()->remaining_sessions);
     }
 
-    public function test_first_and_subsequent_events_use_server_times_regardless_of_status(): void
+    public function test_first_and_subsequent_events_use_device_times_regardless_of_status(): void
     {
         $this->travelTo(Carbon::parse('2026-08-31 08:00:00', config('app.timezone')));
 
@@ -419,7 +513,7 @@ XML;
         $this->postJson('/api/absensi', $this->attendancePayload(
             $user,
             'checkOut',
-            '2030-11-02T20:00:00+07:00',
+            now()->toIso8601String(),
         ))->assertOk();
 
         $this->travelTo(Carbon::parse('2026-08-31 17:00:00', config('app.timezone')));
@@ -427,7 +521,7 @@ XML;
         $this->postJson('/api/absensi', $this->attendancePayload(
             $user,
             'checkIn',
-            '2020-11-02T05:00:00+07:00',
+            now()->toIso8601String(),
         ))->assertOk();
 
         $creatorEvent = DeviceEvent::query()
@@ -454,7 +548,7 @@ XML;
         $this->postJson('/api/absensi', $this->attendancePayload(
             $user,
             'checkIn',
-            '2025-11-03T09:00:00+07:00',
+            now()->toIso8601String(),
         ))->assertOk();
 
         $this->travelTo(Carbon::parse('2026-09-01 10:00:00', config('app.timezone')));
@@ -462,7 +556,7 @@ XML;
         $this->postJson('/api/absensi', $this->attendancePayload(
             $user,
             'checkIn',
-            '2030-11-03T08:00:00+07:00',
+            now()->toIso8601String(),
         ))->assertOk();
 
         $this->travelTo(Carbon::parse('2026-09-01 11:00:00', config('app.timezone')));
@@ -470,7 +564,7 @@ XML;
         $this->postJson('/api/absensi', $this->attendancePayload(
             $user,
             'checkOut',
-            '2020-11-03T10:00:00+07:00',
+            now()->toIso8601String(),
         ))->assertOk();
 
         $this->assertDatabaseCount('device_events', 3);
@@ -491,7 +585,7 @@ XML;
             $this->postJson('/api/absensi', $this->attendancePayload(
                 $user,
                 'checkOut',
-                '2030-11-04T17:00:00+07:00',
+                now()->toIso8601String(),
             ))->assertOk();
 
             $this->travelTo(Carbon::parse('2026-09-02 18:15:00', config('app.timezone')));
@@ -499,7 +593,7 @@ XML;
             $this->postJson('/api/absensi', $this->attendancePayload(
                 $user,
                 'checkIn',
-                '2020-11-04T08:00:00+07:00',
+                now()->toIso8601String(),
             ))->assertOk();
 
             $attendance = ($role === 'member' ? Attendance::query() : AttendanceEmployee::query())->whereBelongsTo($user)->firstOrFail();
@@ -524,7 +618,7 @@ XML;
         $this->postJson('/api/absensi', $this->attendancePayload(
             $user,
             'checkOut',
-            '2025-11-05T17:00:00+07:00',
+            now()->toIso8601String(),
         ))->assertOk();
 
         $creatorEvent = DeviceEvent::query()->firstOrFail();
@@ -534,7 +628,7 @@ XML;
         $this->postJson('/api/absensi', $this->attendancePayload(
             $user,
             'checkIn',
-            '2025-11-05T08:00:00+07:00',
+            now()->toIso8601String(),
         ))->assertOk();
 
         $attendance = AttendanceEmployee::query()->whereBelongsTo($user)->firstOrFail();
@@ -548,7 +642,7 @@ XML;
         $this->assertSame('2026-09-03 18:00:00', $attendance->check_out_time->format('Y-m-d H:i:s'));
     }
 
-    public function test_daily_attendance_uses_the_server_date_in_asia_jakarta(): void
+    public function test_daily_attendance_uses_the_device_date_in_asia_jakarta(): void
     {
         $this->travelTo(Carbon::parse('2026-09-04 23:59:00', config('app.timezone')));
 
@@ -558,7 +652,7 @@ XML;
         $this->postJson('/api/absensi', $this->attendancePayload(
             $firstUser,
             'checkIn',
-            '2030-11-05T17:30:00Z',
+            now()->toIso8601String(),
         ))->assertOk();
 
         $this->travelTo(Carbon::parse('2026-09-05 00:01:00', config('app.timezone')));
@@ -566,12 +660,12 @@ XML;
         $this->postJson('/api/absensi', $this->attendancePayload(
             $firstUser,
             'checkIn',
-            '2020-11-05T16:30:00Z',
+            now()->toIso8601String(),
         ))->assertOk();
         $this->postJson('/api/absensi', $this->attendancePayload(
             $secondUser,
             'checkIn',
-            '2025-11-05T17:30:00Z',
+            now()->toIso8601String(),
         ))->assertOk();
 
         $firstUserAttendances = Attendance::query()
@@ -825,9 +919,7 @@ XML;
         $this->assertNull($event->event_type_label);
         $this->assertNull($event->attendance_status);
         $this->assertNull($event->accessed_at);
-        $this->assertDatabaseHas('attendances', [
-            'user_id' => $user->id,
-        ]);
+        $this->assertDatabaseCount('attendances', 0);
     }
 
     public function test_it_stores_employee_event_with_undefined_attendance_status(): void
@@ -861,7 +953,7 @@ XML;
     public function test_explicitly_invalid_verification_only_stores_the_device_event(): void
     {
         $user = $this->createUser();
-        $payload = $this->attendancePayload($user, 'undefined', '2026-09-01T18:45:00+07:00');
+        $payload = $this->attendancePayload($user, 'undefined', now()->toIso8601String());
         $payload['AccessControllerEvent']['currentVerifyMode'] = 'invalid';
 
         $this->postJson('/api/absensi', $payload)->assertOk();
@@ -990,7 +1082,7 @@ XML;
         $this->travelTo(Carbon::parse('2026-09-07 08:00:00', config('app.timezone')));
 
         $user = $this->createUser();
-        $payload = $this->attendancePayload($user, 'checkOut', '2025-10-30T14:55:00+07:00');
+        $payload = $this->attendancePayload($user, 'checkOut', now()->toIso8601String());
 
         $this->postJson('/api/absensi', $payload)->assertOk();
 
@@ -1070,7 +1162,7 @@ XML;
         $this->postJson('/api/absensi', $this->attendancePayload(
             $member,
             'checkOut',
-            '2030-01-01T23:00:00+07:00',
+            now()->toIso8601String(),
         ))->assertOk();
 
         $this->assertDatabaseCount('attendances', 2);
@@ -1095,7 +1187,7 @@ XML;
         $this->postJson('/api/absensi', $this->attendancePayload(
             $member,
             'checkIn',
-            '2025-01-01T08:00:00+07:00',
+            now()->toIso8601String(),
         ))->assertOk();
 
         $this->assertSame('not_yet', $booking->fresh()->attendance);
@@ -1108,7 +1200,7 @@ XML;
         $this->postJson('/api/absensi', $this->attendancePayload(
             $member,
             'checkIn',
-            '2025-01-01T08:00:00+07:00',
+            now()->toIso8601String(),
         ))->assertOk();
 
         $this->assertSame('not_yet', $booking->fresh()->attendance);
@@ -1117,7 +1209,7 @@ XML;
         $this->postJson('/api/absensi', $this->attendancePayload(
             $member,
             'checkOut',
-            '2025-01-01T09:00:00+07:00',
+            now()->toIso8601String(),
         ))->assertOk();
 
         $this->assertSame('attended', $booking->fresh()->attendance);
@@ -1137,7 +1229,7 @@ XML;
         $this->postJson('/api/absensi', $this->attendancePayload(
             $member,
             'checkOut',
-            '2025-01-02T17:00:00+07:00',
+            now()->toIso8601String(),
         ))->assertOk();
 
         $this->assertSame('attended', $booking->fresh()->attendance);
@@ -1163,7 +1255,7 @@ XML;
         $this->postJson('/api/absensi', $this->attendancePayload(
             $member,
             'checkIn',
-            '2030-01-03T23:00:00+07:00',
+            now()->toIso8601String(),
         ))->assertOk();
 
         $this->assertSame('attended', $morningBooking->fresh()->attendance);
@@ -1175,7 +1267,7 @@ XML;
         $this->postJson('/api/absensi', $this->attendancePayload(
             $member,
             'checkOut',
-            '2030-01-03T23:01:00+07:00',
+            now()->toIso8601String(),
         ))->assertOk();
 
         $this->assertSame('attended', $afternoonBooking->fresh()->attendance);
@@ -1186,7 +1278,7 @@ XML;
         $this->postJson('/api/absensi', $this->attendancePayload(
             $member,
             'checkIn',
-            '2030-01-03T23:02:00+07:00',
+            now()->toIso8601String(),
         ))->assertOk();
 
         $this->assertSame('attended', $morningBooking->fresh()->attendance);
@@ -1261,7 +1353,7 @@ XML;
         $this->postJson('/api/absensi', $this->attendancePayload(
             $member,
             'checkIn',
-            '2030-01-04T23:00:00+07:00',
+            now()->toIso8601String(),
         ))->assertOk();
 
         foreach ($excludedBookings as $booking) {
@@ -1288,7 +1380,7 @@ XML;
         $this->postJson('/api/absensi', $this->attendancePayload(
             $member,
             'checkIn',
-            '2030-01-04T23:00:00+07:00',
+            now()->toIso8601String(),
         ))->assertOk();
 
         $this->assertSame('not_yet', $laterBooking->fresh()->attendance);
@@ -1310,7 +1402,7 @@ XML;
         $this->postJson('/api/absensi', $this->attendancePayload(
             $sharedMember,
             'checkIn',
-            '2030-01-05T23:00:00+07:00',
+            now()->toIso8601String(),
         ))->assertOk();
 
         $this->assertSame($membershipOwner->id, $booking->member_id);
@@ -1331,7 +1423,7 @@ XML;
         $this->postJson('/api/absensi', $this->attendancePayload(
             $unrelatedUser,
             'checkIn',
-            '2030-01-06T23:00:00+07:00',
+            now()->toIso8601String(),
         ))->assertOk();
 
         $this->assertSame('not_yet', $booking->fresh()->attendance);
@@ -1356,7 +1448,7 @@ XML;
         $this->postJson('/api/absensi', $this->attendancePayload(
             $member,
             'checkIn',
-            '2025-01-04T09:00:00+07:00',
+            now()->toIso8601String(),
         ))->assertOk();
 
         $bookings->each(function (PtBooking $booking): void {
@@ -1376,7 +1468,7 @@ XML;
         $this->postJson('/api/absensi', $this->attendancePayload(
             $member,
             'checkIn',
-            '2025-01-05T09:00:00+07:00',
+            now()->toIso8601String(),
         ))->assertOk();
 
         $this->assertSame('attended', $booking->fresh()->attendance);
@@ -1391,7 +1483,7 @@ XML;
         $membership = $this->createPtMembership($member, ['remaining_sessions' => 3]);
         $firstBooking = $this->createPtBooking($member, $membership, ['booking_time' => '08:00:00']);
         $secondBooking = $this->createPtBooking($member, $membership, ['booking_time' => '09:00:00']);
-        $payload = $this->attendancePayload($member, 'checkIn', '2025-01-06T09:00:00+07:00');
+        $payload = $this->attendancePayload($member, 'checkIn', now()->toIso8601String());
 
         $this->postJson('/api/absensi', $payload)->assertOk();
         $this->postJson('/api/absensi', $payload)->assertOk();
@@ -1423,7 +1515,7 @@ XML;
             }
         };
         $this->app->instance(HikvisionAttendanceService::class, $failingAttendanceService);
-        $payload = $this->attendancePayload($member, 'checkIn', '2026-09-01T10:00:00+07:00');
+        $payload = $this->attendancePayload($member, 'checkIn', now()->toIso8601String());
         $payload['AccessControllerEvent']['majorEventType'] = 5;
         $payload['AccessControllerEvent']['subEventType'] = 75;
 
@@ -1466,7 +1558,7 @@ XML;
         $this->postJson('/api/absensi', $this->attendancePayload(
             $member,
             'checkIn',
-            '2025-01-07T08:00:00+07:00',
+            now()->toIso8601String(),
         ))->assertOk();
 
         $this->travelTo(Carbon::parse('2026-07-19 09:00:00', config('app.timezone')));
@@ -1474,7 +1566,7 @@ XML;
         $this->postJson('/api/absensi', $this->attendancePayload(
             $member,
             'checkOut',
-            '2025-01-07T09:00:00+07:00',
+            now()->toIso8601String(),
         ))->assertOk();
 
         $this->assertSame('attended', $firstBooking->fresh()->attendance);
@@ -1501,7 +1593,7 @@ XML;
         $this->postJson('/api/absensi', $this->attendancePayload(
             $member,
             'checkOut',
-            '2025-01-08T17:00:00+07:00',
+            now()->toIso8601String(),
         ))->assertOk();
 
         $this->travelTo(Carbon::parse('2026-07-19 09:00:00', config('app.timezone')));
@@ -1509,7 +1601,7 @@ XML;
         $this->postJson('/api/absensi', $this->attendancePayload(
             $member,
             'checkOut',
-            '2025-01-08T19:00:00+07:00',
+            now()->toIso8601String(),
         ))->assertOk();
 
         $this->assertSame('attended', $firstBooking->fresh()->attendance);
@@ -1536,7 +1628,7 @@ XML;
         $this->postJson('/api/absensi', $this->attendancePayload(
             $member,
             'checkOut',
-            '2025-01-09T17:00:00+07:00',
+            now()->toIso8601String(),
         ))->assertOk();
 
         $this->travelTo(Carbon::parse('2026-07-19 09:00:00', config('app.timezone')));
@@ -1544,7 +1636,7 @@ XML;
         $this->postJson('/api/absensi', $this->attendancePayload(
             $member,
             'checkIn',
-            '2025-01-09T08:00:00+07:00',
+            now()->toIso8601String(),
         ))->assertOk();
 
         $this->assertSame('attended', $firstBooking->fresh()->attendance);
@@ -1568,7 +1660,7 @@ XML;
         $this->postJson('/api/absensi', $this->attendancePayload(
             $member,
             'checkIn',
-            '2025-01-08T09:00:00+07:00',
+            now()->toIso8601String(),
         ))->assertOk();
 
         $this->assertSame('attended', $booking->fresh()->attendance);
