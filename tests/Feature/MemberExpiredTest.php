@@ -119,6 +119,50 @@ class MemberExpiredTest extends TestCase
             ->assertNotFound();
     }
 
+    public function test_detail_modal_shows_profile_photo_whatsapp_link_and_total_payment(): void
+    {
+        $member = User::factory()->create([
+            'role' => 'member',
+            'phone' => '082181946392',
+            'photo' => 'profile-photos/member.jpg',
+        ]);
+        $membership = $this->membership([
+            'user_id' => $member->id,
+            'package_name' => '1 BULAN',
+            'price_paid' => 375000,
+        ]);
+
+        Livewire::test('pages::dashboard.admin.membership.non-member')
+            ->call('openDetailModal', $membership->id)
+            ->assertSeeHtml('src="'.asset('storage/profile-photos/member.jpg').'"')
+            ->assertSee('Foto profil '.$member->name)
+            ->assertSeeHtml('href="https://wa.me/6282181946392"')
+            ->assertSeeText('082181946392')
+            ->assertSeeText('Nama Paket')
+            ->assertSeeText('1 BULAN')
+            ->assertSeeText('Total Bayar')
+            ->assertSeeText('Rp 375.000');
+    }
+
+    public function test_detail_modal_falls_back_to_name_initial_without_profile_photo(): void
+    {
+        $member = User::factory()->create(['role' => 'member', 'name' => 'Budi Santoso', 'photo' => null]);
+        $membership = $this->membership(['user_id' => $member->id]);
+
+        Livewire::test('pages::dashboard.admin.membership.non-member')
+            ->call('openDetailModal', $membership->id)
+            ->assertSee('aria-label="Foto profil Budi Santoso belum tersedia"', false)
+            ->assertDontSeeHtml('storage/profile-photos/');
+    }
+
+    public function test_whatsapp_number_is_normalized_for_the_wa_link(): void
+    {
+        $this->assertSame('6282181946392', User::factory()->make(['phone' => '082181946392'])->whatsAppNumber());
+        $this->assertSame('6282181946392', User::factory()->make(['phone' => '+62 821-8194-6392'])->whatsAppNumber());
+        $this->assertSame('6282181946392', User::factory()->make(['phone' => '82181946392'])->whatsAppNumber());
+        $this->assertNull(User::factory()->make(['phone' => null])->whatsAppNumber());
+    }
+
     /** @param array<string, mixed> $attributes */
     private function membership(array $attributes = []): Membership
     {

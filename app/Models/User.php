@@ -65,6 +65,25 @@ class User extends Authenticatable
         };
     }
 
+    /**
+     * Nomor WhatsApp format internasional tanpa "+" untuk tautan wa.me.
+     */
+    public function whatsAppNumber(): ?string
+    {
+        $digits = preg_replace('/\D+/', '', (string) $this->phone);
+
+        if (blank($digits)) {
+            return null;
+        }
+
+        return match (true) {
+            str_starts_with($digits, '62') => $digits,
+            str_starts_with($digits, '0') => '62'.substr($digits, 1),
+            str_starts_with($digits, '8') => '62'.$digits,
+            default => $digits,
+        };
+    }
+
     public function scopeForEmployeeAttendance(Builder $query, string $search = ''): Builder
     {
         return $query->whereNotIn('role', ['member', 'admin', 'head_coach'])

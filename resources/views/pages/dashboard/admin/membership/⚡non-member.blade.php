@@ -159,15 +159,34 @@ new #[Layout('layouts::admin')] class extends Component
                 </div>
                 <div class="p-6 space-y-4">
                     <div class="bg-neutral-secondary-medium p-4 rounded-md">
-                        <p class="text-xs text-gray-500 uppercase font-bold mb-1">Nama Pemilik</p>
-                        <p class="font-semibold text-heading">{{ $detail->user?->name ?? '-' }}</p>
+                        <div class="flex items-center gap-4">
+                            @if ($detail->user?->photo)
+                                <img class="h-16 w-16 shrink-0 rounded-full object-cover border-2 border-white shadow-sm" src="{{ asset('storage/'.$detail->user->photo) }}" alt="Foto profil {{ $detail->user->name }}">
+                            @else
+                                <span class="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-brand text-xl font-bold text-black" role="img" aria-label="Foto profil {{ $detail->user?->name ?? 'member' }} belum tersedia">{{ mb_strtoupper(mb_substr($detail->user?->name ?? '?', 0, 1)) }}</span>
+                            @endif
+                            <div class="min-w-0">
+                                <p class="text-xs text-gray-500 uppercase font-bold mb-1">Nama Pemilik</p>
+                                <p class="font-semibold text-heading break-words">{{ $detail->user?->name ?? '-' }}</p>
+                            </div>
+                        </div>
                         <dl class="mt-3 space-y-2 text-sm">
                             <div><dt class="text-gray-500">Email</dt><dd class="text-heading break-words">{{ $detail->user?->email ?? '-' }}</dd></div>
-                            <div><dt class="text-gray-500">No. HP</dt><dd class="text-heading">{{ $detail->user?->phone ?? '-' }}</dd></div>
+                            <div>
+                                <dt class="text-gray-500">No. HP</dt>
+                                <dd class="text-heading">
+                                    @if ($detail->user?->phone && $detail->user->whatsAppNumber())
+                                        <a href="https://wa.me/{{ $detail->user->whatsAppNumber() }}" target="_blank" rel="noopener noreferrer" class="font-medium text-indigo-700 underline underline-offset-2 hover:text-indigo-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-700">{{ $detail->user->phone }}</a>
+                                    @else
+                                        {{ $detail->user?->phone ?? '-' }}
+                                    @endif
+                                </dd>
+                            </div>
                         </dl>
                     </div>
                     <dl class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-                        <div class="sm:col-span-2"><dt class="text-gray-500">Nama Paket</dt><dd class="font-semibold text-indigo-700">{{ $detail->package_name ?? $detail->gymPackage?->name ?? $detail->ptPackage?->name ?? '-' }}</dd></div>
+                        <div><dt class="text-gray-500">Nama Paket</dt><dd class="font-semibold text-indigo-700">{{ $detail->package_name ?? $detail->gymPackage?->name ?? $detail->ptPackage?->name ?? '-' }}</dd></div>
+                        <div><dt class="text-gray-500">Total Bayar</dt><dd class="font-semibold text-heading">Rp {{ number_format((int) $detail->price_paid, 0, ',', '.') }}</dd></div>
                         <div><dt class="text-gray-500">Tanggal Mulai Paket</dt><dd class="font-medium text-heading">{{ $detail->start_date?->format('d M Y') ?? '-' }}</dd></div>
                         <div><dt class="text-gray-500">Tanggal Membership Berakhir</dt><dd class="font-medium text-red-600">{{ $detail->membership_end_date->format('d M Y') }}</dd></div>
                         <div class="sm:col-span-2"><dt class="text-gray-500">Anggota Paket</dt><dd class="font-medium text-heading">{{ $detail->members->pluck('name')->implode(', ') ?: '-' }}</dd></div>
