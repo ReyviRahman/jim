@@ -79,16 +79,20 @@ new #[Layout('layouts::admin')] class extends Component
 };
 ?>
 
-<div>
-    <div class="flex sm:flex-row flex-col justify-between items-center mb-6">
-        <h5 class="text-xl font-semibold text-heading">Dashboard Membership</h5>
-    </div>
+<div class="pt-booking-page admin-dashboard-page">
+    <img src="{{ asset('member-attendance-gym-v2.png') }}" alt="" class="pt-booking-background" aria-hidden="true">
+    <div class="pt-booking-content">
+    <header class="pt-booking-header admin-dashboard-header">
+        <p class="pt-booking-eyebrow">Frans Gym</p>
+        <h1>Dashboard <span>Membership</span></h1>
+        <p class="pt-booking-description">Ringkasan status paket dan membership member.</p>
+    </header>
 
     @php
         $chartData = $this->chartData;
     @endphp
-    <section aria-labelledby="package-status-title" class="mb-6 rounded-base border border-default bg-neutral-primary-soft p-4 shadow-xs sm:p-6">
-        <h2 id="package-status-title" class="text-lg font-semibold text-heading">Status Paket Saat Ini</h2>
+    <section aria-labelledby="package-status-title" class="admin-dashboard-status">
+        <h2 id="package-status-title" class="admin-dashboard-section-title">Status Paket Saat Ini</h2>
         <p class="mt-1 text-sm text-body">Total: <strong>{{ number_format($chartData['total'], 0, ',', '.') }} paket</strong>. Setiap paket dihitung sekali.</p>
         <div class="mt-6 grid items-center gap-6 md:grid-cols-2">
             @if ($chartData['total'] > 0)
@@ -101,7 +105,7 @@ new #[Layout('layouts::admin')] class extends Component
                                 type: 'pie',
                                 data: {
                                     labels: data.labels,
-                                    datasets: [{ data: data.data, backgroundColor: data.colors, borderWidth: 2, borderColor: '#ffffff' }]
+                                    datasets: [{ data: data.data, backgroundColor: data.colors, borderWidth: 2, borderColor: '#151719' }]
                                 },
                                 options: {
                                     responsive: true,
@@ -128,9 +132,9 @@ new #[Layout('layouts::admin')] class extends Component
             @else
                 <p role="status" class="py-16 text-center text-body">Belum ada data paket</p>
             @endif
-            <ul class="space-y-4" aria-label="Jumlah dan persentase status paket">
+            <ul class="admin-dashboard-legend" aria-label="Jumlah dan persentase status paket">
                 @foreach ($chartData['labels'] as $index => $label)
-                    <li class="flex flex-wrap items-center justify-between gap-3 rounded-md border border-default p-4">
+                    <li class="admin-dashboard-legend-item">
                         <span class="flex items-center gap-3 text-heading"><span aria-hidden="true" class="size-3 shrink-0 rounded-full" style="background-color: {{ $chartData['colors'][$index] }}"></span>{{ $label }}</span>
                         <span class="text-sm text-body">{{ number_format($chartData['data'][$index], 0, ',', '.') }} paket <strong class="ml-2 text-heading">{{ number_format($chartData['percentages'][$index], 1, ',', '.') }}%</strong></span>
                     </li>
@@ -140,12 +144,13 @@ new #[Layout('layouts::admin')] class extends Component
     </section>
 
     {{-- Tabel Membership Dobel --}}
-    <div class="mb-6">
-        <div class="flex sm:flex-row flex-col justify-between items-center mb-4">
-            <h5 class="text-lg font-semibold text-heading">Membership Dobel (User dengan &gt;1 Membership Aktif)</h5>
+    <section class="admin-dashboard-memberships" aria-labelledby="double-memberships-title">
+        <div class="admin-dashboard-section-header">
+            <h2 id="double-memberships-title" class="admin-dashboard-section-title">Membership Dobel</h2>
+            <p class="text-sm text-body">User dengan &gt;1 Membership Aktif</p>
         </div>
 
-        <div class="relative overflow-hidden bg-neutral-primary-soft shadow-xs rounded-md border border-default">
+        <div class="pt-booking-data">
             <table data-responsive-table data-responsive-breakpoint="xl" class="table-fixed w-full text-sm text-left rtl:text-right text-body">
                 <thead class="text-sm text-body bg-neutral-secondary-medium border-b border-default-medium">
                     <tr>
@@ -308,6 +313,10 @@ new #[Layout('layouts::admin')] class extends Component
                 </tbody>
             </table>
         </div>
+    </section>
+    <footer class="pt-booking-footer">
+        <div class="pt-booking-motto"><p>More than a gym</p><span>A stronger<br>you every day</span></div>
+        <p class="pt-booking-signature">Never Back Down<br><span>Stay Dedicated</span></p>
+    </footer>
     </div>
-
 </div>

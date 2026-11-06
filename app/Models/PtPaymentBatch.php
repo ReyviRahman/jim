@@ -13,15 +13,21 @@ class PtPaymentBatch extends Model
         'date_start',
         'date_end',
         'paid_by',
+        'requested_by',
+        'status',
+        'approved_at',
         'potongan',
         'keterangan_potongan',
     ];
+
+    protected $attributes = ['status' => 'approved'];
 
     protected function casts(): array
     {
         return [
             'date_start' => 'date',
             'date_end' => 'date',
+            'approved_at' => 'datetime',
         ];
     }
 

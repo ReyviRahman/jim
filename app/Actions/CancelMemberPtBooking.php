@@ -45,13 +45,12 @@ class CancelMemberPtBooking
                 throw ValidationException::withMessages(['cancelReason' => $message]);
             }
 
-            $requiresApproval = $booking->isApproved();
             $booking->update([
-                'status' => $requiresApproval ? 'approved' : 'cancelled',
+                'status' => 'cancelled',
                 'cancelled_by' => $member->id,
-                'cancelled_at' => $requiresApproval ? null : now(),
+                'cancelled_at' => now(),
                 'cancellation_reason' => $reason,
-                'cancellation_requested_at' => $requiresApproval ? now() : null,
+                'cancellation_requested_at' => null,
             ]);
 
             return $booking;

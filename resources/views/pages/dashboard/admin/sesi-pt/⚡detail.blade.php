@@ -2,7 +2,7 @@
 
 namespace App\Livewire\Pages\Dashboard\Admin\SesiPt;
 
-use App\Models\Membership;
+use App\Concerns\QueriesPtSessionMemberships;
 use App\Models\PtBooking;
 use App\Models\PtPaymentBatch;
 use App\Models\PtPaymentBatchItem;
@@ -18,6 +18,8 @@ use Livewire\Attributes\Computed;
 
 new #[Layout('layouts::admin')] class extends Component
 {
+    use QueriesPtSessionMemberships;
+
     public User $user;
 
     public $dateStart = null;
@@ -70,143 +72,6 @@ new #[Layout('layouts::admin')] class extends Component
         }
     }
 
-    private function getMembershipQuery()
-    {
-        return Membership::query()
-            ->when($this->dateStart && $this->dateEnd, function ($query) {
-                $query->where(function ($q) {
-                    $q->where(function ($periodQuery) {
-                        $periodQuery->whereDate('start_date', '<=', $this->dateEnd)
-                            ->whereDate('pt_end_date', '>=', $this->dateStart);
-                    })->orWhereExists(function ($bookingQuery) {
-                        $bookingQuery->select(DB::raw(1))
-                            ->from('pt_bookings')
-                            ->whereColumn('pt_bookings.membership_id', 'memberships.id')
-                            ->where('pt_bookings.pt_id', $this->user->id)
-                            ->whereIn('pt_bookings.attendance', ['attended', 'noshow'])
-                            ->whereBetween('pt_bookings.booking_date', [
-                                $this->dateStart.' 00:00:00',
-                                $this->dateEnd.' 23:59:59',
-                            ]);
-                    });
-                });
-            })
-            ->when($this->search, function ($query) {
-                $query->whereHas('user', function ($q) {
-                    $q->where('name', 'like', '%'.$this->search.'%');
-                });
-            })
-            ->with(['user', 'ptPackage', 'gymPackage', 'followUp', 'followUpTwo', 'members'])
-            ->withCount([
-                'ptBookings as berjalan' => function ($q) {
-                    $q->where('attendance', 'attended')
-                      ->where('is_free', false)
-                      ->where('pt_id', $this->user->id);
-                    if ($this->dateStart && $this->dateEnd) {
-                        $q->whereBetween('booking_date', [
-                            $this->dateStart . ' 00:00:00',
-                            $this->dateEnd . ' 23:59:59',
-                        ]);
-                    }
-                },
-                'ptBookings as berjalan_dibayar' => function ($q) {
-                    $q->where('attendance', 'attended')
-                      ->where('is_free', false)
-                      ->where('is_paid', true)
-                      ->where('pt_id', $this->user->id);
-                    if ($this->dateStart && $this->dateEnd) {
-                        $q->whereBetween('booking_date', [
-                            $this->dateStart . ' 00:00:00',
-                            $this->dateEnd . ' 23:59:59',
-                        ]);
-                    }
-                },
-                'ptBookings as berjalan_belum_dibayar' => function ($q) {
-                    $q->where('attendance', 'attended')
-                      ->where('is_free', false)
-                      ->where('is_paid', false)
-                      ->where('pt_id', $this->user->id);
-                    if ($this->dateStart && $this->dateEnd) {
-                        $q->whereBetween('booking_date', [
-                            $this->dateStart . ' 00:00:00',
-                            $this->dateEnd . ' 23:59:59',
-                        ]);
-                    }
-                },
-                'ptBookings as hangus' => function ($q) {
-                    $q->where('attendance', 'noshow')
-                      ->where('pt_id', $this->user->id);
-                    if ($this->dateStart && $this->dateEnd) {
-                        $q->whereBetween('booking_date', [
-                            $this->dateStart . ' 00:00:00',
-                            $this->dateEnd . ' 23:59:59',
-                        ]);
-                    }
-                },
-                'ptBookings as bookings_before' => function ($q) {
-                    $q->whereIn('attendance', ['attended', 'noshow'])
-                      ->where('is_free', false);
-                    if ($this->dateStart) {
-                        $q->whereDate('booking_date', '<', $this->dateStart);
-                    }
-                },
-                'ptBookings as free_total' => function ($q) {
-                    $q->where('is_free', true)
-                      ->where('pt_id', $this->user->id);
-                },
-                'ptBookings as free_berjalan' => function ($q) {
-                    $q->where('is_free', true)
-                      ->where('attendance', 'attended')
-                      ->where('pt_id', $this->user->id);
-                },
-                'ptBookings as sesi_digantikan' => function ($q) {
-                    $q->where('attendance', 'attended')
-                      ->where('is_free', false)
-                      ->where('pt_id', '!=', $this->user->id);
-                    if ($this->dateStart && $this->dateEnd) {
-                        $q->whereBetween('booking_date', [
-                            $this->dateStart . ' 00:00:00',
-                            $this->dateEnd . ' 23:59:59',
-                        ]);
-                    }
-                },
-            ]);
-    }
-
-    #[Computed]
-    public function ptMembershipsDirect()
-    {
-        return $this->getMembershipQuery()
-            ->where('pt_id', $this->user->id)
-            ->orderBy(
-                User::select('name')
-                    ->whereColumn('users.id', 'memberships.user_id')
-                    ->limit(1)
-            )
-            ->orderBy('created_at', 'desc')
-            ->get();
-    }
-
-    #[Computed]
-    public function ptMembershipsBookingOnly()
-    {
-        return $this->getMembershipQuery()
-            ->where('pt_id', '!=', $this->user->id)
-            ->whereExists(function ($subQuery) {
-                $subQuery->select(DB::raw(1))
-                    ->from('pt_bookings')
-                    ->whereColumn('pt_bookings.membership_id', 'memberships.id')
-                    ->where('pt_bookings.pt_id', $this->user->id);
-            })
-            ->orderBy(
-                User::select('name')
-                    ->whereColumn('users.id', 'memberships.user_id')
-                    ->limit(1)
-            )
-            ->orderBy('created_at', 'desc')
-            ->get();
-    }
-
     #[Computed]
     public function ptSessionCategories()
     {
@@ -231,38 +96,54 @@ new #[Layout('layouts::admin')] class extends Component
 
     public function paySessions(): void
     {
-        $bookings = $this->payableBookings();
+        DB::transaction(function (): void {
+            User::query()->whereKey($this->user->id)->lockForUpdate()->firstOrFail();
+            $bookings = $this->payableBookings();
 
-        if ($bookings->isEmpty()) {
-            session()->flash('error', 'Tidak ada sesi berjalan dalam periode ini.');
-            return;
-        }
+            if ($bookings->isEmpty()) {
+                session()->flash('error', 'Tidak ada sesi berjalan dalam periode ini.');
+                return;
+            }
 
-        $totalAmount = 0;
-        foreach ($bookings as $booking) {
-            $categoryLabel = $booking->membership->getPtCategoryLabelFor($this->user->id);
-            $ptSessionCategory = $this->ptSessionCategories->firstWhere('category', $categoryLabel);
-            $totalAmount += $ptSessionCategory?->amount ?? 0;
-        }
+            $batch = PtPaymentBatch::create([
+                'pt_id' => $this->user->id,
+                'date_start' => $this->dateStart,
+                'date_end' => $this->dateEnd,
 
-        $batch = PtPaymentBatch::create([
-            'pt_id' => $this->user->id,
-            'date_start' => $this->dateStart,
-            'date_end' => $this->dateEnd,
-
-            'paid_by' => auth()->id(),
-        ]);
-
-        foreach ($bookings as $booking) {
-            PtPaymentBatchItem::create([
-                'pt_payment_batch_id' => $batch->id,
-                'pt_booking_id' => $booking->id,
+                'paid_by' => auth()->id(),
             ]);
-            $booking->update(['is_paid' => true]);
-        }
 
-        session()->flash('success', 'Berhasil membayar ' . $bookings->count() . ' sesi PT.');
-        $this->dispatch('scroll-to-history');
+            foreach ($bookings as $booking) {
+                PtPaymentBatchItem::create([
+                    'pt_payment_batch_id' => $batch->id,
+                    'pt_booking_id' => $booking->id,
+                ]);
+                $booking->update(['is_paid' => true]);
+            }
+
+            session()->flash('success', 'Berhasil membayar ' . $bookings->count() . ' sesi PT.');
+            $this->dispatch('scroll-to-history');
+        });
+    }
+
+    public function approvePaymentBatch(int $id): void
+    {
+        abort_unless(auth()->user()?->role === 'admin', 403);
+
+        DB::transaction(function () use ($id): void {
+            User::query()->whereKey($this->user->id)->lockForUpdate()->firstOrFail();
+            $batch = PtPaymentBatch::query()->where('pt_id', $this->user->id)->lockForUpdate()->findOrFail($id);
+            if ($batch->status !== 'pending') {
+                return;
+            }
+            PtBooking::query()->where('pt_id', $this->user->id)
+                ->whereIn('id', $batch->items()->select('pt_booking_id'))
+                ->update(['is_paid' => true]);
+            $batch->update(['status' => 'approved', 'paid_by' => auth()->id(), 'approved_at' => now()]);
+        });
+
+        unset($this->ptPaymentBatches, $this->ptMembershipsDirect, $this->ptMembershipsBookingOnly);
+        session()->flash('success', 'Pengajuan sesi berhasil disetujui.');
     }
 
     public function openPaymentPreview(): void
@@ -335,6 +216,7 @@ new #[Layout('layouts::admin')] class extends Component
         $query = PtBooking::query()
             ->where('pt_id', $this->user->id)
             ->where('attendance', 'attended')
+            ->whereDoesntHave('paymentBatchItem', fn ($query) => $query->whereHas('batch', fn ($batch) => $batch->where('status', 'pending')))
             ->where('is_free', false);
 
         if ($this->dateStart && $this->dateEnd) {
@@ -1005,6 +887,7 @@ new #[Layout('layouts::admin')] class extends Component
                             <th scope="col" class="px-6 py-3 font-medium text-right">Total Nominal</th>
                             <th scope="col" class="px-6 py-3 font-medium">Dibayar Oleh</th>
                             <th scope="col" class="px-6 py-3 font-medium">Tanggal Bayar</th>
+                            <th scope="col" class="px-6 py-3 font-medium">Status</th>
                             <th scope="col" class="px-6 py-3 font-medium text-center">Aksi</th>
                         </tr>
                     </thead>
@@ -1047,10 +930,14 @@ new #[Layout('layouts::admin')] class extends Component
                                     {{ $batch->paidBy?->name ?? '-' }}
                                 </td>
                                 <td class="px-6 py-4">
-                                    {{ $batch->created_at->translatedFormat('d F Y H:i') }}
+                                    {{ $batch->status === 'pending' ? '-' : ($batch->approved_at ?? $batch->created_at)->translatedFormat('d F Y H:i') }}
                                 </td>
+                                <td class="px-6 py-4">{{ $batch->status === 'pending' ? 'Menunggu persetujuan' : 'Approved' }}</td>
                                 <td class="px-6 py-4 text-center">
                                     <div class="flex items-center justify-center gap-2">
+                                        @if ($batch->status === 'pending' && auth()->user()->role === 'admin')
+                                            <button type="button" wire:click="approvePaymentBatch({{ $batch->id }})" wire:confirm="Setujui pengajuan dan tandai sesi sudah dibayar?" wire:loading.attr="disabled" class="inline-flex items-center rounded bg-green-600 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-50">Approve</button>
+                                        @endif
                                         <button type="button" wire:click="openPaymentDetailModal({{ $batch->id }})" class="inline-flex items-center px-2.5 py-1.5 text-xs font-medium text-white bg-brand rounded hover:bg-brand-strong transition-colors">
                                             Detail
                                         </button>
@@ -1063,7 +950,7 @@ new #[Layout('layouts::admin')] class extends Component
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="8" class="px-6 py-8 text-center text-gray-500">
+                                <td colspan="9" class="px-6 py-8 text-center text-gray-500">
                                     Belum ada riwayat pembayaran.
                                 </td>
                             </tr>
@@ -1221,15 +1108,15 @@ new #[Layout('layouts::admin')] class extends Component
                 }
             }
         @endphp
-        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm overflow-y-auto py-10" wire:click.self="closePaymentDetailModal">
-            <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4">
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm" wire:click.self="closePaymentDetailModal">
+            <div role="dialog" aria-modal="true" aria-labelledby="pt-payment-detail-title" class="flex max-h-[calc(100dvh-2rem)] w-full max-w-2xl flex-col overflow-hidden rounded-lg bg-white shadow-xl">
                 {{-- Header --}}
-                <div class="flex items-center justify-between p-6 border-b-2 border-gray-300">
-                    <div class="flex items-center gap-4 w-full">
-                        <img src="{{ asset('icon.png') }}" alt="Icon" class="h-12 w-auto">
-                        <h2 class="text-2xl font-bold text-heading text-center flex-1">DETAIL PEMBAYARAN SESI PT #{{ $selectedBatch?->id }}</h2>
+                <div class="flex shrink-0 items-center justify-between border-b-2 border-gray-300 p-4 sm:p-6">
+                    <div class="flex min-w-0 flex-1 items-center gap-3">
+                        <img src="{{ asset('icon.png') }}" alt="Icon" class="h-8 w-auto shrink-0 sm:h-10">
+                        <h2 id="pt-payment-detail-title" class="min-w-0 flex-1 text-center text-base font-bold text-heading sm:text-lg">DETAIL PEMBAYARAN SESI PT #{{ $selectedBatch?->id }}</h2>
                     </div>
-                    <button type="button" wire:click="closePaymentDetailModal" class="text-body hover:text-heading ml-4">
+                    <button type="button" wire:click="closePaymentDetailModal" aria-label="Tutup detail pembayaran" class="ml-3 shrink-0 text-body hover:text-heading">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                         </svg>
@@ -1237,7 +1124,7 @@ new #[Layout('layouts::admin')] class extends Component
                 </div>
 
                 {{-- Body --}}
-                <div class="p-6 space-y-4">
+                <div class="min-h-0 flex-1 space-y-4 overflow-y-auto p-4 sm:p-6">
                     <div class="text-sm text-body">
                         @if($selectedBatch?->date_start && $selectedBatch?->date_end)
                             <p class="font-medium">
@@ -1257,8 +1144,8 @@ new #[Layout('layouts::admin')] class extends Component
                     @endphp
 
                     @if(count($batchRows) > 0)
-                        <div class="mb-4">
-                            <table data-responsive-table data-responsive-breakpoint="xl" class="table-fixed w-full text-sm text-left text-body border border-default-medium">
+                        <div class="mb-4 overflow-x-auto">
+                            <table class="w-full text-sm text-left text-body border border-default-medium">
                                 <thead class="text-sm text-body bg-blue-50 border-b border-blue-200">
                                     <tr>
                                         <th scope="col" class="px-4 py-3 font-medium">JENIS</th>
@@ -1336,7 +1223,7 @@ new #[Layout('layouts::admin')] class extends Component
                 </div>
 
                 {{-- Footer Actions --}}
-                <div class="p-6 border-t border-default-medium flex gap-3 justify-end">
+                <div class="flex shrink-0 flex-wrap justify-end gap-3 border-t border-default-medium p-4 sm:p-6">
                     <button type="button" wire:click="saveBatchPotongan"
                         class="px-4 py-2 text-white bg-brand hover:bg-brand-strong rounded-md font-medium text-sm">
                         Simpan Potongan

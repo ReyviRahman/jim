@@ -565,27 +565,27 @@ class MemberPtScheduleTest extends TestCase
         $this->assertModelExists($this->submit($membership));
     }
 
-    public function test_approved_cancellation_requests_approval_and_keeps_the_slot_occupied(): void
+    public function test_approved_cancellation_immediately_releases_slot(): void
     {
         $membership = $this->membership();
         $booking = $this->booking($membership);
-        $page = $this->page($membership)->call('openDetailModal', $booking->id)->assertSee('Ajukan Pembatalan')
+        $page = $this->page($membership)->call('openDetailModal', $booking->id)->assertSee('Batalkan Booking')
             ->call('openCancelModal', $booking->id)->set('cancelReason', 'Jadwal kerja berubah')
-            ->call('cancelBooking')->assertHasNoErrors()->assertSee('Pending Cancel');
+            ->call('cancelBooking')->assertHasNoErrors()->assertSee('Booking berhasil dibatalkan.')->assertDontSee('Pending Cancel');
 
         $booking->refresh();
-        $this->assertSame('approved', $booking->status);
-        $this->assertNotNull($booking->cancellation_requested_at);
-        $this->assertNull($booking->cancelled_at);
+        $this->assertSame('cancelled', $booking->status);
+        $this->assertNull($booking->cancellation_requested_at);
+        $this->assertNotNull($booking->cancelled_at);
+        $this->assertSame('Jadwal kerja berubah', $booking->cancellation_reason);
         $this->assertSame($membership->user_id, $booking->cancelled_by);
         $this->assertSame(10, $membership->fresh()->remaining_sessions);
-        $this->assertTrue($page->get('calendar')[1]['slots'][0]['occupied']);
-        $page->call('openDetailModal', $booking->id)->assertDontSee('Ajukan Pembatalan');
-        $this->expectException(ValidationException::class);
-        $this->submit($membership);
+        $this->assertFalse($page->get('calendar')[1]['slots'][0]['occupied']);
+        $page->call('openDetailModal', $booking->id)->assertDontSee('Batalkan Booking');
+        $this->assertModelExists($this->submit($membership));
     }
 
-    public function test_shared_package_member_can_request_cancellation(): void
+    public function test_shared_package_member_can_cancel_approved_booking(): void
     {
         $membership = $this->membership();
         $member = User::factory()->create(['role' => 'member']);
@@ -593,7 +593,8 @@ class MemberPtScheduleTest extends TestCase
         $booking = $this->booking($membership);
         app(CancelMemberPtBooking::class)->execute($member, $booking->id, 'Tidak bisa datang');
         $this->assertSame($member->id, $booking->fresh()->cancelled_by);
-        $this->assertTrue($booking->fresh()->isCancellationPending());
+        $this->assertSame('cancelled', $booking->fresh()->status);
+        $this->assertFalse($booking->fresh()->isCancellationPending());
     }
 
     public function test_foreign_booking_cannot_be_cancelled_or_opened(): void
@@ -627,11 +628,11 @@ class MemberPtScheduleTest extends TestCase
         $page = $this->page($membership)->call('openCancelModal', $booking->id)
             ->set('cancelReason', '  ')->call('cancelBooking')->assertHasErrors('cancelReason');
         $page->set('cancelReason', 'Tidak bisa datang')->call('cancelBooking')->assertHasNoErrors();
-        $firstRequestedAt = $booking->fresh()->cancellation_requested_at;
+        $firstCancelledAt = $booking->fresh()->cancelled_at;
         $this->travel(5)->minutes();
         app(CancelMemberPtBooking::class)->execute($membership->user, $booking->id, 'Alasan lain untuk duplikat');
         $this->assertSame('Tidak bisa datang', $booking->fresh()->cancellation_reason);
-        $this->assertTrue($firstRequestedAt->equalTo($booking->fresh()->cancellation_requested_at));
+        $this->assertTrue($firstCancelledAt->equalTo($booking->fresh()->cancelled_at));
     }
 
     #[DataProvider('cancellationTimes')]
@@ -644,8 +645,8 @@ class MemberPtScheduleTest extends TestCase
 
         $page->call('openCancelModal', $booking->id)->set('cancelReason', 'Tidak bisa datang')
             ->call('cancelBooking')->assertHasNoErrors();
-        $this->assertSame($status === 'pending' ? 'cancelled' : 'approved', $booking->fresh()->status);
-        $this->assertSame($status === 'approved', $booking->fresh()->isCancellationPending());
+        $this->assertSame('cancelled', $booking->fresh()->status);
+        $this->assertFalse($booking->fresh()->isCancellationPending());
     }
 
     public static function cancellationTimes(): array
@@ -682,7 +683,7 @@ class MemberPtScheduleTest extends TestCase
         $this->assertNull($booking->fresh()->cancellation_requested_at);
     }
 
-    public function test_booking_approved_while_cancel_modal_is_open_requires_approval(): void
+    public function test_booking_approved_while_cancel_modal_is_open_is_cancelled_immediately(): void
     {
         $membership = $this->membership();
         $booking = $this->booking($membership, ['status' => 'pending']);
@@ -691,9 +692,9 @@ class MemberPtScheduleTest extends TestCase
 
         $page->set('cancelReason', 'Tidak bisa datang')->call('cancelBooking')->assertHasNoErrors();
 
-        $this->assertSame('approved', $booking->fresh()->status);
-        $this->assertTrue($booking->fresh()->isCancellationPending());
-        $this->assertNull($booking->fresh()->cancelled_at);
+        $this->assertSame('cancelled', $booking->fresh()->status);
+        $this->assertFalse($booking->fresh()->isCancellationPending());
+        $this->assertNotNull($booking->fresh()->cancelled_at);
     }
 
     private function page(Membership $membership, bool $weekly = true): Testable

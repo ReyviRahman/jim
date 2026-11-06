@@ -78,6 +78,9 @@ Route::middleware('auth')->group(function () {
     });
 
     Route::middleware('role:pt')->prefix('dashboard/pt')->group(function () {
+        Route::livewire('/total-sesi', 'pages::dashboard.pt.total-sesi')
+            ->name('pt.total-sesi.index');
+
         Route::livewire('/absensi', 'pages::dashboard.pt.absensi')
             ->name('pt.absensi');
 

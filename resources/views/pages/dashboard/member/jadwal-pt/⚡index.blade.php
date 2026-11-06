@@ -532,9 +532,9 @@ new #[Layout('layouts::member')] class extends Component
     @if($showCancelModal && $this->selectedBooking)
         <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm" wire:click.self="closeCancelModal" x-on:keydown.escape.window="$wire.closeCancelModal()">
             <section role="dialog" aria-modal="true" aria-labelledby="cancel-title" class="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-lg bg-[#121719] p-6 shadow-xl" x-trap.inert.noscroll="true">
-                <h2 id="cancel-title" class="text-lg font-semibold text-white">{{ $this->selectedBooking->isApproved() ? 'Ajukan Pembatalan' : 'Batalkan Booking' }}</h2>
+                <h2 id="cancel-title" class="text-lg font-semibold text-white">Batalkan Booking</h2>
                 <p class="mt-2 text-sm text-gray-300">{{ $this->selectedBooking->booking_date->locale('id')->isoFormat('dddd, D MMM YYYY') }} · {{ $this->selectedBooking->booking_time->format('H:i') }}</p>
-                <p class="mt-2 text-sm text-gray-300">{{ $this->selectedBooking->isApproved() ? 'Pembatalan memerlukan persetujuan coach/admin. Slot tetap terisi sampai disetujui.' : 'Booking pending akan langsung dibatalkan dan tidak lagi menahan kuota.' }}</p>
+                <p class="mt-2 text-sm text-gray-300">Booking akan langsung dibatalkan dan slot jadwal tersedia kembali.</p>
                 <form wire:submit="cancelBooking" class="mt-4 space-y-4">
                     <div>
                         <label for="cancel-reason" class="mb-1 block text-sm font-medium text-white">Alasan pembatalan</label>
@@ -543,7 +543,7 @@ new #[Layout('layouts::member')] class extends Component
                     </div>
                     <div class="flex gap-3">
                         <button type="button" wire:click="closeCancelModal" class="flex-1 rounded-md bg-slate-800 px-4 py-2 text-sm font-medium text-gray-200 hover:bg-slate-700">Kembali</button>
-                        <button type="submit" wire:loading.attr="disabled" class="flex-1 rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50">{{ $this->selectedBooking->isApproved() ? 'Ajukan Pembatalan' : 'Batalkan Booking' }}</button>
+                        <button type="submit" wire:loading.attr="disabled" class="flex-1 rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50">Batalkan Booking</button>
                     </div>
                 </form>
             </section>
@@ -675,8 +675,8 @@ new #[Layout('layouts::member')] class extends Component
                     @endif
                     @if(in_array($booking->status, ['pending', 'approved'], true) && ! $booking->isCancellationPending())
                         <div class="border-t border-white/10 pt-4">
-                            <button type="button" wire:click="openCancelModal({{ $booking->id }})" @disabled($cancelUnavailableReason !== null) aria-describedby="cancel-availability" class="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50">{{ $booking->isApproved() ? 'Ajukan Pembatalan' : 'Batalkan Booking' }}</button>
-                            <p id="cancel-availability" class="mt-2 text-sm text-gray-300">{{ $cancelUnavailableReason ?? ($booking->isApproved() ? 'Pembatalan memerlukan persetujuan coach/admin.' : 'Booking pending akan langsung dibatalkan.') }}</p>
+                            <button type="button" wire:click="openCancelModal({{ $booking->id }})" @disabled($cancelUnavailableReason !== null) aria-describedby="cancel-availability" class="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50">Batalkan Booking</button>
+                            <p id="cancel-availability" class="mt-2 text-sm text-gray-300">{{ $cancelUnavailableReason ?? 'Booking akan langsung dibatalkan.' }}</p>
                         </div>
                     @endif
                 </div>

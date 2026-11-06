@@ -241,9 +241,9 @@
         </div>
         </aside>
 
-        <div id="dashboard-content" @class(['sm:ml-64 mt-14 transition-[margin] duration-300 ease-in-out', 'p-4' => ! request()->routeIs('admin.pt-expired.index', 'admin.pt-berjalan.index', 'admin.pt-booking.index')])>
+        <div id="dashboard-content" @class(['sm:ml-64 mt-14 transition-[margin] duration-300 ease-in-out', 'p-4' => ! request()->routeIs('admin.dashboard', 'admin.pt-expired.index', 'admin.pt-berjalan.index', 'admin.pt-booking.index')])>
             <x-impersonation-banner />
-            <div @class(['p-4 border-1 border-default rounded-md' => ! request()->routeIs('admin.pt-expired.index', 'admin.pt-berjalan.index', 'admin.pt-booking.index')])>
+            <div @class(['p-4 border-1 border-default rounded-md' => ! request()->routeIs('admin.dashboard', 'admin.pt-expired.index', 'admin.pt-berjalan.index', 'admin.pt-booking.index')])>
                 {{ $slot }}
             </div>
         </div>
