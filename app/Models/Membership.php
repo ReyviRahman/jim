@@ -89,6 +89,29 @@ class Membership extends Model
     }
 
     /**
+     * Jenis wording "paket habis" yang sesuai dengan tipe paket terakhir member.
+     */
+    public function expiredPackageKind(): string
+    {
+        return match ($this->type) {
+            'pt' => 'pt',
+            'bundle_pt_membership' => 'bundle',
+            default => 'membership',
+        };
+    }
+
+    /**
+     * Batasi query ke paket yang dapat diakses member, baik sebagai pembeli maupun anggota terdaftar.
+     */
+    public function scopeAccessibleTo(Builder $query, User $user): Builder
+    {
+        return $query->where(function (Builder $query) use ($user): void {
+            $query->whereBelongsTo($user, 'user')
+                ->orWhereHas('members', fn (Builder $members): Builder => $members->whereKey($user->getKey()));
+        });
+    }
+
+    /**
      * Relasi ke Pembayar / Pendaftar Utama
      */
     public function user(): BelongsTo

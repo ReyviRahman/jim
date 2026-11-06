@@ -171,15 +171,20 @@ new #[Layout('layouts::member'), Title('Dashboard Membership')] class extends Co
 
     private function accessibleMembershipQuery(): Builder
     {
-        $user = $this->authenticatedUser();
+        return Membership::query()->accessibleTo($this->authenticatedUser());
+    }
 
-        return Membership::query()
-            ->where(function (Builder $query) use ($user): void {
-                $query->whereBelongsTo($user, 'user')
-                    ->orWhereHas('members', function (Builder $memberQuery) use ($user): void {
-                        $memberQuery->whereKey($user->getKey());
-                    });
-            });
+    /**
+     * Wording "paket habis" mengikuti tipe membership terakhir yang dimiliki member.
+     */
+    #[Computed]
+    public function emptyPackageKind(): string
+    {
+        $lastMembership = $this->accessibleMembershipQuery()
+            ->latest('id')
+            ->first();
+
+        return $lastMembership?->expiredPackageKind() ?? 'pt';
     }
 
     private function authenticatedUser(): User
@@ -253,7 +258,7 @@ new #[Layout('layouts::member'), Title('Dashboard Membership')] class extends Co
         @forelse ($this->ownedPackageSummaries as $summary)
             <x-member-package-card :summary="$summary" :first="$loop->first" wire:key="owned-package-{{ $summary['id'] }}" />
         @empty
-            @if($this->ownedAddons->isEmpty())<x-member-empty-package />@endif
+            @if($this->ownedAddons->isEmpty())<x-member-empty-package :kind="$this->emptyPackageKind" />@endif
         @endforelse
         @foreach($this->ownedAddonSummaries as $summary)
             <x-member-package-card :summary="$summary" :first="$loop->first && $this->ownedPackages->isEmpty()" wire:key="owned-package-{{ $summary['id'] }}" />

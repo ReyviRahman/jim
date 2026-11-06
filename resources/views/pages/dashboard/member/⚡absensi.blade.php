@@ -282,26 +282,36 @@ new #[Layout('layouts::member')] class extends Component
             'eligibleBookings' => $eligibleBookings,
             'selectedBookingId' => $this->selectedBookingId,
             'selectedBooking' => $selectedBooking,
+            'emptyPackageKind' => $this->emptyPackageKind(),
         ];
     }
 
     private function selectableMembershipQuery(): Builder
     {
-        $user = $this->authenticatedUser();
-
-        return Membership::query()
-            ->where(function (Builder $query) use ($user): void {
-                $query->whereBelongsTo($user, 'user')
-                    ->orWhereHas('members', function (Builder $memberQuery) use ($user): void {
-                        $memberQuery->whereKey($user->getKey());
-                    });
-            })
+        return $this->accessibleMembershipQuery()
             ->where('status', 'active')
             ->where('is_active', true)
             ->where(function (Builder $query): void {
                 $query->whereNull('start_date')
                     ->orWhereDate('start_date', '<=', today());
             });
+    }
+
+    private function accessibleMembershipQuery(): Builder
+    {
+        return Membership::query()->accessibleTo($this->authenticatedUser());
+    }
+
+    /**
+     * Wording "paket habis" mengikuti tipe membership terakhir yang dimiliki member.
+     */
+    private function emptyPackageKind(): string
+    {
+        $lastMembership = $this->accessibleMembershipQuery()
+            ->latest('id')
+            ->first();
+
+        return $lastMembership?->expiredPackageKind() ?? 'pt';
     }
 
     private function eligibleBookingQuery(?int $membershipId = null): Builder
@@ -370,7 +380,16 @@ new #[Layout('layouts::member')] class extends Component
     <section class="checkin-card" aria-labelledby="checkin-title">
         <p class="checkin-instruction">Scan QR Code ini pada scanner admin untuk</p>
         @if (! $hasActivePackage && ! $hasCheckedIn)
-            <h1 id="checkin-title" class="checkin-pt-title"><span>PERSONAL</span> <span>TRAINING</span> <span>SESSION</span></h1>
+            @switch($emptyPackageKind)
+                @case('membership')
+                    <h1 id="checkin-title" class="checkin-pt-title"><span>MEMBERSHIP</span> <span>GYM</span></h1>
+                    @break
+                @case('bundle')
+                    <h1 id="checkin-title" class="checkin-pt-title"><span>BUNDLE</span> <span>PT</span> <span>MEMBERSHIP</span></h1>
+                    @break
+                @default
+                    <h1 id="checkin-title" class="checkin-pt-title"><span>PERSONAL</span> <span>TRAINING</span> <span>SESSION</span></h1>
+            @endswitch
         @else
             <h1 id="checkin-title" class="checkin-title">CHECK-IN</h1>
         @endif
@@ -385,8 +404,16 @@ new #[Layout('layouts::member')] class extends Component
         @elseif (! $hasActivePackage)
             <div class="checkin-message" role="status">
                 <svg class="checkin-empty-icon" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 40 40"><path d="M20 32H7a3 3 0 0 1-3-3V8a3 3 0 0 1 3-3h22a3 3 0 0 1 3 3v9M10 2v6M26 2v6M4 12h28"/><circle cx="30" cy="28" r="8"/><path d="m27 25 6 6m0-6-6 6"/></svg>
-                <h2>Tidak Ada Sesi Aktif</h2>
-                <p>Anda belum memiliki sesi Personal Training atau sesi yang aktif telah habis. Silakan beli sesi baru untuk mendapatkan akses check-in Personal Training.</p>
+                @if ($emptyPackageKind === 'membership')
+                    <h2>Tidak Ada Paket Aktif</h2>
+                    <p>Masa aktif membership Anda telah habis. Silakan hubungi admin untuk memperpanjang atau membeli paket membership baru agar dapat check-in kembali.</p>
+                @elseif ($emptyPackageKind === 'bundle')
+                    <h2>Tidak Ada Paket Aktif</h2>
+                    <p>Paket bundle PT dan membership Anda telah habis. Silakan hubungi admin untuk informasi pembelian paket selanjutnya.</p>
+                @else
+                    <h2>Tidak Ada Sesi Aktif</h2>
+                    <p>Anda belum memiliki sesi Personal Training atau sesi yang aktif telah habis. Silakan beli sesi baru untuk mendapatkan akses check-in Personal Training.</p>
+                @endif
             </div>
         @else
             @if($activeAddons->isNotEmpty())

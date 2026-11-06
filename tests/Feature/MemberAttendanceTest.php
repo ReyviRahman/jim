@@ -69,8 +69,8 @@ class MemberAttendanceTest extends TestCase
         $component = Livewire::actingAs($member)
             ->test('pages::dashboard.member.absensi')
             ->assertSet('selectedMembershipId', null)
-            ->assertSee('Tidak Ada Sesi Aktif')
-            ->assertSeeText('Anda belum memiliki sesi Personal Training atau sesi yang aktif telah habis. Silakan beli sesi baru untuk mendapatkan akses check-in Personal Training.')
+            ->assertSee('Tidak Ada Paket Aktif')
+            ->assertSeeText('Masa aktif membership Anda telah habis. Silakan hubungi admin untuk memperpanjang atau membeli paket membership baru agar dapat check-in kembali.')
             ->assertSee('member-check-in-empty');
 
         $this->assertFalse($component->viewData('hasActivePackage'));
@@ -89,11 +89,93 @@ class MemberAttendanceTest extends TestCase
         $component = Livewire::actingAs($member)
             ->test('pages::dashboard.member.absensi')
             ->assertSet('selectedMembershipId', null)
-            ->assertSee('Tidak Ada Sesi Aktif');
+            ->assertSee('Tidak Ada Paket Aktif');
 
         $this->assertFalse($component->viewData('hasActivePackage'));
         $this->assertTrue($component->viewData('activeMemberships')->isEmpty());
         $this->assertNull($component->viewData('qrCode'));
+    }
+
+    public function test_expired_membership_shows_membership_wording_instead_of_pt_wording(): void
+    {
+        $member = $this->createUser();
+        $this->createMembership($member, [
+            'status' => 'completed',
+            'is_active' => false,
+            'membership_end_date' => today()->subDay()->toDateString(),
+        ]);
+
+        Livewire::actingAs($member)
+            ->test('pages::dashboard.member.absensi')
+            ->assertSee('Tidak Ada Paket Aktif')
+            ->assertSeeText('Masa aktif membership Anda telah habis. Silakan hubungi admin untuk memperpanjang atau membeli paket membership baru agar dapat check-in kembali.')
+            ->assertSeeText('MEMBERSHIP')
+            ->assertDontSee('Tidak Ada Sesi Aktif')
+            ->assertDontSeeText('Anda belum memiliki sesi Personal Training atau sesi yang aktif telah habis.');
+    }
+
+    public function test_expired_pt_shows_pt_wording(): void
+    {
+        $member = $this->createUser();
+        $this->createMembership($member, [
+            'type' => 'pt',
+            'status' => 'completed',
+            'is_active' => false,
+            'membership_end_date' => null,
+            'pt_end_date' => today()->subDay()->toDateString(),
+            'remaining_sessions' => 0,
+        ]);
+
+        Livewire::actingAs($member)
+            ->test('pages::dashboard.member.absensi')
+            ->assertSee('Tidak Ada Sesi Aktif')
+            ->assertSeeText('Anda belum memiliki sesi Personal Training atau sesi yang aktif telah habis. Silakan beli sesi baru untuk mendapatkan akses check-in Personal Training.')
+            ->assertSeeText('PERSONAL')
+            ->assertSeeText('TRAINING')
+            ->assertDontSee('Tidak Ada Paket Aktif');
+    }
+
+    public function test_expired_wording_follows_the_latest_membership_type(): void
+    {
+        $member = $this->createUser();
+        $this->createMembership($member, [
+            'status' => 'completed',
+            'is_active' => false,
+            'membership_end_date' => today()->subMonth()->toDateString(),
+        ]);
+        $this->createMembership($member, [
+            'type' => 'pt',
+            'status' => 'completed',
+            'is_active' => false,
+            'membership_end_date' => null,
+            'pt_end_date' => today()->subDay()->toDateString(),
+            'remaining_sessions' => 0,
+        ]);
+
+        Livewire::actingAs($member)
+            ->test('pages::dashboard.member.absensi')
+            ->assertSee('Tidak Ada Sesi Aktif')
+            ->assertDontSee('Tidak Ada Paket Aktif');
+
+        $otherMember = $this->createUser();
+        $this->createMembership($otherMember, [
+            'type' => 'pt',
+            'status' => 'completed',
+            'is_active' => false,
+            'membership_end_date' => null,
+            'pt_end_date' => today()->subMonth()->toDateString(),
+            'remaining_sessions' => 0,
+        ]);
+        $this->createMembership($otherMember, [
+            'status' => 'completed',
+            'is_active' => false,
+            'membership_end_date' => today()->subDay()->toDateString(),
+        ]);
+
+        Livewire::actingAs($otherMember)
+            ->test('pages::dashboard.member.absensi')
+            ->assertSee('Tidak Ada Paket Aktif')
+            ->assertDontSee('Tidak Ada Sesi Aktif');
     }
 
     public function test_pt_qr_is_automatic_and_prioritized_over_gym_and_switching_package_resets_booking(): void

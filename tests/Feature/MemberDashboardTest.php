@@ -372,6 +372,108 @@ class MemberDashboardTest extends TestCase
             ->assertDontSee('Paket Nonaktif');
     }
 
+    public function test_expired_membership_shows_membership_wording_instead_of_pt_wording(): void
+    {
+        $member = $this->createUser();
+        $this->createMembership($member, null, [
+            'status' => 'completed',
+            'is_active' => false,
+            'membership_end_date' => today()->subDay()->toDateString(),
+        ]);
+
+        Livewire::actingAs($member)
+            ->test('pages::dashboard.member.home')
+            ->assertCount('ownedPackages', 0)
+            ->assertSeeText('Paket Membership Telah Habis')
+            ->assertSeeText('Masa aktif membership Anda sudah habis. Hubungi admin untuk memperpanjang atau membeli paket membership selanjutnya.')
+            ->assertDontSeeText('Paket Personal Training Session Telah Habis')
+            ->assertDontSeeText('Paket PT Anda sudah habis.');
+    }
+
+    public function test_expired_pt_shows_pt_wording(): void
+    {
+        $member = $this->createUser();
+        $this->createMembership($member, null, [
+            'type' => 'pt',
+            'status' => 'completed',
+            'is_active' => false,
+            'membership_end_date' => null,
+            'pt_end_date' => today()->subDay()->toDateString(),
+            'remaining_sessions' => 0,
+        ]);
+
+        Livewire::actingAs($member)
+            ->test('pages::dashboard.member.home')
+            ->assertCount('ownedPackages', 0)
+            ->assertSeeText('Paket Personal Training Session Telah Habis')
+            ->assertSeeText('Paket PT Anda sudah habis. Hubungi admin untuk informasi pembelian paket selanjutnya.')
+            ->assertDontSeeText('Paket Membership Telah Habis');
+    }
+
+    public function test_expired_bundle_shows_bundle_wording(): void
+    {
+        $member = $this->createUser();
+        $this->createMembership($member, null, [
+            'type' => 'bundle_pt_membership',
+            'status' => 'completed',
+            'is_active' => false,
+            'membership_end_date' => today()->subDay()->toDateString(),
+            'pt_end_date' => today()->subDay()->toDateString(),
+            'remaining_sessions' => 0,
+        ]);
+
+        Livewire::actingAs($member)
+            ->test('pages::dashboard.member.home')
+            ->assertCount('ownedPackages', 0)
+            ->assertSeeText('Paket Bundle PT & Membership Telah Habis')
+            ->assertDontSeeText('Paket Personal Training Session Telah Habis')
+            ->assertDontSeeText('Paket Membership Telah Habis');
+    }
+
+    public function test_expired_wording_follows_the_latest_membership_type(): void
+    {
+        $ptLastMember = $this->createUser();
+        $this->createMembership($ptLastMember, null, [
+            'type' => 'membership',
+            'status' => 'completed',
+            'is_active' => false,
+            'membership_end_date' => today()->subMonth()->toDateString(),
+        ]);
+        $this->createMembership($ptLastMember, null, [
+            'type' => 'pt',
+            'status' => 'completed',
+            'is_active' => false,
+            'membership_end_date' => null,
+            'pt_end_date' => today()->subDay()->toDateString(),
+            'remaining_sessions' => 0,
+        ]);
+
+        Livewire::actingAs($ptLastMember)
+            ->test('pages::dashboard.member.home')
+            ->assertSeeText('Paket Personal Training Session Telah Habis')
+            ->assertDontSeeText('Paket Membership Telah Habis');
+
+        $membershipLastMember = $this->createUser();
+        $this->createMembership($membershipLastMember, null, [
+            'type' => 'pt',
+            'status' => 'completed',
+            'is_active' => false,
+            'membership_end_date' => null,
+            'pt_end_date' => today()->subMonth()->toDateString(),
+            'remaining_sessions' => 0,
+        ]);
+        $this->createMembership($membershipLastMember, null, [
+            'status' => 'completed',
+            'is_active' => false,
+            'membership_end_date' => today()->subDay()->toDateString(),
+        ]);
+
+        Livewire::actingAs($membershipLastMember)
+            ->test('pages::dashboard.member.home')
+            ->assertSeeText('Paket Membership Telah Habis')
+            ->assertDontSeeText('Paket Personal Training Session Telah Habis');
+    }
+
     public function test_current_membership_uses_an_informative_fallback_when_no_gym_package_is_active(): void
     {
         $member = $this->createUser();
