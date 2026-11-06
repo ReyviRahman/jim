@@ -12,7 +12,10 @@
 
         @livewireStyles
     </head>
-    <body @class(['member-pt-page' => request()->routeIs('pt.booking-jadwal.*')])>
+    <body @class([
+        'member-pt-page' => request()->routeIs('pt.booking-jadwal.*'),
+        'dashboard-theme' => request()->routeIs('pt.total-sesi.index', 'pt.absensi', 'pt.kehadiran.index'),
+    ])>
         <livewire:dashboard.navbar />
         <aside id="top-bar-sidebar" class="fixed top-0 left-0 z-40 w-64 h-full -translate-x-full transition-transform duration-300 ease-in-out" aria-label="Sidebar" aria-hidden="true">
         <div class="gym-sidebar flex h-full flex-col overflow-y-auto [&>*]:shrink-0">

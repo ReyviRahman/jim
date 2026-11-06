@@ -37,6 +37,9 @@ new #[Layout('layouts::admin')] class extends Component
 
     public bool $showPaymentPreviewModal = false;
 
+    #[\Livewire\Attributes\Locked]
+    public ?int $approvingPaymentBatchId = null;
+
     /** @var array<int, array{membership_id: int, member_name: string, category: string, sessions: int, nominal: int, total: int}> */
     public array $paymentPreviewRows = [];
 
@@ -156,6 +159,32 @@ new #[Layout('layouts::admin')] class extends Component
             return;
         }
 
+        $this->approvingPaymentBatchId = null;
+        $this->preparePaymentPreview($bookings);
+    }
+
+    public function openApprovalPreview(int $id): void
+    {
+        abort_unless(auth()->user()?->role === 'admin', 403);
+
+        $batch = PtPaymentBatch::query()->where('pt_id', $this->user->id)->findOrFail($id);
+        if ($batch->status !== 'pending') {
+            return;
+        }
+
+        $bookings = PtBooking::query()
+            ->where('pt_id', $this->user->id)
+            ->whereIn('id', $batch->items()->select('pt_booking_id'))
+            ->with(['membership.user', 'membership.followUp', 'membership.followUpTwo'])
+            ->get();
+
+        $this->approvingPaymentBatchId = $batch->id;
+        $this->preparePaymentPreview($bookings);
+    }
+
+    /** @param Collection<int, PtBooking> $bookings */
+    private function preparePaymentPreview(Collection $bookings): void
+    {
         $this->paymentPreviewSearch = '';
         $this->paymentPreviewRows = $bookings
             ->groupBy('membership_id')
@@ -197,6 +226,7 @@ new #[Layout('layouts::admin')] class extends Component
 
     public function closePaymentPreview(): void
     {
+        $this->approvingPaymentBatchId = null;
         $this->showPaymentPreviewModal = false;
         $this->paymentPreviewRows = [];
         $this->paymentPreviewSearch = '';
@@ -206,7 +236,15 @@ new #[Layout('layouts::admin')] class extends Component
 
     public function confirmPayment(): void
     {
-        $this->paySessions();
+        if (! $this->showPaymentPreviewModal) {
+            return;
+        }
+
+        if ($this->approvingPaymentBatchId !== null) {
+            $this->approvePaymentBatch($this->approvingPaymentBatchId);
+        } else {
+            $this->paySessions();
+        }
         $this->closePaymentPreview();
     }
 
@@ -936,7 +974,7 @@ new #[Layout('layouts::admin')] class extends Component
                                 <td class="px-6 py-4 text-center">
                                     <div class="flex items-center justify-center gap-2">
                                         @if ($batch->status === 'pending' && auth()->user()->role === 'admin')
-                                            <button type="button" wire:click="approvePaymentBatch({{ $batch->id }})" wire:confirm="Setujui pengajuan dan tandai sesi sudah dibayar?" wire:loading.attr="disabled" class="inline-flex items-center rounded bg-green-600 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-50">Approve</button>
+                                            <button type="button" wire:click="openApprovalPreview({{ $batch->id }})" wire:loading.attr="disabled" class="inline-flex items-center rounded bg-green-600 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-50">Approve</button>
                                         @endif
                                         <button type="button" wire:click="openPaymentDetailModal({{ $batch->id }})" class="inline-flex items-center px-2.5 py-1.5 text-xs font-medium text-white bg-brand rounded hover:bg-brand-strong transition-colors">
                                             Detail
@@ -1078,7 +1116,7 @@ new #[Layout('layouts::admin')] class extends Component
                         Batal
                     </button>
                     <button type="button" wire:click="confirmPayment" wire:loading.attr="disabled" class="px-4 py-2 text-sm font-medium text-white bg-emerald-600 rounded-md hover:bg-emerald-700 disabled:opacity-50">
-                        Konfirmasi Pembayaran
+                        {{ $approvingPaymentBatchId !== null ? 'Konfirmasi Approve' : 'Konfirmasi Pembayaran' }}
                     </button>
                 </div>
             </div>

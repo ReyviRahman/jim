@@ -57,7 +57,7 @@ new #[Layout('layouts::pt')] class extends Component
                     Tunjukkan QR Code ini ke Scanner Admin untuk absensi kehadiran kerja.
                 </p>
 
-                <div class="flex justify-center bg-white p-4 rounded-lg border border-default inline-block mx-auto shadow-sm">
+                <div class="dashboard-qr-code flex justify-center bg-white p-4 rounded-lg border border-default inline-block mx-auto shadow-sm">
                     {!! QrCode::size(250)->style('round')->generate($qrData) !!}
                 </div>
                 

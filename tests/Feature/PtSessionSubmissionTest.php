@@ -78,7 +78,18 @@ class PtSessionSubmissionTest extends TestCase
         $this->assertFalse($booking->fresh()->is_paid);
 
         $component = Livewire::test('pages::dashboard.admin.sesi-pt.detail', ['user' => $pt])
-            ->call('approvePaymentBatch', $batch->id)->assertSee('Approved');
+            ->assertSeeHtml('wire:click="openApprovalPreview('.$batch->id.')"')
+            ->call('openApprovalPreview', $batch->id)
+            ->assertSet('showPaymentPreviewModal', true)
+            ->assertSet('approvingPaymentBatchId', $batch->id)
+            ->assertSee('Preview Pembayaran Sesi PT')
+            ->assertSee('Konfirmasi Approve');
+        $this->assertSame('pending', $batch->fresh()->status);
+        $this->assertFalse($booking->fresh()->is_paid);
+
+        $component->call('confirmPayment')->assertSee('Approved')
+            ->assertSet('showPaymentPreviewModal', false)
+            ->assertSet('approvingPaymentBatchId', null);
         $approvedAt = $batch->fresh()->approved_at;
         $this->travel(1)->hours();
         $component->call('approvePaymentBatch', $batch->id);
@@ -102,6 +113,40 @@ class PtSessionSubmissionTest extends TestCase
             ->assertDontSee('987654')->assertDontSee('price_paid')
             ->assertDontSee('Pilih Rentang Tanggal');
         $this->get(route('admin.sesi-pt.detail', $pt))->assertRedirect(route('home'));
+    }
+
+    public function test_approval_preview_uses_only_requested_sessions_and_cancel_keeps_them_pending(): void
+    {
+        $pt = User::factory()->create(['role' => 'pt']);
+        $booking = $this->booking($pt);
+        Livewire::actingAs($pt)->test('pages::dashboard.pt.total-sesi')->call('submitSessions');
+        $batch = PtPaymentBatch::sole();
+        $this->booking($pt);
+
+        Livewire::actingAs(User::factory()->create(['role' => 'admin']))
+            ->test('pages::dashboard.admin.sesi-pt.detail', ['user' => $pt])
+            ->set('dateStart', '2000-01-01')->set('dateEnd', '2000-01-01')
+            ->call('openApprovalPreview', $batch->id)
+            ->assertSet('paymentPreviewTotalSessions', 1)
+            ->assertCount('paymentPreviewRows', 1)
+            ->assertSet('paymentPreviewRows.0.membership_id', $booking->membership_id)
+            ->call('closePaymentPreview')
+            ->assertSet('showPaymentPreviewModal', false)
+            ->assertSet('approvingPaymentBatchId', null)
+            ->assertCount('paymentPreviewRows', 0)
+            ->call('confirmPayment');
+
+        $this->assertSame('pending', $batch->fresh()->status);
+        $this->assertFalse($booking->fresh()->is_paid);
+        $this->assertSame(1, PtPaymentBatch::count());
+    }
+
+    public function test_non_admin_cannot_open_approval_preview(): void
+    {
+        $pt = User::factory()->create(['role' => 'pt']);
+        Livewire::actingAs(User::factory()->create(['role' => 'head_coach']))
+            ->test('pages::dashboard.admin.sesi-pt.detail', ['user' => $pt])
+            ->call('openApprovalPreview', 1)->assertForbidden();
     }
 
     public function test_non_pt_cannot_access_total_sessions(): void
