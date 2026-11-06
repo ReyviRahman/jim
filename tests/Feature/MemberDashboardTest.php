@@ -42,10 +42,10 @@ class MemberDashboardTest extends TestCase
             ->assertSeeText('Paket PT Anda sudah habis. Hubungi admin di WhatsApp')
             ->assertSeeText('0821-8137-8658')
             ->assertSee('HUBUNGI ADMIN')
-            ->assertSee('href="https://wa.me/6282373997318"', false)
             ->assertSee('href="https://wa.me/6282181378658"', false)
-            ->assertSeeText('CS')
-            ->assertSeeText('Sales')
+            ->assertDontSee('6282373997318')
+            ->assertDontSee('Pilih kontak untuk melanjutkan ke WhatsApp.')
+            ->assertDontSee('aria-haspopup="dialog"', false)
             ->assertDontSee('Jam Operasional')
             ->assertDontSeeText('Lihat masa aktif membership dan rekomendasi paket terbaik untuk Anda.');
     }
