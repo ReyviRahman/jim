@@ -39,7 +39,8 @@ class MemberDashboardTest extends TestCase
             ->get(route('member.dashboard'))
             ->assertOk()
             ->assertSee('Dashboard Membership')
-            ->assertSeeText('Paket PT Anda sudah habis. Hubungi admin untuk informasi pembelian paket selanjutnya.')
+            ->assertSeeText('Paket PT Anda sudah habis. Hubungi admin di WhatsApp')
+            ->assertSeeText('0821-8137-8658')
             ->assertSee('HUBUNGI ADMIN')
             ->assertSee('href="https://wa.me/6282373997318"', false)
             ->assertSee('href="https://wa.me/6282181378658"', false)
@@ -385,7 +386,9 @@ class MemberDashboardTest extends TestCase
             ->test('pages::dashboard.member.home')
             ->assertCount('ownedPackages', 0)
             ->assertSeeText('Paket Membership Telah Habis')
-            ->assertSeeText('Masa aktif membership Anda sudah habis. Hubungi admin untuk memperpanjang atau membeli paket membership selanjutnya.')
+            ->assertSeeText('Masa aktif membership Anda sudah habis. Hubungi admin di WhatsApp')
+            ->assertSeeHtml('href="https://wa.me/6282181378658"')
+            ->assertSeeText('0821-8137-8658')
             ->assertDontSeeText('Paket Personal Training Session Telah Habis')
             ->assertDontSeeText('Paket PT Anda sudah habis.');
     }
@@ -406,7 +409,9 @@ class MemberDashboardTest extends TestCase
             ->test('pages::dashboard.member.home')
             ->assertCount('ownedPackages', 0)
             ->assertSeeText('Paket Personal Training Session Telah Habis')
-            ->assertSeeText('Paket PT Anda sudah habis. Hubungi admin untuk informasi pembelian paket selanjutnya.')
+            ->assertSeeText('Paket PT Anda sudah habis. Hubungi admin di WhatsApp')
+            ->assertSeeHtml('href="https://wa.me/6282181378658"')
+            ->assertSeeText('0821-8137-8658')
             ->assertDontSeeText('Paket Membership Telah Habis');
     }
 
@@ -426,6 +431,8 @@ class MemberDashboardTest extends TestCase
             ->test('pages::dashboard.member.home')
             ->assertCount('ownedPackages', 0)
             ->assertSeeText('Paket Bundle PT & Membership Telah Habis')
+            ->assertSeeHtml('href="https://wa.me/6282181378658"')
+            ->assertSeeText('0821-8137-8658')
             ->assertDontSeeText('Paket Personal Training Session Telah Habis')
             ->assertDontSeeText('Paket Membership Telah Habis');
     }

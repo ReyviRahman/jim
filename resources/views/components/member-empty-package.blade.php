@@ -1,21 +1,24 @@
 @props(['kind' => 'pt'])
 
 @php
-    [$statusLabel, $packageTitle, $packageDescription] = match ($kind) {
+    [$statusLabel, $packageTitle, $packageDescription, $packageAction] = match ($kind) {
         'membership' => [
             'MEMBER',
             'Membership',
-            'Masa aktif membership Anda sudah habis. Hubungi admin untuk memperpanjang atau membeli paket membership selanjutnya.',
+            'Masa aktif membership Anda sudah habis. Hubungi admin di WhatsApp',
+            'untuk memperpanjang atau membeli paket membership selanjutnya.',
         ],
         'bundle' => [
             'BUNDLE',
             'Bundle PT & Membership',
-            'Paket bundle PT dan membership Anda sudah habis. Hubungi admin untuk informasi pembelian paket selanjutnya.',
+            'Paket bundle PT dan membership Anda sudah habis. Hubungi admin di WhatsApp',
+            'untuk informasi pembelian paket selanjutnya.',
         ],
         default => [
             'PT',
             'Personal Training Session',
-            'Paket PT Anda sudah habis. Hubungi admin untuk informasi pembelian paket selanjutnya.',
+            'Paket PT Anda sudah habis. Hubungi admin di WhatsApp',
+            'untuk informasi pembelian paket selanjutnya.',
         ],
     };
 @endphp
@@ -37,7 +40,7 @@
             <x-member-package-icon name="calendar" class="size-12 sm:size-16"/>
         </span>
         <h2 id="empty-membership-title" class="mt-7 text-balance text-3xl font-extrabold leading-[1.15] tracking-tight sm:mt-9 sm:text-5xl lg:text-6xl">Paket <span class="text-brand">{{ $packageTitle }}</span> Telah Habis</h2>
-        <p class="mx-auto mt-5 max-w-2xl text-pretty text-sm leading-relaxed text-gray-300 sm:mt-7 sm:text-xl">{{ $packageDescription }}</p>
+        <p class="mx-auto mt-5 max-w-2xl text-pretty text-sm leading-relaxed text-gray-300 sm:mt-7 sm:text-xl">{{ $packageDescription }} <a href="https://wa.me/6282181378658" target="_blank" rel="noopener noreferrer" class="font-bold text-brand underline underline-offset-2 hover:text-yellow-300 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white">0821-8137-8658</a> {{ $packageAction }}</p>
         <span class="mx-auto mt-6 block h-1 w-12 rounded-full bg-brand" aria-hidden="true"></span>
         <button type="button" x-on:click="$refs.adminContact.showModal()" aria-haspopup="dialog" class="mx-auto mt-7 flex min-h-14 w-full max-w-xl items-center justify-center gap-3 rounded-2xl bg-brand px-4 py-4 text-xs font-extrabold text-black transition-colors hover:bg-yellow-300 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white sm:mt-9 sm:min-h-18 sm:text-lg">
             HUBUNGI ADMIN<x-member-package-icon name="chevron" class="size-5 shrink-0 sm:size-6"/>

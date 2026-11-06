@@ -406,13 +406,13 @@ new #[Layout('layouts::member')] class extends Component
                 <svg class="checkin-empty-icon" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 40 40"><path d="M20 32H7a3 3 0 0 1-3-3V8a3 3 0 0 1 3-3h22a3 3 0 0 1 3 3v9M10 2v6M26 2v6M4 12h28"/><circle cx="30" cy="28" r="8"/><path d="m27 25 6 6m0-6-6 6"/></svg>
                 @if ($emptyPackageKind === 'membership')
                     <h2>Tidak Ada Paket Aktif</h2>
-                    <p>Masa aktif membership Anda telah habis. Silakan hubungi admin untuk memperpanjang atau membeli paket membership baru agar dapat check-in kembali.</p>
+                    <p>Masa aktif membership Anda telah habis. Silakan hubungi admin via WhatsApp <a href="https://wa.me/6282181378658" target="_blank" rel="noopener noreferrer" class="font-bold text-brand underline underline-offset-2 hover:text-yellow-300 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white">0821-8137-8658</a> untuk memperpanjang atau membeli paket membership baru agar dapat check-in kembali.</p>
                 @elseif ($emptyPackageKind === 'bundle')
                     <h2>Tidak Ada Paket Aktif</h2>
-                    <p>Paket bundle PT dan membership Anda telah habis. Silakan hubungi admin untuk informasi pembelian paket selanjutnya.</p>
+                    <p>Paket bundle PT dan membership Anda telah habis. Silakan hubungi admin via WhatsApp <a href="https://wa.me/6282181378658" target="_blank" rel="noopener noreferrer" class="font-bold text-brand underline underline-offset-2 hover:text-yellow-300 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white">0821-8137-8658</a> untuk informasi pembelian paket selanjutnya.</p>
                 @else
                     <h2>Tidak Ada Sesi Aktif</h2>
-                    <p>Anda belum memiliki sesi Personal Training atau sesi yang aktif telah habis. Silakan beli sesi baru untuk mendapatkan akses check-in Personal Training.</p>
+                    <p>Anda belum memiliki sesi Personal Training atau sesi yang aktif telah habis. Silakan hubungi admin via WhatsApp <a href="https://wa.me/6282181378658" target="_blank" rel="noopener noreferrer" class="font-bold text-brand underline underline-offset-2 hover:text-yellow-300 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white">0821-8137-8658</a> untuk membeli sesi baru agar mendapatkan akses check-in Personal Training.</p>
                 @endif
             </div>
         @else

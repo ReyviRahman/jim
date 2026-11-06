@@ -70,7 +70,9 @@ class MemberAttendanceTest extends TestCase
             ->test('pages::dashboard.member.absensi')
             ->assertSet('selectedMembershipId', null)
             ->assertSee('Tidak Ada Paket Aktif')
-            ->assertSeeText('Masa aktif membership Anda telah habis. Silakan hubungi admin untuk memperpanjang atau membeli paket membership baru agar dapat check-in kembali.')
+            ->assertSeeText('Masa aktif membership Anda telah habis. Silakan hubungi admin via WhatsApp')
+            ->assertSeeHtml('href="https://wa.me/6282181378658"')
+            ->assertSeeText('0821-8137-8658')
             ->assertSee('member-check-in-empty');
 
         $this->assertFalse($component->viewData('hasActivePackage'));
@@ -108,7 +110,9 @@ class MemberAttendanceTest extends TestCase
         Livewire::actingAs($member)
             ->test('pages::dashboard.member.absensi')
             ->assertSee('Tidak Ada Paket Aktif')
-            ->assertSeeText('Masa aktif membership Anda telah habis. Silakan hubungi admin untuk memperpanjang atau membeli paket membership baru agar dapat check-in kembali.')
+            ->assertSeeText('Masa aktif membership Anda telah habis. Silakan hubungi admin via WhatsApp')
+            ->assertSeeHtml('href="https://wa.me/6282181378658"')
+            ->assertSeeText('0821-8137-8658')
             ->assertSeeText('MEMBERSHIP')
             ->assertDontSee('Tidak Ada Sesi Aktif')
             ->assertDontSeeText('Anda belum memiliki sesi Personal Training atau sesi yang aktif telah habis.');
@@ -129,7 +133,9 @@ class MemberAttendanceTest extends TestCase
         Livewire::actingAs($member)
             ->test('pages::dashboard.member.absensi')
             ->assertSee('Tidak Ada Sesi Aktif')
-            ->assertSeeText('Anda belum memiliki sesi Personal Training atau sesi yang aktif telah habis. Silakan beli sesi baru untuk mendapatkan akses check-in Personal Training.')
+            ->assertSeeText('Anda belum memiliki sesi Personal Training atau sesi yang aktif telah habis. Silakan hubungi admin via WhatsApp')
+            ->assertSeeHtml('href="https://wa.me/6282181378658"')
+            ->assertSeeText('0821-8137-8658')
             ->assertSeeText('PERSONAL')
             ->assertSeeText('TRAINING')
             ->assertDontSee('Tidak Ada Paket Aktif');
