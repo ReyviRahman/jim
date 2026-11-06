@@ -12,7 +12,7 @@
 
         @livewireStyles
     </head>
-    <body @class(["member-home-page" => request()->routeIs("member.dashboard"), "member-pt-page" => request()->routeIs("member.jadwal-pt.*"), "member-attendance-page" => request()->routeIs("member.kehadiran.*")]) @if(request()->routeIs('member.kehadiran.*')) style="--attendance-background: url('{{ asset('member-attendance-gym-v2.png') }}')" @endif>
+    <body @class(["member-home-page" => request()->routeIs("member.dashboard"), "member-pt-page" => request()->routeIs("member.jadwal-pt.*"), "member-attendance-page" => request()->routeIs("member.kehadiran.*"), "dashboard-theme" => request()->routeIs("member.paket.checkout")]) @if(request()->routeIs('member.kehadiran.*')) style="--attendance-background: url('{{ asset('member-attendance-gym-v2.png') }}')" @endif>
         <livewire:dashboard.navbar />
         <aside id="top-bar-sidebar" class="fixed top-0 left-0 z-40 w-64 h-full -translate-x-full transition-transform duration-300 ease-in-out" aria-label="Sidebar" aria-hidden="true">
         <div class="gym-sidebar flex h-full flex-col overflow-y-auto [&>*]:shrink-0">

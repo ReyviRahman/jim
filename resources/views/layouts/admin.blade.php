@@ -13,13 +13,10 @@
         @livewireStyles
     </head>
     <body @class([
-        'dashboard-theme' => request()->routeIs(
-            'admin.absensi.index', 'admin.absensi-karyawan.index', 'admin.shift-absen.index',
-            'admin.packages.index', 'admin.akun.member.index', 'admin.akun.admin.index',
-            'admin.rentang-bonus.index', 'admin.beverages.index', 'admin.beverages.pos',
-            'admin.beverages.sales', 'admin.beverages.invoice', 'admin.riwayat.index',
-            'admin.penjualan.index', 'admin.operasional-pengeluaran.index', 'admin.pengeluaran.index',
-            'admin.membership.index', 'admin.membership.gabung', 'admin.membership.non-member',
+        'dashboard-theme' => ! request()->routeIs(
+            'admin.dashboard', 'admin.pt-berjalan.index', 'admin.pt-expired.index', 'admin.pt-booking.index',
+            'admin.rekap-bonus.*', 'admin.booking-jadwal.index', 'admin.sesi-pt.index',
+            'admin.pt-cicilan.index', 'admin.cicilan.index', 'admin.riwayat.detail',
         ),
         'bonus-recap-layout' => request()->routeIs('admin.rekap-bonus.index', 'admin.rekap-bonus.detail'),
         'admin-booking-layout' => request()->routeIs('admin.booking-jadwal.index'),
