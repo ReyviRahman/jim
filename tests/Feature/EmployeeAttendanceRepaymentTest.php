@@ -16,6 +16,69 @@ class EmployeeAttendanceRepaymentTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_repeated_earlier_shifts_pay_each_outstanding_day_without_reusing_minutes(): void
+    {
+        $this->actingAs(User::factory()->create(['role' => 'admin']));
+        $employee = User::factory()->create(['role' => 'pt', 'is_active' => true]);
+        $first = $this->attendance($employee, '2026-11-03', [
+            'check_in_time' => '2026-11-03 17:10:00', 'check_out_time' => '2026-11-03 22:14:00',
+        ]);
+        $second = $this->attendance($employee, '2026-11-05', [
+            'check_in_time' => '2026-11-05 17:08:00', 'check_out_time' => '2026-11-05 22:14:00',
+        ]);
+        $this->attendance($employee, '2026-11-06', [
+            'shift_code' => 'S', 'scheduled_start_at' => '2026-11-06 14:00:00',
+            'check_in_time' => '2026-11-06 13:58:00', 'check_out_time' => '2026-11-06 22:17:00',
+        ]);
+        $last = $this->attendance($employee, '2026-11-07', [
+            'shift_code' => 'S', 'scheduled_start_at' => '2026-11-07 14:00:00',
+            'check_in_time' => '2026-11-07 13:02:00',
+        ]);
+
+        $balances = $this->balances($employee);
+        $this->assertSame(0, $balances[$first->id]['remainingMinutes']);
+        $this->assertSame([
+            ['date' => '2026-11-06', 'minutes' => 60], ['date' => '2026-11-07', 'minutes' => 56],
+        ], $balances[$first->id]['shiftPayments']);
+        $this->assertSame(110, $balances[$second->id]['remainingMinutes']);
+        $this->assertSame([['date' => '2026-11-07', 'minutes' => 4]], $balances[$second->id]['shiftPayments']);
+
+        $page = Livewire::test('pages::dashboard.admin.absensi.index', ['employeesOnly' => true])
+            ->set('month', '2026-11')->call('openAttendanceCell', $employee->id, '2026-11-03')
+            ->assertSet('cellDetail.lateRepaid', true)->assertSee('SUDAH TERBAYARKAN')
+            ->assertSeeHtml('border-2 border-green-600')->assertSeeHtml('border-2 border-red-600')
+            ->call('openAttendanceCell', $employee->id, '2026-11-05')
+            ->assertSet('cellDetail.remainingLateDuration', '1 jam 50 menit')
+            ->assertSet('cellDetail.shiftPayments', [['date' => '07/11/2026', 'duration' => '4 menit']]);
+        $this->assertSame('1 jam 50 menit', $page->instance()->with()['lateDurations'][$employee->id]);
+
+        $last->delete();
+        $page->call('reloadAttendanceCell')->assertSet('cellDetail.remainingLateDuration', '1 jam 54 menit');
+        $this->assertSame('2 jam 50 menit', $page->instance()->with()['lateDurations'][$employee->id]);
+    }
+
+    public function test_each_debt_uses_its_own_shift_and_payment_time_is_not_counted_twice(): void
+    {
+        $employee = User::factory()->create(['role' => 'pt']);
+        $first = $this->attendance($employee, '2026-11-01', [
+            'check_in_time' => '2026-11-01 15:30:00',
+        ]);
+        $second = $this->attendance($employee, '2026-11-02', [
+            'shift_code' => 'M', 'scheduled_start_at' => '2026-11-02 16:00:00',
+            'check_in_time' => '2026-11-02 18:00:00',
+        ]);
+        $this->attendance($employee, '2026-11-03', [
+            'shift_code' => 'S', 'scheduled_start_at' => '2026-11-03 14:00:00',
+            'check_in_time' => '2026-11-03 14:00:00',
+        ]);
+
+        $balances = $this->balances($employee);
+        $this->assertSame(0, $balances[$first->id]['remainingMinutes']);
+        $this->assertSame([['date' => '2026-11-03', 'minutes' => 30]], $balances[$first->id]['shiftPayments']);
+        $this->assertSame(30, $balances[$second->id]['remainingMinutes']);
+        $this->assertSame([['date' => '2026-11-03', 'minutes' => 90]], $balances[$second->id]['shiftPayments']);
+    }
+
     public function test_same_shift_early_arrival_does_not_repay_previous_debt(): void
     {
         $this->actingAs(User::factory()->create(['role' => 'admin']));
@@ -180,10 +243,11 @@ class EmployeeAttendanceRepaymentTest extends TestCase
         $missing = $this->attendance($employee, '2026-11-02', [
             'shift_code' => 'S', 'scheduled_start_at' => null, 'check_in_time' => '2026-11-02 14:00:00',
         ]);
+        $this->assertSame(60, $this->balances($employee)[$debt->id]['remainingMinutes']);
         $this->attendance($employee, '2026-11-03', [
             'shift_code' => 'P', 'scheduled_start_at' => '2026-11-03 13:00:00', 'check_in_time' => '2026-11-03 13:00:00',
         ]);
-        $this->assertSame(60, $this->balances($employee)[$debt->id]['remainingMinutes']);
+        $this->assertSame(0, $this->balances($employee)[$debt->id]['remainingMinutes']);
         $missing->update(['scheduled_start_at' => '2026-11-02 14:00:00', 'check_in_time' => null]);
         $this->assertArrayNotHasKey($missing->id, $this->balances($employee));
     }

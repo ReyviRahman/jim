@@ -40,25 +40,25 @@ class EmployeeAttendanceRepayments
             ->sortBy([
                 fn (AttendanceEmployee $a, AttendanceEmployee $b): int => $this->attendanceDate($a) <=> $this->attendanceDate($b),
                 ['id', 'asc'],
-            ]);
+            ])->keyBy('id');
 
         $balances = [];
-        $previous = null;
         foreach ($records as $record) {
             $recordDate = $this->attendanceDate($record);
-            $credit = $this->shiftCreditMinutes($previous, $record);
-            foreach ($balances as &$balance) {
-                if ($credit === 0) {
-                    break;
-                }
+            $usedMinutes = 0;
+            foreach ($balances as $debtId => &$balance) {
                 if ($balance['date'] >= $recordDate || $balance['remainingMinutes'] === 0) {
                     continue;
                 }
 
+                $credit = max(0, $this->shiftCreditMinutes($records[$debtId], $record) - $usedMinutes);
+                if ($credit === 0) {
+                    continue;
+                }
                 $paid = min($credit, $balance['remainingMinutes']);
                 $balance['remainingMinutes'] -= $paid;
                 $balance['shiftPayments'][] = ['date' => $recordDate, 'minutes' => $paid];
-                $credit -= $paid;
+                $usedMinutes += $paid;
             }
             unset($balance);
 
@@ -73,7 +73,6 @@ class EmployeeAttendanceRepayments
                 'remainingMinutes' => max(0, $lateMinutes - $sameDayMinutes),
                 'shiftPayments' => [],
             ];
-            $previous = $record;
         }
 
         return $balances;
@@ -84,24 +83,24 @@ class EmployeeAttendanceRepayments
         return ($record->attendance_date ?? $record->check_in_time)->toDateString();
     }
 
-    private function shiftCreditMinutes(?AttendanceEmployee $previous, AttendanceEmployee $record): int
+    private function shiftCreditMinutes(AttendanceEmployee $debt, AttendanceEmployee $record): int
     {
-        if ($previous === null || $previous->scheduled_start_at === null || $record->scheduled_start_at === null
-            || $this->attendanceDate($previous) >= $this->attendanceDate($record)) {
+        if ($debt->scheduled_start_at === null || $record->scheduled_start_at === null
+            || $this->attendanceDate($debt) >= $this->attendanceDate($record)) {
             return 0;
         }
 
-        $previousShift = $previous->shift_code ?: $previous->shift_name;
+        $debtShift = $debt->shift_code ?: $debt->shift_name;
         $currentShift = $record->shift_code ?: $record->shift_name;
-        if (blank($previousShift) || blank($currentShift) || $previousShift === $currentShift) {
+        if (blank($debtShift) || blank($currentShift) || $debtShift === $currentShift) {
             return 0;
         }
 
         $currentStart = $record->scheduled_start_at->copy()->setTimezone(config('app.timezone'));
-        $previousStart = $previous->scheduled_start_at->copy()->setTimezone(config('app.timezone'));
-        $previousStartOnCurrentDate = $currentStart->copy()->setTimeFrom($previousStart);
+        $debtStart = $debt->scheduled_start_at->copy()->setTimezone(config('app.timezone'));
+        $debtStartOnCurrentDate = $currentStart->copy()->setTimeFrom($debtStart);
         $creditStart = $record->check_in_time->greaterThan($currentStart) ? $record->check_in_time : $currentStart;
 
-        return max(0, (int) $creditStart->diffInMinutes($previousStartOnCurrentDate));
+        return max(0, (int) $creditStart->diffInMinutes($debtStartOnCurrentDate));
     }
 }
