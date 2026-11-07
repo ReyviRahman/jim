@@ -11,7 +11,7 @@ use Illuminate\Support\Collection;
 class EmployeeAttendanceRepayments
 {
     /**
-     * @return array<int, array{date: string, lateMinutes: int, sameDayMinutes: int, remainingMinutes: int, earlyArrivalPayments: list<array{date: string, minutes: int}>}>
+     * @return array<int, array{date: string, lateMinutes: int, sameDayMinutes: int, remainingMinutes: int, shiftPayments: list<array{date: string, minutes: int}>}>
      */
     public function forMonth(User $employee, Carbon $date): array
     {
@@ -31,7 +31,7 @@ class EmployeeAttendanceRepayments
 
     /**
      * @param  Collection<int, AttendanceEmployee>  $records  Absensi satu karyawan dalam satu bulan.
-     * @return array<int, array{date: string, lateMinutes: int, sameDayMinutes: int, remainingMinutes: int, earlyArrivalPayments: list<array{date: string, minutes: int}>}>
+     * @return array<int, array{date: string, lateMinutes: int, sameDayMinutes: int, remainingMinutes: int, shiftPayments: list<array{date: string, minutes: int}>}>
      */
     public function calculate(Collection $records): array
     {
@@ -43,11 +43,10 @@ class EmployeeAttendanceRepayments
             ]);
 
         $balances = [];
+        $previous = null;
         foreach ($records as $record) {
             $recordDate = $this->attendanceDate($record);
-            $credit = $record->scheduled_start_at === null
-                ? 0
-                : max(0, (int) $record->check_in_time->diffInMinutes($record->scheduled_start_at));
+            $credit = $this->shiftCreditMinutes($previous, $record);
             foreach ($balances as &$balance) {
                 if ($credit === 0) {
                     break;
@@ -58,7 +57,7 @@ class EmployeeAttendanceRepayments
 
                 $paid = min($credit, $balance['remainingMinutes']);
                 $balance['remainingMinutes'] -= $paid;
-                $balance['earlyArrivalPayments'][] = ['date' => $recordDate, 'minutes' => $paid];
+                $balance['shiftPayments'][] = ['date' => $recordDate, 'minutes' => $paid];
                 $credit -= $paid;
             }
             unset($balance);
@@ -72,8 +71,9 @@ class EmployeeAttendanceRepayments
                 'lateMinutes' => $lateMinutes,
                 'sameDayMinutes' => $sameDayMinutes,
                 'remainingMinutes' => max(0, $lateMinutes - $sameDayMinutes),
-                'earlyArrivalPayments' => [],
+                'shiftPayments' => [],
             ];
+            $previous = $record;
         }
 
         return $balances;
@@ -82,5 +82,26 @@ class EmployeeAttendanceRepayments
     private function attendanceDate(AttendanceEmployee $record): string
     {
         return ($record->attendance_date ?? $record->check_in_time)->toDateString();
+    }
+
+    private function shiftCreditMinutes(?AttendanceEmployee $previous, AttendanceEmployee $record): int
+    {
+        if ($previous === null || $previous->scheduled_start_at === null || $record->scheduled_start_at === null
+            || $this->attendanceDate($previous) >= $this->attendanceDate($record)) {
+            return 0;
+        }
+
+        $previousShift = $previous->shift_code ?: $previous->shift_name;
+        $currentShift = $record->shift_code ?: $record->shift_name;
+        if (blank($previousShift) || blank($currentShift) || $previousShift === $currentShift) {
+            return 0;
+        }
+
+        $currentStart = $record->scheduled_start_at->copy()->setTimezone(config('app.timezone'));
+        $previousStart = $previous->scheduled_start_at->copy()->setTimezone(config('app.timezone'));
+        $previousStartOnCurrentDate = $currentStart->copy()->setTimeFrom($previousStart);
+        $creditStart = $record->check_in_time->greaterThan($currentStart) ? $record->check_in_time : $currentStart;
+
+        return max(0, (int) $creditStart->diffInMinutes($previousStartOnCurrentDate));
     }
 }

@@ -68,10 +68,10 @@ trait EmployeeAttendanceCells
             'lateDuration' => $this->formatAttendanceMinutes($lateMinutes),
             'replacementDuration' => $this->formatAttendanceMinutes($replacementMinutes),
             'sameDayPaidDuration' => $this->formatAttendanceMinutes(min($lateMinutes, $replacementMinutes)),
-            'earlyArrivalPayments' => array_map(fn (array $payment): array => [
+            'shiftPayments' => array_map(fn (array $payment): array => [
                 'date' => Carbon::parse($payment['date'])->format('d/m/Y'),
                 'duration' => $this->formatAttendanceMinutes($payment['minutes']),
-            ], $repayment['earlyArrivalPayments'] ?? []),
+            ], $repayment['shiftPayments'] ?? []),
             'remainingLateDuration' => $this->formatAttendanceMinutes($remainingMinutes),
             'lateRepaid' => $lateMinutes > 0 && $remainingMinutes === 0,
             'hasCheckOut' => $record?->check_out_time !== null,

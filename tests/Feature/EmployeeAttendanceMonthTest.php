@@ -46,8 +46,8 @@ class EmployeeAttendanceMonthTest extends TestCase
         ]);
 
         $component = Livewire::test('pages::dashboard.admin.absensi.index', ['employeesOnly' => true])
-            ->set('month', '2026-09')->assertSee('Total Jam Telat')->assertSee('1 jam 40 menit');
-        $this->assertSame('1 jam 40 menit', $component->instance()->with()['lateDurations'][$employee->id]);
+            ->set('month', '2026-09')->assertSee('Total Jam Telat')->assertSee('1 jam 45 menit');
+        $this->assertSame('1 jam 45 menit', $component->instance()->with()['lateDurations'][$employee->id]);
         $this->assertSame('0 menit', $component->instance()->with()['lateDurations'][$other->id]);
         $component->set('month', '2026-08');
         $this->assertSame('2 jam', $component->instance()->with()['lateDurations'][$employee->id]);
