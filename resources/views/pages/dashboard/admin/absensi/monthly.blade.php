@@ -8,11 +8,13 @@
             <h1 class="text-2xl font-bold tracking-tight">Absensi karyawan</h1>
             <p class="mt-1 text-sm text-gray-500">Rekap scan masuk dan keluar setiap bulan.</p>
         </div>
-        <div class="w-full xl:w-80">
-            <label for="scanner_input" class="mb-1 block text-xs font-semibold">Scanner QR</label>
-            <input id="scanner_input" type="text" wire:model="scannedCode" wire:keydown.enter="processScan" autocomplete="off"
-                placeholder="Hasil QR muncul disini" class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm focus:ring-2 focus:ring-gray-600">
-        </div>
+        @if (auth()->user()->role !== 'kasir_gym')
+            <div class="w-full xl:w-80">
+                <label for="scanner_input" class="mb-1 block text-xs font-semibold">Scanner QR</label>
+                <input id="scanner_input" type="text" wire:model="scannedCode" wire:keydown.enter="processScan" autocomplete="off"
+                    placeholder="Hasil QR muncul disini" class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm focus:ring-2 focus:ring-gray-600">
+            </div>
+        @endif
     </div>
     @foreach (['success' => 'bg-green-50 text-green-800', 'error' => 'bg-red-50 text-red-800'] as $status => $classes)
         @if (session()->has($status))
@@ -74,13 +76,16 @@
                                 <span class="mt-1 block text-[10px] font-medium">{{ $day->translatedFormat('D') }}</span>
                             </th>
                         @endforeach
-                        <th scope="colgroup" colspan="4" class="sticky right-0 z-40 border-b border-l-2 border-gray-300 bg-gray-100 px-3 py-2 font-bold">Total Masuk</th>
+                        <th scope="colgroup" colspan="{{ $showAttendanceCounts ? 5 : 1 }}" class="sticky right-0 z-40 border-b border-l-2 border-gray-300 bg-gray-100 px-3 py-2 font-bold">Total Masuk</th>
                     </tr>
                     <tr>
-                        <th scope="col" class="sticky right-[calc(var(--total-width)*3)] z-40 w-[var(--total-width)] min-w-[var(--total-width)] max-w-[var(--total-width)] border-b border-l-2 border-r border-gray-300 bg-yellow-50 px-1 py-2 text-[10px] sm:text-xs">Hadir</th>
-                        <th scope="col" class="sticky right-[calc(var(--total-width)*2)] z-40 w-[var(--total-width)] min-w-[var(--total-width)] max-w-[var(--total-width)] border-b border-r border-gray-200 bg-red-50 px-1 py-2 text-[10px] sm:text-xs">Off</th>
-                        <th scope="col" class="sticky right-[var(--total-width)] z-40 w-[var(--total-width)] min-w-[var(--total-width)] max-w-[var(--total-width)] border-b border-r border-gray-200 bg-purple-50 px-1 py-2 text-[9px] sm:text-[11px]">Izin/Sakit</th>
-                        <th scope="col" class="sticky right-0 z-40 w-[var(--total-width)] min-w-[var(--total-width)] max-w-[var(--total-width)] border-b border-gray-200 bg-gray-100 px-1 py-2 text-[10px] sm:text-xs" title="Hadir + Off + Izin + Sakit">All</th>
+                        <th scope="col" class="sticky {{ $showAttendanceCounts ? 'right-[calc(var(--total-width)*4)]' : 'right-0' }} z-40 w-[var(--total-width)] min-w-[var(--total-width)] max-w-[var(--total-width)] border-b border-l-2 border-r border-gray-300 bg-red-50 px-1 py-2 text-[10px] sm:text-xs">Total Jam Telat</th>
+                        @if ($showAttendanceCounts)
+                            <th scope="col" class="sticky right-[calc(var(--total-width)*3)] z-40 w-[var(--total-width)] min-w-[var(--total-width)] max-w-[var(--total-width)] border-b border-l-2 border-r border-gray-300 bg-yellow-50 px-1 py-2 text-[10px] sm:text-xs">Hadir</th>
+                            <th scope="col" class="sticky right-[calc(var(--total-width)*2)] z-40 w-[var(--total-width)] min-w-[var(--total-width)] max-w-[var(--total-width)] border-b border-r border-gray-200 bg-red-50 px-1 py-2 text-[10px] sm:text-xs">Off</th>
+                            <th scope="col" class="sticky right-[var(--total-width)] z-40 w-[var(--total-width)] min-w-[var(--total-width)] max-w-[var(--total-width)] border-b border-r border-gray-200 bg-purple-50 px-1 py-2 text-[9px] sm:text-[11px]">Izin/Sakit</th>
+                            <th scope="col" class="sticky right-0 z-40 w-[var(--total-width)] min-w-[var(--total-width)] max-w-[var(--total-width)] border-b border-gray-200 bg-gray-100 px-1 py-2 text-[10px] sm:text-xs" title="Hadir + Off + Izin + Sakit">All</th>
+                        @endif
                     </tr>
                 </thead>
                 <tbody>
@@ -91,7 +96,7 @@
                         <tr wire:key="group-{{ $role }}">
                             <th colspan="2" scope="rowgroup" class="sticky left-0 z-20 border-b border-r border-gray-200 bg-gray-100 px-3 py-2 text-left font-bold">{{ $roleLabels[$role] ?? \Illuminate\Support\Str::headline($role) }}</th>
                             <td colspan="{{ $days->count() }}" class="border-b border-gray-200 bg-gray-100"></td>
-                            <td colspan="4" class="sticky right-0 z-20 border-b border-l-2 border-gray-300 bg-gray-100"></td>
+                            <td colspan="{{ $showAttendanceCounts ? 5 : 1 }}" class="sticky right-0 z-20 border-b border-l-2 border-gray-300 bg-gray-100"></td>
                         </tr>
                         @foreach ($employees as $employee)
                             <tr wire:key="employee-{{ $employee->id }}">
@@ -105,6 +110,7 @@
                                         @if ($records->isNotEmpty())
                                             @php
                                                 $record = $records->first();
+                                                $lateRepaid = $record->isLate() && ($repayments[$employee->id][$record->id]['remainingMinutes'] ?? null) === 0;
                                                 $pending = $record->status === \App\EmployeeAttendanceStatus::Hadir && $record->check_in_time === null;
                                                 $label = match ($record->status) {
                                                     \App\EmployeeAttendanceStatus::Izin => 'IZIN',
@@ -124,7 +130,7 @@
                                             @endphp
                                             <button type="button" wire:click="openAttendanceCell({{ $employee->id }}, '{{ $day->toDateString() }}')" title="{{ $pending ? 'Belum masuk' : $record->status->label() }}" aria-label="Detail {{ $employee->name }}, {{ $day->translatedFormat('d F Y') }}{{ $pending ? ', Belum masuk' : '' }}"
                                                 @disabled($selectingAttendance)
-                                                class="min-h-10 w-full rounded px-1 font-bold focus-visible:outline-2 focus-visible:outline-gray-800 {{ $color }} {{ $record->isLate() ? 'border-2 border-red-600' : '' }}">
+                                                class="min-h-10 w-full rounded px-1 font-bold focus-visible:outline-2 focus-visible:outline-gray-800 {{ $color }} {{ $record->isLate() ? ($lateRepaid ? 'border-2 border-green-600' : 'border-2 border-red-600') : '' }}">
                                                 {{ $label }}
                                             </button>
                                         @else
@@ -144,14 +150,17 @@
                                         @endif
                                     </td>
                                 @endforeach
-                                <td class="sticky right-[calc(var(--total-width)*3)] z-20 border-b border-l-2 border-r border-gray-300 bg-yellow-50 px-1 py-3 font-semibold tabular-nums">{{ $totals[$employee->id]['hadir'] }}</td>
-                                <td class="sticky right-[calc(var(--total-width)*2)] z-20 border-b border-r border-gray-200 bg-red-50 px-1 py-3 font-semibold tabular-nums">{{ $totals[$employee->id]['off'] }}</td>
-                                <td class="sticky right-[var(--total-width)] z-20 border-b border-r border-gray-200 bg-purple-50 px-1 py-3 font-semibold tabular-nums">{{ $totals[$employee->id]['izin'] }}</td>
-                                <td class="sticky right-0 z-20 border-b border-gray-200 bg-gray-100 px-1 py-3 font-bold tabular-nums">{{ $totals[$employee->id]['all'] }}</td>
+                                <td class="sticky {{ $showAttendanceCounts ? 'right-[calc(var(--total-width)*4)]' : 'right-0' }} z-20 border-b border-l-2 border-r border-gray-300 bg-red-50 px-1 py-3 font-semibold tabular-nums">{{ $lateDurations[$employee->id] }}</td>
+                                @if ($showAttendanceCounts)
+                                    <td class="sticky right-[calc(var(--total-width)*3)] z-20 border-b border-l-2 border-r border-gray-300 bg-yellow-50 px-1 py-3 font-semibold tabular-nums">{{ $totals[$employee->id]['hadir'] }}</td>
+                                    <td class="sticky right-[calc(var(--total-width)*2)] z-20 border-b border-r border-gray-200 bg-red-50 px-1 py-3 font-semibold tabular-nums">{{ $totals[$employee->id]['off'] }}</td>
+                                    <td class="sticky right-[var(--total-width)] z-20 border-b border-r border-gray-200 bg-purple-50 px-1 py-3 font-semibold tabular-nums">{{ $totals[$employee->id]['izin'] }}</td>
+                                    <td class="sticky right-0 z-20 border-b border-gray-200 bg-gray-100 px-1 py-3 font-bold tabular-nums">{{ $totals[$employee->id]['all'] }}</td>
+                                @endif
                             </tr>
                         @endforeach
                     @empty
-                        <tr><td colspan="{{ $days->count() + 6 }}" class="p-10 text-left text-gray-500">Tidak ada karyawan yang cocok. Coba nama lain.</td></tr>
+                        <tr><td colspan="{{ $days->count() + ($showAttendanceCounts ? 7 : 3) }}" class="p-10 text-left text-gray-500">Tidak ada karyawan yang cocok. Coba nama lain.</td></tr>
                     @endforelse
                 </tbody>
             </table>

@@ -13,6 +13,48 @@ class EmployeeAttendanceMonthTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_total_late_duration_is_per_employee_and_selected_month(): void
+    {
+        $this->actingAs(User::factory()->create(['role' => 'admin']));
+        $employee = User::factory()->create(['role' => 'pt', 'is_active' => true]);
+        $other = User::factory()->create(['role' => 'pt', 'is_active' => true]);
+
+        foreach ([65, 30, 10, 9, -5, null] as $index => $minutes) {
+            $start = now()->setDate(2026, 9, $index + 1)->setTime(8, 0);
+            AttendanceEmployee::factory()->create([
+                'user_id' => $employee->id,
+                'attendance_date' => $start->toDateString(),
+                'scheduled_start_at' => $start,
+                'check_in_time' => $minutes === null ? null : $start->copy()->addMinutes($minutes),
+                'check_out_time' => null,
+            ]);
+        }
+        AttendanceEmployee::factory()->create([
+            'user_id' => $employee->id, 'attendance_date' => '2026-08-01',
+            'scheduled_start_at' => '2026-08-01 08:00:00', 'check_in_time' => '2026-08-01 10:00:00',
+        ]);
+        foreach (['izin', 'sakit', 'off'] as $index => $status) {
+            AttendanceEmployee::factory()->create([
+                'user_id' => $employee->id, 'attendance_date' => '2026-09-'.(10 + $index),
+                'status' => $status, 'scheduled_start_at' => '2026-09-10 08:00:00',
+                'check_in_time' => '2026-09-10 10:00:00',
+            ]);
+        }
+        AttendanceEmployee::factory()->create([
+            'user_id' => $other->id, 'attendance_date' => '2026-09-01',
+            'scheduled_start_at' => null, 'check_in_time' => '2026-09-01 10:00:00',
+        ]);
+
+        $component = Livewire::test('pages::dashboard.admin.absensi.index', ['employeesOnly' => true])
+            ->set('month', '2026-09')->assertSee('Total Jam Telat')->assertSee('1 jam 40 menit');
+        $this->assertSame('1 jam 40 menit', $component->instance()->with()['lateDurations'][$employee->id]);
+        $this->assertSame('0 menit', $component->instance()->with()['lateDurations'][$other->id]);
+        $component->set('month', '2026-08');
+        $this->assertSame('2 jam', $component->instance()->with()['lateDurations'][$employee->id]);
+        $component->set('month', '2026-07');
+        $this->assertSame('0 menit', $component->instance()->with()['lateDurations'][$employee->id]);
+    }
+
     public function test_late_repayment_uses_checkout_after_the_historical_shift_end(): void
     {
         $this->actingAs(User::factory()->create(['role' => 'admin']));

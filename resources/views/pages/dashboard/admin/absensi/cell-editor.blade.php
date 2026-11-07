@@ -104,6 +104,8 @@
                     <dd class="text-red-700">
                         @if ($cellDetail['lateRepaid'])
                             SUDAH TERBAYARKAN
+                        @elseif ($cellDetail['earlyArrivalPayments'] !== [])
+                            BELUM TERBAYARKAN — sisa {{ $cellDetail['remainingLateDuration'] }}
                         @elseif (! $cellDetail['hasCheckOut'])
                             BELUM TERBAYARKAN — belum ada jam keluar.
                         @elseif (! $cellDetail['hasScheduledEnd'])
@@ -112,6 +114,13 @@
                             BELUM TERBAYARKAN — sisa {{ $cellDetail['remainingLateDuration'] }}
                         @endif
                     </dd>
+                    <dt class="text-gray-500">Pulang lewat jadwal</dt>
+                    <dd>{{ $cellDetail['sameDayPaidDuration'] }} dibayar pada hari yang sama</dd>
+                    @foreach ($cellDetail['earlyArrivalPayments'] as $payment)
+                        <dt wire:key="repayment-date-{{ $loop->index }}" class="text-gray-500">Masuk lebih awal {{ $payment['date'] }}</dt>
+                        <dd wire:key="repayment-duration-{{ $loop->index }}">{{ $payment['duration'] }}</dd>
+                    @endforeach
+                    <dt class="text-gray-500">Sisa telat</dt><dd>{{ $cellDetail['remainingLateDuration'] }}</dd>
                 @endif
                 @if (filled($cellDetail['notes']))
                     <dt class="text-gray-500">Catatan</dt><dd class="whitespace-pre-wrap break-words">{{ $cellDetail['notes'] }}</dd>

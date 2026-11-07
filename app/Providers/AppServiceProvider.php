@@ -29,7 +29,7 @@ class AppServiceProvider extends ServiceProvider
     {
         Model::preventLazyLoading();
 
-        Gate::define('view-employee-attendance', fn (User $user): bool => $user->role === 'admin' || $user->isHeadCoach());
+        Gate::define('view-employee-attendance', fn (User $user): bool => in_array($user->role, ['admin', 'kasir_gym'], true) || $user->isHeadCoach());
 
         Gate::define('impersonate', function (User $admin, User $target): bool {
             return $admin->role === 'admin'

@@ -134,19 +134,31 @@ class HeadCoachAccessTest extends TestCase
             ->call('beginBulkAttendance')->assertForbidden();
     }
 
-    public function test_gym_cashier_cannot_access_employee_attendance_or_see_its_navigation(): void
+    public function test_gym_cashier_can_view_employee_attendance_but_only_late_totals_and_cannot_mutate(): void
     {
         $cashier = User::factory()->create(['role' => 'kasir_gym']);
 
         $this->actingAs($cashier)->get(route('admin.absensi.index'))
             ->assertOk()
-            ->assertDontSeeHtml('href="'.route('admin.absensi-karyawan.index').'"');
+            ->assertSeeHtml('href="'.route('admin.absensi-karyawan.index').'"');
 
-        $this->get(route('admin.absensi-karyawan.index'))->assertForbidden();
+        $this->get(route('admin.absensi-karyawan.index'))->assertOk()->assertSee('Total Jam Telat');
 
-        Livewire::test('pages::dashboard.admin.absensi.index', ['employeesOnly' => true])
-            ->call('openAttendanceCell', $cashier->id, today()->toDateString())
-            ->assertForbidden();
+        AttendanceEmployee::factory()->create(['user_id' => $cashier->id]);
+        $page = Livewire::test('pages::dashboard.admin.absensi.index', ['employeesOnly' => true])
+            ->assertSee('Total Jam Telat')->assertDontSee('Scanner QR')->assertDontSee('Pilih beberapa sel');
+        $this->assertFalse($page->instance()->with()['showAttendanceCounts']);
+        $this->assertDoesNotMatchRegularExpression('/<th\\b[^>]*>(Hadir|Off|Izin\/Sakit|All)<\/th>/', $page->html());
+        $this->assertDoesNotMatchRegularExpression('/<dt\\b[^>]*>(Hadir|Off|Izin\/Sakit|All)<\/dt>/', $page->html());
+        $page->call('openAttendanceCell', $cashier->id, today()->toDateString())
+            ->assertSee($cashier->name)->assertDontSee('Simpan absensi')->assertDontSee('>Edit<', false)->assertDontSee('>Hapus<', false);
+
+        foreach (['editAttendanceCell', 'saveAttendanceCell', 'confirmDeleteAttendanceCell', 'deleteAttendanceCell', 'beginBulkAttendance', 'saveBulkAttendance', 'processScan'] as $action) {
+            Livewire::test('pages::dashboard.admin.absensi.index', ['employeesOnly' => true])
+                ->call($action)->assertForbidden();
+        }
+        $this->assertDatabaseCount('attendance_employee', 1);
+
     }
 
     public function test_admin_can_access_employee_attendance_and_see_its_navigation(): void

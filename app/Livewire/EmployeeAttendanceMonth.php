@@ -2,6 +2,7 @@
 
 namespace App\Livewire;
 
+use App\EmployeeAttendanceRepayments;
 use App\EmployeeAttendanceStatus;
 use App\Models\Shift;
 use App\Models\User;
@@ -84,12 +85,23 @@ trait EmployeeAttendanceMonth
             ]];
         });
 
+        $repayments = $employees->mapWithKeys(fn (User $user): array => [
+            $user->id => app(EmployeeAttendanceRepayments::class)->calculate($user->employeeAttendances),
+        ]);
+
         return [
             'monthLabel' => $start->locale('id')->translatedFormat('F Y'),
             'days' => $days,
             'employeeGroups' => $employees->groupBy('role'),
             'cells' => $cells,
             'totals' => $totals,
+            'repayments' => $repayments,
+            'showAttendanceCounts' => auth()->user()->role !== 'kasir_gym',
+            'lateDurations' => $employees->mapWithKeys(fn (User $user): array => [
+                $user->id => $this->formatAttendanceMinutes((int) collect(
+                    $repayments[$user->id]
+                )->sum('remainingMinutes')),
+            ]),
             'roleLabels' => Shift::ROLE_LABELS + ['head_coach' => 'Head Coach'],
             'legend' => $employees->flatMap->employeeAttendances->filter(fn ($row) => $row->status === EmployeeAttendanceStatus::Hadir)->unique(fn ($row) => $row->shift_code.'|'.$row->shift_name),
             'employeeCount' => $employees->count(),

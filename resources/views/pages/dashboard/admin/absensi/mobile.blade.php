@@ -7,12 +7,18 @@
                     <h4 class="wrap-anywhere text-base font-bold">{{ $employee->name }}</h4>
                     <p class="mt-1 wrap-anywhere text-sm text-gray-500">Shift: {{ $employee->assignedShift?->code ?: 'Belum diatur' }}</p>
                     <dl class="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                        @if ($showAttendanceCounts)
                         @foreach (['hadir' => 'Hadir', 'off' => 'Off', 'izin' => 'Izin/Sakit', 'all' => 'All'] as $key => $label)
                             <div wire:key="mobile-total-{{ $employee->id }}-{{ $key }}" class="rounded-lg bg-gray-50 px-3 py-2">
                                 <dt class="text-xs text-gray-500">{{ $label }}</dt>
                                 <dd class="text-lg font-bold tabular-nums">{{ $totals[$employee->id][$key] }}</dd>
                             </div>
                         @endforeach
+                        @endif
+                        <div class="col-span-2 rounded-lg bg-red-50 px-3 py-2">
+                            <dt class="text-xs text-gray-500">Total Jam Telat</dt>
+                            <dd class="text-lg font-bold tabular-nums">{{ $lateDurations[$employee->id] }}</dd>
+                        </div>
                     </dl>
                     <div id="mobile-calendar-{{ $employee->id }}" class="mt-4">
                         <p class="mb-3 text-sm font-semibold">{{ $monthLabel }}</p>
@@ -26,6 +32,7 @@
                             @foreach ($days as $day)
                                 @php
                                     $record = $cells[$employee->id]->get($day->toDateString(), collect())->first();
+                                    $lateRepaid = $record?->isLate() && ($repayments[$employee->id][$record->id]['remainingMinutes'] ?? null) === 0;
                                     $pending = $record?->status === \App\EmployeeAttendanceStatus::Hadir && $record->check_in_time === null;
                                     $label = match ($record?->status) {
                                         \App\EmployeeAttendanceStatus::Izin => 'IZIN',
@@ -57,7 +64,7 @@
                                     @if ($canSelect) aria-pressed="{{ $selected ? 'true' : 'false' }}" @endif
                                     @if ($day->isToday()) aria-current="date" @endif
                                     title="{{ $description }}{{ $record?->isLate() ? ', Terlambat' : '' }}"
-                                    @class(['flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-md border px-0.5 py-1 focus-visible:outline-2 focus-visible:outline-gray-800 disabled:cursor-not-allowed', $color, 'border-red-600 border-2' => $record?->isLate(), 'border-dashed border-gray-400' => $pending, 'border-gray-200' => ! $pending && ! $record?->isLate(), 'ring-2 ring-inset ring-gray-700' => $selected])>
+                                    @class(['flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-md border px-0.5 py-1 focus-visible:outline-2 focus-visible:outline-gray-800 disabled:cursor-not-allowed', $color, 'border-green-600 border-2' => $lateRepaid, 'border-red-600 border-2' => $record?->isLate() && ! $lateRepaid, 'border-dashed border-gray-400' => $pending, 'border-gray-200' => ! $pending && ! $record?->isLate(), 'ring-2 ring-inset ring-gray-700' => $selected])>
                                     <span class="text-sm font-semibold {{ $day->isSunday() ? 'text-red-700' : '' }} {{ $day->isToday() ? 'underline decoration-2 underline-offset-2' : '' }}">{{ $day->day }}</span>
                                     <span class="max-w-full break-all text-[9px] font-bold leading-tight sm:text-xs">{{ $selected ? '✓' : $label }}</span>
                                 </button>

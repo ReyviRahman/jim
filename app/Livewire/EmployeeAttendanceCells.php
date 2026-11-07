@@ -3,6 +3,7 @@
 namespace App\Livewire;
 
 use App\EmployeeAttendanceEditor;
+use App\EmployeeAttendanceRepayments;
 use App\EmployeeAttendanceStatus;
 use App\Models\Shift;
 use App\Models\User;
@@ -44,10 +45,11 @@ trait EmployeeAttendanceCells
         Validator::make(['date' => $date], ['date' => ['required', 'date_format:Y-m-d']])->validate();
         $employee = User::query()->where('role', '!=', 'member')->findOrFail($employeeId);
         $record = $employee->employeeAttendances()->where('attendance_date', $date)->first();
-        $lateMinutes = $record?->isLate() ? (int) $record->scheduled_start_at->diffInMinutes($record->check_in_time) : 0;
-        $replacementMinutes = $record?->check_out_time !== null && $record?->scheduled_end_at !== null
-            ? max(0, (int) $record->scheduled_end_at->diffInMinutes($record->check_out_time))
-            : 0;
+        $repayment = $record === null ? null : (app(EmployeeAttendanceRepayments::class)
+            ->forMonth($employee, Carbon::parse($date, config('app.timezone')))[$record->id] ?? null);
+        $lateMinutes = $repayment['lateMinutes'] ?? 0;
+        $replacementMinutes = $repayment['sameDayMinutes'] ?? 0;
+        $remainingMinutes = $repayment['remainingMinutes'] ?? 0;
         $this->resetValidation();
         $this->cellEmployeeId = $employee->id;
         $this->cellDate = $date;
@@ -65,8 +67,13 @@ trait EmployeeAttendanceCells
             'isLate' => $record?->isLate() ?? false,
             'lateDuration' => $this->formatAttendanceMinutes($lateMinutes),
             'replacementDuration' => $this->formatAttendanceMinutes($replacementMinutes),
-            'remainingLateDuration' => $this->formatAttendanceMinutes(max(0, $lateMinutes - $replacementMinutes)),
-            'lateRepaid' => $lateMinutes > 0 && $replacementMinutes >= $lateMinutes,
+            'sameDayPaidDuration' => $this->formatAttendanceMinutes(min($lateMinutes, $replacementMinutes)),
+            'earlyArrivalPayments' => array_map(fn (array $payment): array => [
+                'date' => Carbon::parse($payment['date'])->format('d/m/Y'),
+                'duration' => $this->formatAttendanceMinutes($payment['minutes']),
+            ], $repayment['earlyArrivalPayments'] ?? []),
+            'remainingLateDuration' => $this->formatAttendanceMinutes($remainingMinutes),
+            'lateRepaid' => $lateMinutes > 0 && $remainingMinutes === 0,
             'hasCheckOut' => $record?->check_out_time !== null,
             'hasScheduledEnd' => $record?->scheduled_end_at !== null,
             'hasSnapshot' => $record?->status === EmployeeAttendanceStatus::Hadir,

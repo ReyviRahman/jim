@@ -38,6 +38,8 @@ new #[Layout('layouts::admin')] class extends Component
 
 public function processScan()
     {
+        abort_if($this->employeesOnly && auth()->user()?->role === 'kasir_gym', 403);
+
         $data = json_decode($this->scannedCode, true);
 
         if (!$data || !isset($data['user_id'])) {
