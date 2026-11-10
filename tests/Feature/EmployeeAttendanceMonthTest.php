@@ -55,7 +55,7 @@ class EmployeeAttendanceMonthTest extends TestCase
         $this->assertSame('0 menit', $component->instance()->with()['lateDurations'][$employee->id]);
     }
 
-    public function test_late_repayment_uses_checkout_after_the_historical_shift_end(): void
+    public function test_checkout_never_repays_lateness_even_after_the_historical_shift_end(): void
     {
         $this->actingAs(User::factory()->create(['role' => 'admin']));
         $employee = User::factory()->create(['role' => 'pt', 'is_active' => true]);
@@ -68,19 +68,25 @@ class EmployeeAttendanceMonthTest extends TestCase
         ]);
 
         foreach ([
-            [null, false, 'BELUM TERBAYARKAN — belum ada jam keluar.', '0 menit'],
-            ['2026-09-01 15:30:00', false, 'BELUM TERBAYARKAN — sisa 1 jam 5 menit', '0 menit'],
-            ['2026-09-01 16:00:00', false, 'BELUM TERBAYARKAN — sisa 1 jam 5 menit', '0 menit'],
-            ['2026-09-01 16:30:00', false, 'BELUM TERBAYARKAN — sisa 35 menit', '30 menit'],
-            ['2026-09-01 17:05:00', true, 'SUDAH TERBAYARKAN', '1 jam 5 menit'],
-            ['2026-09-01 17:30:00', true, 'SUDAH TERBAYARKAN', '1 jam 30 menit'],
-        ] as [$checkOut, $repaid, $message, $duration]) {
+            null,
+            '2026-09-01 15:30:00',
+            '2026-09-01 16:00:00',
+            '2026-09-01 16:30:00',
+            '2026-09-01 17:05:00',
+            '2026-09-01 17:30:00',
+        ] as $checkOut) {
             $record->update(['check_out_time' => $checkOut]);
-            Livewire::test('pages::dashboard.admin.absensi.index', ['employeesOnly' => true])
+            $page = Livewire::test('pages::dashboard.admin.absensi.index', ['employeesOnly' => true])
+                ->set('month', '2026-09')
                 ->call('openAttendanceCell', $employee->id, '2026-09-01')
-                ->assertSet('cellDetail.lateRepaid', $repaid)
-                ->assertSet('cellDetail.replacementDuration', $duration)
-                ->assertSee($message);
+                ->assertSet('cellDetail.lateRepaid', false)
+                ->assertSet('cellDetail.remainingLateDuration', '1 jam 5 menit')
+                ->assertSee('BELUM TERBAYARKAN — sisa 1 jam 5 menit')
+                ->assertSeeHtml('border-2 border-red-600')->assertDontSeeHtml('border-green-600')
+                ->assertDontSee('Pulang lewat jadwal')->assertDontSee('dibayar pada hari yang sama')
+                ->assertDontSee('belum ada jam keluar')->assertDontSee('Belum dapat dihitung');
+            $this->assertSame('1 jam 5 menit', $page->instance()->with()['lateDurations'][$employee->id]);
+            $this->assertSame($checkOut === null ? '—' : substr($checkOut, 11, 5).' tgl: 01/09/2026', $page->get('cellDetail')['out']);
         }
 
         $record->update([
@@ -91,13 +97,13 @@ class EmployeeAttendanceMonthTest extends TestCase
         ]);
         Livewire::test('pages::dashboard.admin.absensi.index', ['employeesOnly' => true])
             ->call('openAttendanceCell', $employee->id, '2026-09-01')
-            ->assertSet('cellDetail.lateRepaid', true)->assertSee('SUDAH TERBAYARKAN');
+            ->assertSet('cellDetail.lateRepaid', false)->assertSet('cellDetail.remainingLateDuration', '1 jam 5 menit');
 
         $record->update(['scheduled_end_at' => null]);
         Livewire::test('pages::dashboard.admin.absensi.index', ['employeesOnly' => true])
             ->call('openAttendanceCell', $employee->id, '2026-09-01')
             ->assertSet('cellDetail.lateRepaid', false)
-            ->assertSee('Belum dapat dihitung')->assertDontSee('SUDAH TERBAYARKAN');
+            ->assertSee('BELUM TERBAYARKAN — sisa 1 jam 5 menit')->assertDontSee('Belum dapat dihitung');
     }
 
     public function test_late_cells_and_details_use_the_ten_minute_threshold_and_hide_blank_notes(): void

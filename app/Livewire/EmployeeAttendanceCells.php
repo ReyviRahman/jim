@@ -48,7 +48,6 @@ trait EmployeeAttendanceCells
         $repayment = $record === null ? null : (app(EmployeeAttendanceRepayments::class)
             ->forMonth($employee, Carbon::parse($date, config('app.timezone')))[$record->id] ?? null);
         $lateMinutes = $repayment['lateMinutes'] ?? 0;
-        $replacementMinutes = $repayment['sameDayMinutes'] ?? 0;
         $remainingMinutes = $repayment['remainingMinutes'] ?? 0;
         $this->resetValidation();
         $this->cellEmployeeId = $employee->id;
@@ -66,16 +65,12 @@ trait EmployeeAttendanceCells
             'notes' => $record?->notes,
             'isLate' => $record?->isLate() ?? false,
             'lateDuration' => $this->formatAttendanceMinutes($lateMinutes),
-            'replacementDuration' => $this->formatAttendanceMinutes($replacementMinutes),
-            'sameDayPaidDuration' => $this->formatAttendanceMinutes(min($lateMinutes, $replacementMinutes)),
             'shiftPayments' => array_map(fn (array $payment): array => [
                 'date' => Carbon::parse($payment['date'])->format('d/m/Y'),
                 'duration' => $this->formatAttendanceMinutes($payment['minutes']),
             ], $repayment['shiftPayments'] ?? []),
             'remainingLateDuration' => $this->formatAttendanceMinutes($remainingMinutes),
             'lateRepaid' => $lateMinutes > 0 && $remainingMinutes === 0,
-            'hasCheckOut' => $record?->check_out_time !== null,
-            'hasScheduledEnd' => $record?->scheduled_end_at !== null,
             'hasSnapshot' => $record?->status === EmployeeAttendanceStatus::Hadir,
         ];
         $this->cellShifts = Shift::query()->where('role', $employee->role)->orderBy('start_time')->get(['id', 'name', 'code', 'start_time', 'end_time'])->toArray();

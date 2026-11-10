@@ -11,7 +11,7 @@ use Illuminate\Support\Collection;
 class EmployeeAttendanceRepayments
 {
     /**
-     * @return array<int, array{date: string, lateMinutes: int, sameDayMinutes: int, remainingMinutes: int, shiftPayments: list<array{date: string, minutes: int}>}>
+     * @return array<int, array{date: string, lateMinutes: int, remainingMinutes: int, shiftPayments: list<array{date: string, minutes: int}>}>
      */
     public function forMonth(User $employee, Carbon $date): array
     {
@@ -31,7 +31,7 @@ class EmployeeAttendanceRepayments
 
     /**
      * @param  Collection<int, AttendanceEmployee>  $records  Absensi satu karyawan dalam satu bulan.
-     * @return array<int, array{date: string, lateMinutes: int, sameDayMinutes: int, remainingMinutes: int, shiftPayments: list<array{date: string, minutes: int}>}>
+     * @return array<int, array{date: string, lateMinutes: int, remainingMinutes: int, shiftPayments: list<array{date: string, minutes: int}>}>
      */
     public function calculate(Collection $records): array
     {
@@ -63,14 +63,10 @@ class EmployeeAttendanceRepayments
             unset($balance);
 
             $lateMinutes = $record->isLate() ? (int) $record->scheduled_start_at->diffInMinutes($record->check_in_time) : 0;
-            $sameDayMinutes = $record->check_out_time !== null && $record->scheduled_end_at !== null
-                ? max(0, (int) $record->scheduled_end_at->diffInMinutes($record->check_out_time))
-                : 0;
             $balances[$record->id] = [
                 'date' => $recordDate,
                 'lateMinutes' => $lateMinutes,
-                'sameDayMinutes' => $sameDayMinutes,
-                'remainingMinutes' => max(0, $lateMinutes - $sameDayMinutes),
+                'remainingMinutes' => $lateMinutes,
                 'shiftPayments' => [],
             ];
         }

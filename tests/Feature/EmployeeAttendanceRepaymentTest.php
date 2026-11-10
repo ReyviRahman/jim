@@ -36,25 +36,25 @@ class EmployeeAttendanceRepaymentTest extends TestCase
         ]);
 
         $balances = $this->balances($employee);
-        $this->assertSame(0, $balances[$first->id]['remainingMinutes']);
+        $this->assertSame(10, $balances[$first->id]['remainingMinutes']);
         $this->assertSame([
-            ['date' => '2026-11-06', 'minutes' => 60], ['date' => '2026-11-07', 'minutes' => 56],
+            ['date' => '2026-11-06', 'minutes' => 60], ['date' => '2026-11-07', 'minutes' => 60],
         ], $balances[$first->id]['shiftPayments']);
-        $this->assertSame(110, $balances[$second->id]['remainingMinutes']);
-        $this->assertSame([['date' => '2026-11-07', 'minutes' => 4]], $balances[$second->id]['shiftPayments']);
+        $this->assertSame(128, $balances[$second->id]['remainingMinutes']);
+        $this->assertSame([], $balances[$second->id]['shiftPayments']);
 
         $page = Livewire::test('pages::dashboard.admin.absensi.index', ['employeesOnly' => true])
             ->set('month', '2026-11')->call('openAttendanceCell', $employee->id, '2026-11-03')
-            ->assertSet('cellDetail.lateRepaid', true)->assertSee('SUDAH TERBAYARKAN')
-            ->assertSeeHtml('border-2 border-green-600')->assertSeeHtml('border-2 border-red-600')
+            ->assertSet('cellDetail.lateRepaid', false)->assertSet('cellDetail.remainingLateDuration', '10 menit')
+            ->assertDontSeeHtml('border-green-600')->assertSeeHtml('border-2 border-red-600')
             ->call('openAttendanceCell', $employee->id, '2026-11-05')
-            ->assertSet('cellDetail.remainingLateDuration', '1 jam 50 menit')
-            ->assertSet('cellDetail.shiftPayments', [['date' => '07/11/2026', 'duration' => '4 menit']]);
-        $this->assertSame('1 jam 50 menit', $page->instance()->with()['lateDurations'][$employee->id]);
+            ->assertSet('cellDetail.remainingLateDuration', '2 jam 8 menit')
+            ->assertSet('cellDetail.shiftPayments', []);
+        $this->assertSame('2 jam 18 menit', $page->instance()->with()['lateDurations'][$employee->id]);
 
         $last->delete();
-        $page->call('reloadAttendanceCell')->assertSet('cellDetail.remainingLateDuration', '1 jam 54 menit');
-        $this->assertSame('2 jam 50 menit', $page->instance()->with()['lateDurations'][$employee->id]);
+        $page->call('reloadAttendanceCell')->assertSet('cellDetail.remainingLateDuration', '2 jam 8 menit');
+        $this->assertSame('3 jam 18 menit', $page->instance()->with()['lateDurations'][$employee->id]);
     }
 
     public function test_each_debt_uses_its_own_shift_and_payment_time_is_not_counted_twice(): void
@@ -117,25 +117,25 @@ class EmployeeAttendanceRepaymentTest extends TestCase
             ->set('month', '2026-11')
             ->call('openAttendanceCell', $employee->id, '2026-11-05')
             ->assertSet('cellDetail.lateDuration', '2 jam 8 menit')
-            ->assertSet('cellDetail.sameDayPaidDuration', '14 menit')
-            ->assertSet('cellDetail.remainingLateDuration', '54 menit')
+            ->assertDontSee('Pulang lewat jadwal')->assertDontSee('dibayar pada hari yang sama')
+            ->assertSet('cellDetail.remainingLateDuration', '1 jam 8 menit')
             ->assertSet('cellDetail.shiftPayments', [['date' => '06/11/2026', 'duration' => '1 jam']])
-            ->assertSee('Shift lebih awal 06/11/2026')->assertSee('BELUM TERBAYARKAN — sisa 54 menit');
-        $this->assertSame('54 menit', $component->instance()->with()['lateDurations'][$employee->id]);
+            ->assertSee('Shift lebih awal 06/11/2026')->assertSee('BELUM TERBAYARKAN — sisa 1 jam 8 menit');
+        $this->assertSame('1 jam 8 menit', $component->instance()->with()['lateDurations'][$employee->id]);
 
         $component->call('openAttendanceCell', $employee->id, '2026-11-06')->call('editAttendanceCell')
             ->set('form.checkIn', '2026-11-06T14:30')->call('saveAttendanceCell')->assertHasNoErrors()
             ->call('openAttendanceCell', $employee->id, '2026-11-05')
-            ->assertSet('cellDetail.remainingLateDuration', '1 jam 24 menit')
+            ->assertSet('cellDetail.remainingLateDuration', '1 jam 38 menit')
             ->assertSet('cellDetail.shiftPayments', [['date' => '06/11/2026', 'duration' => '30 menit']]);
-        $this->assertSame('1 jam 37 menit', $component->instance()->with()['lateDurations'][$employee->id]);
+        $this->assertSame('2 jam 8 menit', $component->instance()->with()['lateDurations'][$employee->id]);
 
         $component->call('openAttendanceCell', $employee->id, '2026-11-06')
             ->call('confirmDeleteAttendanceCell')->call('deleteAttendanceCell')->assertHasNoErrors()
             ->call('openAttendanceCell', $employee->id, '2026-11-05')
-            ->assertSet('cellDetail.remainingLateDuration', '1 jam 54 menit')
+            ->assertSet('cellDetail.remainingLateDuration', '2 jam 8 menit')
             ->assertSet('cellDetail.shiftPayments', []);
-        $this->assertSame('1 jam 54 menit', $component->instance()->with()['lateDurations'][$employee->id]);
+        $this->assertSame('2 jam 8 menit', $component->instance()->with()['lateDurations'][$employee->id]);
         $this->assertModelExists($thursday);
     }
 
@@ -265,9 +265,9 @@ class EmployeeAttendanceRepaymentTest extends TestCase
             'shift_code' => 'SO', 'scheduled_start_at' => '2026-11-06 21:00:00',
             'scheduled_end_at' => '2026-11-07 05:00:00', 'check_in_time' => '2026-11-06 20:50:00',
         ]);
-        $this->assertSame(15, $this->balances($employee)[$debt->id]['remainingMinutes']);
+        $this->assertSame(30, $this->balances($employee)[$debt->id]['remainingMinutes']);
         $next->update(['check_in_time' => '2026-11-07 00:30:00']);
-        $this->assertSame(75, $this->balances($employee)[$debt->id]['remainingMinutes']);
+        $this->assertSame(90, $this->balances($employee)[$debt->id]['remainingMinutes']);
     }
 
     public function test_earlier_shift_payment_is_visible_without_checkout_and_can_fully_clear_debt(): void
@@ -296,7 +296,7 @@ class EmployeeAttendanceRepaymentTest extends TestCase
         $this->assertSame('0 menit', $component->instance()->with()['lateDurations'][$employee->id]);
     }
 
-    public function test_checkout_credit_is_reserved_for_its_own_day_and_excess_does_not_transfer(): void
+    public function test_checkout_does_not_pay_its_own_day_or_another_day(): void
     {
         $employee = User::factory()->create(['role' => 'pt']);
         $first = $this->attendance($employee, '2026-11-01', ['check_in_time' => '2026-11-01 15:30:00']);
@@ -304,13 +304,14 @@ class EmployeeAttendanceRepaymentTest extends TestCase
             'check_in_time' => '2026-11-02 15:30:00', 'check_out_time' => '2026-11-02 23:00:00',
         ]);
         $this->assertSame(30, $this->balances($employee)[$first->id]['remainingMinutes']);
+        $this->assertSame(30, $this->balances($employee)[$second->id]['remainingMinutes']);
         $this->attendance($employee, '2026-11-03', [
             'shift_code' => 'S', 'scheduled_start_at' => '2026-11-03 14:00:00', 'check_in_time' => '2026-11-03 13:00:00',
         ]);
         $balances = $this->balances($employee);
         $this->assertSame(0, $balances[$first->id]['remainingMinutes']);
         $this->assertSame(0, $balances[$second->id]['remainingMinutes']);
-        $this->assertSame([], $balances[$second->id]['shiftPayments']);
+        $this->assertSame([['date' => '2026-11-03', 'minutes' => 30]], $balances[$second->id]['shiftPayments']);
     }
 
     /** @param array<string, mixed> $overrides */

@@ -104,18 +104,10 @@
                     <dd class="text-red-700">
                         @if ($cellDetail['lateRepaid'])
                             SUDAH TERBAYARKAN
-                        @elseif ($cellDetail['shiftPayments'] !== [])
-                            BELUM TERBAYARKAN — sisa {{ $cellDetail['remainingLateDuration'] }}
-                        @elseif (! $cellDetail['hasCheckOut'])
-                            BELUM TERBAYARKAN — belum ada jam keluar.
-                        @elseif (! $cellDetail['hasScheduledEnd'])
-                            Belum dapat dihitung — jadwal akhir shift tidak tersedia.
                         @else
                             BELUM TERBAYARKAN — sisa {{ $cellDetail['remainingLateDuration'] }}
                         @endif
                     </dd>
-                    <dt class="text-gray-500">Pulang lewat jadwal</dt>
-                    <dd>{{ $cellDetail['sameDayPaidDuration'] }} dibayar pada hari yang sama</dd>
                     @foreach ($cellDetail['shiftPayments'] as $payment)
                         <dt wire:key="repayment-date-{{ $loop->index }}" class="text-gray-500">Shift lebih awal {{ $payment['date'] }}</dt>
                         <dd wire:key="repayment-duration-{{ $loop->index }}">{{ $payment['duration'] }}</dd>
