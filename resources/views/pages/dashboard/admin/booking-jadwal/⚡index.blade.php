@@ -785,12 +785,6 @@ new #[Layout('layouts::admin')] class extends Component
         $query = Membership::with(['user', 'ptPackage', 'personalTrainer'])
             ->bookableByAdmin();
 
-        if ($this->insertDate !== '') {
-            $query->where(function (\Illuminate\Database\Eloquent\Builder $query): void {
-                $query->whereNull('start_date')->orWhereDate('start_date', '<=', $this->insertDate);
-            });
-        }
-
         if (! empty($this->insertMembershipSearch)) {
             $search = '%'.$this->insertMembershipSearch.'%';
             $query->where(function ($q) use ($search) {
@@ -1469,31 +1463,42 @@ new #[Layout('layouts::admin')] class extends Component
                         @endforeach
                     </div>
 
-                    <div class="booking-detail-summary booking-detail-panel p-5">
+                    <section class="rounded-2xl border border-white/15 bg-linear-to-br from-neutral-900 to-neutral-950 p-4 text-white sm:p-5">
                         <div class="flex flex-wrap items-center justify-between gap-2">
-                            <h4 class="text-2xl font-bold">Ringkasan PT</h4>
-                            <span class="booking-detail-label">{{ $membership ? $usedSessions.' dari '.$totalSessions.' sesi' : '-' }}</span>
+                            <h4 class="text-xl font-bold sm:text-2xl">Progress Sesi PT</h4>
+                            <span class="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs font-semibold">Paket {{ $totalSessions ?? '–' }} Sesi</span>
                         </div>
-                        <div class="flex items-center gap-4 mt-4 mb-5">
-                            <div class="h-4 flex-1 rounded-full bg-gray-700/60 overflow-hidden" role="progressbar" aria-label="Sesi PT terpakai" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ $sessionProgress }}">
-                                <div class="h-full rounded-full bg-brand" style="width: {{ $sessionProgress }}%"></div>
-                            </div>
-                            <span class="text-xl font-bold">{{ $membership ? $sessionProgress.'%' : '-' }}</span>
-                        </div>
-                        <div class="grid grid-cols-3 gap-4">
-                            @foreach([
-                                ['label' => 'Total Sesi', 'value' => $totalSessions, 'icon' => 'M9 5h12M9 12h12M9 19h12M3 5h1M3 12h1M3 19h1'],
-                                ['label' => 'Sesi Terpakai', 'value' => $usedSessions, 'icon' => 'M8 12l3 3 5-6M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0'],
-                                ['label' => 'Sisa Sesi', 'value' => $remainingSessions, 'icon' => 'M12 7v6l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0'],
-                            ] as $stat)
-                                <div wire:key="booking-detail-stat-{{ $loop->index }}" class="booking-detail-panel p-5">
-                                    <svg class="size-7 mb-4 {{ $loop->last ? 'text-brand' : '' }}" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="{{ $stat['icon'] }}"/></svg>
-                                    <div class="booking-detail-label">{{ $stat['label'] }}</div>
-                                    <div class="mt-1 font-bold {{ $loop->last ? 'text-brand' : '' }}"><span class="text-4xl">{{ $stat['value'] ?? '-' }}</span> <span class="text-base">sesi</span></div>
+                        <p class="mt-1 text-sm text-neutral-300">Status penggunaan sesi paket</p>
+
+                        <div class="my-4 grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] items-center gap-3 sm:gap-5">
+                            <div class="relative mx-auto grid aspect-square w-full max-w-40 place-items-center rounded-full p-[9%]" style="background: conic-gradient(#ffe000 {{ $sessionProgress }}%, #343940 0)">
+                                <div class="flex size-full flex-col items-center justify-center rounded-full bg-neutral-950 text-center">
+                                    <strong class="text-2xl leading-none sm:text-4xl">{{ $membership ? $sessionProgress.'%' : '–' }}</strong>
+                                    <span class="mt-1 text-xs leading-tight">Sesi<br>terpakai</span>
                                 </div>
-                            @endforeach
+                            </div>
+                            <div class="grid gap-2 border-l border-white/10 pl-3 sm:pl-5">
+                                @foreach([
+                                    ['label' => 'Sesi Terpakai', 'value' => $usedSessions, 'icon' => 'M5 12l4 4L19 6'],
+                                    ['label' => 'Sisa Sesi', 'value' => $remainingSessions, 'icon' => 'M12 7v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0'],
+                                ] as $stat)
+                                    <div @class(['flex items-center gap-2 rounded-xl border px-3 py-2 sm:gap-4 sm:px-4', $loop->first ? 'border-green-600/50 bg-linear-to-br from-green-700 to-green-950' : 'border-yellow-400 bg-linear-to-br from-yellow-300 to-yellow-500 text-neutral-950'])>
+                                        <svg @class(['size-6 shrink-0', 'rounded bg-white p-1 text-green-800' => $loop->first]) aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="{{ $stat['icon'] }}"/></svg>
+                                        <div><div class="text-sm font-semibold">{{ $stat['label'] }}</div>
+                                            <strong class="text-3xl leading-none">{{ $stat['value'] ?? '–' }}</strong> <span class="text-xs font-semibold">sesi</span>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
                         </div>
-                    </div>
+                        <div class="mb-2 flex items-end justify-between gap-2 text-sm">
+                            <span>{{ $membership ? $usedSessions.' dari '.$totalSessions.' sesi telah digunakan' : 'Data paket tidak tersedia' }}</span>
+                            <strong class="text-yellow-300">{{ $membership ? $sessionProgress.'%' : '–' }}</strong>
+                        </div>
+                        <div class="h-2.5 overflow-hidden rounded-full bg-neutral-700" role="progressbar" aria-label="Sesi PT terpakai" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ $sessionProgress }}">
+                            <div class="h-full rounded-full bg-yellow-300" style="width: {{ $sessionProgress }}%"></div>
+                        </div>
+                    </section>
 
                     <div class="booking-detail-validity booking-detail-panel p-5">
                         <h4 class="text-xl font-bold mb-5">Masa Berlaku Paket</h4>

@@ -117,10 +117,10 @@ class MembershipRenewalBookingTest extends TestCase
         $this->assertDatabaseCount('pt_bookings', 3);
     }
 
-    public function test_future_start_is_still_hidden_and_deleting_successor_clears_link(): void
+    public function test_future_start_is_selectable_and_deleting_successor_clears_link(): void
     {
         [$old, $renewal] = $this->memberships(['start_date' => '2026-11-01']);
-        $this->assertNotContains($old->id, $this->page($old)->get('filteredMemberships')->modelKeys());
+        $this->assertContains($old->id, $this->page($old)->get('filteredMemberships')->modelKeys());
         $renewal->delete();
         $this->assertNull($old->refresh()->renewal_from);
         $this->assertSame(3, $old->remaining_sessions);

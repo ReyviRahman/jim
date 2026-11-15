@@ -15,29 +15,29 @@ class AdminBookingAttendanceTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_membership_choices_follow_clicked_date_and_show_pt_expiry(): void
+    public function test_admin_can_find_and_book_a_package_before_its_start_date(): void
     {
-        Carbon::setTestNow('2026-10-16 08:00:00');
+        Carbon::setTestNow('2026-12-01 08:00:00');
         $package = GymPackage::create([
             'type' => 'pt', 'name' => 'PT Single', 'category' => 'single',
             'max_members' => 1, 'price' => 500000, 'discount' => 0, 'is_active' => true,
         ]);
-        $older = $this->createMembership(['pt_package_id' => $package->id, 'start_date' => '2026-10-01', 'pt_end_date' => '2026-11-01']);
-        $sameDay = $this->createMembership(['pt_package_id' => $package->id, 'start_date' => '2026-10-16']);
-        $future = $this->createMembership(['pt_package_id' => $package->id, 'start_date' => '2026-10-17']);
+        $older = $this->createMembership(['pt_package_id' => $package->id, 'start_date' => '2026-10-01', 'pt_end_date' => '2027-01-01']);
+        $sameDay = $this->createMembership(['pt_package_id' => $package->id, 'start_date' => '2026-12-01']);
+        $future = $this->createMembership(['pt_package_id' => $package->id, 'start_date' => '2026-12-10']);
 
         $page = Livewire::actingAs($this->createUser(['role' => 'admin']))
             ->test('pages::dashboard.admin.booking-jadwal.index')
-            ->call('openInsertModal', 'jumat', 9)
-            ->assertSet('insertDate', '2026-10-16')
-            ->assertSee('Mulai: 1 Okt 2026')->assertSee('Berakhir: 1 Nov 2026');
-        $this->assertEqualsCanonicalizing([$older->id, $sameDay->id], $page->get('filteredMemberships')->modelKeys());
-        $page->set('insertMembershipSearch', $future->user->name);
-        $this->assertCount(0, $page->get('filteredMemberships'));
-        $page->set('insertMembershipSearch', '')->call('selectMembership', $older->id)
-            ->assertSee('Mulai: 1 Okt 2026')->assertSee('Berakhir: 1 Nov 2026')
-            ->call('closeInsertModal')->call('openInsertModal', 'sabtu', 9);
+            ->call('openInsertModal', 'selasa', 9)
+            ->assertSet('insertDate', '2026-12-01')
+            ->assertSee('Mulai: 1 Okt 2026')->assertSee('Berakhir: 1 Jan 2027');
         $this->assertEqualsCanonicalizing([$older->id, $sameDay->id, $future->id], $page->get('filteredMemberships')->modelKeys());
+        $page->set('insertMembershipSearch', $future->user->name);
+        $this->assertSame([$future->id], $page->get('filteredMemberships')->modelKeys());
+        $page->call('selectMembership', $future->id)
+            ->set('insertPtId', $future->pt_id)->set('insertType', 'fleksibel')->set('studioType', 'regular')
+            ->call('saveInsertBooking')->assertHasNoErrors();
+        $this->assertDatabaseHas('pt_bookings', ['membership_id' => $future->id, 'booking_date' => '2026-12-01']);
     }
 
     public function test_detail_uses_session_balance_of_only_the_selected_membership(): void
@@ -71,7 +71,7 @@ class AdminBookingAttendanceTest extends TestCase
         Livewire::actingAs($this->createUser(['role' => 'admin']))
             ->test('pages::dashboard.admin.booking-jadwal.index')
             ->call('openDetailModal', $booking->id)
-            ->assertSeeInOrder(['Ringkasan PT', '6 dari 10 sesi', 'Sisa Sesi', 'Tanggal Mulai', '2 Jan 2026', 'Tanggal Berakhir', '30 Des 2026']);
+            ->assertSeeInOrder(['Progress Sesi PT', 'Sesi Terpakai', 'Sisa Sesi', '6 dari 10 sesi', 'Tanggal Mulai', '2 Jan 2026', 'Tanggal Berakhir', '30 Des 2026']);
     }
 
     public function test_detail_refreshes_membership_summary_when_switching_bookings_and_handles_empty_dates(): void
@@ -86,10 +86,10 @@ class AdminBookingAttendanceTest extends TestCase
         Livewire::actingAs($this->createUser(['role' => 'admin']))
             ->test('pages::dashboard.admin.booking-jadwal.index')
             ->call('openDetailModal', $first->id)
-            ->assertSeeInOrder(['Ringkasan PT', '0 dari 10 sesi', 'Sesi Terpakai', 'Sisa Sesi'])
+            ->assertSeeInOrder(['Progress Sesi PT', 'Sesi Terpakai', 'Sisa Sesi', '0 dari 10 sesi'])
             ->call('closeDetailModal')
             ->call('openDetailModal', $second->id)
-            ->assertSeeInOrder(['Ringkasan PT', '10 dari 10 sesi', 'Sisa Sesi', 'Tanggal Mulai', '-', 'Tanggal Berakhir', '-']);
+            ->assertSeeInOrder(['Progress Sesi PT', 'Sesi Terpakai', 'Sisa Sesi', '10 dari 10 sesi', 'Tanggal Mulai', '-', 'Tanggal Berakhir', '-']);
     }
 
     public function test_editing_attended_booking_to_free_refunds_once_and_can_charge_it_again(): void

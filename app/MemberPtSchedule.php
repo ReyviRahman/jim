@@ -48,7 +48,6 @@ class MemberPtSchedule
         return match (true) {
             $start->lte(now()) => 'Waktu sesi sudah lewat.',
             $start->toDateString() > today(config('app.timezone'))->addDays(7)->toDateString() => 'Booking hanya bisa dibuat mulai hari ini sampai 7 hari ke depan.',
-            $membership->start_date !== null && $start->toDateString() < $membership->start_date->toDateString() => 'Paket PT belum dimulai pada tanggal ini.',
             $membership->pt_end_date !== null && $start->toDateString() > $membership->pt_end_date->toDateString() && ! $membership->canBookUsingRenewal() => 'Tanggal sesi melewati masa berlaku paket PT.',
             default => null,
         };

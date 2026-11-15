@@ -244,7 +244,7 @@ class PtStudioBookingTest extends TestCase
         Livewire::actingAs(User::factory()->create(['role' => 'admin']))
             ->test('pages::dashboard.admin.booking-jadwal.index')
             ->call('openDetailModal', $booking->id)
-            ->assertSee('Ringkasan PT')
+            ->assertSee('Progress Sesi PT')
             ->assertSee($used.' dari '.$total.' sesi')
             ->assertSee('aria-valuenow="'.$percent.'"', false)
             ->assertSee('1 Sep 2026')
@@ -272,7 +272,7 @@ class PtStudioBookingTest extends TestCase
             Livewire::actingAs(User::factory()->create(['role' => 'admin']))
                 ->test('pages::dashboard.admin.booking-jadwal.index')
                 ->call('openDetailModal', $booking->id)
-                ->assertSee('Ringkasan PT')
+                ->assertSee('Progress Sesi PT')
                 ->assertSee('Masa Berlaku Paket')
                 ->assertSee('aria-valuenow="0"', false);
         } finally {

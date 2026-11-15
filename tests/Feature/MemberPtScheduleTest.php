@@ -161,15 +161,14 @@ class MemberPtScheduleTest extends TestCase
         $this->assertCount(7, $page->get('history'));
     }
 
-    public function test_future_package_does_not_prevent_booking_today_with_older_package(): void
+    public function test_member_can_book_today_before_the_pt_package_start_date(): void
     {
-        $older = $this->membership();
-        $this->membership(['user_id' => $older->user_id, 'start_date' => '2026-09-23']);
-        $page = $this->page($older)->assertSet('selectedMembershipId', null)->assertDontSeeHtml('id="pt-membership"');
-        $this->assertNull($page->get('calendar')[0]['slots'][1]['reason']);
-        $page->call('openBookingModal', '2026-09-21', '08:00')->assertSet('selectedMembershipId', $older->id)
-            ->assertDontSee('Pilih paket PT dan coach')->set('studioType', 'regular')->call('book')->assertHasNoErrors();
-        $this->assertDatabaseHas('pt_bookings', ['membership_id' => $older->id, 'booking_date' => '2026-09-21']);
+        $this->travelTo(now()->setDate(2026, 12, 1)->setTime(6, 0));
+        $membership = $this->membership(['start_date' => '2026-12-10', 'pt_end_date' => '2027-01-10']);
+        $page = $this->page($membership);
+        $page->call('openBookingModal', '2026-12-01', '08:00')->assertSet('selectedMembershipId', $membership->id)
+            ->set('studioType', 'regular')->call('book')->assertHasNoErrors();
+        $this->assertDatabaseHas('pt_bookings', ['membership_id' => $membership->id, 'booking_date' => '2026-12-01', 'status' => 'pending']);
     }
 
     public function test_overlapping_packages_require_selection_and_book_chosen_package(): void
@@ -197,10 +196,10 @@ class MemberPtScheduleTest extends TestCase
             ->call('openBookingModal', '2026-09-23', '09:00')->assertSet('selectedMembershipId', null);
     }
 
-    public function test_eligibility_excludes_exhausted_expired_future_and_unassigned_packages(): void
+    public function test_eligibility_excludes_exhausted_expired_and_unassigned_packages(): void
     {
         $valid = $this->membership();
-        foreach ([['remaining_sessions' => 0], ['pt_end_date' => '2026-09-21'], ['start_date' => '2026-09-23'], ['pt_id' => null]] as $attributes) {
+        foreach ([['remaining_sessions' => 0], ['pt_end_date' => '2026-09-21'], ['pt_id' => null]] as $attributes) {
             $this->membership(['user_id' => $valid->user_id, ...$attributes]);
         }
         $reserved = $this->membership(['user_id' => $valid->user_id, 'remaining_sessions' => 1]);
@@ -213,9 +212,9 @@ class MemberPtScheduleTest extends TestCase
     public function test_ineligible_owned_package_cannot_be_submitted_by_tampering_with_selection(): void
     {
         $valid = $this->membership();
-        $future = $this->membership(['user_id' => $valid->user_id, 'start_date' => '2026-09-23']);
+        $exhausted = $this->membership(['user_id' => $valid->user_id, 'remaining_sessions' => 0]);
         $this->page($valid)->call('openBookingModal', '2026-09-22', '08:00')
-            ->set('selectedMembershipId', $future->id)->set('studioType', 'regular')->call('book')
+            ->set('selectedMembershipId', $exhausted->id)->set('studioType', 'regular')->call('book')
             ->assertHasErrors('booking');
         $this->assertDatabaseCount('pt_bookings', 0);
     }
@@ -415,7 +414,7 @@ class MemberPtScheduleTest extends TestCase
 
     public static function ineligibleMemberships(): array
     {
-        return [[['is_active' => false]], [['status' => 'pending']], [['pt_id' => null]], [['remaining_sessions' => 0]], [['start_date' => '2026-09-23']], [['pt_end_date' => '2026-09-20']]];
+        return [[['is_active' => false]], [['status' => 'pending']], [['pt_id' => null]], [['remaining_sessions' => 0]], [['pt_end_date' => '2026-09-20']]];
     }
 
     public function test_reserved_capacity_is_shared_and_cancelled_or_free_sessions_do_not_consume_it(): void
