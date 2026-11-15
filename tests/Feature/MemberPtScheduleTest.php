@@ -171,16 +171,16 @@ class MemberPtScheduleTest extends TestCase
         $this->assertDatabaseHas('pt_bookings', ['membership_id' => $membership->id, 'booking_date' => '2026-12-01', 'status' => 'pending']);
     }
 
-    public function test_overlapping_packages_require_selection_and_book_chosen_package(): void
+    public function test_booking_defaults_to_the_lowest_eligible_package_id_and_allows_switching(): void
     {
         $first = $this->membership();
         $second = $this->membership(['user_id' => $first->user_id, 'pt_id' => $first->pt_id]);
         $page = $this->page($first)->call('openBookingModal', '2026-09-22', '08:00')
-            ->assertSet('showBookingModal', true)->assertSet('selectedMembershipId', null)
-            ->assertSee('Pilih paket PT dan coach')->call('book')->assertHasErrors('selectedMembershipId');
+            ->assertSet('showBookingModal', true)->assertSet('selectedMembershipId', $first->id)
+            ->assertSee('Pilih paket PT dan coach')->assertSee('1 September 2026 – 21 Oktober 2026');
         $this->assertEqualsCanonicalizing([$first->id, $second->id], $page->get('eligibleMemberships')->modelKeys());
         $this->assertDatabaseCount('pt_bookings', 0);
-        $page->set('selectedMembershipId', $first->id)->set('studioType', 'private_studio')
+        $page->set('studioType', 'private_studio')
             ->set('selectedMembershipId', $second->id)->assertSet('studioType', '')
             ->assertSet('showBookingModal', true)->set('studioType', 'regular')->call('book')->assertHasNoErrors();
         $this->assertSame($second->id, PtBooking::sole()->membership_id);
@@ -193,7 +193,7 @@ class MemberPtScheduleTest extends TestCase
         $this->page($first)->call('openBookingModal', '2026-09-22', '08:00')
             ->set('selectedMembershipId', $first->id)->call('closeBookingModal')
             ->assertSet('selectedMembershipId', null)->assertSet('bookingDate', '')
-            ->call('openBookingModal', '2026-09-23', '09:00')->assertSet('selectedMembershipId', null);
+            ->call('openBookingModal', '2026-09-23', '09:00')->assertSet('selectedMembershipId', $first->id);
     }
 
     public function test_eligibility_excludes_exhausted_expired_and_unassigned_packages(): void

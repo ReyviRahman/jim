@@ -308,7 +308,7 @@ new #[Layout('layouts::member')] class extends Component
             return;
         }
 
-        $this->selectedMembershipId = $this->eligibleMemberships->count() === 1 ? $this->eligibleMemberships->first()->id : null;
+        $this->selectedMembershipId = $this->eligibleMemberships->min('id');
         $this->showBookingModal = true;
     }
 
@@ -489,7 +489,7 @@ new #[Layout('layouts::member')] class extends Component
                                 <span>
                                     <span class="block font-semibold">{{ $option->ptPackage?->name ?? $option->package_name ?? 'Paket PT' }} #{{ $option->id }}</span>
                                     <span class="block text-gray-300">{{ $option->personalTrainer?->name }}</span>
-                                    <span class="block text-gray-300">{{ $option->start_date?->format('d/m/Y') ?? '-' }} - {{ $option->pt_end_date?->format('d/m/Y') ?? 'Tanpa batas akhir' }}</span>
+                                    <span class="block text-gray-300">{{ $option->start_date?->locale('id')->isoFormat('D MMMM YYYY') ?? '-' }} – {{ $option->pt_end_date?->locale('id')->isoFormat('D MMMM YYYY') ?? 'Tanpa batas akhir' }}</span>
                                     <span class="block text-gray-300">{{ $option->remaining_sessions - $option->reserved_sessions }} sesi tersedia</span>
                                 </span>
                             </label>
