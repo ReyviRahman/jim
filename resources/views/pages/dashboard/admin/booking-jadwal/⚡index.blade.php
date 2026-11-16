@@ -816,7 +816,7 @@ new #[Layout('layouts::admin')] class extends Component
 
             foreach ((array) $this->insertSelectedDays as $day) {
                 if (is_string($day) && array_key_exists($day, $this->daysOfWeek())) {
-                    $rules['insertDayTimes.'.$day] = ['required', 'date_format:H:i'];
+                    $rules['insertDayTimes.'.$day] = ['required', Rule::in(PtBooking::hourlySlots())];
                 }
             }
         } else {
@@ -845,7 +845,7 @@ new #[Layout('layouts::admin')] class extends Component
             'insertSelectedDays.*.distinct' => 'Hari booking Keep tidak boleh duplikat.',
             'insertDayTimes.required' => 'Waktu untuk hari terpilih wajib diisi.',
             'insertDayTimes.*.required' => 'Waktu untuk hari terpilih wajib diisi.',
-            'insertDayTimes.*.date_format' => 'Format waktu harus berupa jam dan menit.',
+            'insertDayTimes.*.in' => 'Pilih slot setiap jam mulai 07:00 sampai 22:00.',
         ]);
 
         if ($validated['insertType'] === 'keep' && $this->insertIsFree) {
@@ -1240,7 +1240,7 @@ new #[Layout('layouts::admin')] class extends Component
                                                     @endforeach
                                                 @endif
                                                 <div>{{ $booking->studioLabel() }}</div>
-                                                <div data-booking-card-name="coach" class="mt-0.5 w-full min-w-0 max-w-full whitespace-normal wrap-anywhere text-body">{{ Str::of($booking->pt?->name ?? '-')->squish()->before(' ') }}</div>
+                                                <div data-booking-card-name="coach" class="mt-0.5 w-full min-w-0 max-w-full whitespace-normal wrap-anywhere text-body">{{ Str::of($booking->pt?->name ?? '-')->squish()->after(' ')->before(' ') }}</div>
                                                 <div class="mt-1 flex min-w-0 max-w-full flex-wrap items-center gap-1">
                                                     @if($booking->isCancellationPending())
                                                         <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-yellow-950 text-yellow-300">Pending Cancel</span>
@@ -1886,10 +1886,14 @@ new #[Layout('layouts::admin')] class extends Component
 
                                         @if(in_array($day, $insertSelectedDays, true))
                                             <div class="flex-1">
-                                                <input type="time"
-                                                    wire:model="insertDayTimes.{{ $day }}"
+                                                <select wire:model="insertDayTimes.{{ $day }}"
                                                     aria-label="Waktu {{ $dayLabel }}"
                                                     class="block w-full px-3 py-2 bg-neutral-primary-soft border border-default-medium rounded-md text-sm focus:ring-brand focus:border-brand">
+                                                    <option value="">Pilih jam</option>
+                                                    @foreach (\App\Models\PtBooking::hourlySlots() as $time)
+                                                        <option value="{{ $time }}">{{ $time }}</option>
+                                                    @endforeach
+                                                </select>
                                                 @error("insertDayTimes.{$day}") <span class="text-sm text-red-300">{{ $message }}</span> @enderror
                                             </div>
                                         @else

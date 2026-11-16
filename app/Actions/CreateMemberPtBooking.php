@@ -21,7 +21,7 @@ class CreateMemberPtBooking
 
         Validator::make(['bookingDate' => $date, 'bookingTime' => $time], [
             'bookingDate' => ['required', 'date_format:Y-m-d'],
-            'bookingTime' => ['required', Rule::in(array_map(fn (int $hour): string => sprintf('%02d:00', $hour), range(7, 22)))],
+            'bookingTime' => ['required', Rule::in(PtBooking::hourlySlots())],
         ], [
             'bookingDate.*' => 'Tanggal booking tidak valid.',
             'bookingTime.*' => 'Pilih slot setiap jam mulai 07:00 sampai 22:00.',

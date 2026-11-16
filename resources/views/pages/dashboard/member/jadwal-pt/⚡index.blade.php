@@ -227,8 +227,8 @@ new #[Layout('layouts::member')] class extends Component
             $dailyBookings = $bookings->filter(fn (PtBooking $booking): bool => $booking->booking_date->isSameDay($date));
             $slots = [];
 
-            foreach (range(7, 22) as $hour) {
-                $slotStart = $date->copy()->setTime($hour, 0);
+            foreach (PtBooking::hourlySlots() as $time) {
+                $slotStart = $date->copy()->setTimeFromTimeString($time);
                 $slotEnd = $slotStart->copy()->addHour();
                 $overlaps = $dailyBookings->filter(function (PtBooking $booking) use ($slotStart, $slotEnd): bool {
                     $bookingStart = $booking->booking_date->copy()->setTimeFrom($booking->booking_time);
@@ -294,7 +294,7 @@ new #[Layout('layouts::member')] class extends Component
         $this->bookingTime = $time;
         $this->validate([
             'bookingDate' => ['required', 'date_format:Y-m-d'],
-            'bookingTime' => ['required', 'date_format:H:i', 'in:'.implode(',', array_map(fn (int $hour): string => sprintf('%02d:00', $hour), range(7, 22)))],
+            'bookingTime' => ['required', 'date_format:H:i', 'in:'.implode(',', PtBooking::hourlySlots())],
         ]);
         if (app(MemberPtSchedule::class)->dailyBookings(Auth::user(), $date)->exists()) {
             $this->addError('booking', 'Sudah ada booking pending atau approved pada tanggal ini. Maksimal 1 booking per hari.');

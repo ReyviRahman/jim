@@ -304,7 +304,50 @@ class AdminBookingAttendanceTest extends TestCase
             ->set('studioType', 'regular')->call('saveInsertBooking')
             ->assertHasErrors('insertDayTimes.selasa');
 
+        foreach (['00:00', '06:00', '12:30', '23:00'] as $invalidTime) {
+            $component->set('insertDayTimes', ['senin' => '07:00', 'selasa' => $invalidTime])
+                ->call('saveInsertBooking')
+                ->assertHasErrors(['insertDayTimes.selasa' => 'in']);
+        }
+
         $this->assertSame(0, PtBooking::whereBelongsTo($membership)->count());
+    }
+
+    public function test_keep_reports_a_later_coach_conflict_and_saves_the_series_only_after_correction(): void
+    {
+        Carbon::setTestNow('2026-08-24 08:00:00');
+        $membership = $this->createMembership(['remaining_sessions' => 2]);
+        $other = $this->createMembership(['pt_id' => $membership->pt_id]);
+        $this->createBookingForMembership($other, [
+            'booking_date' => '2026-08-31',
+            'booking_time' => '09:30:00',
+            'status' => 'pending',
+        ]);
+
+        $component = Livewire::actingAs($this->createUser(['role' => 'admin']))
+            ->test('pages::dashboard.admin.booking-jadwal.index')
+            ->call('openInsertModal', 'senin', 9)
+            ->set('insertMembershipId', $membership->id)
+            ->set('insertPtId', $membership->pt_id)
+            ->set('insertType', 'keep')
+            ->set('studioType', 'regular')
+            ->set('insertSelectedDays', ['senin'])
+            ->set('insertDayTimes', ['senin' => '09:00'])
+            ->call('saveInsertBooking')
+            ->assertHasErrors('insertDayTimes.senin')
+            ->assertSee('Jadwal Keep 31/08/2026 09:00 bentrok dengan sesi coach pukul 09:30');
+
+        $this->assertSame(0, $membership->ptBookings()->count());
+        $this->assertSame(1, $other->ptBookings()->count());
+
+        $this->createBookingForMembership($this->createMembership(), [
+            'booking_date' => '2026-08-31',
+            'booking_time' => '11:00:00',
+        ]);
+        $component->set('insertDayTimes', ['senin' => '11:00'])->call('saveInsertBooking')->assertHasNoErrors();
+        $this->assertSame(2, $membership->ptBookings()->count());
+        $this->assertSame(2, PtBooking::whereDate('booking_date', '2026-08-31')
+            ->where('booking_time', '11:00:00')->distinct()->count('pt_id'));
     }
 
     public function test_keep_booking_creates_the_weekly_pattern_up_to_remaining_sessions(): void
@@ -325,8 +368,8 @@ class AdminBookingAttendanceTest extends TestCase
             ->set('insertType', 'keep')
             ->set('insertSelectedDays', ['senin', 'selasa'])
             ->set('insertDayTimes', [
-                'senin' => '09:00',
-                'selasa' => '10:00',
+                'senin' => '07:00',
+                'selasa' => '22:00',
             ])
             ->set('studioType', 'regular')->call('saveInsertBooking')
             ->assertSee('5 booking Keep berhasil ditambahkan.');
@@ -337,11 +380,11 @@ class AdminBookingAttendanceTest extends TestCase
             ->get();
 
         $this->assertSame([
-            ['2026-08-24', '09:00'],
-            ['2026-08-25', '10:00'],
-            ['2026-08-31', '09:00'],
-            ['2026-09-01', '10:00'],
-            ['2026-09-07', '09:00'],
+            ['2026-08-24', '07:00'],
+            ['2026-08-25', '22:00'],
+            ['2026-08-31', '07:00'],
+            ['2026-09-01', '22:00'],
+            ['2026-09-07', '07:00'],
         ], $bookings->map(fn (PtBooking $booking): array => [
             $booking->booking_date->toDateString(),
             $booking->booking_time->format('H:i'),
@@ -915,12 +958,13 @@ class AdminBookingAttendanceTest extends TestCase
         $this->assertSame(0, substr_count($component->html(), $encodedSession));
     }
 
-    public function test_booking_cards_show_full_member_names_and_only_first_coach_name(): void
+    public function test_booking_cards_show_full_member_names_and_the_second_word_of_coach_names(): void
     {
         $admin = $this->createUser(['role' => 'admin']);
         $booking = $this->createBooking();
         $booking->member->update(['name' => 'Andi Pratama']);
-        $booking->pt->update(['name' => 'Citra Lestari']);
+        $booking->pt->update(['name' => 'Coach   Tiwi Lestari']);
+        $this->createBooking()->pt->update(['name' => 'Rina']);
 
         $additionalMember = $this->createUser(['name' => 'Budi Santoso']);
 
@@ -933,6 +977,7 @@ class AdminBookingAttendanceTest extends TestCase
             ->test('pages::dashboard.admin.booking-jadwal.index')
             ->html();
 
+        $this->assertMatchesRegularExpression('/data-booking-card-name="coach"[^>]*>\s*Rina\s*<\/div>/', $html);
         $this->assertMatchesRegularExpression(
             '/data-booking-card-name="member"[^>]*>\s*Andi Pratama\s*<\/div>/',
             $html,
@@ -942,7 +987,7 @@ class AdminBookingAttendanceTest extends TestCase
             $html,
         );
         $this->assertMatchesRegularExpression(
-            '/data-booking-card-name="coach"[^>]*>\s*Citra\s*<\/div>/',
+            '/data-booking-card-name="coach"[^>]*>\s*Tiwi\s*<\/div>/',
             $html,
         );
     }

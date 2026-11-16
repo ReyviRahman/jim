@@ -39,6 +39,12 @@ class PtBooking extends Model
         'is_paid' => 'boolean',
     ];
 
+    /** @return list<string> */
+    public static function hourlySlots(): array
+    {
+        return array_map(fn (int $hour): string => sprintf('%02d:00', $hour), range(7, 22));
+    }
+
     public function studioLabel(): string
     {
         return match ($this->studio_type) {

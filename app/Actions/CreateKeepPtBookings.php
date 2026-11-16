@@ -2,14 +2,19 @@
 
 namespace App\Actions;
 
+use App\MemberPtSchedule;
 use App\Models\Membership;
 use App\Models\PtBooking;
+use App\Models\User;
 use App\PtStudioBooking;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
+use Illuminate\Validation\ValidationException;
 
 class CreateKeepPtBookings
 {
+    public function __construct(private MemberPtSchedule $schedule) {}
+
     private const DAY_OFFSETS = [
         'senin' => 0,
         'selasa' => 1,
@@ -47,9 +52,11 @@ class CreateKeepPtBookings
                 ->mapWithKeys(fn (int $offset, string $day): array => [$day => $dayTimes[$day]])
                 ->all();
 
-            if ($orderedDayTimes === []) {
+            if ($orderedDayTimes === [] || array_diff($orderedDayTimes, PtBooking::hourlySlots()) !== []) {
                 return $this->result(stopReason: 'invalid_pattern');
             }
+
+            User::query()->lockForUpdate()->findOrFail($ptId, ['id']);
 
             $activeBookings = PtBooking::query()
                 ->whereBelongsTo($membership)
@@ -96,6 +103,15 @@ class CreateKeepPtBookings
 
                     if (isset($activeBookingKeys[$bookingKey])) {
                         continue;
+                    }
+
+                    $conflict = $this->schedule->overlappingBookings($ptId, $candidate)
+                        ->orderBy('booking_time')->lockForUpdate()->first(['booking_time']);
+
+                    if ($conflict) {
+                        throw ValidationException::withMessages([
+                            'insertDayTimes.'.$day => 'Jadwal Keep '.$candidate->format('d/m/Y H:i').' bentrok dengan sesi coach pukul '.$conflict->booking_time->format('H:i').'. Pilih jam lain.',
+                        ]);
                     }
 
                     app(PtStudioBooking::class)->validate($membership, $studioType, $candidate);
