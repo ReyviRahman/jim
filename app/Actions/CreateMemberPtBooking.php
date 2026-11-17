@@ -21,10 +21,10 @@ class CreateMemberPtBooking
 
         Validator::make(['bookingDate' => $date, 'bookingTime' => $time], [
             'bookingDate' => ['required', 'date_format:Y-m-d'],
-            'bookingTime' => ['required', Rule::in(PtBooking::hourlySlots())],
+            'bookingTime' => ['required', Rule::in(PtBooking::bookableTimes())],
         ], [
             'bookingDate.*' => 'Tanggal booking tidak valid.',
-            'bookingTime.*' => 'Pilih slot setiap jam mulai 07:00 sampai 22:00.',
+            'bookingTime.*' => 'Pilih jam booking yang tersedia.',
         ])->validate();
 
         return app(PtStudioBooking::class)->transaction($studioType, function () use ($member, $membershipId, $date, $time, $studioType): PtBooking {

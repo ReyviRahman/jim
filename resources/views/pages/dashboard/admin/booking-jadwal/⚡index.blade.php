@@ -340,7 +340,12 @@ new #[Layout('layouts::admin')] class extends Component
         for ($h = 7; $h <= 22; $h++) {
             $start = str_pad((string) $h, 2, '0', STR_PAD_LEFT).':00';
             $end = str_pad((string) ($h + 1), 2, '0', STR_PAD_LEFT).':00';
-            $slots[] = ['hour' => $h, 'label' => $start.' - '.$end];
+            $bookable = ! in_array($h, PtBooking::CLOSED_HOURS, true);
+            if (! $bookable && ! $this->bookings->contains(fn (PtBooking $booking): bool => (int) $booking->booking_time->format('H') === $h)) {
+                continue;
+            }
+
+            $slots[] = ['hour' => $h, 'label' => $start.' - '.$end, 'bookable' => $bookable];
         }
 
         return $slots;
@@ -652,8 +657,12 @@ new #[Layout('layouts::admin')] class extends Component
         $this->resetValidation();
     }
 
-    public function openInsertModal($dayKey, $hour)
+    public function openInsertModal(string $dayKey, int $hour): void
     {
+        if (! in_array(sprintf('%02d:00', $hour), PtBooking::bookableTimes(), true)) {
+            return;
+        }
+
         $dayOffset = array_search($dayKey, array_keys($this->daysOfWeek()));
         $date = $this->getWeekStart()->copy()->addDays($dayOffset);
 
@@ -816,12 +825,16 @@ new #[Layout('layouts::admin')] class extends Component
 
             foreach ((array) $this->insertSelectedDays as $day) {
                 if (is_string($day) && array_key_exists($day, $this->daysOfWeek())) {
-                    $rules['insertDayTimes.'.$day] = ['required', Rule::in(PtBooking::hourlySlots())];
+                    $rules['insertDayTimes.'.$day] = ['required', Rule::in(PtBooking::bookableTimes())];
                 }
             }
         } else {
             $rules['insertDate'] = ['required', 'date'];
-            $rules['insertTime'] = ['required', 'date_format:H:i,H:i:s'];
+            $rules['insertTime'] = ['bail', 'required', 'date_format:H:i,H:i:s', function ($attribute, string $value, \Closure $fail): void {
+                if (in_array((int) $value, PtBooking::CLOSED_HOURS, true)) {
+                    $fail('Jam ini ditutup untuk booking baru.');
+                }
+            }];
         }
 
         $validated = $this->validate($rules, [
@@ -845,7 +858,7 @@ new #[Layout('layouts::admin')] class extends Component
             'insertSelectedDays.*.distinct' => 'Hari booking Keep tidak boleh duplikat.',
             'insertDayTimes.required' => 'Waktu untuk hari terpilih wajib diisi.',
             'insertDayTimes.*.required' => 'Waktu untuk hari terpilih wajib diisi.',
-            'insertDayTimes.*.in' => 'Pilih slot setiap jam mulai 07:00 sampai 22:00.',
+            'insertDayTimes.*.in' => 'Pilih jam booking yang tersedia.',
         ]);
 
         if ($validated['insertType'] === 'keep' && $this->insertIsFree) {
@@ -1275,11 +1288,13 @@ new #[Layout('layouts::admin')] class extends Component
                                             </div>
                                         @endforeach
 
-                                        <div wire:click="openInsertModal('{{ $dayKey }}', {{ $slot['hour'] }})"
-                                            class="w-full min-w-0 max-w-full overflow-hidden cursor-pointer hover:bg-brand/10 rounded flex items-center justify-center transition-colors
-                                            @if($slotBookings->isEmpty()) min-h-[60px] bg-brand/5 @else py-1 border border-dashed border-brand/30 @endif">
-                                            <svg class="w-5 h-5 text-brand" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
-                                        </div>
+                                        @if($slot['bookable'])
+                                            <div wire:click="openInsertModal('{{ $dayKey }}', {{ $slot['hour'] }})"
+                                                class="w-full min-w-0 max-w-full overflow-hidden cursor-pointer hover:bg-brand/10 rounded flex items-center justify-center transition-colors
+                                                @if($slotBookings->isEmpty()) min-h-[60px] bg-brand/5 @else py-1 border border-dashed border-brand/30 @endif">
+                                                <svg class="w-5 h-5 text-brand" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+                                            </div>
+                                        @endif
                                     </div>
                                 </td>
                             @endforeach
@@ -1890,7 +1905,7 @@ new #[Layout('layouts::admin')] class extends Component
                                                     aria-label="Waktu {{ $dayLabel }}"
                                                     class="block w-full px-3 py-2 bg-neutral-primary-soft border border-default-medium rounded-md text-sm focus:ring-brand focus:border-brand">
                                                     <option value="">Pilih jam</option>
-                                                    @foreach (\App\Models\PtBooking::hourlySlots() as $time)
+                                                    @foreach (\App\Models\PtBooking::bookableTimes() as $time)
                                                         <option value="{{ $time }}">{{ $time }}</option>
                                                     @endforeach
                                                 </select>

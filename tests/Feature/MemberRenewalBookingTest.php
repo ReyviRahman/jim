@@ -107,7 +107,7 @@ class MemberRenewalBookingTest extends TestCase
 
     public static function invalidDates(): array
     {
-        return [['2026-10-19', '07:00', null], ['2026-10-27', '09:00', null], ['2026-10-20', '09:00', '2026-10-21']];
+        return [['2026-10-19', '08:00', null], ['2026-10-27', '09:00', null], ['2026-10-20', '09:00', '2026-10-21']];
     }
 
     #[DataProvider('invalidDates')]

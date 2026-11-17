@@ -219,6 +219,7 @@ new #[Layout('layouts::member')] class extends Component
                 ->get(['id', 'membership_id', 'pt_id', 'booking_date', 'booking_time', 'studio_type', 'status', 'cancellation_requested_at']);
         $schedule = app(MemberPtSchedule::class);
         $days = [];
+        $bookableTimes = PtBooking::bookableTimes();
 
         for ($day = 0; $day < 7; $day++) {
             $date = $start->copy()->addDays($day);
@@ -235,15 +236,21 @@ new #[Layout('layouts::member')] class extends Component
 
                     return $bookingStart->lt($slotEnd) && $bookingStart->copy()->addHour()->gt($slotStart);
                 });
+                $bookable = in_array($time, $bookableTimes, true);
+                if (! $bookable && ! $dailyBookings->contains(fn (PtBooking $booking): bool => $booking->booking_time->hour === $slotStart->hour)) {
+                    continue;
+                }
+
                 $own = $overlaps->filter(fn (PtBooking $booking): bool => in_array($booking->membership_id, $ownedIds, true));
                 $active = $overlaps->whereIn('status', ['pending', 'approved']);
                 $available = $this->availableMemberships($slotStart);
                 $allCoachesBusy = $available->isNotEmpty() && $available->whereNotIn('pt_id', $active->pluck('pt_id'))->isEmpty();
                 $slots[] = [
+                    'bookable' => $bookable,
                     'time' => $slotStart->format('H:i'),
                     'label' => $slotStart->format('H:i').' - '.$slotEnd->format('H:i'),
                     'occupied' => $allCoachesBusy || $own->whereIn('status', ['pending', 'approved'])->isNotEmpty(),
-                    'otherBooked' => $allCoachesBusy && $active->contains(fn (PtBooking $booking): bool => ! in_array($booking->membership_id, $ownedIds, true)),
+                    'otherBooked' => ($allCoachesBusy || ! $bookable) && $active->contains(fn (PtBooking $booking): bool => ! in_array($booking->membership_id, $ownedIds, true)),
                     'ownBookings' => $own->map(fn (PtBooking $booking): array => [
                         'id' => $booking->id,
                         'coach' => $booking->pt?->name,
@@ -294,7 +301,7 @@ new #[Layout('layouts::member')] class extends Component
         $this->bookingTime = $time;
         $this->validate([
             'bookingDate' => ['required', 'date_format:Y-m-d'],
-            'bookingTime' => ['required', 'date_format:H:i', 'in:'.implode(',', PtBooking::hourlySlots())],
+            'bookingTime' => ['required', 'date_format:H:i', 'in:'.implode(',', PtBooking::bookableTimes())],
         ]);
         if (app(MemberPtSchedule::class)->dailyBookings(Auth::user(), $date)->exists()) {
             $this->addError('booking', 'Sudah ada booking pending atau approved pada tanggal ini. Maksimal 1 booking per hari.');

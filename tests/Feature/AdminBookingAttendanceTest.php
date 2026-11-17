@@ -249,7 +249,7 @@ class AdminBookingAttendanceTest extends TestCase
             ->set('insertMembershipId', $legacyMembership->id)
             ->set('insertPtId', $legacyMembership->pt_id)
             ->set('insertDate', today()->toDateString())
-            ->set('insertTime', '12:00:00')
+            ->set('insertTime', '13:00:00')
             ->set('studioType', 'regular')->call('saveInsertBooking');
 
         $this->assertSame(
@@ -304,8 +304,8 @@ class AdminBookingAttendanceTest extends TestCase
             ->set('studioType', 'regular')->call('saveInsertBooking')
             ->assertHasErrors('insertDayTimes.selasa');
 
-        foreach (['00:00', '06:00', '12:30', '23:00'] as $invalidTime) {
-            $component->set('insertDayTimes', ['senin' => '07:00', 'selasa' => $invalidTime])
+        foreach (['00:00', '06:00', '07:00', '12:00', '12:30', '23:00'] as $invalidTime) {
+            $component->set('insertDayTimes', ['senin' => '08:00', 'selasa' => $invalidTime])
                 ->call('saveInsertBooking')
                 ->assertHasErrors(['insertDayTimes.selasa' => 'in']);
         }
@@ -368,7 +368,7 @@ class AdminBookingAttendanceTest extends TestCase
             ->set('insertType', 'keep')
             ->set('insertSelectedDays', ['senin', 'selasa'])
             ->set('insertDayTimes', [
-                'senin' => '07:00',
+                'senin' => '08:00',
                 'selasa' => '22:00',
             ])
             ->set('studioType', 'regular')->call('saveInsertBooking')
@@ -380,11 +380,11 @@ class AdminBookingAttendanceTest extends TestCase
             ->get();
 
         $this->assertSame([
-            ['2026-08-24', '07:00'],
+            ['2026-08-24', '08:00'],
             ['2026-08-25', '22:00'],
-            ['2026-08-31', '07:00'],
+            ['2026-08-31', '08:00'],
             ['2026-09-01', '22:00'],
-            ['2026-09-07', '07:00'],
+            ['2026-09-07', '08:00'],
         ], $bookings->map(fn (PtBooking $booking): array => [
             $booking->booking_date->toDateString(),
             $booking->booking_time->format('H:i'),
@@ -668,6 +668,25 @@ class AdminBookingAttendanceTest extends TestCase
 
         $this->assertSame('not_yet', $booking->fresh()->attendance);
         $this->assertSame(10, $booking->membership->fresh()->remaining_sessions);
+    }
+
+    public function test_closed_hours_only_show_visible_existing_bookings_and_cannot_be_booked(): void
+    {
+        Carbon::setTestNow('2026-08-26 09:00:00');
+        $morning = $this->createBooking(['booking_time' => '07:00:00']);
+        $noon = $this->createBooking(['booking_date' => today()->addDay(), 'booking_time' => '12:00:00']);
+        $page = Livewire::actingAs($this->createUser(['role' => 'admin']))
+            ->test('pages::dashboard.admin.booking-jadwal.index')
+            ->assertSee('07:00 - 08:00')->assertSee('12:00 - 13:00')
+            ->assertSeeHtml("openDetailModal({$morning->id})")->assertSeeHtml("openDetailModal({$noon->id})")
+            ->assertDontSeeHtml("openInsertModal('rabu', 7)")->assertDontSeeHtml("openInsertModal('kamis', 12)")
+            ->call('setDayView', 'today')->assertDontSee('12:00 - 13:00')->assertSee('07:00 - 08:00')
+            ->set('ptFilter', $noon->pt_id)->assertDontSee('07:00 - 08:00')
+            ->assertSee('08:00 - 09:00')->assertSee('13:00 - 14:00');
+        foreach ([7, 12] as $hour) {
+            $page->call('openInsertModal', 'rabu', $hour)->assertSet('showInsertModal', false)
+                ->set('insertTime', sprintf('%02d:00:00', $hour))->call('saveInsertBooking')->assertHasErrors('insertTime');
+        }
     }
 
     public function test_manual_date_filter_in_today_view_filters_exact_selected_date_cards(): void

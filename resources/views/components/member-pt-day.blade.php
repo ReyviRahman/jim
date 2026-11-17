@@ -26,7 +26,7 @@
                 @endforeach
                 @if($slot['otherBooked'])
                     <p class="text-xs leading-5 text-gray-400">Dibooking member lain</p>
-                @elseif(! $slot['occupied'])
+                @elseif($slot['bookable'] && ! $slot['occupied'])
                     @if($slot['reason'])
                         <p class="text-[11px] leading-5 text-gray-400">{{ $slot['reason'] }}</p>
                     @else

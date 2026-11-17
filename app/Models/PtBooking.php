@@ -39,6 +39,14 @@ class PtBooking extends Model
         'is_paid' => 'boolean',
     ];
 
+    public const CLOSED_HOURS = [7, 12];
+
+    /** @return list<string> */
+    public static function bookableTimes(): array
+    {
+        return array_values(array_filter(self::hourlySlots(), fn (string $time): bool => ! in_array((int) $time, self::CLOSED_HOURS, true)));
+    }
+
     /** @return list<string> */
     public static function hourlySlots(): array
     {
