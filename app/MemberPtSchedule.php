@@ -23,9 +23,7 @@ class MemberPtSchedule
     /** @return Builder<PtBooking> */
     public function reservations(Membership $membership): Builder
     {
-        return $membership->ptBookings()->getQuery()
-            ->where('status', 'pending')
-            ->where('attendance', 'not_yet')->where('is_free', false);
+        return $membership->ptBookings()->getQuery()->reservingSession();
     }
 
     public function unavailableReason(?Membership $membership, int $reservedSessions): ?string
@@ -38,7 +36,7 @@ class MemberPtSchedule
             $membership->pt_id === null || $membership->personalTrainer === null => 'Coach belum ditentukan untuk paket ini.',
             $membership->pt_package_id === null => 'Paket PT belum ditentukan untuk membership ini.',
             $membership->pt_end_date !== null && $membership->pt_end_date->lt(today()) && ! $renewed => 'Masa berlaku paket PT sudah berakhir.',
-            (int) $membership->remaining_sessions <= $reservedSessions => 'Sisa sesi sudah habis atau seluruhnya ditahan oleh booking pending.',
+            (int) $membership->remaining_sessions <= $reservedSessions => 'Sisa sesi sudah habis atau seluruhnya terpakai untuk booking pending atau approved.',
             default => null,
         };
     }

@@ -53,8 +53,7 @@ new #[Layout('layouts::member')] class extends Component
                     ->orWhere(fn (Builder $renewed): Builder => $renewed->withBookingRenewal());
             })
             ->with(['personalTrainer', 'ptPackage', 'renewalSuccessor'])
-            ->withCount(['ptBookings as reserved_sessions' => fn (Builder $query): Builder => $query
-                ->where('status', 'pending')->where('attendance', 'not_yet')->where('is_free', false)])
+            ->withCount(['ptBookings as reserved_sessions' => fn (Builder $query): Builder => $query->reservingSession()])
             ->orderByDesc('start_date')->orderByDesc('id')->get();
     }
 

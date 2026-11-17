@@ -443,7 +443,7 @@ class MemberPtScheduleTest extends TestCase
         $this->submit($membership, '08:00');
     }
 
-    public function test_approved_not_yet_bookings_do_not_reserve_quota_but_still_occupy_the_coach(): void
+    public function test_approved_bookings_exhaust_quota_and_block_new_bookings_on_other_days(): void
     {
         $membership = $this->membership(['remaining_sessions' => 1]);
         foreach (['10:00:00', '11:00:00', '12:00:00', '13:00:00'] as $time) {
@@ -451,12 +451,13 @@ class MemberPtScheduleTest extends TestCase
         }
 
         $page = $this->page($membership);
-        $this->assertNull($page->get('unavailableReason'));
-        $this->assertTrue($page->get('calendar')[1]['slots'][2]['occupied']);
+        $this->assertNotNull($page->get('unavailableReason'));
         $page->call('openBookingModal', '2026-09-23', '08:00')
-            ->assertSet('showBookingModal', true)->set('studioType', 'regular')->call('book')->assertHasNoErrors();
+            ->assertSet('showBookingModal', false)->assertHasErrors('booking');
+        $page->set('selectedMembershipId', $membership->id)->set('studioType', 'regular')
+            ->call('book')->assertHasErrors('booking');
 
-        $this->assertDatabaseCount('pt_bookings', 5);
+        $this->assertDatabaseCount('pt_bookings', 4);
         $this->assertSame(1, $membership->fresh()->remaining_sessions);
     }
 

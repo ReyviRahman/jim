@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -51,6 +52,12 @@ class PtBooking extends Model
     public static function hourlySlots(): array
     {
         return array_map(fn (int $hour): string => sprintf('%02d:00', $hour), range(7, 22));
+    }
+
+    public function scopeReservingSession(Builder $query): Builder
+    {
+        return $query->whereIn('status', ['pending', 'approved'])
+            ->where('attendance', 'not_yet')->where('is_free', false);
     }
 
     public function studioLabel(): string
