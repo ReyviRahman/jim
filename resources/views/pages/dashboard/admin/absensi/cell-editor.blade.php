@@ -109,7 +109,7 @@
                         @endif
                     </dd>
                     @foreach ($cellDetail['shiftPayments'] as $payment)
-                        <dt wire:key="repayment-date-{{ $loop->index }}" class="text-gray-500">Shift lebih awal {{ $payment['date'] }}</dt>
+                        <dt wire:key="repayment-date-{{ $loop->index }}" class="text-gray-500">Masuk lebih awal {{ $payment['date'] }}</dt>
                         <dd wire:key="repayment-duration-{{ $loop->index }}">{{ $payment['duration'] }}</dd>
                     @endforeach
                     <dt class="text-gray-500">Sisa telat</dt><dd>{{ $cellDetail['remainingLateDuration'] }}</dd>
