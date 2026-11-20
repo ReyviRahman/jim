@@ -269,7 +269,7 @@ class AdminBookingAttendanceTest extends TestCase
             ->set('insertPtId', $membership->pt_id)
             ->set('insertType', 'fleksibel')
             ->set('insertDate', '2026-09-10')
-            ->set('insertTime', '11:30:00')
+            ->set('insertTime', '07:00:00')
             ->set('insertIsFree', true)
             ->set('studioType', 'regular')->call('saveInsertBooking')
             ->assertSee('Booking berhasil ditambahkan.');
@@ -277,7 +277,7 @@ class AdminBookingAttendanceTest extends TestCase
         $booking = PtBooking::whereBelongsTo($membership)->sole();
 
         $this->assertSame('2026-09-10', $booking->booking_date->toDateString());
-        $this->assertSame('11:30', $booking->booking_time->format('H:i'));
+        $this->assertSame('07:00', $booking->booking_time->format('H:i'));
         $this->assertSame('fleksibel', $booking->type);
         $this->assertSame('pending', $booking->status);
         $this->assertTrue($booking->is_free);
@@ -304,7 +304,7 @@ class AdminBookingAttendanceTest extends TestCase
             ->set('studioType', 'regular')->call('saveInsertBooking')
             ->assertHasErrors('insertDayTimes.selasa');
 
-        foreach (['00:00', '06:00', '07:00', '12:00', '12:30', '23:00'] as $invalidTime) {
+        foreach (['00:00', '06:00', '12:00', '12:30', '23:00'] as $invalidTime) {
             $component->set('insertDayTimes', ['senin' => '08:00', 'selasa' => $invalidTime])
                 ->call('saveInsertBooking')
                 ->assertHasErrors(['insertDayTimes.selasa' => 'in']);
@@ -679,11 +679,11 @@ class AdminBookingAttendanceTest extends TestCase
             ->test('pages::dashboard.admin.booking-jadwal.index')
             ->assertSee('07:00 - 08:00')->assertSee('12:00 - 13:00')
             ->assertSeeHtml("openDetailModal({$morning->id})")->assertSeeHtml("openDetailModal({$noon->id})")
-            ->assertDontSeeHtml("openInsertModal('rabu', 7)")->assertDontSeeHtml("openInsertModal('kamis', 12)")
+            ->assertSeeHtml("openInsertModal('rabu', 7)")->assertDontSeeHtml("openInsertModal('kamis', 12)")
             ->call('setDayView', 'today')->assertDontSee('12:00 - 13:00')->assertSee('07:00 - 08:00')
-            ->set('ptFilter', $noon->pt_id)->assertDontSee('07:00 - 08:00')
+            ->set('ptFilter', $noon->pt_id)->assertSee('07:00 - 08:00')
             ->assertSee('08:00 - 09:00')->assertSee('13:00 - 14:00');
-        foreach ([7, 12] as $hour) {
+        foreach ([12] as $hour) {
             $page->call('openInsertModal', 'rabu', $hour)->assertSet('showInsertModal', false)
                 ->set('insertTime', sprintf('%02d:00:00', $hour))->call('saveInsertBooking')->assertHasErrors('insertTime');
         }

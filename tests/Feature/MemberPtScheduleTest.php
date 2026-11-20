@@ -27,14 +27,14 @@ class MemberPtScheduleTest extends TestCase
         $this->travelTo(now()->setDate(2026, 9, 21)->setTime(6, 0));
     }
 
-    public function test_calendar_has_fourteen_slots_each_day_and_navigates_weeks(): void
+    public function test_calendar_has_fifteen_slots_each_day_and_navigates_weeks(): void
     {
         $membership = $this->membership();
-        $page = $this->page($membership)->assertDontSee('07:00 - 08:00')->assertDontSee('12:00 - 13:00')->assertSee('08:00 - 09:00')->assertSee('22:00 - 23:00');
+        $page = $this->page($membership)->assertSee('07:00 - 08:00')->assertDontSee('12:00 - 13:00')->assertSee('08:00 - 09:00')->assertSee('22:00 - 23:00');
         $calendar = $page->get('calendar');
         $this->assertCount(7, $calendar);
         foreach ($calendar as $day) {
-            $this->assertCount(14, $day['slots']);
+            $this->assertCount(15, $day['slots']);
         }
         $page->call('nextWeek')->assertSet('weekStart', '2026-09-28')
             ->call('previousWeek')->assertSet('weekStart', '2026-09-21')
@@ -44,7 +44,7 @@ class MemberPtScheduleTest extends TestCase
     public function test_existing_closed_slots_show_booking_details_without_a_booking_button(): void
     {
         $membership = $this->membership();
-        foreach (['07:00', '12:00'] as $time) {
+        foreach (['12:00'] as $time) {
             $booking = $this->booking($membership, ['booking_time' => $time, 'status' => 'cancelled']);
             $page = $this->page($membership);
             $slot = collect($page->get('calendar')[1]['slots'])->firstWhere('time', $time);
@@ -62,7 +62,7 @@ class MemberPtScheduleTest extends TestCase
         $this->membership(['user_id' => $older->user_id, 'start_date' => '2026-09-21', 'is_active' => false]);
         $this->booking($this->membership(['pt_id' => $latest->pt_id]));
         $page = $this->page($older)->assertSet('selectedMembershipId', null);
-        $this->assertFalse($page->get('calendar')[1]['slots'][0]['occupied']);
+        $this->assertFalse($page->get('calendar')[1]['slots'][1]['occupied']);
         $page->call('openBookingModal', '2026-09-22', '08:00')
             ->assertSet('selectedMembershipId', $older->id)->assertSet('showBookingModal', true);
     }
@@ -268,7 +268,7 @@ class MemberPtScheduleTest extends TestCase
         $booking = $this->booking($other, ['notes' => 'Private session note']);
         $page = $this->page($membership)->assertSee('Dibooking member lain')->assertDontSee('Private Other Member')->assertDontSee('Private session note');
         $this->assertCount(0, $page->get('history'));
-        $this->assertSame([], $page->get('calendar')[1]['slots'][0]['ownBookings']);
+        $this->assertSame([], $page->get('calendar')[1]['slots'][1]['ownBookings']);
         $snapshot = json_encode($page->snapshot);
         $this->assertStringNotContainsString('Private Other Member', $snapshot);
         $this->assertStringNotContainsString('Private session note', $snapshot);
@@ -312,7 +312,7 @@ class MemberPtScheduleTest extends TestCase
     {
         $membership = $this->membership();
         $this->booking($this->membership(['pt_id' => $membership->pt_id]), ['status' => $status]);
-        $slot = $this->page($membership)->get('calendar')[1]['slots'][0];
+        $slot = $this->page($membership)->get('calendar')[1]['slots'][1];
         $this->assertSame([], $slot['ownBookings']);
         $this->assertFalse($slot['occupied']);
         $this->assertFalse($slot['otherBooked']);
@@ -325,7 +325,7 @@ class MemberPtScheduleTest extends TestCase
         $membership = $this->membership();
         $booking = $this->booking($membership, ['status' => $status]);
         $page = $this->page($membership);
-        $slot = $page->get('calendar')[1]['slots'][0];
+        $slot = $page->get('calendar')[1]['slots'][1];
 
         $this->assertSame([['id' => $booking->id, 'coach' => $membership->personalTrainer->name, 'studio' => '—', 'status' => ucfirst($status)]], $slot['ownBookings']);
         $this->assertFalse($slot['occupied']);
@@ -340,7 +340,7 @@ class MemberPtScheduleTest extends TestCase
         $booking = $this->booking($membership, ['status' => 'cancelled']);
         $this->booking($this->membership(['pt_id' => $membership->pt_id]));
         $page = $this->page($membership)->assertSee('Dibooking member lain');
-        $slot = $page->get('calendar')[1]['slots'][0];
+        $slot = $page->get('calendar')[1]['slots'][1];
 
         $this->assertSame([['id' => $booking->id, 'coach' => $membership->personalTrainer->name, 'studio' => '—', 'status' => 'Cancelled']], $slot['ownBookings']);
         $this->assertTrue($slot['occupied']);
@@ -365,9 +365,9 @@ class MemberPtScheduleTest extends TestCase
         $this->booking($this->membership(['pt_id' => $membership->pt_id]), ['booking_time' => '08:30:00']);
         $page = $this->page($membership);
         $slots = $page->get('calendar')[1]['slots'];
-        $this->assertTrue($slots[0]['occupied']);
         $this->assertTrue($slots[1]['occupied']);
-        $this->assertFalse($slots[2]['occupied']);
+        $this->assertTrue($slots[2]['occupied']);
+        $this->assertFalse($slots[3]['occupied']);
         foreach (['08:00', '09:00'] as $time) {
             try {
                 $this->submit($membership, $time);
@@ -411,7 +411,16 @@ class MemberPtScheduleTest extends TestCase
 
     public static function invalidTimes(): array
     {
-        return [['2026-09-22', '07:00'], ['2026-09-22', '12:00'], ['2026-09-22', '06:00'], ['2026-09-22', '23:00'], ['2026-09-22', '07:30'], ['2026-09-22', '07:00:01'], ['2026-02-30', '08:00'], ['invalid', '08:00'], ['2026-09-20', '08:00']];
+        return [['2026-09-22', '12:00'], ['2026-09-22', '06:00'], ['2026-09-22', '23:00'], ['2026-09-22', '07:30'], ['2026-09-22', '07:00:01'], ['2026-02-30', '08:00'], ['invalid', '08:00'], ['2026-09-20', '08:00']];
+    }
+
+    public function test_reopened_seven_oclock_slot_can_be_booked(): void
+    {
+        $membership = $this->membership();
+        $this->page($membership)->call('openBookingModal', '2026-09-22', '07:00')
+            ->assertSet('showBookingModal', true)->set('studioType', 'regular')
+            ->call('book')->assertHasNoErrors();
+        $this->assertDatabaseHas('pt_bookings', ['membership_id' => $membership->id, 'booking_time' => '07:00:00']);
     }
 
     public function test_last_slot_is_bookable(): void
@@ -508,7 +517,7 @@ class MemberPtScheduleTest extends TestCase
         $otherPackage = $this->membership(['user_id' => $membership->user_id]);
         $this->booking($otherPackage, ['status' => $status]);
         $page = $this->page($membership);
-        $this->assertNotNull($page->get('calendar')[1]['slots'][1]['reason']);
+        $this->assertNotNull($page->get('calendar')[1]['slots'][2]['reason']);
         $page->call('openBookingModal', '2026-09-22', '08:00')->assertHasErrors('booking');
         $this->assertModelExists($this->submit($membership, '08:00', '2026-09-23'));
         $this->expectException(ValidationException::class);
@@ -575,7 +584,7 @@ class MemberPtScheduleTest extends TestCase
         $this->assertNotNull($booking->cancelled_at);
         $this->assertNull($booking->cancellation_requested_at);
         $this->assertSame(1, $membership->fresh()->remaining_sessions);
-        $this->assertFalse($page->get('calendar')[1]['slots'][0]['occupied']);
+        $this->assertFalse($page->get('calendar')[1]['slots'][1]['occupied']);
         $this->assertModelExists($this->submit($membership));
     }
 
@@ -594,7 +603,7 @@ class MemberPtScheduleTest extends TestCase
         $this->assertSame('Jadwal kerja berubah', $booking->cancellation_reason);
         $this->assertSame($membership->user_id, $booking->cancelled_by);
         $this->assertSame(10, $membership->fresh()->remaining_sessions);
-        $this->assertFalse($page->get('calendar')[1]['slots'][0]['occupied']);
+        $this->assertFalse($page->get('calendar')[1]['slots'][1]['occupied']);
         $page->call('openDetailModal', $booking->id)->assertDontSee('Batalkan Booking');
         $this->assertModelExists($this->submit($membership));
     }

@@ -40,7 +40,7 @@ class PtBooking extends Model
         'is_paid' => 'boolean',
     ];
 
-    public const CLOSED_HOURS = [7, 12];
+    public const CLOSED_HOURS = [12];
 
     /** @return list<string> */
     public static function bookableTimes(): array
