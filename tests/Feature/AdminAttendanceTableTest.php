@@ -212,6 +212,8 @@ class AdminAttendanceTableTest extends TestCase
         $newestEmployee = $this->createUser('kasir_minum', 'Newest Attendance');
         $tieOlderEmployee = $this->createUser('pt', 'Tie Older Attendance');
         $tieNewerEmployee = $this->createUser('kasir_gym', 'Tie Newer Attendance');
+        $this->createUser('sales');
+        $this->createUser('cleaning_service');
 
         $newestAttendance = $this->createEmployeeAttendance($newestEmployee, [
             'attendance_date' => '2026-08-30',
@@ -241,7 +243,8 @@ class AdminAttendanceTableTest extends TestCase
 
         $component = Livewire::test('pages::dashboard.admin.absensi.index', ['employeesOnly' => true])->set('month', '2026-08');
         $data = $component->instance()->with();
-        $this->assertSame(12, $data['employeeCount']);
+        $this->assertSame(14, $data['employeeCount']);
+        $this->assertSame(['kasir_gym', 'sales', 'pt', 'cleaning_service', 'kasir_minum'], $data['employeeGroups']->keys()->all());
         $this->assertCount(31, $data['days']);
         $this->assertSame($newestAttendance->id, $data['cells'][$newestEmployee->id]['2026-08-30']->first()->id);
         $this->assertSame($tieOlderAttendance->id, $data['cells'][$tieOlderEmployee->id]['2026-08-29']->first()->id);

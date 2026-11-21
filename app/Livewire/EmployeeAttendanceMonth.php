@@ -89,10 +89,13 @@ trait EmployeeAttendanceMonth
             $user->id => app(EmployeeAttendanceRepayments::class)->calculate($user->employeeAttendances),
         ]);
 
+        $rolePriority = array_flip(['kasir_gym', 'sales', 'pt', 'cleaning_service']);
+
         return [
             'monthLabel' => $start->locale('id')->translatedFormat('F Y'),
             'days' => $days,
-            'employeeGroups' => $employees->groupBy('role'),
+            'employeeGroups' => $employees->groupBy('role')
+                ->sortBy(fn ($employees, string $role): int => $rolePriority[$role] ?? count($rolePriority)),
             'cells' => $cells,
             'totals' => $totals,
             'repayments' => $repayments,
